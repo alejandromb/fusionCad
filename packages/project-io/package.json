@@ -1,0 +1,19 @@
+{
+  "name": "@fusion-cad/project-io",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project persistence and bundle import/export",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@fusion-cad/core-model": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

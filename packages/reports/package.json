@@ -1,0 +1,20 @@
+{
+  "name": "@fusion-cad/reports",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Report generators - BOM, wire list, terminal plan, etc.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@fusion-cad/core-model": "*",
+    "@fusion-cad/core-engine": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
