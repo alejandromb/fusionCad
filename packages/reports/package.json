@@ -2,6 +2,7 @@
   "name": "@fusion-cad/reports",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Report generators - BOM, wire list, terminal plan, etc.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

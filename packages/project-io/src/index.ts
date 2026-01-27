@@ -6,4 +6,4 @@
 
 export const PROJECT_IO_VERSION = '0.1.0';
 
-// Placeholder - will implement in Phase 1
+export * from './golden-circuit.js';

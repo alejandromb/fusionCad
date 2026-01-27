@@ -2,6 +2,7 @@
   "name": "@fusion-cad/core-model",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Core data model types and schemas",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
