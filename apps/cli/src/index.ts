@@ -11,10 +11,28 @@
  */
 
 import { program } from 'commander';
-import { writeFileSync } from 'node:fs';
-import { createGoldenCircuitMotorStarter } from '@fusion-cad/project-io';
+import { writeFileSync, existsSync } from 'node:fs';
+import { createGoldenCircuitMotorStarter, type GoldenCircuit } from '@fusion-cad/project-io';
+import { loadCircuitFromJSON } from '@fusion-cad/project-io/dist/json-adapter.js';
 import { generateBom, bomToCSV, generateWireList, wireListToCSV } from '@fusion-cad/reports';
 import { validateCircuit } from '@fusion-cad/rules';
+
+/**
+ * Load circuit from file or use golden circuit
+ */
+function loadCircuit(projectPath?: string): GoldenCircuit {
+  if (projectPath) {
+    if (!existsSync(projectPath)) {
+      console.error(`[fcad] Error: Project file not found: ${projectPath}`);
+      process.exit(1);
+    }
+    console.log(`[fcad] Loading project: ${projectPath}`);
+    return loadCircuitFromJSON(projectPath);
+  } else {
+    console.log('[fcad] Using hardcoded golden circuit (no project file specified)');
+    return createGoldenCircuitMotorStarter();
+  }
+}
 
 const VERSION = '0.1.0';
 
@@ -28,10 +46,9 @@ program
   .argument('[project]', 'Project file to validate (defaults to golden circuit)')
   .description('Run validation rules on a project')
   .action((project: string | undefined) => {
+    const circuit = loadCircuit(project);
     console.log('[fcad] Running validation...');
 
-    // For Phase 1, we always use the golden circuit
-    const circuit = createGoldenCircuitMotorStarter();
     const report = validateCircuit(circuit.devices, circuit.nets, circuit.connections);
 
     console.log(`[fcad] ✓ Validation complete`);
@@ -61,10 +78,9 @@ program
   .option('-o, --output <file>', 'Output file', 'bom.csv')
   .description('Export Bill of Materials')
   .action((project: string | undefined, options: { output: string }) => {
+    const circuit = loadCircuit(project);
     console.log('[fcad] Generating BOM...');
 
-    // For Phase 1, we always use the golden circuit
-    const circuit = createGoldenCircuitMotorStarter();
     const bom = generateBom(circuit.parts, circuit.devices);
     const csv = bomToCSV(bom);
 
@@ -80,10 +96,9 @@ program
   .option('-o, --output <file>', 'Output file', 'wirelist.csv')
   .description('Export wire list')
   .action((project: string | undefined, options: { output: string }) => {
+    const circuit = loadCircuit(project);
     console.log('[fcad] Generating wire list...');
 
-    // For Phase 1, we always use the golden circuit
-    const circuit = createGoldenCircuitMotorStarter();
     const wireList = generateWireList(circuit.connections, circuit.nets);
     const csv = wireListToCSV(wireList);
 

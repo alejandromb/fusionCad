@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-26
-**Current Phase**: Phase 0 - Foundation
-**Phase Status**: Complete (100%)
+**Last Updated**: 2026-01-26 (end of day)
+**Current Phase**: Phase 2 - Minimal Editor
+**Phase Status**: 40% Complete (rendering done, need interactions)
 
 ---
 
@@ -11,20 +11,38 @@
 This file tracks where we are in development. **Always read this file at the start of a session** to understand current state.
 
 ### What Works Right Now
-- ✅ Monorepo structure with npm workspaces
+
+**Phase 0 & 1: Complete** ✅
+- ✅ Monorepo structure with npm workspaces + ESM modules
 - ✅ TypeScript configured across all packages
 - ✅ Core model types defined (Part, Device, SymbolDefinition, etc.)
-- ✅ CLI scaffold working (`vcad --help` shows commands)
-- ✅ Web app runs with canvas rendering "Hello World"
-- ✅ Build system works (`npm run build` compiles all packages)
+- ✅ **CLI renamed to "fcad"** (fusionCad - better branding!)
+- ✅ **Golden Circuit**: 3-wire motor starter (7 devices, 11 connections)
+- ✅ **JSON Persistence**: Save/load circuits from JSON files
+- ✅ **BOM Generator**: Exports CSV with parts grouped by manufacturer
+- ✅ **Wire List Generator**: Exports CSV with all connections
+- ✅ **3 Validation Rules**: Duplicate tags, unconnected devices, dead-end nets
+- ✅ **CLI Commands**: `fcad validate`, `fcad export:bom`, `fcad export:wires`
+
+**Phase 2: Canvas Rendering** 🟡 (in progress)
+- ✅ **Symbol rendering**: Devices drawn as rectangles with tags
+- ✅ **Wire rendering**: Orthogonal routing (90-degree angles)
+- ✅ **Pin visualization**: Red dots showing connection points
+- ✅ **Pin labels**: Yellow labels (A1, A2, +, -, etc.)
+- ✅ **Layout engine**: Manual positioning based on signal flow
+- ✅ **Wire-to-pin connections**: Wires connect to specific pins (not centers)
+- ⚪ Pan/zoom controls (not started)
+- ⚪ Symbol placement tool (not started)
+- ⚪ Wire drawing tool (not started)
 
 ### What We're Working On
-- Moving to Phase 1: Golden Circuit implementation
+- Phase 2: Adding interactivity (pan/zoom, then placement tools)
 
 ### Next Immediate Steps
-1. Define the hardcoded 3-wire motor starter circuit in code
-2. Implement BOM generator
-3. Implement wire list generator
+1. Add pan/zoom controls (mouse wheel zoom, drag to pan)
+2. Improve symbol shapes (draw actual schematic symbols)
+3. Add symbol placement tool (drag & drop from palette)
+4. Add wire drawing tool (click pin-to-pin)
 
 ---
 
@@ -95,6 +113,80 @@ This file tracks where we are in development. **Always read this file at the sta
 
 **Blockers/Questions**: None
 
+### Session 2 - 2026-01-26 (continued)
+**Duration**: ~2 hours
+**Completed**:
+- ✅ Created golden circuit: 3-wire motor starter (hardcoded)
+  - 7 devices: K1, S1, S2, F1, M1, X1, PS1
+  - 7 nets: 24V, 0V, control signals, L1/L2/L3
+  - 11 connections with proper pin mappings
+  - 5 terminals on X1 strip
+- ✅ Implemented BOM generator
+  - Groups devices by part
+  - Outputs CSV with quantities and device tags
+  - Tested successfully: 7 items, 7 unique parts
+- ✅ Implemented wire list generator
+  - Lists all connections from/to device:pin
+  - Auto-numbered wires (W001-W011)
+  - Shows net names and types
+- ✅ Implemented 3 validation rules
+  - Rule 1: Duplicate device tags
+  - Rule 2: Unconnected devices
+  - Rule 3: Dead-end nets (single connection)
+- ✅ Fixed ESM module issues (added `"type": "module"` to all packages)
+- ✅ **Renamed CLI from "vcad" to "fcad"** (better branding!)
+- ✅ All CLI commands working:
+  - `fcad --help`
+  - `fcad validate` (0 errors, 5 warnings - expected)
+  - `fcad export:bom` → CSV file
+  - `fcad export:wires` → CSV file
+
+**Still Need** (to complete Phase 1):
+- [ ] Save golden circuit to JSON file
+- [ ] JSON persistence adapter
+- [ ] CLI loads from JSON file
+
+**Next Session**:
+- Complete Phase 1: JSON persistence
+- Then move to Phase 2: Minimal Editor
+
+**Blockers/Questions**: None
+
+### Session 3 - 2026-01-26 (Phase 2 start)
+**Duration**: ~2 hours
+**Completed**:
+- ✅ **Phase 1 COMPLETE!** (100%)
+  - Fixed ESM module issues for browser compatibility
+  - JSON persistence working (save/load circuits)
+  - CLI loads from JSON files successfully
+  - All Definition of Done items checked
+- ✅ **Phase 2 Started: Canvas Rendering**
+  - Created renderer architecture (types, symbols, circuit-renderer)
+  - Implemented symbol library with pin definitions
+  - Built layout engine (manual positioning for motor starter)
+  - Rendered golden circuit visually:
+    - 7 devices as rectangles with tags
+    - 11 connections as blue wires
+    - Red pin dots on symbols
+    - Yellow pin labels (A1, A2, +, -, etc.)
+  - Implemented orthogonal wire routing (90-degree angles)
+  - Wires connect to actual pins (not device centers)
+  - Fixed web app to load golden circuit on mount
+  - Visual feedback loop working perfectly
+
+**Progress**:
+- Phase 1: ✅ 100% Complete
+- Phase 2: 🟡 40% Complete (rendering done, need interactions)
+
+**Next Session**:
+- Add pan/zoom controls for navigation
+- Improve symbol shapes (actual schematic symbols)
+- Start symbol placement tool
+
+**Blockers/Questions**:
+- Wire connections may need verification (user noted they might not all be correct)
+- Should verify circuit topology matches real motor starter
+
 ---
 
 ## 🗺️ Roadmap Overview
@@ -102,8 +194,8 @@ This file tracks where we are in development. **Always read this file at the sta
 | Phase | Name | Status | Target |
 |-------|------|--------|--------|
 | 0 | Foundation | 🟢 Complete | Week 1-2 |
-| 1 | Golden Circuit (CLI) | 🔴 Current | Week 3-4 |
-| 2 | Minimal Editor | ⚪ Not Started | Week 5-7 |
+| 1 | Golden Circuit (CLI) | 🟢 Complete | Week 3-4 |
+| 2 | Minimal Editor | 🟡 In Progress (40%) | Week 5-7 |
 | 3 | Engine Expansion | ⚪ Not Started | Week 8-10 |
 | 4 | Symbol Library & Parts DB | ⚪ Not Started | Week 11-13 |
 | 5 | AI Assistance | ⚪ Not Started | Week 14-15 |
@@ -120,10 +212,20 @@ This file tracks where we are in development. **Always read this file at the sta
 These are our end-to-end test cases. Each must always validate and export correctly.
 
 ### 1. Three-Wire Motor Starter (Phase 1)
-**Status**: Not Created
-**Location**: TBD (`test-data/golden-circuit-motor-starter.json`)
-**Components**: K1 (contactor), S1/S2 (buttons), F1 (overload), M1 (motor), X1 (terminals)
-**Tests**: Basic connectivity, BOM, wire list, 3 validation rules
+**Status**: ✅ Created (hardcoded in code)
+**Location**: `packages/project-io/src/golden-circuit.ts` (needs JSON export)
+**Components**:
+- K1 (contactor - Schneider LC1D09)
+- S1 (start button - Schneider XB4BA31)
+- S2 (stop/E-stop button - Schneider XB4BS142)
+- F1 (overload relay - Schneider LR2D1308)
+- M1 (3-phase motor, 1HP)
+- X1 (terminal strip - Phoenix PT-2.5)
+- PS1 (24VDC power supply - Mean Well HDR-15-24)
+**Tests**:
+- ✅ BOM: 7 items, properly grouped by manufacturer
+- ✅ Wire list: 11 connections with proper pin mappings
+- ✅ Validation: 0 errors, 5 warnings (expected - circuit simplified)
 
 ### Future Golden Circuits
 - PLC I/O circuit (Phase 3)
@@ -143,6 +245,8 @@ These are our end-to-end test cases. Each must always validate and export correc
 | Packaging | Monorepo (pnpm/Turborepo) | Clear boundaries, agent-friendly | 2026-01-26 |
 | Canvas | HTML Canvas 2D (start) | Simple, fast enough for MVP | 2026-01-26 |
 | Testing | Golden circuits + Jest | End-to-end + unit tests | 2026-01-26 |
+| CLI name | "fcad" (not "vcad") | Better branding, aligns with "fusionCad" | 2026-01-26 |
+| Module system | ESM (type: module) | Modern, better for Node + browser | 2026-01-26 |
 
 ---
 

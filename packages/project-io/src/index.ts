@@ -7,3 +7,6 @@
 export const PROJECT_IO_VERSION = '0.1.0';
 
 export * from './golden-circuit.js';
+
+// Note: json-adapter.js is Node-only (uses fs)
+// Import it directly in Node environments only

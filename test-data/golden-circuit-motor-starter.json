@@ -1,0 +1,387 @@
+{
+  "version": "0.1.0",
+  "project": {
+    "id": "01KFYNMERB27J7PM21SRG27PD0",
+    "type": "project",
+    "name": "Golden Circuit - Motor Starter",
+    "description": "3-wire motor starter with E-stop",
+    "schemaVersion": "0.1.0",
+    "createdAt": 1769482107659,
+    "modifiedAt": 1769482107659
+  },
+  "sheet": {
+    "id": "01KFYNMERBA901HGH98E7KRVFQ",
+    "type": "sheet",
+    "name": "Main Control",
+    "number": 1,
+    "size": "A4",
+    "createdAt": 1769482107659,
+    "modifiedAt": 1769482107659
+  },
+  "parts": [
+    {
+      "id": "01KFYNMERBDFHTM51VVZ56FFPC",
+      "type": "part",
+      "manufacturer": "Schneider Electric",
+      "partNumber": "LC1D09",
+      "description": "Contactor, 3-pole, 9A, 24VDC coil",
+      "category": "contactor",
+      "attributes": {
+        "poles": 3,
+        "current": "9A",
+        "coilVoltage": "24VDC"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERB8394RF0A535KYHRH",
+      "type": "part",
+      "manufacturer": "Schneider Electric",
+      "partNumber": "XB4BA31",
+      "description": "Push button, NO, green",
+      "category": "button",
+      "attributes": {
+        "type": "NO",
+        "color": "green"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERBB4Z7S0R6YRSWK123",
+      "type": "part",
+      "manufacturer": "Schneider Electric",
+      "partNumber": "XB4BS142",
+      "description": "E-stop button, NC, red",
+      "category": "button",
+      "attributes": {
+        "type": "NC",
+        "color": "red"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERB303BQR098C63VKGV",
+      "type": "part",
+      "manufacturer": "Schneider Electric",
+      "partNumber": "LR2D1308",
+      "description": "Thermal overload relay, 2.5-4A",
+      "category": "overload",
+      "attributes": {
+        "range": "2.5-4A"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERC49FRZZNM00RXNXR4",
+      "type": "part",
+      "manufacturer": "Generic",
+      "partNumber": "MOTOR-3PH-1HP",
+      "description": "3-phase motor, 1HP, 230/460V",
+      "category": "motor",
+      "attributes": {
+        "power": "1HP",
+        "voltage": "230/460V",
+        "phases": 3
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCXHJTKVZK76HX8D1G",
+      "type": "part",
+      "manufacturer": "Phoenix Contact",
+      "partNumber": "PT-2.5",
+      "description": "Terminal block, 2.5mm², screw",
+      "category": "terminal",
+      "attributes": {
+        "wireSize": "2.5mm²"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCMYF3YFN5RS6CFWR4",
+      "type": "part",
+      "manufacturer": "Mean Well",
+      "partNumber": "HDR-15-24",
+      "description": "DIN rail power supply, 24VDC, 0.63A",
+      "category": "power-supply",
+      "attributes": {
+        "voltage": "24VDC",
+        "current": "0.63A"
+      },
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    }
+  ],
+  "devices": [
+    {
+      "id": "01KFYNMERCJTQXA2K1TP4TVZ41",
+      "type": "device",
+      "tag": "K1",
+      "function": "Motor contactor",
+      "partId": "01KFYNMERBDFHTM51VVZ56FFPC",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCF5TVE4XNZKZY7MZN",
+      "type": "device",
+      "tag": "S1",
+      "function": "Start button",
+      "partId": "01KFYNMERB8394RF0A535KYHRH",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERC0G19RZXZ4QSHVR2P",
+      "type": "device",
+      "tag": "S2",
+      "function": "Stop button (E-stop)",
+      "partId": "01KFYNMERBB4Z7S0R6YRSWK123",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCTK2KK1RDFM01RMMS",
+      "type": "device",
+      "tag": "F1",
+      "function": "Motor overload relay",
+      "partId": "01KFYNMERB303BQR098C63VKGV",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCZJ7RWVHCVBSCSF5M",
+      "type": "device",
+      "tag": "M1",
+      "function": "Main motor",
+      "partId": "01KFYNMERC49FRZZNM00RXNXR4",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "type": "device",
+      "tag": "X1",
+      "function": "Control terminal strip",
+      "partId": "01KFYNMERCXHJTKVZK76HX8D1G",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCF4882YG2PSS6405X",
+      "type": "device",
+      "tag": "PS1",
+      "function": "24VDC power supply",
+      "partId": "01KFYNMERCMYF3YFN5RS6CFWR4",
+      "sheetId": "01KFYNMERBA901HGH98E7KRVFQ",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    }
+  ],
+  "nets": [
+    {
+      "id": "01KFYNMERCBXJ1BNHRN81ADJ9B",
+      "type": "net",
+      "name": "24V",
+      "netType": "power",
+      "potential": "24VDC",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCX4FSYK4XVM5RM6HF",
+      "type": "net",
+      "name": "0V",
+      "netType": "ground",
+      "potential": "0V",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCC95SNNABEWQ58AQ3",
+      "type": "net",
+      "name": "COIL_24V",
+      "netType": "signal",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCH7CQWJE9H0KT4V98",
+      "type": "net",
+      "name": "START_SEAL",
+      "netType": "signal",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCW65HKA4W9WQ5V2TA",
+      "type": "net",
+      "name": "L1",
+      "netType": "power",
+      "potential": "L1",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERC5WQ82VS35KB4PR54",
+      "type": "net",
+      "name": "L2",
+      "netType": "power",
+      "potential": "L2",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCGTCG4DMT4GTKT461",
+      "type": "net",
+      "name": "L3",
+      "netType": "power",
+      "potential": "L3",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    }
+  ],
+  "terminals": [
+    {
+      "id": "01KFYNMERCG0W8F4M0TD0J0WV2",
+      "type": "terminal",
+      "deviceId": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "index": 1,
+      "label": "24V IN",
+      "netId": "01KFYNMERCBXJ1BNHRN81ADJ9B",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCMPXKYAYB23FPNG2C",
+      "type": "terminal",
+      "deviceId": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "index": 2,
+      "label": "0V",
+      "netId": "01KFYNMERCX4FSYK4XVM5RM6HF",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCJ6M2GT3NVM0CEQ3K",
+      "type": "terminal",
+      "deviceId": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "index": 3,
+      "label": "L1 IN",
+      "netId": "01KFYNMERCW65HKA4W9WQ5V2TA",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERC98WGZ6RM44WXS73F",
+      "type": "terminal",
+      "deviceId": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "index": 4,
+      "label": "L2 IN",
+      "netId": "01KFYNMERC5WQ82VS35KB4PR54",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    },
+    {
+      "id": "01KFYNMERCKWHVMS5YS4CXYJM5",
+      "type": "terminal",
+      "deviceId": "01KFYNMERCCMK42QPPNVNRTNN2",
+      "index": 5,
+      "label": "L3 IN",
+      "netId": "01KFYNMERCGTCG4DMT4GTKT461",
+      "createdAt": 1769482107659,
+      "modifiedAt": 1769482107659
+    }
+  ],
+  "connections": [
+    {
+      "fromDevice": "PS1",
+      "fromPin": "+",
+      "toDevice": "X1",
+      "toPin": "1",
+      "netId": "01KFYNMERCBXJ1BNHRN81ADJ9B"
+    },
+    {
+      "fromDevice": "PS1",
+      "fromPin": "-",
+      "toDevice": "X1",
+      "toPin": "2",
+      "netId": "01KFYNMERCX4FSYK4XVM5RM6HF"
+    },
+    {
+      "fromDevice": "X1",
+      "fromPin": "1",
+      "toDevice": "S2",
+      "toPin": "1",
+      "netId": "01KFYNMERCBXJ1BNHRN81ADJ9B"
+    },
+    {
+      "fromDevice": "S2",
+      "fromPin": "2",
+      "toDevice": "S1",
+      "toPin": "1",
+      "netId": "01KFYNMERCC95SNNABEWQ58AQ3"
+    },
+    {
+      "fromDevice": "S1",
+      "fromPin": "2",
+      "toDevice": "K1",
+      "toPin": "13",
+      "netId": "01KFYNMERCH7CQWJE9H0KT4V98"
+    },
+    {
+      "fromDevice": "K1",
+      "fromPin": "14",
+      "toDevice": "K1",
+      "toPin": "A1",
+      "netId": "01KFYNMERCH7CQWJE9H0KT4V98"
+    },
+    {
+      "fromDevice": "K1",
+      "fromPin": "A2",
+      "toDevice": "F1",
+      "toPin": "96",
+      "netId": "01KFYNMERCX4FSYK4XVM5RM6HF"
+    },
+    {
+      "fromDevice": "F1",
+      "fromPin": "95",
+      "toDevice": "X1",
+      "toPin": "2",
+      "netId": "01KFYNMERCX4FSYK4XVM5RM6HF"
+    },
+    {
+      "fromDevice": "X1",
+      "fromPin": "3",
+      "toDevice": "K1",
+      "toPin": "1",
+      "netId": "01KFYNMERCW65HKA4W9WQ5V2TA"
+    },
+    {
+      "fromDevice": "X1",
+      "fromPin": "4",
+      "toDevice": "K1",
+      "toPin": "3",
+      "netId": "01KFYNMERC5WQ82VS35KB4PR54"
+    },
+    {
+      "fromDevice": "X1",
+      "fromPin": "5",
+      "toDevice": "K1",
+      "toPin": "5",
+      "netId": "01KFYNMERCGTCG4DMT4GTKT461"
+    }
+  ]
+}
