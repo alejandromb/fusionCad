@@ -104,8 +104,8 @@ export function drawSymbol(
 ): void {
   const geometry = getSymbolGeometry(category);
 
-  // Draw body
-  ctx.fillStyle = '#2a2a2a';
+  // Draw body (semi-transparent so wires show through)
+  ctx.fillStyle = 'rgba(42, 42, 42, 0.3)'; // 30% opacity
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
   ctx.fillRect(x, y, geometry.width, geometry.height);

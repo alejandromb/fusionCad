@@ -1,0 +1,15 @@
+Wire Number,From Device,From Pin,To Device,To Pin,Net Name,Net Type
+"W001","PS1","+","X1","1","24V","power"
+"W002","PS1","-","X1","2","0V","ground"
+"W003","X1","1","S2","1","24V","power"
+"W004","S2","2","S1","1","COIL_24V","signal"
+"W005","S1","2","K1","13","START_SEAL","signal"
+"W006","K1","14","K1","A1","START_SEAL","signal"
+"W007","K1","A2","F1","96","0V","ground"
+"W008","F1","95","X1","2","0V","ground"
+"W009","X1","3","K1","1","L1","power"
+"W010","X1","4","K1","3","L2","power"
+"W011","X1","5","K1","5","L3","power"
+
+Total Wires,11
+Generated,2026-01-27T03:30:25.841Z

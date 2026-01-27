@@ -43,14 +43,17 @@ function layoutDevices(devices: Device[], parts: Part[]): Map<string, Point> {
   const positions = new Map<string, Point>();
 
   // Manual positions for better schematic layout
+  // Left column: power distribution
+  // Center: control circuit (buttons + coil)
+  // Right: power circuit (main contacts)
   const layouts: Record<string, Point> = {
-    'PS1': { x: 50, y: 50 },      // Power supply top-left
-    'X1': { x: 150, y: 50 },      // Terminal strip top-center
-    'S2': { x: 300, y: 150 },     // Stop button (E-stop)
-    'S1': { x: 400, y: 150 },     // Start button
-    'K1': { x: 500, y: 200 },     // Contactor
-    'F1': { x: 500, y: 350 },     // Overload relay
-    'M1': { x: 500, y: 500 },     // Motor at bottom
+    'PS1': { x: 50, y: 80 },       // Power supply top-left
+    'X1': { x: 50, y: 280 },       // Terminal strip - moved down for wire clearance
+    'S2': { x: 250, y: 250 },      // Stop button (E-stop) center
+    'S1': { x: 400, y: 250 },      // Start button center-right
+    'K1': { x: 550, y: 250 },      // Contactor right side
+    'F1': { x: 550, y: 400 },      // Overload relay below contactor
+    'M1': { x: 550, y: 550 },      // Motor at bottom-right
   };
 
   for (const device of devices) {
@@ -94,7 +97,18 @@ export function renderCircuit(
   ctx.translate(viewport.offsetX, viewport.offsetY);
   ctx.scale(viewport.scale, viewport.scale);
 
-  // Render connections (wires) - connect actual pins
+  // FIRST: Render devices (symbols) - draw these first so wires appear on top
+  for (const device of devices) {
+    const position = positions.get(device.tag);
+    if (!position) continue;
+
+    const part = device.partId ? partMap.get(device.partId) : null;
+    const category = part?.category || 'unknown';
+
+    drawSymbol(ctx, category, position.x, position.y, device.tag);
+  }
+
+  // SECOND: Render connections (wires) ON TOP - connect actual pins
   ctx.strokeStyle = '#0088ff';
   ctx.lineWidth = 2;
 
@@ -136,17 +150,15 @@ export function renderCircuit(
     ctx.lineTo(toX, toY);
 
     ctx.stroke();
-  }
 
-  // Render devices (symbols)
-  for (const device of devices) {
-    const position = positions.get(device.tag);
-    if (!position) continue;
-
-    const part = device.partId ? partMap.get(device.partId) : null;
-    const category = part?.category || 'unknown';
-
-    drawSymbol(ctx, category, position.x, position.y, device.tag);
+    // Draw connection points (circles at wire endpoints)
+    ctx.fillStyle = '#00ffff'; // Cyan for connection points
+    ctx.beginPath();
+    ctx.arc(fromX, fromY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(toX, toY, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Draw info text
