@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-26 (end of day)
+**Last Updated**: 2026-01-27 (morning session)
 **Current Phase**: Phase 2 - Minimal Editor
-**Phase Status**: 40% Complete (rendering done, need interactions)
+**Phase Status**: 60% Complete (routing algorithm + pan/zoom done)
 
 ---
 
@@ -26,23 +26,27 @@ This file tracks where we are in development. **Always read this file at the sta
 
 **Phase 2: Canvas Rendering** 🟡 (in progress)
 - ✅ **Symbol rendering**: Devices drawn as rectangles with tags
-- ✅ **Wire rendering**: Orthogonal routing (90-degree angles)
+- ✅ **Wire rendering**: Advanced orthogonal routing with obstacle avoidance
 - ✅ **Pin visualization**: Red dots showing connection points
 - ✅ **Pin labels**: Yellow labels (A1, A2, +, -, etc.)
 - ✅ **Layout engine**: Manual positioning based on signal flow
 - ✅ **Wire-to-pin connections**: Wires connect to specific pins (not centers)
-- ⚪ Pan/zoom controls (not started)
+- ✅ **Visibility graph routing**: Wires route around device bounding boxes
+- ✅ **A* pathfinding**: Optimal path calculation through visibility graph
+- ✅ **Wire separation (nudging)**: Overlapping segments automatically offset
+- ✅ **Pan/zoom controls**: Mouse wheel zoom, click-drag pan
+- ✅ **Debug mode toggle**: Show/hide wire labels for clean screenshots
 - ⚪ Symbol placement tool (not started)
 - ⚪ Wire drawing tool (not started)
 
 ### What We're Working On
-- Phase 2: Adding interactivity (pan/zoom, then placement tools)
+- Phase 2: Wire routing foundation complete, ready for editor features
 
 ### Next Immediate Steps
-1. Add pan/zoom controls (mouse wheel zoom, drag to pan)
-2. Improve symbol shapes (draw actual schematic symbols)
-3. Add symbol placement tool (drag & drop from palette)
-4. Add wire drawing tool (click pin-to-pin)
+1. Improve symbol shapes (draw actual schematic symbols instead of rectangles)
+2. Add symbol placement tool (drag & drop from palette)
+3. Add wire drawing tool (click pin-to-pin)
+4. Fine-tune routing algorithm (simplify paths, adjust spacing)
 
 ---
 
@@ -194,6 +198,47 @@ This file tracks where we are in development. **Always read this file at the sta
 - X1 terminal strip connections visible in wire list CSV, but hard to see on canvas
 - Human-AI interpretation gap: code correctness ≠ visual usability
 - Next session: focus on wire routing separation OR move to pan/zoom first
+
+### Session 4 - 2026-01-27 (Wire Routing Algorithm)
+**Duration**: ~3 hours
+**Completed**:
+- ✅ **Implemented professional wire routing algorithm** (3-stage approach from academic paper)
+  - Stage 1: Orthogonal visibility graph builder (around obstacles)
+  - Stage 2: A* pathfinding through visibility graph (shortest paths)
+  - Stage 3: Nudging algorithm to separate overlapping segments
+- ✅ **Core routing module** (`packages/core-engine/src/routing/`)
+  - `visibility-graph.ts`: Builds orthogonal routing grid with obstacle avoidance
+  - `astar.ts`: A* pathfinding with Manhattan distance heuristic
+  - `orthogonal-router.ts`: Main router combining visibility graph + A*
+  - `nudging.ts`: Wire separation algorithm (detects overlaps, assigns offsets)
+- ✅ **Fixed critical bugs**:
+  - Pins on device edges weren't connecting to graph (fixed with zero-padding for start/end)
+  - Nudging created diagonal segments (fixed with orthogonal reconnection)
+  - All 11 wires now successfully route with proper separation
+- ✅ **Pan/zoom controls** added:
+  - Mouse wheel zoom (0.1x - 5x range)
+  - Click-drag panning
+  - Cursor changes (grab/grabbing)
+- ✅ **Debug mode toggle**: Labels now default to OFF for clean screenshots
+- ✅ **Wire separation working**: 9 overlap bundles detected and separated (up to 5 wires in one bundle)
+
+**Progress**:
+- Phase 2: 🟡 60% Complete (routing foundation solid, ready for editor tools)
+
+**Next Session**:
+- Improve symbol shapes (actual schematic symbols)
+- Fine-tune routing (spacing adjustments, path simplification)
+- Start symbol placement tool
+
+**Blockers/Questions**: None - routing foundation is solid!
+
+**Session End Notes**:
+- Major milestone: Professional routing algorithm working end-to-end
+- Wire separation at X1 terminal clearly visible (5 wires properly offset)
+- All routing is orthogonal (90-degree angles only)
+- Obstacle avoidance working correctly
+- Foundation is ready for interactive editing features
+- Research-backed approach (Wybrow, Marriott, Stuckey 2009 paper + libavoid C++ implementation)
 
 ---
 

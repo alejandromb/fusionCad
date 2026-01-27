@@ -7,6 +7,7 @@
 import type { Device, Net, Part } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport } from './types';
+import { routeWires, type Obstacle, type RouteRequest } from '@fusion-cad/core-engine';
 
 export interface Connection {
   fromDevice: string;
@@ -70,12 +71,45 @@ function layoutDevices(devices: Device[], parts: Part[]): Map<string, Point> {
 }
 
 /**
+ * Create obstacles from device positions
+ */
+function createObstacles(
+  devices: Device[],
+  positions: Map<string, Point>,
+  parts: Part[],
+  partMap: Map<string, Part>
+): Obstacle[] {
+  const obstacles: Obstacle[] = [];
+
+  for (const device of devices) {
+    const position = positions.get(device.tag);
+    if (!position) continue;
+
+    const part = device.partId ? partMap.get(device.partId) : null;
+    const geometry = getSymbolGeometry(part?.category || 'unknown');
+
+    obstacles.push({
+      id: device.tag,
+      bounds: {
+        x: position.x,
+        y: position.y,
+        width: geometry.width,
+        height: geometry.height,
+      },
+    });
+  }
+
+  return obstacles;
+}
+
+/**
  * Render the circuit on canvas
  */
 export function renderCircuit(
   ctx: CanvasRenderingContext2D,
   circuit: CircuitData,
-  viewport: Viewport
+  viewport: Viewport,
+  debugMode = false
 ): void {
   const { devices, nets, parts, connections } = circuit;
 
@@ -108,11 +142,22 @@ export function renderCircuit(
     drawSymbol(ctx, category, position.x, position.y, device.tag);
   }
 
-  // SECOND: Render connections (wires) ON TOP - connect actual pins
-  ctx.strokeStyle = '#0088ff';
-  ctx.lineWidth = 2;
+  // Create obstacles from devices for routing
+  const obstacles = createObstacles(devices, positions, parts, partMap);
 
-  for (const conn of connections) {
+  // Build all route requests first
+  const routeRequests: RouteRequest[] = [];
+  const connectionMetadata: Array<{
+    index: number;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    conn: Connection;
+  }> = [];
+
+  for (let i = 0; i < connections.length; i++) {
+    const conn = connections[i];
     const fromPos = positions.get(conn.fromDevice);
     const toPos = positions.get(conn.toDevice);
 
@@ -139,26 +184,134 @@ export function renderCircuit(
     const toX = toPos.x + (toPin?.position.x ?? toGeometry.width / 2);
     const toY = toPos.y + (toPin?.position.y ?? toGeometry.height / 2);
 
-    // Draw wire with orthogonal routing (90-degree angles)
-    ctx.beginPath();
-    ctx.moveTo(fromX, fromY);
+    routeRequests.push({
+      id: `wire_${i}`,
+      start: { x: fromX, y: fromY },
+      end: { x: toX, y: toY },
+      netId: conn.netId,
+    });
 
-    // Simple orthogonal routing: horizontal then vertical
-    const midX = (fromX + toX) / 2;
-    ctx.lineTo(midX, fromY);
-    ctx.lineTo(midX, toY);
-    ctx.lineTo(toX, toY);
+    connectionMetadata.push({
+      index: i,
+      fromX,
+      fromY,
+      toX,
+      toY,
+      conn,
+    });
+  }
 
-    ctx.stroke();
+  // Route all wires together with nudging
+  const routeResults = routeWires(routeRequests, obstacles, 5, 8); // 5px padding, 8px spacing
+
+  // SECOND: Render connections (wires) ON TOP - use visibility graph routing with nudging
+  ctx.strokeStyle = '#0088ff';
+  ctx.lineWidth = 2;
+
+  for (let i = 0; i < routeResults.length; i++) {
+    const routeResult = routeResults[i];
+    const metadata = connectionMetadata[i];
+
+    if (routeResult.success && routeResult.path.segments.length > 0) {
+      // Draw routed path segments
+      ctx.beginPath();
+      ctx.moveTo(routeResult.path.waypoints[0].x, routeResult.path.waypoints[0].y);
+
+      for (const waypoint of routeResult.path.waypoints.slice(1)) {
+        ctx.lineTo(waypoint.x, waypoint.y);
+      }
+
+      ctx.stroke();
+    } else {
+      // Fallback: direct line if routing fails
+      ctx.beginPath();
+      ctx.moveTo(metadata.fromX, metadata.fromY);
+      ctx.lineTo(metadata.toX, metadata.toY);
+      ctx.stroke();
+    }
 
     // Draw connection points (circles at wire endpoints)
     ctx.fillStyle = '#00ffff'; // Cyan for connection points
     ctx.beginPath();
-    ctx.arc(fromX, fromY, 4, 0, Math.PI * 2);
+    ctx.arc(metadata.fromX, metadata.fromY, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(toX, toY, 4, 0, Math.PI * 2);
+    ctx.arc(metadata.toX, metadata.toY, 4, 0, Math.PI * 2);
     ctx.fill();
+
+    // Debug mode: Draw wire labels and endpoint info
+    if (debugMode) {
+      const wireNumber = `W${String(metadata.index + 1).padStart(3, '0')}`;
+      const net = nets.find(n => n.id === metadata.conn.netId);
+      const netName = net?.name || 'unknown';
+
+      // Wire label at midpoint (wire number + net name)
+      ctx.save();
+      ctx.fillStyle = '#ffff00'; // Yellow
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Calculate midpoint from routed path (or fallback to direct midpoint)
+      let labelX = (metadata.fromX + metadata.toX) / 2;
+      let labelY = (metadata.fromY + metadata.toY) / 2;
+      if (routeResult.success && routeResult.path.waypoints.length > 0) {
+        const midIndex = Math.floor(routeResult.path.waypoints.length / 2);
+        labelX = routeResult.path.waypoints[midIndex].x;
+        labelY = routeResult.path.waypoints[midIndex].y;
+      }
+
+      // Draw label with background for readability
+      const labelText = `${wireNumber} (${netName})`;
+      const metrics = ctx.measureText(labelText);
+      const padding = 4;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(
+        labelX - metrics.width / 2 - padding,
+        labelY - 8,
+        metrics.width + padding * 2,
+        16
+      );
+
+      ctx.fillStyle = '#ffff00';
+      ctx.fillText(labelText, labelX, labelY);
+
+      // Endpoint labels (device:pin)
+      ctx.font = '10px monospace';
+
+      // From endpoint
+      const fromLabel = `${metadata.conn.fromDevice}:${metadata.conn.fromPin}`;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      const fromMetrics = ctx.measureText(fromLabel);
+      ctx.fillRect(
+        metadata.fromX - fromMetrics.width / 2 - 2,
+        metadata.fromY - 18,
+        fromMetrics.width + 4,
+        12
+      );
+      ctx.fillStyle = '#00ffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(fromLabel, metadata.fromX, metadata.fromY - 6);
+
+      // To endpoint
+      const toLabel = `${metadata.conn.toDevice}:${metadata.conn.toPin}`;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      const toMetrics = ctx.measureText(toLabel);
+      ctx.fillRect(
+        metadata.toX - toMetrics.width / 2 - 2,
+        metadata.toY + 6,
+        toMetrics.width + 4,
+        12
+      );
+      ctx.fillStyle = '#00ffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(toLabel, metadata.toX, metadata.toY + 6);
+
+      ctx.restore();
+    }
   }
 
   // Draw info text
