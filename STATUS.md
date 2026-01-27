@@ -184,8 +184,16 @@ This file tracks where we are in development. **Always read this file at the sta
 - Start symbol placement tool
 
 **Blockers/Questions**:
-- Wire connections may need verification (user noted they might not all be correct)
-- Should verify circuit topology matches real motor starter
+- Wire routing needs improvement: multiple wires overlap at X1 terminal strip, creating visual ambiguity
+- Need smarter routing algorithm to separate overlapping wire segments
+- Simple staggering attempt caused chaos - needs different approach
+
+**Session End Notes**:
+- Canvas rendering fundamentally works (pin-to-pin connections correct)
+- Visual clarity is the remaining challenge, not electrical correctness
+- X1 terminal strip connections visible in wire list CSV, but hard to see on canvas
+- Human-AI interpretation gap: code correctness ≠ visual usability
+- Next session: focus on wire routing separation OR move to pan/zoom first
 
 ---
 
