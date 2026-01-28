@@ -55,6 +55,14 @@ export type PinType =
   | 'pe'; // protective earth
 
 /**
+ * Symbol geometry data - bounding box dimensions
+ */
+export interface SymbolGeometryData {
+  width: number;
+  height: number;
+}
+
+/**
  * SymbolDefinition - Reusable symbol geometry + logical pins
  */
 export interface SymbolDefinition extends Entity {
@@ -62,8 +70,13 @@ export interface SymbolDefinition extends Entity {
   name: string;
   category: string;
   pins: SymbolPin[];
-  geometry: unknown; // placeholder - will define rendering data later
+  geometry: SymbolGeometryData;
 }
+
+/**
+ * Pin direction - which side of the symbol the pin faces
+ */
+export type PinDirection = 'left' | 'right' | 'top' | 'bottom';
 
 /**
  * Pin definition within a symbol
@@ -73,6 +86,7 @@ export interface SymbolPin {
   name: string; // e.g., 'A1', 'A2', 'NO', 'NC'
   pinType: PinType;
   position: { x: number; y: number }; // relative to symbol origin
+  direction: PinDirection; // which side of the symbol this pin faces
 }
 
 /**

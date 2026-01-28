@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-27 (afternoon session)
+**Last Updated**: 2026-01-28 (morning session)
 **Current Phase**: Phase 2 - Minimal Editor
-**Phase Status**: 60% Complete (routing algorithm + pan/zoom done)
+**Phase Status**: 85% Complete (canvas interaction tools implemented)
 
 ---
 
@@ -37,17 +37,26 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Color-coded wires**: 11 unique colors for wire identification (with legend in sidebar)
 - ✅ **Pan/zoom controls**: Mouse wheel zoom, click-drag pan
 - ✅ **Debug mode toggle**: Show/hide wire labels for clean screenshots
-- ⚪ Symbol placement tool (not started)
-- ⚪ Wire drawing tool (not started)
+- ✅ **Symbol placement tool**: Drag & drop symbols from palette with ghost preview
+- ✅ **Wire drawing tool**: Click pin-to-pin to create connections
+- ✅ **Symbol selection**: Click to select, dashed highlight, Delete to remove
+- ✅ **Drag to reposition**: Move symbols by dragging
+- ✅ **Snap to grid**: 20px grid for placement and dragging
+- ⚪ Wire nodes (bend points) - not yet, but pin-to-pin working
 
 ### What We're Working On
-- Phase 2: Wire routing foundation complete, ready for editor features
+- Phase 2: Canvas interaction tools complete, finalizing editor features
 
 ### Next Immediate Steps
-1. Improve symbol shapes (draw actual schematic symbols instead of rectangles)
-2. Add symbol placement tool (drag & drop from palette)
-3. Add wire drawing tool (click pin-to-pin)
-4. Fine-tune routing algorithm (simplify paths, adjust spacing)
+1. **Persistence** - circuits lost on refresh! Decision needed:
+   - Option A: IndexedDB (local-only, no account needed)
+   - Option B: Cloud storage (requires backend, but enables sync)
+   - Option C: Hybrid (local first, optional cloud sync)
+   - Note: Cloud likely needed anyway for symbol library migration
+   - Business consideration: 1 free project for free users?
+2. Add wire nodes/bend points (allow intermediate points in wires)
+3. Improve symbol shapes (draw actual IEC 60617 schematic symbols)
+4. Multi-select and undo/redo
 
 ---
 
@@ -323,6 +332,53 @@ This file tracks where we are in development. **Always read this file at the sta
 - CLAUDE.md created for better session continuity
 - Symbol work 50% done - motor OK, others need refinement
 
+### Session 5 - 2026-01-28 (Canvas Interaction Tools)
+**Duration**: ~1 hour
+**Completed**:
+- ✅ **Implemented full canvas interaction system**:
+  - Interaction modes: select, place, wire
+  - Hit detection for pins (8px radius) and symbols (bounding box)
+  - Selection state with visual highlight (dashed cyan border)
+  - Wire tool with visual feedback (orange highlight on start pin)
+  - Ghost preview for symbol placement (50% opacity)
+  - Snap to 20px grid for placement and dragging
+- ✅ **Wire tool working**: Click first pin, click second pin = connection created
+  - Creates new net and connection automatically
+  - Visual feedback shows wire-in-progress state
+  - ESC cancels wire in progress
+- ✅ **Drag to reposition**: Click and drag any symbol to move it
+  - Tracks offset from click point (no jumping)
+  - Wires automatically re-route when symbols move
+- ✅ **Delete symbols**: Select + Delete/Backspace removes device and its wires
+- ✅ **Toolbar UI**: Select/Wire mode buttons + symbol palette in sidebar
+- ✅ **Created `/session-end` skill** for end-of-session updates
+
+**Progress**:
+- Phase 2: 🟡 85% Complete (interaction tools done, symbols need polish)
+
+**Next Session**:
+- **PRIORITY: Persistence** - circuits disappear on refresh, need to save work
+  - Decision needed: IndexedDB (local) vs cloud storage vs hybrid
+  - Cloud consideration: Allow 1 free project for free users?
+  - Cloud will be needed eventually for symbol library (can't live in core forever)
+- Add wire nodes/bend points (intermediate points in wires)
+- Improve symbol shapes to match IEC 60617
+
+**Files Modified**:
+- `apps/web/src/App.tsx` - Major refactor: interaction modes, hit detection, state management
+- `apps/web/src/App.css` - Toolbar and status message styles
+- `apps/web/src/renderer/circuit-renderer.ts` - Selection highlight, wire preview, ghost symbol
+- `~/.claude/skills/session-end/skill.md` - New skill created
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Wire tool working pin-to-pin (no intermediate nodes yet)
+- User confirmed wire tool is working well
+- Major milestone: fusionCad now has functional interactive editing!
+- Routing algorithm automatically handles wire paths when symbols move
+- Symbol shapes still "funky" - IEC 60617 cleanup still pending from last session
+
 ---
 
 ## 🗺️ Roadmap Overview
@@ -398,6 +454,11 @@ These are our end-to-end test cases. Each must always validate and export correc
 
 ## 🚨 Known Issues / Blockers
 
+**No persistence (HIGH PRIORITY):**
+- Circuits disappear on page refresh - all work lost
+- Need to implement save/load before users can actually use the app
+- Decision pending: storage strategy (see Ideas section below)
+
 **Routing aesthetics (low priority):**
 - Some wires have unnecessary-looking jogs where they turn, continue briefly, then turn back (e.g., W001 has down→left→down pattern)
 - Root cause: Optimal direct waypoints sometimes fall inside obstacle bounds, forcing detours through available grid points
@@ -427,10 +488,36 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Auto-generate panel cutout drawings
 - User priority: HIGH - essential for real electrical work
 
+### Storage Strategy Decision (PENDING - Next Session)
+
+**The problem:** Currently "local-first" but nothing persists. Page refresh = lost work.
+
+**Options to evaluate:**
+1. **IndexedDB only** (pure local-first)
+   - Pro: No backend needed, works offline, privacy
+   - Con: No sync across devices, no backup, symbol library stays in core
+
+2. **Cloud storage** (Supabase, Firebase, or custom)
+   - Pro: Sync across devices, backup, can migrate symbol library to cloud
+   - Con: Requires backend, account system, costs
+
+3. **Hybrid** (local-first with optional cloud)
+   - Pro: Best of both worlds, graceful degradation
+   - Con: More complex to implement
+
+**Business consideration:**
+- Free tier: 1 project (cloud) or unlimited (local-only)?
+- Symbol library needs to move to cloud eventually (too big for core bundle)
+- Other cloud candidates: user-created symbols, shared templates
+
+**User's initial stance:** Local-first, no cloud. But reconsidering given:
+- Symbol library can't live in core forever
+- 1 free project for free users seems reasonable
+
 ### Post-MVP Considerations
 
 - Desktop app (Tauri) - deferred to post-MVP
-- Cloud sync - deferred to post-MVP
+- ~~Cloud sync - deferred to post-MVP~~ → May need sooner for symbol library
 - DWG support - deferred to post-MVP (use converter)
 
 ---

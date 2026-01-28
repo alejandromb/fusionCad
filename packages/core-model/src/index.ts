@@ -6,3 +6,5 @@
 
 export * from './types.js';
 export * from './id.js';
+export * from './symbol-library.js';
+export { registerBuiltinSymbols } from './symbols/iec-symbols.js';

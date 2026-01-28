@@ -13,44 +13,51 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-01-27 afternoon)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-01-28 morning)
 
-**Current task:** Improving electrical symbols to match IEC 60617 standards
+**Current task:** Canvas interaction tools - COMPLETE!
 
 **Status:**
-- ✅ Motor symbol looks good
-- ❌ Contactor, button, overload, terminal, power supply symbols are "funky and not right"
-- 🔄 Need to redraw them based on proper IEC standards
+- ✅ Wire tool working (pin-to-pin connections)
+- ✅ Drag to reposition symbols
+- ✅ Delete symbols with Delete/Backspace
+- ✅ Selection highlight (dashed cyan border)
+- ✅ Ghost preview while placing
+- ✅ Snap to 20px grid
+- ✅ Toolbar with Select/Wire modes
+- ❌ Symbol shapes still need IEC 60617 polish (carried over)
 
 **Next steps:**
-1. Research proper IEC 60617 symbol drawings for:
-   - Contactor coil (rectangle with diagonal or circle)
-   - Pushbutton (contact with actuator)
-   - Overload relay (thermal element)
-   - Terminal strip (simple connection points)
-   - Power supply (rectangle with +/- indicators)
-2. Update `apps/web/src/renderer/symbols.ts` with correct drawings
-3. Test in browser
+1. **PERSISTENCE (CRITICAL)** - circuits disappear on page refresh!
+   - Need to decide: IndexedDB (local) vs cloud vs hybrid
+   - Cloud will be needed eventually for symbol library
+   - Business model: 1 free project for free users?
+2. Add wire nodes/bend points (allow intermediate points in wires)
+3. Improve symbol shapes to match IEC 60617 standards
+4. Multi-select and undo/redo
 
-**Files being modified:**
-- `apps/web/src/renderer/symbols.ts` - Symbol drawing functions
+**Files modified this session:**
+- `apps/web/src/App.tsx` - Interaction modes, hit detection, state management
+- `apps/web/src/App.css` - Toolbar and status message styles
+- `apps/web/src/renderer/circuit-renderer.ts` - Selection highlight, wire preview, ghost symbol
 
-**Resources found:**
+**Resources for symbol improvement (from last session):**
 - IEC 60617 official database: https://library.iec.ch/iec60617
-- GitHub SVG library: https://github.com/chille/electricalsymbols (33 symbols, CC BY-SA 3.0)
+- GitHub SVG library: https://github.com/chille/electricalsymbols
 - Siemens symbol library: https://symbols.radicasoftware.com/225/iec-symbols
 
 ---
 
 ## 🎯 PROJECT CONTEXT
 
-**Phase:** Phase 2 - Canvas Rendering (60% complete)
+**Phase:** Phase 2 - Canvas Rendering (85% complete)
 
 **Recent achievements:**
-- Professional wire routing algorithm working (visibility graph + A* + nudging)
+- Canvas interaction tools fully working (wire, select, drag, delete)
+- Professional wire routing algorithm (visibility graph + A* + nudging)
 - All 11 wires routing correctly with color coding
 - Pan/zoom controls working
-- 4 custom skills created for better workflow
+- 5 custom skills created (including new `/session-end`)
 
 **High priority features documented:**
 - ⭐ Automatic terminal block calculation (Phase 3-4)
@@ -73,9 +80,21 @@ Before doing ANYTHING else:
 Use these to improve workflow:
 
 - `/session-start` - Load context from STATUS.md at session start
-- `/update-status` - Update STATUS.md at session end
+- `/session-end` - Update STATUS.md and CLAUDE.md at session end
+- `/update-status` - Update STATUS.md only (legacy, use session-end instead)
 - `/cleanup-console` - Remove debug console.log statements
 - `/check-architecture` - Validate changes against architecture principles
+
+---
+
+## 🌐 BROWSER TESTING (Optional)
+
+Chrome integration is available for testing the web UI:
+
+- Start session with `claude --chrome` to enable browser integration
+- Or run `/chrome` within an existing session to connect
+- Useful for: testing canvas rendering, debugging console errors, recording demo GIFs
+- Run `/chrome` to check connection status and manage settings
 
 ---
 

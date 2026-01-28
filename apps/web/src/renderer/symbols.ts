@@ -1,101 +1,230 @@
 /**
- * Hardcoded symbol library
+ * Symbol rendering system
  *
- * Phase 2.1: Simple rectangular symbols with pins
+ * Draw functions are registered per category. Symbol metadata (dimensions, pins)
+ * comes from the core-model symbol library. Adding a new symbol requires:
+ *   1. A SymbolDefinition in core-model (iec-symbols.ts or user-defined)
+ *   2. Optionally, a draw function registered here (falls back to generic rectangle)
+ *
+ * TODO: Polish symbols to match IEC 60617 standards (Phase 4 - Symbol Library)
+ * - Contactor: proper coil rectangle with diagonal line
+ * - Pushbutton: contact lines with actuator symbol (NO vs NC distinction)
+ * - Overload: thermal element per IEC standard
+ * - Terminal: cleaner connection point representation
+ * - Power supply: standardized DC supply symbol
+ * Reference: https://library.iec.ch/iec60617
  */
 
+import type { SymbolDefinition } from '@fusion-cad/core-model';
+import { getSymbolDefinition } from '@fusion-cad/core-model';
 import type { SymbolGeometry } from './types';
 
+// ---------------------------------------------------------------------------
+// Draw function registry
+// ---------------------------------------------------------------------------
+
+type SymbolDrawFn = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition,
+  tag: string
+) => void;
+
+const drawFunctions: Map<string, SymbolDrawFn> = new Map();
+
 /**
- * Get symbol geometry by category
+ * Register a custom draw function for a symbol category.
+ */
+export function registerDrawFunction(
+  category: string,
+  fn: SymbolDrawFn
+): void {
+  drawFunctions.set(category, fn);
+}
+
+// ---------------------------------------------------------------------------
+// Backward-compat shim: getSymbolGeometry
+// ---------------------------------------------------------------------------
+
+/**
+ * Get symbol geometry by category.
+ * Reads from the core-model symbol library and maps to the renderer SymbolGeometry type.
  */
 export function getSymbolGeometry(category: string): SymbolGeometry {
-  switch (category) {
-    case 'contactor':
-      return {
-        width: 60,
-        height: 80,
-        pins: [
-          { id: 'A1', position: { x: 0, y: 20 }, direction: 'left' },
-          { id: 'A2', position: { x: 0, y: 60 }, direction: 'left' },
-          { id: '1', position: { x: 60, y: 10 }, direction: 'right' },
-          { id: '2', position: { x: 60, y: 30 }, direction: 'right' },
-          { id: '3', position: { x: 60, y: 40 }, direction: 'right' },
-          { id: '4', position: { x: 60, y: 50 }, direction: 'right' },
-          { id: '5', position: { x: 60, y: 60 }, direction: 'right' },
-          { id: '6', position: { x: 60, y: 70 }, direction: 'right' },
-          { id: '13', position: { x: 30, y: 0 }, direction: 'top' },
-          { id: '14', position: { x: 30, y: 80 }, direction: 'bottom' },
-        ],
-      };
+  const def = getSymbolDefinition(category);
+  if (!def) {
+    return { width: 40, height: 40, pins: [] };
+  }
+  return {
+    width: def.geometry.width,
+    height: def.geometry.height,
+    pins: def.pins.map((p) => ({
+      id: p.id,
+      position: p.position,
+      direction: p.direction,
+    })),
+  };
+}
 
-    case 'button':
-      return {
-        width: 40,
-        height: 40,
-        pins: [
-          { id: '1', position: { x: 0, y: 20 }, direction: 'left' },
-          { id: '2', position: { x: 40, y: 20 }, direction: 'right' },
-        ],
-      };
+// ---------------------------------------------------------------------------
+// Generic fallback renderer
+// ---------------------------------------------------------------------------
 
-    case 'overload':
-      return {
-        width: 50,
-        height: 60,
-        pins: [
-          { id: '95', position: { x: 0, y: 20 }, direction: 'left' },
-          { id: '96', position: { x: 0, y: 40 }, direction: 'left' },
-        ],
-      };
+function drawGenericSymbol(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition,
+  tag: string
+): void {
+  ctx.strokeStyle = '#00ff00';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, def.geometry.width, def.geometry.height);
 
-    case 'motor':
-      return {
-        width: 60,
-        height: 60,
-        pins: [
-          { id: 'U', position: { x: 10, y: 0 }, direction: 'top' },
-          { id: 'V', position: { x: 30, y: 0 }, direction: 'top' },
-          { id: 'W', position: { x: 50, y: 0 }, direction: 'top' },
-        ],
-      };
+  ctx.fillStyle = '#00ff00';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(tag, x + 2, y + 2);
+}
 
-    case 'terminal':
-      return {
-        width: 100,
-        height: 100,
-        pins: [
-          { id: '1', position: { x: 10, y: 0 }, direction: 'top' },
-          { id: '2', position: { x: 30, y: 0 }, direction: 'top' },
-          { id: '3', position: { x: 50, y: 0 }, direction: 'top' },
-          { id: '4', position: { x: 70, y: 0 }, direction: 'top' },
-          { id: '5', position: { x: 90, y: 0 }, direction: 'top' },
-        ],
-      };
+// ---------------------------------------------------------------------------
+// Shared drawing helpers
+// ---------------------------------------------------------------------------
 
-    case 'power-supply':
-      return {
-        width: 50,
-        height: 60,
-        pins: [
-          { id: '+', position: { x: 50, y: 20 }, direction: 'right' },
-          { id: '-', position: { x: 50, y: 40 }, direction: 'right' },
-        ],
-      };
+function drawPins(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  ctx.fillStyle = '#00ffff'; // Cyan for pin dots
+  ctx.font = '10px monospace';
 
-    default:
-      return {
-        width: 40,
-        height: 40,
-        pins: [],
-      };
+  for (const pin of def.pins) {
+    const pinX = x + pin.position.x;
+    const pinY = y + pin.position.y;
+
+    // Draw pin dot
+    ctx.beginPath();
+    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw pin label
+    ctx.fillStyle = '#ffff00'; // Yellow for pin labels
+    ctx.textBaseline = 'middle';
+
+    switch (pin.direction) {
+      case 'left':
+        ctx.textAlign = 'right';
+        ctx.fillText(pin.id, pinX - 8, pinY);
+        break;
+      case 'right':
+        ctx.textAlign = 'left';
+        ctx.fillText(pin.id, pinX + 8, pinY);
+        break;
+      case 'top':
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pin.id, pinX, pinY - 8);
+        break;
+      case 'bottom':
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(pin.id, pinX, pinY + 8);
+        break;
+    }
+
+    // Reset fill for next pin dot
+    ctx.fillStyle = '#00ffff';
   }
 }
 
+function drawTag(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition,
+  tag: string,
+  category: string
+): void {
+  if (category === 'motor') {
+    // Motor shows tag below the symbol
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(tag, x + def.geometry.width / 2, y + def.geometry.height + 15);
+  } else {
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(tag, x + 2, y + 2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main draw entry point
+// ---------------------------------------------------------------------------
+
 /**
- * Draw contactor symbol (rectangular coil)
+ * Draw a symbol on the canvas.
  */
-function drawContactor(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+export function drawSymbol(
+  ctx: CanvasRenderingContext2D,
+  category: string,
+  x: number,
+  y: number,
+  tag: string
+): void {
+  const def = getSymbolDefinition(category);
+
+  ctx.save();
+
+  if (!def) {
+    // No definition at all -- draw a placeholder rectangle
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, 40, 40);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(tag, x + 2, y + 2);
+    ctx.restore();
+    return;
+  }
+
+  // Use custom draw function or generic fallback
+  const drawFn = drawFunctions.get(category);
+  if (drawFn) {
+    drawFn(ctx, x, y, def, tag);
+  } else {
+    drawGenericSymbol(ctx, x, y, def, tag);
+  }
+
+  // Draw tag label
+  drawTag(ctx, x, y, def, tag, category);
+
+  ctx.restore();
+
+  // Draw pins (outside save/restore so pin styles are clean)
+  drawPins(ctx, x, y, def);
+}
+
+// ---------------------------------------------------------------------------
+// Built-in draw functions (IEC 60617 visual representations)
+// ---------------------------------------------------------------------------
+
+function drawContactor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -106,6 +235,7 @@ function drawContactor(ctx: CanvasRenderingContext2D, x: number, y: number, widt
   // Draw contact blocks (right side)
   const contactX = x + width - 15;
   const contactSpacing = (height - 20) / 7;
+  ctx.fillStyle = '#00ff00';
   for (let i = 0; i < 6; i++) {
     const contactY = y + 15 + i * contactSpacing;
     ctx.fillRect(contactX - 8, contactY - 2, 16, 4);
@@ -115,10 +245,13 @@ function drawContactor(ctx: CanvasRenderingContext2D, x: number, y: number, widt
   ctx.strokeRect(x + width / 2 - 8, y + 2, 16, 8);
 }
 
-/**
- * Draw button symbol (contact)
- */
-function drawButton(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+function drawButton(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -143,10 +276,13 @@ function drawButton(ctx: CanvasRenderingContext2D, x: number, y: number, width: 
   ctx.stroke();
 }
 
-/**
- * Draw overload relay symbol (thermal element)
- */
-function drawOverload(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+function drawOverload(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -167,10 +303,13 @@ function drawOverload(ctx: CanvasRenderingContext2D, x: number, y: number, width
   ctx.strokeRect(x + 5, y + 5, width - 10, height - 10);
 }
 
-/**
- * Draw motor symbol (circle with M)
- */
-function drawMotor(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, tag: string): void {
+function drawMotor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -191,10 +330,13 @@ function drawMotor(ctx: CanvasRenderingContext2D, x: number, y: number, width: n
   ctx.fillText('M', centerX, centerY);
 }
 
-/**
- * Draw terminal strip symbol
- */
-function drawTerminal(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+function drawTerminal(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -217,10 +359,13 @@ function drawTerminal(ctx: CanvasRenderingContext2D, x: number, y: number, width
   }
 }
 
-/**
- * Draw power supply symbol
- */
-function drawPowerSupply(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+function drawPowerSupply(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition
+): void {
+  const { width, height } = def.geometry;
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 2;
 
@@ -231,7 +376,6 @@ function drawPowerSupply(ctx: CanvasRenderingContext2D, x: number, y: number, wi
   ctx.font = 'bold 16px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
   ctx.fillStyle = '#00ff00';
   ctx.fillText('+', x + width - 15, y + 20);
   ctx.fillText('-', x + width - 15, y + 40);
@@ -244,102 +388,15 @@ function drawPowerSupply(ctx: CanvasRenderingContext2D, x: number, y: number, wi
   ctx.stroke();
 }
 
-/**
- * Draw a symbol on the canvas
- */
-export function drawSymbol(
-  ctx: CanvasRenderingContext2D,
-  category: string,
-  x: number,
-  y: number,
-  tag: string
-): void {
-  const geometry = getSymbolGeometry(category);
+// ---------------------------------------------------------------------------
+// Register built-in draw functions
+// ---------------------------------------------------------------------------
 
-  // Draw category-specific symbol
-  ctx.save();
-
-  switch (category) {
-    case 'contactor':
-      drawContactor(ctx, x, y, geometry.width, geometry.height);
-      break;
-    case 'button':
-      drawButton(ctx, x, y, geometry.width, geometry.height);
-      break;
-    case 'overload':
-      drawOverload(ctx, x, y, geometry.width, geometry.height);
-      break;
-    case 'motor':
-      drawMotor(ctx, x, y, geometry.width, geometry.height, tag);
-      break;
-    case 'terminal':
-      drawTerminal(ctx, x, y, geometry.width, geometry.height);
-      break;
-    case 'power-supply':
-      drawPowerSupply(ctx, x, y, geometry.width, geometry.height);
-      break;
-    default:
-      // Fallback: simple rectangle
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, geometry.width, geometry.height);
-  }
-
-  // Draw tag (except for motor which already shows M)
-  if (category !== 'motor') {
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(tag, x + 2, y + 2);
-  } else {
-    // For motor, show tag below the symbol
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + geometry.width / 2, y + geometry.height + 15);
-  }
-
-  ctx.restore();
-
-  // Draw pins with labels
-  ctx.fillStyle = '#00ffff'; // Cyan for pin dots
-  ctx.font = '10px monospace';
-
-  for (const pin of geometry.pins) {
-    const pinX = x + pin.position.x;
-    const pinY = y + pin.position.y;
-
-    // Draw pin dot
-    ctx.beginPath();
-    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw pin label
-    ctx.fillStyle = '#ffff00'; // Yellow for pin labels
-    ctx.textBaseline = 'middle';
-
-    // Position label based on pin direction
-    switch (pin.direction) {
-      case 'left':
-        ctx.textAlign = 'right';
-        ctx.fillText(pin.id, pinX - 8, pinY);
-        break;
-      case 'right':
-        ctx.textAlign = 'left';
-        ctx.fillText(pin.id, pinX + 8, pinY);
-        break;
-      case 'top':
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(pin.id, pinX, pinY - 8);
-        break;
-      case 'bottom':
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(pin.id, pinX, pinY + 8);
-        break;
-    }
-  }
+export function registerBuiltinDrawFunctions(): void {
+  registerDrawFunction('contactor', drawContactor);
+  registerDrawFunction('button', drawButton);
+  registerDrawFunction('overload', drawOverload);
+  registerDrawFunction('motor', drawMotor);
+  registerDrawFunction('terminal', drawTerminal);
+  registerDrawFunction('power-supply', drawPowerSupply);
 }

@@ -24,6 +24,12 @@ export interface CircuitData {
   connections: Connection[];
 }
 
+export interface RenderOptions {
+  selectedDevice?: string | null;
+  wireStart?: { device: string; pin: string } | null;
+  ghostSymbol?: { category: string; x: number; y: number } | null;
+}
+
 /**
  * Layout devices based on circuit topology
  *
@@ -34,8 +40,14 @@ export interface CircuitData {
  * - Contactor (K1) center-right
  * - Overload (F1) below contactor
  * - Motor (M1) at bottom
+ *
+ * @param devicePositions - Optional map of device positions for dynamically placed devices
  */
-function layoutDevices(devices: Device[], parts: Part[]): Map<string, Point> {
+function layoutDevices(
+  devices: Device[],
+  parts: Part[],
+  devicePositions?: Map<string, Point>
+): Map<string, Point> {
   const partMap = new Map<string, Part>();
   for (const part of parts) {
     partMap.set(part.id, part);
@@ -53,17 +65,27 @@ function layoutDevices(devices: Device[], parts: Part[]): Map<string, Point> {
     'S2': { x: 250, y: 250 },      // Stop button (E-stop) center
     'S1': { x: 400, y: 250 },      // Start button center-right
     'K1': { x: 550, y: 250 },      // Contactor right side
-    'F1': { x: 550, y: 400 },      // Overload relay below contactor
+    'F1': { x: 550, y: 400 },      // Overload relay below contractor
     'M1': { x: 550, y: 550 },      // Motor at bottom-right
   };
 
   for (const device of devices) {
-    const pos = layouts[device.tag];
-    if (pos) {
-      positions.set(device.tag, pos);
+    // First check if there's a dynamic position from placement
+    const dynamicPos = devicePositions?.get(device.tag);
+    if (dynamicPos) {
+      positions.set(device.tag, dynamicPos);
     } else {
-      // Fallback for unknown devices
-      positions.set(device.tag, { x: 100, y: 100 });
+      // Fall back to hardcoded layout
+      const pos = layouts[device.tag];
+      if (pos) {
+        positions.set(device.tag, pos);
+      } else {
+        // Fallback for unknown devices - place them in a grid
+        const existingCount = positions.size;
+        const col = existingCount % 3;
+        const row = Math.floor(existingCount / 3);
+        positions.set(device.tag, { x: 100 + col * 200, y: 100 + row * 150 });
+      }
     }
   }
 
@@ -76,7 +98,6 @@ function layoutDevices(devices: Device[], parts: Part[]): Map<string, Point> {
 function createObstacles(
   devices: Device[],
   positions: Map<string, Point>,
-  parts: Part[],
   partMap: Map<string, Part>
 ): Obstacle[] {
   const obstacles: Obstacle[] = [];
@@ -109,7 +130,9 @@ export function renderCircuit(
   ctx: CanvasRenderingContext2D,
   circuit: CircuitData,
   viewport: Viewport,
-  debugMode = false
+  debugMode = false,
+  devicePositions?: Map<string, { x: number; y: number }>,
+  options?: RenderOptions
 ): void {
   const { devices, nets, parts, connections } = circuit;
 
@@ -119,8 +142,8 @@ export function renderCircuit(
     partMap.set(part.id, part);
   }
 
-  // Layout devices
-  const positions = layoutDevices(devices, parts);
+  // Layout devices (use devicePositions for dynamically placed devices)
+  const positions = layoutDevices(devices, parts, devicePositions);
 
   // Clear canvas
   ctx.save();
@@ -143,7 +166,7 @@ export function renderCircuit(
   }
 
   // Create obstacles from devices for routing
-  const obstacles = createObstacles(devices, positions, parts, partMap);
+  const obstacles = createObstacles(devices, positions, partMap);
 
   // Build all route requests first
   const routeRequests: RouteRequest[] = [];
@@ -330,6 +353,67 @@ export function renderCircuit(
 
       ctx.restore();
     }
+  }
+
+  // Draw selection highlight
+  if (options?.selectedDevice) {
+    const device = devices.find(d => d.tag === options.selectedDevice);
+    if (device) {
+      const position = positions.get(device.tag);
+      if (position) {
+        const part = device.partId ? partMap.get(device.partId) : null;
+        const geometry = getSymbolGeometry(part?.category || 'unknown');
+
+        ctx.strokeStyle = '#00bfff'; // Cyan highlight
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 3]);
+        ctx.strokeRect(
+          position.x - 5,
+          position.y - 5,
+          geometry.width + 10,
+          geometry.height + 10
+        );
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // Draw wire-in-progress indicator (highlight the start pin)
+  if (options?.wireStart) {
+    const device = devices.find(d => d.tag === options.wireStart!.device);
+    if (device) {
+      const position = positions.get(device.tag);
+      if (position) {
+        const part = device.partId ? partMap.get(device.partId) : null;
+        const geometry = getSymbolGeometry(part?.category || 'unknown');
+        const pin = geometry.pins.find(p => p.id === options.wireStart!.pin);
+
+        if (pin) {
+          const pinX = position.x + pin.position.x;
+          const pinY = position.y + pin.position.y;
+
+          // Draw pulsing highlight circle around the pin
+          ctx.strokeStyle = '#ff6600'; // Orange for wire start
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Draw filled inner circle
+          ctx.fillStyle = 'rgba(255, 102, 0, 0.3)';
+          ctx.beginPath();
+          ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // Draw ghost preview for placement mode
+  if (options?.ghostSymbol) {
+    ctx.globalAlpha = 0.5;
+    drawSymbol(ctx, options.ghostSymbol.category, options.ghostSymbol.x, options.ghostSymbol.y, '');
+    ctx.globalAlpha = 1.0;
   }
 
   // Draw info text
