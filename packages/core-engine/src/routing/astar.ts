@@ -104,7 +104,6 @@ export function findPath(
   const endNode = graph.nodes.get(endId);
 
   if (!startNode || !endNode) {
-    console.log(`[A*] ERROR: startNode=${!!startNode}, endNode=${!!endNode}`);
     return null; // Start or end not in graph
   }
 
@@ -113,7 +112,6 @@ export function findPath(
   // Check if start and end nodes have any connections
   const startNeighbors = adjacency.get(startId) || [];
   const endNeighbors = adjacency.get(endId) || [];
-  console.log(`[A*] Start has ${startNeighbors.length} neighbors, End has ${endNeighbors.length} neighbors`);
 
   const openSet = new PriorityQueue();
   const closedSet = new Set<string>();
@@ -138,7 +136,6 @@ export function findPath(
 
     // Reached goal
     if (current.id === endId) {
-      console.log(`[A*] SUCCESS: Found path in ${iterations} iterations`);
       // Reconstruct path
       const path: string[] = [];
       let nodeId: string | null = endId;
@@ -190,6 +187,5 @@ export function findPath(
     }
   }
 
-  console.log(`[A*] FAILED: No path found after ${iterations} iterations, closed ${closedSet.size} nodes`);
   return null; // No path found
 }

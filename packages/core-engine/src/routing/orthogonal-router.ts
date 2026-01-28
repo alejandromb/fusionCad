@@ -87,12 +87,7 @@ export function routeWire(
       padding
     );
 
-    console.log(`[RouteWire] ${request.id}: graph has ${graph.nodes.size} nodes, ${graph.edges.length} edges`);
-
-    // Find path using A*
     const pathNodeIds = findPath(graph, 'start', 'end');
-
-    console.log(`[RouteWire] ${request.id}: A* found path: ${pathNodeIds ? 'YES' : 'NO'}, nodes=${pathNodeIds?.length || 0}`);
 
     if (!pathNodeIds) {
       return {
@@ -157,18 +152,13 @@ export function routeWires(
   // Step 1: Route all wires using visibility graph + A*
   const initialResults = requests.map(request => routeWire(request, obstacles, padding));
 
-  console.log(`[Router] Routed ${initialResults.length} wires`);
-
   // Step 2: Collect successful routes for nudging
   const routeMap = new Map<string, RoutedPath>();
   for (const result of initialResults) {
-    console.log(`[Router] ${result.id}: success=${result.success}, segments=${result.path.segments.length}, error=${result.error || 'none'}`);
     if (result.success && result.path.segments.length > 0) {
       routeMap.set(result.id, result.path);
     }
   }
-
-  console.log(`[Router] ${routeMap.size} successful routes to nudge`);
 
   // Step 3: Apply nudging to separate overlapping segments
   const nudgedRoutes = nudgeRoutes(routeMap, spacing);

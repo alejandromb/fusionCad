@@ -207,18 +207,10 @@ export function nudgeRoutes(
   // Find overlapping segment bundles
   const bundles = findOverlapBundles(allSegments);
 
-  console.log(`[Nudging] Found ${bundles.length} overlap bundles from ${allSegments.length} segments`);
-
   // Apply offsets to each bundle
   for (const bundle of bundles) {
-    console.log(`[Nudging] Bundle ${bundle.id}: ${bundle.segments.length} segments, ${bundle.direction}, coord=${bundle.fixedCoord}`);
     sortBundleSegments(bundle);
     applyBundleOffsets(bundle, spacing);
-
-    // Log applied offsets
-    for (const seg of bundle.segments) {
-      console.log(`  - Route ${seg.routeId}: offset=${seg.offset.toFixed(1)}px`);
-    }
   }
 
   // Reconstruct routes with nudged segments, maintaining orthogonality
@@ -280,7 +272,6 @@ export function nudgeRoutes(
         direction = 'vertical';
       } else {
         // Should not happen - skip diagonal segments
-        console.warn(`[Nudging] Diagonal segment detected: (${start.x},${start.y}) to (${end.x},${end.y})`);
         continue;
       }
 

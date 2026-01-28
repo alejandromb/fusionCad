@@ -143,8 +143,6 @@ export function buildVisibilityGraph(
   const startId = 'start';
   const endId = 'end';
 
-  console.log(`[VisGraph] Start: (${start.x}, ${start.y}), End: (${end.x}, ${end.y})`);
-
   nodes.set(startId, {
     id: startId,
     point: start,
@@ -176,14 +174,12 @@ export function buildVisibilityGraph(
 
   // Generate orthogonal waypoints at all unique X and Y coordinates
   // This creates a grid of potential routing points
-  // IMPORTANT: Include start and end coordinates in the grid
+  // CRITICAL: Add scan lines through start and end points for direct routing
   const allPoints = Array.from(nodes.values()).map(n => n.point);
-  const uniqueX = [...new Set(allPoints.map(p => p.x))].sort((a, b) => a - b);
-  const uniqueY = [...new Set(allPoints.map(p => p.y))].sort((a, b) => a - b);
 
-  console.log(`[VisGraph] Grid: ${uniqueX.length} X coords, ${uniqueY.length} Y coords`);
-  console.log(`[VisGraph] Start X=${start.x} in grid? ${uniqueX.includes(start.x)}, Start Y=${start.y} in grid? ${uniqueY.includes(start.y)}`);
-  console.log(`[VisGraph] End X=${end.x} in grid? ${uniqueX.includes(end.x)}, End Y=${end.y} in grid? ${uniqueY.includes(end.y)}`);
+  // Include start and end coordinates to create scan lines
+  const uniqueX = [...new Set([...allPoints.map(p => p.x), start.x, end.x])].sort((a, b) => a - b);
+  const uniqueY = [...new Set([...allPoints.map(p => p.y), start.y, end.y])].sort((a, b) => a - b);
 
   // Add waypoint nodes at grid intersections that don't overlap obstacles
   let waypointIndex = 0;
@@ -203,9 +199,14 @@ export function buildVisibilityGraph(
       if (tooClose) continue;
 
       // Skip if point is inside an obstacle
+      // EXCEPTION: Allow waypoints on start/end scan lines with reduced padding
+      const isOnScanLine = (Math.abs(y - start.y) < 0.1) || (Math.abs(y - end.y) < 0.1) ||
+                           (Math.abs(x - start.x) < 0.1) || (Math.abs(x - end.x) < 0.1);
+      const effectivePadding = isOnScanLine ? 0 : padding; // No padding on scan lines
+
       let insideObstacle = false;
       for (const obstacle of obstacles) {
-        const expanded = expandObstacle(obstacle.bounds, padding);
+        const expanded = expandObstacle(obstacle.bounds, effectivePadding);
         if (
           x >= expanded.x &&
           x <= expanded.x + expanded.width &&
@@ -263,11 +264,6 @@ export function buildVisibilityGraph(
       }
     }
   }
-
-  // Debug: count edges for start and end
-  const startEdges = edges.filter(e => e.from === startId || e.to === startId);
-  const endEdges = edges.filter(e => e.from === endId || e.to === endId);
-  console.log(`[VisGraph] Start has ${startEdges.length} edges, End has ${endEdges.length} edges`);
 
   return { nodes, edges };
 }

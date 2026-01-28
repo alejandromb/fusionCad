@@ -205,12 +205,29 @@ export function renderCircuit(
   const routeResults = routeWires(routeRequests, obstacles, 5, 8); // 5px padding, 8px spacing
 
   // SECOND: Render connections (wires) ON TOP - use visibility graph routing with nudging
-  ctx.strokeStyle = '#0088ff';
   ctx.lineWidth = 2;
+
+  // Color palette for wires (11 distinct colors)
+  const wireColors = [
+    '#FF6B6B', // Red
+    '#4ECDC4', // Cyan
+    '#45B7D1', // Blue
+    '#FFA07A', // Light Salmon
+    '#98D8C8', // Mint
+    '#FFD93D', // Yellow
+    '#6BCF7F', // Green
+    '#C77DFF', // Purple
+    '#FF9ECD', // Pink
+    '#74C0FC', // Sky Blue
+    '#FFA94D', // Orange
+  ];
 
   for (let i = 0; i < routeResults.length; i++) {
     const routeResult = routeResults[i];
     const metadata = connectionMetadata[i];
+
+    // Set unique color for this wire
+    ctx.strokeStyle = wireColors[i % wireColors.length];
 
     if (routeResult.success && routeResult.path.segments.length > 0) {
       // Draw routed path segments
@@ -247,7 +264,8 @@ export function renderCircuit(
 
       // Wire label at midpoint (wire number + net name)
       ctx.save();
-      ctx.fillStyle = '#ffff00'; // Yellow
+      const labelColor = wireColors[metadata.index % wireColors.length];
+      ctx.fillStyle = labelColor;
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -274,7 +292,7 @@ export function renderCircuit(
         16
       );
 
-      ctx.fillStyle = '#ffff00';
+      ctx.fillStyle = labelColor;
       ctx.fillText(labelText, labelX, labelY);
 
       // Endpoint labels (device:pin)
@@ -290,7 +308,7 @@ export function renderCircuit(
         fromMetrics.width + 4,
         12
       );
-      ctx.fillStyle = '#00ffff';
+      ctx.fillStyle = labelColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(fromLabel, metadata.fromX, metadata.fromY - 6);
@@ -305,7 +323,7 @@ export function renderCircuit(
         toMetrics.width + 4,
         12
       );
-      ctx.fillStyle = '#00ffff';
+      ctx.fillStyle = labelColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(toLabel, metadata.toX, metadata.toY + 6);

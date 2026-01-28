@@ -156,6 +156,53 @@ export function App() {
             <li>⚪ Symbol placement</li>
             <li>⚪ Wire tool</li>
           </ul>
+          <h3 style={{ marginTop: '2rem' }}>Wire Colors</h3>
+          <div style={{ fontSize: '11px', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#FF6B6B' }}></div>
+              <span>W001 - 24V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#4ECDC4' }}></div>
+              <span>W002 - 0V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#45B7D1' }}></div>
+              <span>W003 - 24V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#FFA07A' }}></div>
+              <span>W004 - COIL_24V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#98D8C8' }}></div>
+              <span>W005 - START_SEAL</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#FFD93D' }}></div>
+              <span>W006 - START_SEAL</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#6BCF7F' }}></div>
+              <span>W007 - 0V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#C77DFF' }}></div>
+              <span>W008 - 0V</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#FF9ECD' }}></div>
+              <span>W009 - L1</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#74C0FC' }}></div>
+              <span>W010 - L2</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '20px', height: '3px', background: '#FFA94D' }}></div>
+              <span>W011 - L3</span>
+            </div>
+          </div>
           <h3 style={{ marginTop: '2rem' }}>Controls</h3>
           <ul>
             <li>🖱️ Drag to pan</li>

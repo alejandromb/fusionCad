@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-27 (morning session)
+**Last Updated**: 2026-01-27 (afternoon session)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 60% Complete (routing algorithm + pan/zoom done)
 
@@ -27,13 +27,14 @@ This file tracks where we are in development. **Always read this file at the sta
 **Phase 2: Canvas Rendering** 🟡 (in progress)
 - ✅ **Symbol rendering**: Devices drawn as rectangles with tags
 - ✅ **Wire rendering**: Advanced orthogonal routing with obstacle avoidance
-- ✅ **Pin visualization**: Red dots showing connection points
+- ✅ **Pin visualization**: Cyan dots showing connection points
 - ✅ **Pin labels**: Yellow labels (A1, A2, +, -, etc.)
 - ✅ **Layout engine**: Manual positioning based on signal flow
 - ✅ **Wire-to-pin connections**: Wires connect to specific pins (not centers)
 - ✅ **Visibility graph routing**: Wires route around device bounding boxes
 - ✅ **A* pathfinding**: Optimal path calculation through visibility graph
 - ✅ **Wire separation (nudging)**: Overlapping segments automatically offset
+- ✅ **Color-coded wires**: 11 unique colors for wire identification (with legend in sidebar)
 - ✅ **Pan/zoom controls**: Mouse wheel zoom, click-drag pan
 - ✅ **Debug mode toggle**: Show/hide wire labels for clean screenshots
 - ⚪ Symbol placement tool (not started)
@@ -221,6 +222,9 @@ This file tracks where we are in development. **Always read this file at the sta
   - Cursor changes (grab/grabbing)
 - ✅ **Debug mode toggle**: Labels now default to OFF for clean screenshots
 - ✅ **Wire separation working**: 9 overlap bundles detected and separated (up to 5 wires in one bundle)
+- ✅ **Wire color coding**: 11 unique colors for easy wire identification
+- ✅ **Routing debugging**: Analyzed W001 jog issue - determined it's due to waypoint grid constraints (optimal point inside obstacle)
+- ✅ **Console logging cleanup**: Removed all debug logs to reduce token usage
 
 **Progress**:
 - Phase 2: 🟡 60% Complete (routing foundation solid, ready for editor tools)
@@ -239,6 +243,85 @@ This file tracks where we are in development. **Always read this file at the sta
 - Obstacle avoidance working correctly
 - Foundation is ready for interactive editing features
 - Research-backed approach (Wybrow, Marriott, Stuckey 2009 paper + libavoid C++ implementation)
+- **Routing aesthetic note**: Some wires have visible jogs (e.g., W001 goes down → left → down instead of straight down then left). This happens when optimal waypoints are inside obstacles. Connections are electrically correct - just not maximally straight. Acceptable for now to avoid complex post-processing.
+
+### Session 4 (continued) - 2026-01-27 (Debugging & Skills)
+**Duration**: ~1.5 hours
+**Completed**:
+- ✅ **Deep dive into W001 jog issue**:
+  - Added visibility graph debug logging to understand waypoint grid
+  - Identified missing waypoint at (60, 100) - inside PS1 obstacle bounds
+  - Tested A* heuristic improvements (alignment bias, major axis preference)
+  - Reverted heuristic changes - broke other wire connections
+  - Conclusion: Jog is due to grid constraints, electrically correct, acceptable for now
+- ✅ **Console logging cleanup**:
+  - Removed all debug console.log statements from routing code
+  - Cleaned visibility-graph.ts, astar.ts, orthogonal-router.ts
+  - Reduced token usage for future sessions
+- ✅ **Created 4 custom skills** (in ~/.claude/skills/):
+  - `cleanup-console`: Automate debug log removal after debugging
+  - `session-start`: Load STATUS.md context at session start
+  - `update-status`: Update STATUS.md at session end
+  - `check-architecture`: Validate changes against architecture principles
+- ✅ **Documented terminal block automation feature**:
+  - Added to STATUS.md "High Priority Automation Features"
+  - Key workflow: Auto-calculate terminal block quantities from terminal count + block type
+  - Marked as high priority for Phase 3-4
+
+**Progress**:
+- Phase 2: 🟡 60% Complete (routing solid, skills ready for workflow)
+
+**Next Session**:
+- Test new skills (especially /session-start at beginning)
+- Improve symbol shapes (actual schematic symbols)
+- Or start symbol placement tool
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Routing algorithm proven to be working correctly
+- Decision: Accept aesthetic jogs rather than add post-processing complexity
+- Skills will improve session efficiency (faster context loading, easier cleanup)
+- Terminal block automation documented as critical automation-first feature
+
+### Session 4 (continued) - 2026-01-27 (Symbol Improvement - IN PROGRESS)
+**Duration**: ~30 minutes
+**Completed**:
+- ✅ **Documented terminal block automation** and **panel layout editor** as high-priority features
+- ✅ **Created CLAUDE.md** - Big "STOP READ THIS FIRST" reminder for session starts
+- 🔄 **Started improving electrical symbols** to match IEC 60617 standards:
+  - Researched IEC 60617 official database and SVG libraries
+  - Found GitHub library (chille/electricalsymbols) with 33 symbols
+  - Coded new symbol drawing functions for contactor, button, overload, terminal, power supply
+  - User feedback: Motor symbol OK, others "funky and not right"
+  - Status: PAUSED mid-task, needs proper IEC symbol reference
+
+**Progress**:
+- Phase 2: 🟡 60% Complete (symbols work in progress)
+
+**Next Session**:
+- Continue symbol improvement with proper IEC 60617 references
+- Redraw contactor, pushbutton, overload, terminal, power supply symbols correctly
+- Test in browser and iterate until symbols look professional
+
+**Files Modified**:
+- `apps/web/src/renderer/symbols.ts` - Updated drawSymbol() with category-specific functions
+- `.claude/CLAUDE.md` - Created session start reminder
+- `STATUS.md` - Documented terminal automation and panel layout features
+
+**Resources Found**:
+- IEC 60617 Database: https://library.iec.ch/iec60617
+- GitHub SVG Library: https://github.com/chille/electricalsymbols
+- Siemens Symbols: https://symbols.radicasoftware.com/225/iec-symbols
+
+**Blockers/Questions**:
+- Need visual reference for proper IEC symbol drawings (not just descriptions)
+- May need to examine SVG files from GitHub library or commercial software
+
+**Session End Notes**:
+- User needs to leave - saved progress mid-task
+- CLAUDE.md created for better session continuity
+- Symbol work 50% done - motor OK, others need refinement
 
 ---
 
@@ -315,11 +398,36 @@ These are our end-to-end test cases. Each must always validate and export correc
 
 ## 🚨 Known Issues / Blockers
 
-None yet.
+**Routing aesthetics (low priority):**
+- Some wires have unnecessary-looking jogs where they turn, continue briefly, then turn back (e.g., W001 has down→left→down pattern)
+- Root cause: Optimal direct waypoints sometimes fall inside obstacle bounds, forcing detours through available grid points
+- All connections are electrically correct and reach their terminals
+- Decision: Acceptable for now. Post-processing to straighten paths would add complexity without functional benefit
+- Future: Could be addressed with smarter waypoint placement or path smoothing algorithm
 
 ---
 
 ## 💡 Ideas / Future Considerations
+
+### High Priority Automation Features
+
+**Automatic Terminal Block Calculation** ⭐ (Phase 3-4)
+- When you specify terminals in your design (e.g., 20 terminals on a PLC breakout)
+- And specify the terminal block type (e.g., Phoenix PT-2.5 with 5 positions per block)
+- BOM should automatically calculate quantity needed (e.g., 4 blocks for 20 terminals)
+- This is core to "automation-first" - no manual counting/calculation
+- Related: Terminal strip layout generation, wire number assignment per terminal
+- User priority: HIGH - critical for real electrical work
+
+**Panel Layout Editor** ⭐ (Phase 6-7)
+- Physical arrangement of components in enclosure (different from schematic)
+- DIN rail layout with proper spacing
+- 3D wire routing and cable management
+- Wire duct placement and sizing
+- Auto-generate panel cutout drawings
+- User priority: HIGH - essential for real electrical work
+
+### Post-MVP Considerations
 
 - Desktop app (Tauri) - deferred to post-MVP
 - Cloud sync - deferred to post-MVP
