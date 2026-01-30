@@ -10,7 +10,11 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:all": "npm run dev:api & npm run dev",
     "cli": "npm run start --workspace=apps/cli",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "clean": "rm -rf node_modules packages/*/node_modules apps/*/node_modules packages/*/dist apps/*/dist"
