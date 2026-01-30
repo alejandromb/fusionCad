@@ -13,56 +13,65 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-01-28 morning)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-01-29)
 
-**Current task:** Canvas interaction tools - COMPLETE!
+**Current task:** JSON+SVG Symbol Format - COMPLETE!
 
 **Status:**
-- ✅ Wire tool working (pin-to-pin connections)
-- ✅ Drag to reposition symbols
-- ✅ Delete symbols with Delete/Backspace
-- ✅ Selection highlight (dashed cyan border)
-- ✅ Ghost preview while placing
-- ✅ Snap to 20px grid
-- ✅ Toolbar with Select/Wire modes
-- ❌ Symbol shapes still need IEC 60617 polish (carried over)
+- ✅ Persistence working (Postgres + TypeORM)
+- ✅ Copy/paste/duplicate (Cmd+C/V/D)
+- ✅ Undo/redo (Cmd+Z/Shift+Z)
+- ✅ Multi-select (Shift+click, Cmd+A)
+- ✅ Wire bend points fully working
+- ✅ **JSON+SVG Symbol Format complete**:
+  - `SymbolPath` interface for SVG path data
+  - `SymbolText` interface for text labels
+  - SVG path parser (M, L, H, V, A, C, Q, Z commands)
+  - All 6 IEC symbols converted to JSON+SVG
+  - Backward compatible (custom draw functions still work)
+- ⚠️ Drag-select (marquee) NOT yet implemented
 
 **Next steps:**
-1. **PERSISTENCE (CRITICAL)** - circuits disappear on page refresh!
-   - Need to decide: IndexedDB (local) vs cloud vs hybrid
-   - Cloud will be needed eventually for symbol library
-   - Business model: 1 free project for free users?
-2. Add wire nodes/bend points (allow intermediate points in wires)
-3. Improve symbol shapes to match IEC 60617 standards
-4. Multi-select and undo/redo
+1. Add drag-select (marquee/rubber band selection)
+2. Import symbols from external SVG libraries (KiCad, electricalsymbols repo)
+3. Consider adding wire properties panel when wire selected
 
 **Files modified this session:**
-- `apps/web/src/App.tsx` - Interaction modes, hit detection, state management
-- `apps/web/src/App.css` - Toolbar and status message styles
-- `apps/web/src/renderer/circuit-renderer.ts` - Selection highlight, wire preview, ghost symbol
+- `packages/core-model/src/types.ts` - Added SymbolPath, SymbolText interfaces
+- `apps/web/src/renderer/symbols.ts` - SVG path parser and renderer
+- `packages/core-model/src/symbols/iec-symbols.ts` - Converted all 6 symbols to paths
 
-**Resources for symbol improvement (from last session):**
-- IEC 60617 official database: https://library.iec.ch/iec60617
-- GitHub SVG library: https://github.com/chille/electricalsymbols
-- Siemens symbol library: https://symbols.radicasoftware.com/225/iec-symbols
+**Symbol format example:**
+```typescript
+{
+  paths: [
+    { d: 'M 30,5 A 25,25 0 1,1 29.99,5 Z', stroke: true }
+  ],
+  texts: [
+    { content: 'M', x: 30, y: 30, fontSize: 20, fontWeight: 'bold' }
+  ]
+}
+```
 
 ---
 
 ## 🎯 PROJECT CONTEXT
 
-**Phase:** Phase 2 - Canvas Rendering (85% complete)
+**Phase:** Phase 2 - Minimal Editor (97% complete)
 
 **Recent achievements:**
-- Canvas interaction tools fully working (wire, select, drag, delete)
-- Professional wire routing algorithm (visibility graph + A* + nudging)
-- All 11 wires routing correctly with color coding
+- ✅ Persistence with Postgres + TypeORM (auto-save, project management)
+- ✅ Copy/paste/duplicate and undo/redo
+- ✅ Multi-select (Shift+click, Cmd+A, group operations)
+- ✅ Wire bend points complete (add/drag/delete waypoints)
+- ✅ **JSON+SVG Symbol Format** - symbols defined with SVG paths
+- Professional wire routing (visibility graph + A* + nudging)
 - Pan/zoom controls working
-- 5 custom skills created (including new `/session-end`)
 
 **High priority features documented:**
 - ⭐ Automatic terminal block calculation (Phase 3-4)
 - ⭐ Panel layout editor (Phase 6-7)
-- Symbol editor (future)
+- SVG symbol import from external libraries (now possible!)
 
 ---
 

@@ -63,6 +63,27 @@ export interface SymbolGeometryData {
 }
 
 /**
+ * SVG path element for symbol rendering
+ */
+export interface SymbolPath {
+  d: string; // SVG path data (M, L, A, C, Q, Z commands)
+  stroke?: boolean; // default true
+  fill?: boolean; // default false
+  strokeWidth?: number; // default 2
+}
+
+/**
+ * Text element for symbol rendering
+ */
+export interface SymbolText {
+  content: string;
+  x: number;
+  y: number;
+  fontSize?: number; // default 20
+  fontWeight?: 'normal' | 'bold'; // default 'bold'
+}
+
+/**
  * SymbolDefinition - Reusable symbol geometry + logical pins
  */
 export interface SymbolDefinition extends Entity {
@@ -71,6 +92,8 @@ export interface SymbolDefinition extends Entity {
   category: string;
   pins: SymbolPin[];
   geometry: SymbolGeometryData;
+  paths?: SymbolPath[]; // SVG-based rendering
+  texts?: SymbolText[]; // Text elements
 }
 
 /**

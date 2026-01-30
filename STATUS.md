@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-28 (morning session)
+**Last Updated**: 2026-01-29 (JSON+SVG symbol format)
 **Current Phase**: Phase 2 - Minimal Editor
-**Phase Status**: 85% Complete (canvas interaction tools implemented)
+**Phase Status**: 97% Complete (symbols now use JSON+SVG format, need marquee select)
 
 ---
 
@@ -42,21 +42,33 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Symbol selection**: Click to select, dashed highlight, Delete to remove
 - ✅ **Drag to reposition**: Move symbols by dragging
 - ✅ **Snap to grid**: 20px grid for placement and dragging
-- ⚪ Wire nodes (bend points) - not yet, but pin-to-pin working
+- ✅ **Persistence**: Postgres + TypeORM, auto-save, project management UI
+- ✅ **Copy/Paste**: Cmd+C/V/D for copy, paste, duplicate
+- ✅ **Undo/Redo**: Cmd+Z and Cmd+Shift+Z (50 history entries)
+- ✅ **Multi-select**: Shift+click to add/remove, Cmd+A to select all, move/delete all
+  - ⚠️ Drag-select (marquee) NOT yet implemented
+- ✅ **Wire bend points**: Select wire, click to add waypoints, drag to adjust, double-click to delete
+  - Orthogonal-only routing enforced (no diagonal wires)
+  - Hit detection uses auto-routing for accurate clicks
+- ✅ **Wire reconnection**: Drag wire endpoints to reconnect to different pins
+  - Green handles show at endpoints when wire selected
+  - Drag endpoint to new pin to reconnect
+  - Preview line shows during drag
+- ✅ **JSON+SVG Symbol Format**: Symbols defined with SVG path data
+  - `SymbolPath` interface with `d` (SVG path), `stroke`, `fill`, `strokeWidth`
+  - `SymbolText` interface for text labels
+  - SVG path parser supports M, L, H, V, A, C, Q, Z commands
+  - All 6 IEC symbols converted to JSON+SVG format
+  - Foundation for importing external SVG libraries
 
 ### What We're Working On
 - Phase 2: Canvas interaction tools complete, finalizing editor features
 
 ### Next Immediate Steps
-1. **Persistence** - circuits lost on refresh! Decision needed:
-   - Option A: IndexedDB (local-only, no account needed)
-   - Option B: Cloud storage (requires backend, but enables sync)
-   - Option C: Hybrid (local first, optional cloud sync)
-   - Note: Cloud likely needed anyway for symbol library migration
-   - Business consideration: 1 free project for free users?
-2. Add wire nodes/bend points (allow intermediate points in wires)
-3. Improve symbol shapes (draw actual IEC 60617 schematic symbols)
-4. Multi-select and undo/redo
+1. **Multi-select polish**:
+   - Add drag-select (marquee/rubber band selection)
+2. Consider adding wire properties panel when wire selected
+3. Import symbols from external SVG libraries (KiCad, electricalsymbols repo)
 
 ---
 
@@ -379,6 +391,116 @@ This file tracks where we are in development. **Always read this file at the sta
 - Routing algorithm automatically handles wire paths when symbols move
 - Symbol shapes still "funky" - IEC 60617 cleanup still pending from last session
 
+### Session 6 - 2026-01-29 (Persistence, UI, Copy/Paste, Undo/Redo, Multi-Select, Wire Bend Points)
+**Duration**: ~3 hours
+**Completed**:
+- ✅ **Persistence implemented** with TypeORM + Postgres:
+  - Docker Postgres on port 5433
+  - Express REST API (apps/api) on port 3001
+  - Auto-save with 1-second debounce
+  - Project management UI (create, rename, delete, switch projects)
+  - Circuit data stored as JSONB
+- ✅ **UI Cleanup**:
+  - Project dropdown in header
+  - Reorganized sidebar: Tools → Symbols → Status → Properties → Debug
+  - Properties panel shows selected device details
+  - Removed canvas overlay text
+- ✅ **Copy/Paste**:
+  - Cmd+C to copy selected device
+  - Cmd+V to paste at cursor position
+  - Cmd+D to duplicate in place (with offset)
+- ✅ **Undo/Redo**:
+  - Cmd+Z to undo (up to 50 history entries)
+  - Cmd+Shift+Z to redo
+  - Works for all device/wire operations
+- ✅ **Multi-Select** (partial):
+  - Shift+click to add/remove from selection ✅
+  - Cmd+A to select all ✅
+  - Move all selected devices together ✅
+  - Delete all selected devices ✅
+  - ⚠️ **NOT IMPLEMENTED**: Drag-select (marquee/rubber band selection)
+- ✅ **Wire Bend Points** (complete):
+  - Wire selection (click to select, turns white) ✅
+  - Add waypoints by clicking selected wire ✅
+  - **Drag waypoints** to reposition ✅
+  - **Double-click to delete** waypoints ✅
+  - Waypoints persist to database ✅
+  - **Orthogonal-only routing enforced** (no diagonal wires) ✅
+  - **Improved hit detection** - uses auto-routing for accurate wire clicks ✅
+
+**Progress**:
+- Phase 2: 🟡 95% Complete (wire bend points complete, need marquee select + symbol polish)
+
+**Next Session**:
+- Test wire reconnection manually (browser automation has precision limits)
+- Add drag-select (marquee/rubber band selection) for multi-select
+- Improve symbol shapes to match IEC 60617
+
+**Files Modified**:
+- `docker-compose.yml` - New: Postgres container
+- `apps/api/*` - New: Express + TypeORM REST API
+- `apps/web/src/App.tsx` - Persistence, UI, copy/paste, undo/redo, multi-select, wire selection
+- `apps/web/src/App.css` - Complete rewrite for new UI
+- `apps/web/src/api/projects.ts` - New: API client
+- `apps/web/src/renderer/circuit-renderer.ts` - Multi-select highlights, wire selection, orthogonal waypoint routing
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Major milestone: Full persistence working - circuits no longer lost on refresh!
+- Multi-select functional for shift+click, but marquee selection would be nicer
+- **Wire bend points fully working**: add/drag/delete waypoints all tested and verified
+- Hit detection improved to use auto-routing for accurate wire selection
+- Orthogonal-only routing enforced - much cleaner schematics
+- **Wire reconnection implemented**: drag endpoints to reconnect wires to different pins
+
+### Session 7 - 2026-01-29 (JSON+SVG Symbol Format)
+**Duration**: ~45 minutes
+**Completed**:
+- ✅ **Implemented JSON+SVG symbol format** for declarative symbol definitions:
+  - Added `SymbolPath` interface (`d`, `stroke`, `fill`, `strokeWidth`)
+  - Added `SymbolText` interface (`content`, `x`, `y`, `fontSize`, `fontWeight`)
+  - Added optional `paths` and `texts` arrays to `SymbolDefinition`
+- ✅ **Created SVG path parser** in `symbols.ts`:
+  - `parseSVGPath()` - parses M, L, H, V, A, C, Q, Z commands (uppercase/lowercase)
+  - `renderPathCommands()` - converts parsed commands to Canvas API
+  - `svgArcToCanvasArc()` - converts SVG arc parameters to Canvas arc
+  - `renderPaths()` and `renderTexts()` - render to canvas
+- ✅ **Updated `drawSymbol()`** to use paths when available:
+  - Priority: paths array → custom draw function → generic rectangle
+  - Backward compatible (custom draw functions still work as fallback)
+- ✅ **Converted all 6 IEC symbols** to JSON+SVG format:
+  - Motor: circle + "M" text
+  - Button: circle + contact line + actuator
+  - Contactor: coil rectangle + contact bars + aux box
+  - Overload: rectangle + zigzag thermal element
+  - Terminal: rectangle + vertical bars + screw circles
+  - Power Supply: rectangle + AC wave + +/- text
+- ✅ **Tested in browser**: All symbols render correctly, zoom scales cleanly
+
+**Progress**:
+- Phase 2: 🟡 97% Complete (symbols JSON+SVG done, need marquee select)
+
+**Next Session**:
+- Add drag-select (marquee/rubber band selection)
+- Consider importing symbols from external SVG libraries
+- Wire properties panel when wire selected
+
+**Files Modified**:
+- `packages/core-model/src/types.ts` - Added SymbolPath, SymbolText interfaces
+- `apps/web/src/renderer/symbols.ts` - SVG path parser and renderer
+- `packages/core-model/src/symbols/iec-symbols.ts` - Converted all 6 symbols to paths
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Major foundation for symbol library: symbols can now be defined as JSON with SVG paths
+- Enables future import from external SVG libraries (KiCad, electricalsymbols repo)
+- Human-editable symbol definitions - no code changes needed for new symbols
+- Foundation for symbol editor UI (users could create/edit symbols visually)
+- SVG path parser handles most common commands (M, L, H, V, A, C, Q, Z)
+- Arc conversion works for circles; elliptical arcs fall back to lines (rare case)
+
 ---
 
 ## 🗺️ Roadmap Overview
@@ -488,37 +610,50 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Auto-generate panel cutout drawings
 - User priority: HIGH - essential for real electrical work
 
-### Storage Strategy Decision (PENDING - Next Session)
+### Storage Strategy ✅ IMPLEMENTED (2026-01-29)
 
-**The problem:** Currently "local-first" but nothing persists. Page refresh = lost work.
+**Decision:** Postgres + TypeORM with REST API
 
-**Options to evaluate:**
-1. **IndexedDB only** (pure local-first)
-   - Pro: No backend needed, works offline, privacy
-   - Con: No sync across devices, no backup, symbol library stays in core
+**What's working:**
+- Docker Postgres on port 5433
+- Express API server (apps/api) on port 3001
+- Auto-save with 1-second debounce
+- Project management (create, rename, delete, switch)
+- Circuit data stored as JSONB (devices, nets, parts, connections, positions)
 
-2. **Cloud storage** (Supabase, Firebase, or custom)
-   - Pro: Sync across devices, backup, can migrate symbol library to cloud
-   - Con: Requires backend, account system, costs
+**Future considerations:**
+- Cloud deployment (user accounts, 1 free project limit)
+- Symbol library in cloud (too big for core bundle)
+- Offline support with sync
 
-3. **Hybrid** (local-first with optional cloud)
-   - Pro: Best of both worlds, graceful degradation
-   - Con: More complex to implement
+### Symbol Library Strategy (Phase 4+)
 
-**Business consideration:**
-- Free tier: 1 project (cloud) or unlimited (local-only)?
-- Symbol library needs to move to cloud eventually (too big for core bundle)
-- Other cloud candidates: user-created symbols, shared templates
+**Sources identified:**
+- [chille/electricalsymbols](https://github.com/chille/electricalsymbols) - 33 IEC 60617 symbols, MIT license
+- [upb-lea/Inkscape_electric_Symbols](https://github.com/upb-lea/Inkscape_electric_Symbols) - 100+ symbols, MIT
+- [KiCAD Official](https://kicad.github.io/symbols/) - 1000+ components, CC-BY-SA/CC0
 
-**User's initial stance:** Local-first, no cloud. But reconsidering given:
-- Symbol library can't live in core forever
-- 1 free project for free users seems reasonable
+**Approach:**
+1. Create JSON symbol schema (pins, geometry, metadata)
+2. Convert SVG symbols from GitHub libraries
+3. Build symbol browser UI
+4. Eventually: cloud-hosted symbol registry
+
+### DXF/DWG Import/Export (Phase 6+)
+
+**Libraries identified:**
+- **Export (DXF):** [@tarikjabiri/dxf](https://www.npmjs.com/package/@tarikjabiri/dxf) - MIT, pure TypeScript
+- **Import (DWG/DXF):** [libredwg-web](https://github.com/mlightcad/libredwg-web) - GPL-2.0, WASM-based
+
+**Priority:**
+1. DXF export first (easier, more demand)
+2. DXF import second
+3. DWG import last (complex format)
 
 ### Post-MVP Considerations
 
 - Desktop app (Tauri) - deferred to post-MVP
 - ~~Cloud sync - deferred to post-MVP~~ → May need sooner for symbol library
-- DWG support - deferred to post-MVP (use converter)
 
 ---
 

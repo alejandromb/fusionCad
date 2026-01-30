@@ -15,9 +15,358 @@
  * Reference: https://library.iec.ch/iec60617
  */
 
-import type { SymbolDefinition } from '@fusion-cad/core-model';
+import type { SymbolDefinition, SymbolPath, SymbolText } from '@fusion-cad/core-model';
 import { getSymbolDefinition } from '@fusion-cad/core-model';
 import type { SymbolGeometry } from './types';
+
+// ---------------------------------------------------------------------------
+// SVG Path Parser and Renderer
+// ---------------------------------------------------------------------------
+
+interface PathCommand {
+  type: string;
+  args: number[];
+}
+
+/**
+ * Parse SVG path data string into commands.
+ * Supports: M, L, H, V, A, C, Q, Z (uppercase = absolute, lowercase = relative)
+ */
+function parseSVGPath(d: string): PathCommand[] {
+  const commands: PathCommand[] = [];
+  // Match command letter followed by optional numbers (with commas/spaces)
+  const regex = /([MmLlHhVvAaCcQqZz])([^MmLlHhVvAaCcQqZz]*)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(d)) !== null) {
+    const type = match[1];
+    const argsStr = match[2].trim();
+
+    let args: number[] = [];
+    if (argsStr) {
+      // Parse numbers, handling negative signs and decimals
+      args = argsStr
+        .replace(/,/g, ' ')
+        .replace(/-/g, ' -')
+        .split(/\s+/)
+        .filter((s) => s.length > 0)
+        .map(parseFloat);
+    }
+
+    commands.push({ type, args });
+  }
+
+  return commands;
+}
+
+/**
+ * Render parsed SVG path commands to canvas context.
+ */
+function renderPathCommands(
+  ctx: CanvasRenderingContext2D,
+  commands: PathCommand[],
+  offsetX: number,
+  offsetY: number
+): void {
+  let currentX = 0;
+  let currentY = 0;
+  let startX = 0;
+  let startY = 0;
+
+  ctx.beginPath();
+
+  for (const cmd of commands) {
+    const { type, args } = cmd;
+    const isRelative = type === type.toLowerCase();
+    const cmdUpper = type.toUpperCase();
+
+    switch (cmdUpper) {
+      case 'M': {
+        // Move to
+        if (isRelative) {
+          currentX += args[0];
+          currentY += args[1];
+        } else {
+          currentX = args[0];
+          currentY = args[1];
+        }
+        startX = currentX;
+        startY = currentY;
+        ctx.moveTo(offsetX + currentX, offsetY + currentY);
+
+        // Subsequent pairs are implicit line-to commands
+        for (let i = 2; i < args.length; i += 2) {
+          if (isRelative) {
+            currentX += args[i];
+            currentY += args[i + 1];
+          } else {
+            currentX = args[i];
+            currentY = args[i + 1];
+          }
+          ctx.lineTo(offsetX + currentX, offsetY + currentY);
+        }
+        break;
+      }
+
+      case 'L': {
+        // Line to
+        for (let i = 0; i < args.length; i += 2) {
+          if (isRelative) {
+            currentX += args[i];
+            currentY += args[i + 1];
+          } else {
+            currentX = args[i];
+            currentY = args[i + 1];
+          }
+          ctx.lineTo(offsetX + currentX, offsetY + currentY);
+        }
+        break;
+      }
+
+      case 'H': {
+        // Horizontal line
+        for (const arg of args) {
+          if (isRelative) {
+            currentX += arg;
+          } else {
+            currentX = arg;
+          }
+          ctx.lineTo(offsetX + currentX, offsetY + currentY);
+        }
+        break;
+      }
+
+      case 'V': {
+        // Vertical line
+        for (const arg of args) {
+          if (isRelative) {
+            currentY += arg;
+          } else {
+            currentY = arg;
+          }
+          ctx.lineTo(offsetX + currentX, offsetY + currentY);
+        }
+        break;
+      }
+
+      case 'A': {
+        // Arc: rx ry x-axis-rotation large-arc-flag sweep-flag x y
+        for (let i = 0; i < args.length; i += 7) {
+          const rx = args[i];
+          const ry = args[i + 1];
+          // const rotation = args[i + 2]; // x-axis rotation (not used for circles)
+          const largeArc = args[i + 3];
+          const sweep = args[i + 4];
+          let endX = args[i + 5];
+          let endY = args[i + 6];
+
+          if (isRelative) {
+            endX = currentX + endX;
+            endY = currentY + endY;
+          }
+
+          // Convert SVG arc to canvas arc
+          // For circles (rx === ry), we can use ctx.arc
+          if (rx === ry) {
+            const radius = rx;
+            // Calculate center of the arc
+            const { cx, cy, startAngle, endAngle } = svgArcToCanvasArc(
+              currentX,
+              currentY,
+              endX,
+              endY,
+              radius,
+              largeArc === 1,
+              sweep === 1
+            );
+            const anticlockwise = sweep === 0;
+            ctx.arc(
+              offsetX + cx,
+              offsetY + cy,
+              radius,
+              startAngle,
+              endAngle,
+              anticlockwise
+            );
+          } else {
+            // Elliptical arc - use ellipse or approximate with beziers
+            // For now, just draw a line (simplified)
+            ctx.lineTo(offsetX + endX, offsetY + endY);
+          }
+
+          currentX = endX;
+          currentY = endY;
+        }
+        break;
+      }
+
+      case 'C': {
+        // Cubic bezier: x1 y1 x2 y2 x y
+        for (let i = 0; i < args.length; i += 6) {
+          let x1 = args[i];
+          let y1 = args[i + 1];
+          let x2 = args[i + 2];
+          let y2 = args[i + 3];
+          let x = args[i + 4];
+          let y = args[i + 5];
+
+          if (isRelative) {
+            x1 += currentX;
+            y1 += currentY;
+            x2 += currentX;
+            y2 += currentY;
+            x += currentX;
+            y += currentY;
+          }
+
+          ctx.bezierCurveTo(
+            offsetX + x1,
+            offsetY + y1,
+            offsetX + x2,
+            offsetY + y2,
+            offsetX + x,
+            offsetY + y
+          );
+
+          currentX = x;
+          currentY = y;
+        }
+        break;
+      }
+
+      case 'Q': {
+        // Quadratic bezier: x1 y1 x y
+        for (let i = 0; i < args.length; i += 4) {
+          let x1 = args[i];
+          let y1 = args[i + 1];
+          let x = args[i + 2];
+          let y = args[i + 3];
+
+          if (isRelative) {
+            x1 += currentX;
+            y1 += currentY;
+            x += currentX;
+            y += currentY;
+          }
+
+          ctx.quadraticCurveTo(
+            offsetX + x1,
+            offsetY + y1,
+            offsetX + x,
+            offsetY + y
+          );
+
+          currentX = x;
+          currentY = y;
+        }
+        break;
+      }
+
+      case 'Z': {
+        // Close path
+        ctx.closePath();
+        currentX = startX;
+        currentY = startY;
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Convert SVG arc parameters to Canvas arc parameters.
+ * Returns center and angles for ctx.arc()
+ */
+function svgArcToCanvasArc(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  r: number,
+  largeArc: boolean,
+  sweep: boolean
+): { cx: number; cy: number; startAngle: number; endAngle: number } {
+  // Midpoint
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
+  // Distance from midpoint to endpoints
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const d = Math.sqrt(dx * dx + dy * dy) / 2;
+
+  // Handle edge case where radius is too small
+  const rAdjusted = Math.max(r, d);
+
+  // Distance from midpoint to center
+  const h = Math.sqrt(Math.max(0, rAdjusted * rAdjusted - d * d));
+
+  // Perpendicular direction
+  const px = -dy / (2 * d);
+  const py = dx / (2 * d);
+
+  // Choose center based on largeArc and sweep flags
+  const sign = largeArc !== sweep ? 1 : -1;
+  const cx = mx + sign * h * px;
+  const cy = my + sign * h * py;
+
+  // Calculate angles
+  const startAngle = Math.atan2(y1 - cy, x1 - cx);
+  const endAngle = Math.atan2(y2 - cy, x2 - cx);
+
+  return { cx, cy, startAngle, endAngle };
+}
+
+/**
+ * Render symbol paths to canvas.
+ */
+function renderPaths(
+  ctx: CanvasRenderingContext2D,
+  paths: SymbolPath[],
+  x: number,
+  y: number
+): void {
+  for (const path of paths) {
+    const commands = parseSVGPath(path.d);
+    const shouldStroke = path.stroke !== false; // default true
+    const shouldFill = path.fill === true; // default false
+    const strokeWidth = path.strokeWidth ?? 2;
+
+    ctx.strokeStyle = '#00ff00';
+    ctx.fillStyle = '#00ff00';
+    ctx.lineWidth = strokeWidth;
+
+    renderPathCommands(ctx, commands, x, y);
+
+    if (shouldFill) {
+      ctx.fill();
+    }
+    if (shouldStroke) {
+      ctx.stroke();
+    }
+  }
+}
+
+/**
+ * Render symbol text elements to canvas.
+ */
+function renderTexts(
+  ctx: CanvasRenderingContext2D,
+  texts: SymbolText[],
+  x: number,
+  y: number
+): void {
+  for (const text of texts) {
+    const fontSize = text.fontSize ?? 20;
+    const fontWeight = text.fontWeight ?? 'bold';
+
+    ctx.fillStyle = '#00ff00';
+    ctx.font = `${fontWeight} ${fontSize}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text.content, x + text.x, y + text.y);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Draw function registry
@@ -197,12 +546,21 @@ export function drawSymbol(
     return;
   }
 
-  // Use custom draw function or generic fallback
-  const drawFn = drawFunctions.get(category);
-  if (drawFn) {
-    drawFn(ctx, x, y, def, tag);
+  // Priority: 1. paths array, 2. custom draw function, 3. generic fallback
+  if (def.paths && def.paths.length > 0) {
+    // Use SVG path-based rendering
+    renderPaths(ctx, def.paths, x, y);
+    if (def.texts && def.texts.length > 0) {
+      renderTexts(ctx, def.texts, x, y);
+    }
   } else {
-    drawGenericSymbol(ctx, x, y, def, tag);
+    // Use custom draw function or generic fallback
+    const drawFn = drawFunctions.get(category);
+    if (drawFn) {
+      drawFn(ctx, x, y, def, tag);
+    } else {
+      drawGenericSymbol(ctx, x, y, def, tag);
+    }
   }
 
   // Draw tag label
