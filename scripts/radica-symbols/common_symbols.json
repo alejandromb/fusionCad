@@ -1,0 +1,114 @@
+[
+  {
+    "stencil": 229,
+    "id": 0,
+    "slug": "contactor-3p",
+    "category": "Power",
+    "description": "3-phase contactor"
+  },
+  {
+    "stencil": 229,
+    "id": 1,
+    "slug": "circuit-breaker-3p",
+    "category": "Power",
+    "description": "3-phase circuit breaker"
+  },
+  {
+    "stencil": 229,
+    "id": 2,
+    "slug": "disconnector-isolator-3p",
+    "category": "Power",
+    "description": "3-phase disconnector/isolator"
+  },
+  {
+    "stencil": 229,
+    "id": 9,
+    "slug": "fuse-3p",
+    "category": "Power",
+    "description": "3-phase fuse"
+  },
+  {
+    "stencil": 229,
+    "id": 10,
+    "slug": "pilot-light",
+    "category": "Control",
+    "description": "Pilot/indicator light"
+  },
+  {
+    "stencil": 229,
+    "id": 12,
+    "slug": "normally-open-contact",
+    "category": "Control",
+    "description": "NO contact (auxiliary)"
+  },
+  {
+    "stencil": 229,
+    "id": 13,
+    "slug": "normally-close-contact",
+    "category": "Control",
+    "description": "NC contact (auxiliary)"
+  },
+  {
+    "stencil": 229,
+    "id": 14,
+    "slug": "changeover-contact-break-before-make",
+    "category": "Control",
+    "description": "Changeover contact"
+  },
+  {
+    "stencil": 229,
+    "id": 15,
+    "slug": "on-delay-no-contact",
+    "category": "Timer",
+    "description": "On-delay timer NO contact"
+  },
+  {
+    "stencil": 229,
+    "id": 16,
+    "slug": "off-delay-no-contact",
+    "category": "Timer",
+    "description": "Off-delay timer NO contact"
+  },
+  {
+    "stencil": 229,
+    "id": 17,
+    "slug": "manual-switch",
+    "category": "Control",
+    "description": "Manual switch"
+  },
+  {
+    "stencil": 229,
+    "id": 18,
+    "slug": "emergency-stop-switch",
+    "category": "Control",
+    "description": "Emergency stop (E-stop)"
+  },
+  {
+    "stencil": 229,
+    "id": 22,
+    "slug": "key-selector-switch",
+    "category": "Control",
+    "description": "Key-operated selector switch"
+  },
+  {
+    "stencil": 229,
+    "id": 31,
+    "slug": "level-switch",
+    "category": "Field",
+    "description": "Level switch/sensor"
+  },
+  {
+    "stencil": 229,
+    "id": 32,
+    "slug": "flow-switch",
+    "category": "Field",
+    "description": "Flow switch/sensor"
+  },
+  {
+    "stencil": 229,
+    "id": 33,
+    "slug": "foot-switch",
+    "category": "Control",
+    "description": "Foot-operated switch"
+  }
+]

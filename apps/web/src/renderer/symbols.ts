@@ -16,8 +16,21 @@
  */
 
 import type { SymbolDefinition, SymbolPath, SymbolText } from '@fusion-cad/core-model';
-import { getSymbolDefinition } from '@fusion-cad/core-model';
-import type { SymbolGeometry } from './types';
+import { getSymbolDefinition, getSymbolById } from '@fusion-cad/core-model';
+import type { SymbolGeometry, DeviceTransform } from './types';
+import { transformPinPosition } from './types';
+
+/**
+ * Look up a symbol by ID first, then fall back to category lookup.
+ * This allows using symbol IDs (e.g., 'iec-power-supply') directly.
+ */
+function lookupSymbol(idOrCategory: string): SymbolDefinition | undefined {
+  // Try by ID first (new behavior)
+  const byId = getSymbolById(idOrCategory);
+  if (byId) return byId;
+  // Fall back to category lookup (backward compat)
+  return getSymbolDefinition(idOrCategory);
+}
 
 // ---------------------------------------------------------------------------
 // SVG Path Parser and Renderer
@@ -397,11 +410,11 @@ export function registerDrawFunction(
 // ---------------------------------------------------------------------------
 
 /**
- * Get symbol geometry by category.
- * Reads from the core-model symbol library and maps to the renderer SymbolGeometry type.
+ * Get symbol geometry by ID or category.
+ * Tries ID lookup first, then falls back to category for backward compatibility.
  */
-export function getSymbolGeometry(category: string): SymbolGeometry {
-  const def = getSymbolDefinition(category);
+export function getSymbolGeometry(idOrCategory: string): SymbolGeometry {
+  const def = lookupSymbol(idOrCategory);
   if (!def) {
     return { width: 40, height: 40, pins: [] };
   }
@@ -520,15 +533,18 @@ function drawTag(
 
 /**
  * Draw a symbol on the canvas.
+ * Supports rotation (0/90/180/270) and horizontal mirror via optional transform.
+ * The idOrCategory parameter can be a symbol ID (e.g., 'iec-power-supply') or category.
  */
 export function drawSymbol(
   ctx: CanvasRenderingContext2D,
-  category: string,
+  idOrCategory: string,
   x: number,
   y: number,
-  tag: string
+  tag: string,
+  transform?: DeviceTransform
 ): void {
-  const def = getSymbolDefinition(category);
+  const def = lookupSymbol(idOrCategory);
 
   ctx.save();
 
@@ -546,6 +562,24 @@ export function drawSymbol(
     return;
   }
 
+  const { width, height } = def.geometry;
+  const rotation = transform?.rotation || 0;
+  const mirrorH = transform?.mirrorH || false;
+
+  // Apply rotation and mirror transforms around symbol center
+  if (rotation !== 0 || mirrorH) {
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+    ctx.translate(cx, cy);
+    if (mirrorH) {
+      ctx.scale(-1, 1);
+    }
+    if (rotation !== 0) {
+      ctx.rotate((rotation * Math.PI) / 180);
+    }
+    ctx.translate(-cx, -cy);
+  }
+
   // Priority: 1. paths array, 2. custom draw function, 3. generic fallback
   if (def.paths && def.paths.length > 0) {
     // Use SVG path-based rendering
@@ -555,7 +589,7 @@ export function drawSymbol(
     }
   } else {
     // Use custom draw function or generic fallback
-    const drawFn = drawFunctions.get(category);
+    const drawFn = drawFunctions.get(idOrCategory);
     if (drawFn) {
       drawFn(ctx, x, y, def, tag);
     } else {
@@ -563,13 +597,95 @@ export function drawSymbol(
     }
   }
 
-  // Draw tag label
-  drawTag(ctx, x, y, def, tag, category);
-
   ctx.restore();
 
-  // Draw pins (outside save/restore so pin styles are clean)
-  drawPins(ctx, x, y, def);
+  // Draw tag label (outside rotation transform so text stays readable)
+  drawTag(ctx, x, y, def, tag, idOrCategory);
+
+  // Draw pins at their transformed positions
+  if (rotation !== 0 || mirrorH) {
+    drawTransformedPins(ctx, x, y, def, rotation, mirrorH);
+  } else {
+    drawPins(ctx, x, y, def);
+  }
+}
+
+/**
+ * Get symbol geometry with transforms applied to pins.
+ */
+export function getTransformedSymbolGeometry(
+  category: string,
+  transform?: DeviceTransform
+): SymbolGeometry {
+  const base = getSymbolGeometry(category);
+  if (!transform || (transform.rotation === 0 && !transform.mirrorH)) {
+    return base;
+  }
+
+  return {
+    width: base.width,
+    height: base.height,
+    pins: base.pins.map(pin =>
+      transformPinPosition(pin, base.width, base.height, transform.rotation, transform.mirrorH)
+    ),
+  };
+}
+
+/**
+ * Draw pins at transformed positions.
+ */
+function drawTransformedPins(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: SymbolDefinition,
+  rotation: number,
+  mirrorH: boolean
+): void {
+  const { width, height } = def.geometry;
+  ctx.fillStyle = '#00ffff';
+  ctx.font = '10px monospace';
+
+  for (const pin of def.pins) {
+    const transformed = transformPinPosition(
+      { id: pin.id, position: pin.position, direction: pin.direction },
+      width,
+      height,
+      rotation,
+      mirrorH
+    );
+    const pinX = x + transformed.position.x;
+    const pinY = y + transformed.position.y;
+
+    ctx.fillStyle = '#00ffff';
+    ctx.beginPath();
+    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffff00';
+    ctx.textBaseline = 'middle';
+
+    switch (transformed.direction) {
+      case 'left':
+        ctx.textAlign = 'right';
+        ctx.fillText(pin.id, pinX - 8, pinY);
+        break;
+      case 'right':
+        ctx.textAlign = 'left';
+        ctx.fillText(pin.id, pinX + 8, pinY);
+        break;
+      case 'top':
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pin.id, pinX, pinY - 8);
+        break;
+      case 'bottom':
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(pin.id, pinX, pinY + 8);
+        break;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

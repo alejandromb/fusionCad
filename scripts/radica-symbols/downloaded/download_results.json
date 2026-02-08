@@ -1,0 +1,1388 @@
+[
+  {
+    "symbol": "contactor-3p",
+    "stencil_id": 229,
+    "symbol_id": 0,
+    "variant": "standard",
+    "hash": "35e540fd4c",
+    "files": {
+      "svg": "downloaded/svg/contactor_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "circuit-breaker-3p",
+    "stencil_id": 229,
+    "symbol_id": 1,
+    "variant": "standard",
+    "hash": "2917c99e37",
+    "files": {
+      "svg": "downloaded/svg/circuit_breaker_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "disconnector-isolator-3p",
+    "stencil_id": 229,
+    "symbol_id": 2,
+    "variant": "standard",
+    "hash": "978b37c758",
+    "files": {
+      "svg": "downloaded/svg/disconnector_isolator_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "switch-disconnector-3p",
+    "stencil_id": 229,
+    "symbol_id": 3,
+    "variant": "standard",
+    "hash": "beaddf9be3",
+    "files": {
+      "svg": "downloaded/svg/switch_disconnector_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fuse-disconnector-isolator-3p",
+    "stencil_id": 229,
+    "symbol_id": 4,
+    "variant": "standard",
+    "hash": "e3e50bdc9f",
+    "files": {
+      "svg": "downloaded/svg/fuse_disconnector_isolator_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fuse-switch-disconnector-3p",
+    "stencil_id": 229,
+    "symbol_id": 5,
+    "variant": "standard",
+    "hash": "ad5bd9aa5f",
+    "files": {
+      "svg": "downloaded/svg/fuse_switch_disconnector_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "selector-switch-1p",
+    "stencil_id": 229,
+    "symbol_id": 6,
+    "variant": "standard",
+    "hash": "1894714a4b",
+    "files": {
+      "svg": "downloaded/svg/selector_switch_1p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "selector-switch-2p",
+    "stencil_id": 229,
+    "symbol_id": 7,
+    "variant": "standard",
+    "hash": "5c62fc9cab",
+    "files": {
+      "svg": "downloaded/svg/selector_switch_2p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "selector-switch-3p",
+    "stencil_id": 229,
+    "symbol_id": 8,
+    "variant": "standard",
+    "hash": "73814e337b",
+    "files": {
+      "svg": "downloaded/svg/selector_switch_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fuse-3p",
+    "stencil_id": 229,
+    "symbol_id": 9,
+    "variant": "standard",
+    "hash": "97a177a58d",
+    "files": {
+      "svg": "downloaded/svg/fuse_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "pilot-light",
+    "stencil_id": 229,
+    "symbol_id": 10,
+    "variant": "standard",
+    "hash": "3062b640a9",
+    "files": {
+      "svg": "downloaded/svg/pilot_light.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "photo-cell",
+    "stencil_id": 229,
+    "symbol_id": 11,
+    "variant": "standard",
+    "hash": "4f79d96a3e",
+    "files": {
+      "svg": "downloaded/svg/photo_cell.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "normally-open-contact",
+    "stencil_id": 229,
+    "symbol_id": 12,
+    "variant": "standard",
+    "hash": "c42afc019b",
+    "files": {
+      "svg": "downloaded/svg/normally_open_contact.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "normally-close-contact",
+    "stencil_id": 229,
+    "symbol_id": 13,
+    "variant": "standard",
+    "hash": "92dedde757",
+    "files": {
+      "svg": "downloaded/svg/normally_close_contact.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "changeover-contact-break-before-make",
+    "stencil_id": 229,
+    "symbol_id": 14,
+    "variant": "standard",
+    "hash": "0539936092",
+    "files": {
+      "svg": "downloaded/svg/changeover_contact_break_before_make.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "on-delay-no-contact",
+    "stencil_id": 229,
+    "symbol_id": 15,
+    "variant": "standard",
+    "hash": "4029784db1",
+    "files": {
+      "svg": "downloaded/svg/on_delay_no_contact.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "off-delay-no-contact",
+    "stencil_id": 229,
+    "symbol_id": 16,
+    "variant": "standard",
+    "hash": "eccb4b47dd",
+    "files": {
+      "svg": "downloaded/svg/off_delay_no_contact.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "manual-switch",
+    "stencil_id": 229,
+    "symbol_id": 17,
+    "variant": "standard",
+    "hash": "de6f29fc75",
+    "files": {
+      "svg": "downloaded/svg/manual_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "emergency-stop-switch",
+    "stencil_id": 229,
+    "symbol_id": 18,
+    "variant": "standard",
+    "hash": "4d5c563ee3",
+    "files": {
+      "svg": "downloaded/svg/emergency_stop_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "handwheel-switch",
+    "stencil_id": 229,
+    "symbol_id": 19,
+    "variant": "standard",
+    "hash": "e93af2abf1",
+    "files": {
+      "svg": "downloaded/svg/handwheel_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "lever-switch",
+    "stencil_id": 229,
+    "symbol_id": 20,
+    "variant": "standard",
+    "hash": "fbd839ca9f",
+    "files": {
+      "svg": "downloaded/svg/lever_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "removable-handle-switch",
+    "stencil_id": 229,
+    "symbol_id": 21,
+    "variant": "standard",
+    "hash": "c915e1a532",
+    "files": {
+      "svg": "downloaded/svg/removable_handle_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "key-selector-switch",
+    "stencil_id": 229,
+    "symbol_id": 22,
+    "variant": "standard",
+    "hash": "7d43506e87",
+    "files": {
+      "svg": "downloaded/svg/key_selector_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "roller-switch",
+    "stencil_id": 229,
+    "symbol_id": 23,
+    "variant": "standard",
+    "hash": "09bf576b15",
+    "files": {
+      "svg": "downloaded/svg/roller_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "cam-switch",
+    "stencil_id": 229,
+    "symbol_id": 24,
+    "variant": "standard",
+    "hash": "a0d524d1a1",
+    "files": {
+      "svg": "downloaded/svg/cam_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "spring-switch",
+    "stencil_id": 229,
+    "symbol_id": 25,
+    "variant": "standard",
+    "hash": "162329937c",
+    "files": {
+      "svg": "downloaded/svg/spring_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "single-acting-switch",
+    "stencil_id": 229,
+    "symbol_id": 26,
+    "variant": "standard",
+    "hash": "7a1b549316",
+    "files": {
+      "svg": "downloaded/svg/single_acting_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "double-acting-switch",
+    "stencil_id": 229,
+    "symbol_id": 27,
+    "variant": "standard",
+    "hash": "b1dcb9ced0",
+    "files": {
+      "svg": "downloaded/svg/double_acting_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "electromagnetic-switch",
+    "stencil_id": 229,
+    "symbol_id": 28,
+    "variant": "standard",
+    "hash": "3b3d123a17",
+    "files": {
+      "svg": "downloaded/svg/electromagnetic_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "electric-motor-switch",
+    "stencil_id": 229,
+    "symbol_id": 29,
+    "variant": "standard",
+    "hash": "455d589751",
+    "files": {
+      "svg": "downloaded/svg/electric_motor_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "electronic-clock-switch",
+    "stencil_id": 229,
+    "symbol_id": 30,
+    "variant": "standard",
+    "hash": "48fc1f7977",
+    "files": {
+      "svg": "downloaded/svg/electronic_clock_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "level-switch",
+    "stencil_id": 229,
+    "symbol_id": 31,
+    "variant": "standard",
+    "hash": "44fe04492c",
+    "files": {
+      "svg": "downloaded/svg/level_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "flow-switch",
+    "stencil_id": 229,
+    "symbol_id": 32,
+    "variant": "standard",
+    "hash": "ac2de2832f",
+    "files": {
+      "svg": "downloaded/svg/flow_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "foot-switch",
+    "stencil_id": 229,
+    "symbol_id": 33,
+    "variant": "standard",
+    "hash": "59b4cceb70",
+    "files": {
+      "svg": "downloaded/svg/foot_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "temperature-switch",
+    "stencil_id": 229,
+    "symbol_id": 34,
+    "variant": "standard",
+    "hash": "56ddadb7a4",
+    "files": {
+      "svg": "downloaded/svg/temperature_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "static-switch",
+    "stencil_id": 229,
+    "symbol_id": 35,
+    "variant": "standard",
+    "hash": "e17b4f8f95",
+    "files": {
+      "svg": "downloaded/svg/static_switch.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "circuit-breaker-thermal-magnetic-3p",
+    "stencil_id": 229,
+    "symbol_id": 36,
+    "variant": "standard",
+    "hash": "490baa6898",
+    "files": {
+      "svg": "downloaded/svg/circuit_breaker_thermal_magnetic_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "circuit-breaker-3p-thermal",
+    "stencil_id": 229,
+    "symbol_id": 37,
+    "variant": "standard",
+    "hash": "5e2a30c4dc",
+    "files": {
+      "svg": "downloaded/svg/circuit_breaker_3p_thermal.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "circuit-breaker-3p-magnetic",
+    "stencil_id": 229,
+    "symbol_id": 38,
+    "variant": "standard",
+    "hash": "8c82083967",
+    "files": {
+      "svg": "downloaded/svg/circuit_breaker_3p_magnetic.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "coil",
+    "stencil_id": 229,
+    "symbol_id": 39,
+    "variant": "standard",
+    "hash": "d12ec3dc6f",
+    "files": {
+      "svg": "downloaded/svg/coil.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "off-delay-timer",
+    "stencil_id": 229,
+    "symbol_id": 40,
+    "variant": "standard",
+    "hash": "17015282ee",
+    "files": {
+      "svg": "downloaded/svg/off_delay_timer.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "on-delay-timer",
+    "stencil_id": 229,
+    "symbol_id": 41,
+    "variant": "standard",
+    "hash": "621ed924ba",
+    "files": {
+      "svg": "downloaded/svg/on_delay_timer.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "counter-pulse",
+    "stencil_id": 229,
+    "symbol_id": 42,
+    "variant": "standard",
+    "hash": "7d3f7618df",
+    "files": {
+      "svg": "downloaded/svg/counter_pulse.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "over-voltage-relay",
+    "stencil_id": 229,
+    "symbol_id": 43,
+    "variant": "standard",
+    "hash": "47755a8f5c",
+    "files": {
+      "svg": "downloaded/svg/over_voltage_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "under-voltage-relay",
+    "stencil_id": 229,
+    "symbol_id": 44,
+    "variant": "standard",
+    "hash": "7f9fcb4170",
+    "files": {
+      "svg": "downloaded/svg/under_voltage_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "earth-fault-relay",
+    "stencil_id": 229,
+    "symbol_id": 45,
+    "variant": "standard",
+    "hash": "07fe926e3e",
+    "files": {
+      "svg": "downloaded/svg/earth_fault_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "instantaneous-overcurrent-relay",
+    "stencil_id": 229,
+    "symbol_id": 46,
+    "variant": "standard",
+    "hash": "0c55a2f951",
+    "files": {
+      "svg": "downloaded/svg/instantaneous_overcurrent_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "overcurrent-relay",
+    "stencil_id": 229,
+    "symbol_id": 47,
+    "variant": "standard",
+    "hash": "6aa9e85748",
+    "files": {
+      "svg": "downloaded/svg/overcurrent_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "under-power-relay",
+    "stencil_id": 229,
+    "symbol_id": 48,
+    "variant": "standard",
+    "hash": "e114e6e639",
+    "files": {
+      "svg": "downloaded/svg/under_power_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "reverse-power-relay",
+    "stencil_id": 229,
+    "symbol_id": 49,
+    "variant": "standard",
+    "hash": "0297f0e8e8",
+    "files": {
+      "svg": "downloaded/svg/reverse_power_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "minimum-impedance-relay",
+    "stencil_id": 229,
+    "symbol_id": 50,
+    "variant": "standard",
+    "hash": "aed16bc10c",
+    "files": {
+      "svg": "downloaded/svg/minimum_impedance_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "thermal-overload-relay",
+    "stencil_id": 229,
+    "symbol_id": 51,
+    "variant": "standard",
+    "hash": "1467470956",
+    "files": {
+      "svg": "downloaded/svg/thermal_overload_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "differential-current-relay",
+    "stencil_id": 229,
+    "symbol_id": 52,
+    "variant": "standard",
+    "hash": "36bbad51a9",
+    "files": {
+      "svg": "downloaded/svg/differential_current_relay.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "temperature-controller",
+    "stencil_id": 229,
+    "symbol_id": 53,
+    "variant": "standard",
+    "hash": "84f88fc509",
+    "files": {
+      "svg": "downloaded/svg/temperature_controller.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "horn",
+    "stencil_id": 229,
+    "symbol_id": 54,
+    "variant": "standard",
+    "hash": "74969dd73a",
+    "files": {
+      "svg": "downloaded/svg/horn.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "bell",
+    "stencil_id": 229,
+    "symbol_id": 55,
+    "variant": "standard",
+    "hash": "74aff25ce8",
+    "files": {
+      "svg": "downloaded/svg/bell.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "siren",
+    "stencil_id": 229,
+    "symbol_id": 56,
+    "variant": "standard",
+    "hash": "c89a8c2499",
+    "files": {
+      "svg": "downloaded/svg/siren.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "transformer-3p",
+    "stencil_id": 229,
+    "symbol_id": 57,
+    "variant": "standard",
+    "hash": "127cbbad42",
+    "files": {
+      "svg": "downloaded/svg/transformer_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "transformer-3p-variable-coupling",
+    "stencil_id": 229,
+    "symbol_id": 58,
+    "variant": "standard",
+    "hash": "12f12ed290",
+    "files": {
+      "svg": "downloaded/svg/transformer_3p_variable_coupling.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "autotransformer-3p",
+    "stencil_id": 229,
+    "symbol_id": 59,
+    "variant": "standard",
+    "hash": "342e2b3d4e",
+    "files": {
+      "svg": "downloaded/svg/autotransformer_3p.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "current-transformer",
+    "stencil_id": 229,
+    "symbol_id": 60,
+    "variant": "standard",
+    "hash": "71a428ffa8",
+    "files": {
+      "svg": "downloaded/svg/current_transformer.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "current-transformer-1-core-2-windings",
+    "stencil_id": 229,
+    "symbol_id": 61,
+    "variant": "standard",
+    "hash": "06a13c4c3b",
+    "files": {
+      "svg": "downloaded/svg/current_transformer_1_core_2_windings.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "current-transformer-3-threaded-primary-conductor",
+    "stencil_id": 229,
+    "symbol_id": 62,
+    "variant": "standard",
+    "hash": "337117e3ec",
+    "files": {
+      "svg": "downloaded/svg/current_transformer_3_threaded_primary_conductor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "transformer-3p-star-delta",
+    "stencil_id": 229,
+    "symbol_id": 63,
+    "variant": "standard",
+    "hash": "a5d783d7bd",
+    "files": {
+      "svg": "downloaded/svg/transformer_3p_star_delta.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "kilo-watt-hour-meter",
+    "stencil_id": 229,
+    "symbol_id": 64,
+    "variant": "standard",
+    "hash": "67112fa8a3",
+    "files": {
+      "svg": "downloaded/svg/kilo_watt_hour_meter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "kilo-var-hour-meter",
+    "stencil_id": 229,
+    "symbol_id": 65,
+    "variant": "standard",
+    "hash": "6f8ef6ae78",
+    "files": {
+      "svg": "downloaded/svg/kilo_var_hour_meter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "wattmeter-recording",
+    "stencil_id": 229,
+    "symbol_id": 66,
+    "variant": "standard",
+    "hash": "fae73da1c4",
+    "files": {
+      "svg": "downloaded/svg/wattmeter_recording.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "voltmeter",
+    "stencil_id": 229,
+    "symbol_id": 67,
+    "variant": "standard",
+    "hash": "d4ee32d5b5",
+    "files": {
+      "svg": "downloaded/svg/voltmeter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "ammeter",
+    "stencil_id": 229,
+    "symbol_id": 68,
+    "variant": "standard",
+    "hash": "0d2b10aeca",
+    "files": {
+      "svg": "downloaded/svg/ammeter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "varmeter",
+    "stencil_id": 229,
+    "symbol_id": 69,
+    "variant": "standard",
+    "hash": "13b27c8515",
+    "files": {
+      "svg": "downloaded/svg/varmeter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "power-factor-meter",
+    "stencil_id": 229,
+    "symbol_id": 70,
+    "variant": "standard",
+    "hash": "dcd95d5a3e",
+    "files": {
+      "svg": "downloaded/svg/power_factor_meter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "frequency-meter",
+    "stencil_id": 229,
+    "symbol_id": 71,
+    "variant": "standard",
+    "hash": "6b766508a1",
+    "files": {
+      "svg": "downloaded/svg/frequency_meter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "thermometer-pyrometer",
+    "stencil_id": 229,
+    "symbol_id": 72,
+    "variant": "standard",
+    "hash": "4a146e2646",
+    "files": {
+      "svg": "downloaded/svg/thermometer_pyrometer.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "hour-meter",
+    "stencil_id": 229,
+    "symbol_id": 73,
+    "variant": "standard",
+    "hash": "5df1c1ddd6",
+    "files": {
+      "svg": "downloaded/svg/hour_meter.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "plug-and-socket-connector",
+    "stencil_id": 229,
+    "symbol_id": 74,
+    "variant": "standard",
+    "hash": "8eeee860b5",
+    "files": {
+      "svg": "downloaded/svg/plug_and_socket_connector.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "generator",
+    "stencil_id": 229,
+    "symbol_id": 75,
+    "variant": "standard",
+    "hash": "3ba21cfac7",
+    "files": {
+      "svg": "downloaded/svg/generator.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "ac-motor-3p-3-terminal",
+    "stencil_id": 229,
+    "symbol_id": 76,
+    "variant": "standard",
+    "hash": "7f3394a068",
+    "files": {
+      "svg": "downloaded/svg/ac_motor_3p_3_terminal.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "power-supply-converter-dc-dc",
+    "stencil_id": 229,
+    "symbol_id": 77,
+    "variant": "standard",
+    "hash": "c3480a84c4",
+    "files": {
+      "svg": "downloaded/svg/power_supply_converter_dc_dc.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "power-supply-rectifier-ac-dc",
+    "stencil_id": 229,
+    "symbol_id": 78,
+    "variant": "standard",
+    "hash": "414dde8d20",
+    "files": {
+      "svg": "downloaded/svg/power_supply_rectifier_ac_dc.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "power-supply-inverter-dc-ac",
+    "stencil_id": 229,
+    "symbol_id": 79,
+    "variant": "standard",
+    "hash": "940470805c",
+    "files": {
+      "svg": "downloaded/svg/power_supply_inverter_dc_ac.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "bridge-rectifier",
+    "stencil_id": 229,
+    "symbol_id": 80,
+    "variant": "standard",
+    "hash": "892e68b970",
+    "files": {
+      "svg": "downloaded/svg/bridge_rectifier.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "battery-multi-cell",
+    "stencil_id": 229,
+    "symbol_id": 81,
+    "variant": "standard",
+    "hash": "309744a782",
+    "files": {
+      "svg": "downloaded/svg/battery_multi_cell.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "capacitor",
+    "stencil_id": 229,
+    "symbol_id": 82,
+    "variant": "standard",
+    "hash": "1cabad729e",
+    "files": {
+      "svg": "downloaded/svg/capacitor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "inductor",
+    "stencil_id": 229,
+    "symbol_id": 83,
+    "variant": "standard",
+    "hash": "312e89e420",
+    "files": {
+      "svg": "downloaded/svg/inductor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "resistor",
+    "stencil_id": 229,
+    "symbol_id": 84,
+    "variant": "standard",
+    "hash": "637d8d5a3a",
+    "files": {
+      "svg": "downloaded/svg/resistor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "resistor-variable",
+    "stencil_id": 229,
+    "symbol_id": 85,
+    "variant": "standard",
+    "hash": "1204630902",
+    "files": {
+      "svg": "downloaded/svg/resistor_variable.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "thermistor",
+    "stencil_id": 229,
+    "symbol_id": 86,
+    "variant": "standard",
+    "hash": "cb1422ce4b",
+    "files": {
+      "svg": "downloaded/svg/thermistor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "potentiometer",
+    "stencil_id": 229,
+    "symbol_id": 87,
+    "variant": "standard",
+    "hash": "e7644faff9",
+    "files": {
+      "svg": "downloaded/svg/potentiometer.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "heater",
+    "stencil_id": 229,
+    "symbol_id": 88,
+    "variant": "standard",
+    "hash": "59e55a1155",
+    "files": {
+      "svg": "downloaded/svg/heater.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "diode",
+    "stencil_id": 229,
+    "symbol_id": 89,
+    "variant": "standard",
+    "hash": "83dc4bd714",
+    "files": {
+      "svg": "downloaded/svg/diode.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "diode-light-emitting-led",
+    "stencil_id": 229,
+    "symbol_id": 90,
+    "variant": "standard",
+    "hash": "f89119a7e0",
+    "files": {
+      "svg": "downloaded/svg/diode_light_emitting_led.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "triac",
+    "stencil_id": 229,
+    "symbol_id": 91,
+    "variant": "standard",
+    "hash": "10ebcd95ce",
+    "files": {
+      "svg": "downloaded/svg/triac.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "cable-head",
+    "stencil_id": 229,
+    "symbol_id": 92,
+    "variant": "standard",
+    "hash": "d440e9306f",
+    "files": {
+      "svg": "downloaded/svg/cable_head.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "telephone",
+    "stencil_id": 229,
+    "symbol_id": 93,
+    "variant": "standard",
+    "hash": "71a53b6403",
+    "files": {
+      "svg": "downloaded/svg/telephone.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "antenna",
+    "stencil_id": 229,
+    "symbol_id": 94,
+    "variant": "standard",
+    "hash": "8f41b65eb2",
+    "files": {
+      "svg": "downloaded/svg/antenna.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "lightning-rod",
+    "stencil_id": 229,
+    "symbol_id": 95,
+    "variant": "standard",
+    "hash": "1e596a01bd",
+    "files": {
+      "svg": "downloaded/svg/lightning_rod.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "lightning-arrestor",
+    "stencil_id": 229,
+    "symbol_id": 96,
+    "variant": "standard",
+    "hash": "0c95ec490c",
+    "files": {
+      "svg": "downloaded/svg/lightning_arrestor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "spark-gap",
+    "stencil_id": 229,
+    "symbol_id": 97,
+    "variant": "standard",
+    "hash": "cb31573215",
+    "files": {
+      "svg": "downloaded/svg/spark_gap.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "reactor",
+    "stencil_id": 229,
+    "symbol_id": 98,
+    "variant": "standard",
+    "hash": "a382a7f9cc",
+    "files": {
+      "svg": "downloaded/svg/reactor.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "instrumentation-panel",
+    "stencil_id": 229,
+    "symbol_id": 99,
+    "variant": "standard",
+    "hash": "846de6a7f7",
+    "files": {
+      "svg": "downloaded/svg/instrumentation_panel.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "distribution-panel",
+    "stencil_id": 229,
+    "symbol_id": 100,
+    "variant": "standard",
+    "hash": "730a03712e",
+    "files": {
+      "svg": "downloaded/svg/distribution_panel.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "remote-control-station",
+    "stencil_id": 229,
+    "symbol_id": 101,
+    "variant": "standard",
+    "hash": "4bf0fc8de9",
+    "files": {
+      "svg": "downloaded/svg/remote_control_station.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "junction-box",
+    "stencil_id": 229,
+    "symbol_id": 102,
+    "variant": "standard",
+    "hash": "96d703c5ab",
+    "files": {
+      "svg": "downloaded/svg/junction_box.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "straight-through-junction-box",
+    "stencil_id": 229,
+    "symbol_id": 103,
+    "variant": "standard",
+    "hash": "b97c206406",
+    "files": {
+      "svg": "downloaded/svg/straight_through_junction_box.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "socket-outlet",
+    "stencil_id": 229,
+    "symbol_id": 104,
+    "variant": "standard",
+    "hash": "2394e8087e",
+    "files": {
+      "svg": "downloaded/svg/socket_outlet.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "socket-outlet-with-protective-contact",
+    "stencil_id": 229,
+    "symbol_id": 105,
+    "variant": "standard",
+    "hash": "dc38556e8a",
+    "files": {
+      "svg": "downloaded/svg/socket_outlet_with_protective_contact.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x20w",
+    "stencil_id": 229,
+    "symbol_id": 106,
+    "variant": "standard",
+    "hash": "f1d99d40a6",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x20w.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x40w",
+    "stencil_id": 229,
+    "symbol_id": 107,
+    "variant": "standard",
+    "hash": "63640b2c37",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x40w.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x65w",
+    "stencil_id": 229,
+    "symbol_id": 108,
+    "variant": "standard",
+    "hash": "ca554a7be4",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x65w.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x20w-mounted-under-platform",
+    "stencil_id": 229,
+    "symbol_id": 109,
+    "variant": "standard",
+    "hash": "244c5351da",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x20w_mounted_under_platform.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x40w-mounted-under-platform",
+    "stencil_id": 229,
+    "symbol_id": 110,
+    "variant": "standard",
+    "hash": "b16bd42d76",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x40w_mounted_under_platform.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "fluorescent-lighting-fixture-2x65w-mounted-under-platform",
+    "stencil_id": 229,
+    "symbol_id": 111,
+    "variant": "standard",
+    "hash": "9d7fa5da5b",
+    "files": {
+      "svg": "downloaded/svg/fluorescent_lighting_fixture_2x65w_mounted_under_platform.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "floodlight",
+    "stencil_id": 229,
+    "symbol_id": 112,
+    "variant": "standard",
+    "hash": "7cc7256168",
+    "files": {
+      "svg": "downloaded/svg/floodlight.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "street-or-fence-lighting-fixture",
+    "stencil_id": 229,
+    "symbol_id": 113,
+    "variant": "standard",
+    "hash": "0ca30fedbd",
+    "files": {
+      "svg": "downloaded/svg/street_or_fence_lighting_fixture.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "emergency-exit-right",
+    "stencil_id": 229,
+    "symbol_id": 114,
+    "variant": "standard",
+    "hash": "d9ee1740f9",
+    "files": {
+      "svg": "downloaded/svg/emergency_exit_right.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "emergency-exit-left",
+    "stencil_id": 229,
+    "symbol_id": 115,
+    "variant": "standard",
+    "hash": "330e1adf44",
+    "files": {
+      "svg": "downloaded/svg/emergency_exit_left.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "emergency-exit-above-door",
+    "stencil_id": 229,
+    "symbol_id": 116,
+    "variant": "standard",
+    "hash": "9ddeb7d493",
+    "files": {
+      "svg": "downloaded/svg/emergency_exit_above_door.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "earth-ground",
+    "stencil_id": 229,
+    "symbol_id": 117,
+    "variant": "standard",
+    "hash": "82dd8398c2",
+    "files": {
+      "svg": "downloaded/svg/earth_ground.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "clean-earth-ground",
+    "stencil_id": 229,
+    "symbol_id": 118,
+    "variant": "standard",
+    "hash": "b0d617eb52",
+    "files": {
+      "svg": "downloaded/svg/clean_earth_ground.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "earth-electrode-in-pit",
+    "stencil_id": 229,
+    "symbol_id": 119,
+    "variant": "standard",
+    "hash": "2af635b411",
+    "files": {
+      "svg": "downloaded/svg/earth_electrode_in_pit.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "earth-electrode",
+    "stencil_id": 229,
+    "symbol_id": 120,
+    "variant": "standard",
+    "hash": "6554ed1161",
+    "files": {
+      "svg": "downloaded/svg/earth_electrode.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "clean-earth-electrode",
+    "stencil_id": 229,
+    "symbol_id": 121,
+    "variant": "standard",
+    "hash": "b93f082536",
+    "files": {
+      "svg": "downloaded/svg/clean_earth_electrode.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "pile-earthing",
+    "stencil_id": 229,
+    "symbol_id": 122,
+    "variant": "standard",
+    "hash": "7dfe47a04c",
+    "files": {
+      "svg": "downloaded/svg/pile_earthing.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "frame-chassis",
+    "stencil_id": 229,
+    "symbol_id": 123,
+    "variant": "standard",
+    "hash": "d1c3b3cc0b",
+    "files": {
+      "svg": "downloaded/svg/frame_chassis.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "equipotential",
+    "stencil_id": 229,
+    "symbol_id": 124,
+    "variant": "standard",
+    "hash": "815ee16173",
+    "files": {
+      "svg": "downloaded/svg/equipotential.svg"
+    },
+    "success": true
+  },
+  {
+    "symbol": "bus-duct",
+    "stencil_id": 229,
+    "symbol_id": 125,
+    "variant": "standard",
+    "hash": "e95b890567",
+    "files": {
+      "svg": "downloaded/svg/bus_duct.svg"
+    },
+    "success": true
+  }
+]

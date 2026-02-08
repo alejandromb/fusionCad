@@ -13,65 +13,42 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-01-29)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-06)
 
-**Current task:** JSON+SVG Symbol Format - COMPLETE!
+**Current task:** Symbol Editor & JSON Symbol Library - COMPLETE!
 
 **Status:**
-- ✅ Persistence working (Postgres + TypeORM)
-- ✅ Copy/paste/duplicate (Cmd+C/V/D)
-- ✅ Undo/redo (Cmd+Z/Shift+Z)
-- ✅ Multi-select (Shift+click, Cmd+A)
-- ✅ Wire bend points fully working
-- ✅ **JSON+SVG Symbol Format complete**:
-  - `SymbolPath` interface for SVG path data
-  - `SymbolText` interface for text labels
-  - SVG path parser (M, L, H, V, A, C, Q, Z commands)
-  - All 6 IEC symbols converted to JSON+SVG
-  - Backward compatible (custom draw functions still work)
+- ✅ **JSON Symbol Library**: 55 IEC symbols in `builtin-symbols.json`
+- ✅ **Insert Symbol Dialog**: Searchable modal replaces old sidebar palette
+- ✅ **Symbol Editor**: Visual tool to create/edit symbols (Line, Rect, Circle, Polyline, Pin tools)
+- ✅ **Wire Preview**: Dashed green line from start pin to cursor
+- ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, wire bend points)
 - ⚠️ Drag-select (marquee) NOT yet implemented
 
 **Next steps:**
-1. Add drag-select (marquee/rubber band selection)
-2. Import symbols from external SVG libraries (KiCad, electricalsymbols repo)
-3. Consider adding wire properties panel when wire selected
-
-**Files modified this session:**
-- `packages/core-model/src/types.ts` - Added SymbolPath, SymbolText interfaces
-- `apps/web/src/renderer/symbols.ts` - SVG path parser and renderer
-- `packages/core-model/src/symbols/iec-symbols.ts` - Converted all 6 symbols to paths
-
-**Symbol format example:**
-```typescript
-{
-  paths: [
-    { d: 'M 30,5 A 25,25 0 1,1 29.99,5 Z', stroke: true }
-  ],
-  texts: [
-    { content: 'M', x: 30, y: 30, fontSize: 20, fontWeight: 'bold' }
-  ]
-}
-```
+1. Fine-tune symbol paths using Symbol Editor (user can do this now!)
+2. Implement IndexedDB storage for free tier
+3. Add drag-select (marquee/rubber band selection)
 
 ---
 
 ## 🎯 PROJECT CONTEXT
 
-**Phase:** Phase 2 - Minimal Editor (97% complete)
+**Phase:** Phase 2 - Minimal Editor (98% complete)
 
 **Recent achievements:**
+- ✅ **Symbol Editor** - Visual tool to create/edit symbols without code
+- ✅ **JSON Symbol Library** - 55 IEC symbols loaded from `builtin-symbols.json`
+- ✅ **Insert Symbol Dialog** - Searchable modal with category filtering
+- ✅ **Wire Preview** - Dashed line from start pin to cursor
 - ✅ Persistence with Postgres + TypeORM (auto-save, project management)
-- ✅ Copy/paste/duplicate and undo/redo
-- ✅ Multi-select (Shift+click, Cmd+A, group operations)
-- ✅ Wire bend points complete (add/drag/delete waypoints)
-- ✅ **JSON+SVG Symbol Format** - symbols defined with SVG paths
+- ✅ Playwright E2E tests - 28 tests, state bridge, isolated test DB
 - Professional wire routing (visibility graph + A* + nudging)
-- Pan/zoom controls working
 
 **High priority features documented:**
 - ⭐ Automatic terminal block calculation (Phase 3-4)
 - ⭐ Panel layout editor (Phase 6-7)
-- SVG symbol import from external libraries (now possible!)
+- ⭐ Dual storage: IndexedDB (free) + Postgres (paid)
 
 ---
 
@@ -93,6 +70,33 @@ Use these to improve workflow:
 - `/update-status` - Update STATUS.md only (legacy, use session-end instead)
 - `/cleanup-console` - Remove debug console.log statements
 - `/check-architecture` - Validate changes against architecture principles
+
+---
+
+## 🧪 E2E TESTING (Playwright)
+
+28 tests covering all Phase 2 features. Uses separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
+
+```bash
+npm run db:up              # ensure Docker Postgres is running
+npm run test:e2e           # headless (fast)
+npm run test:e2e:headed    # watch in browser
+npm run test:e2e:slow      # headed + 500ms delay for supervision
+npm run test:e2e:ui        # Playwright UI mode (step-through)
+SLOWMO=1000 npx playwright test --headed  # custom speed
+```
+
+**Key files:**
+- `playwright.config.ts` - config, webServer, ports
+- `e2e/fixtures/fusion-cad.fixture.ts` - auto-fixture (clean project per test)
+- `e2e/helpers/canvas-helpers.ts` - worldToScreen, placeSymbol, createWire
+- `e2e/helpers/api-helpers.ts` - deleteAllProjects, createEmptyProject
+- `apps/web/src/App.tsx` - state bridge (`window.__fusionCadState`, dev-only)
+
+**Gotchas:**
+- `page.mouse.click()` doesn't support `modifiers` — use `keyboard.down()/up()`
+- Vite needs `--strictPort` to prevent silent port fallback
+- Save status starts as `'unsaved'` briefly after load (auto-save cycle)
 
 ---
 

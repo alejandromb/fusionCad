@@ -1,0 +1,1765 @@
+{
+  "version": "1.0",
+  "source": "radica-software-iec-60617",
+  "symbols": [
+    {
+      "id": "iec-contactor-3p",
+      "name": "Contactor 3P",
+      "category": "Power",
+      "width": 41,
+      "height": 72,
+      "svgPath": "M20,10v17c-4 0-4-5 0-5M20,60V45L15,25",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 72,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "K"
+    },
+    {
+      "id": "iec-circuit-breaker-3p",
+      "name": "Circuit Breaker 3P",
+      "category": "Power",
+      "width": 41,
+      "height": 72,
+      "svgPath": "M20,10v15M22,23l-4,4M18,23l4,4M20,60V45M10,29.82L15.67,10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 72,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "CB"
+    },
+    {
+      "id": "iec-circuit-breaker-thermal-magnetic",
+      "name": "Circuit Breaker Thermal/Magnetic",
+      "category": "Power",
+      "width": 41,
+      "height": 72,
+      "svgPath": "M20,10v15M22,23l-4,4M18,23l4,4M20,60V45M10,29.82L15.67,10M25,30c0-3 5-3 5 0",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 72,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "CB"
+    },
+    {
+      "id": "iec-disconnector-3p",
+      "name": "Disconnector/Isolator 3P",
+      "category": "Power",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45L15,25M18,25h4",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "QS"
+    },
+    {
+      "id": "iec-fuse-3p",
+      "name": "Fuse 3P",
+      "category": "Power",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M18,29h4v12h-4zM20,10v50",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "FU"
+    },
+    {
+      "id": "iec-normally-open-contact",
+      "name": "Normally Open Contact (NO)",
+      "category": "Control",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M15,25l5,20v15",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "CR"
+    },
+    {
+      "id": "iec-normally-closed-contact",
+      "name": "Normally Closed Contact (NC)",
+      "category": "Control",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M27.5,25L20,45v15M20,10v18h10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "CR"
+    },
+    {
+      "id": "iec-changeover-contact",
+      "name": "Changeover Contact",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M20,10v20h7.5M30,10v20M22.5,27.5L30,40v20",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "3",
+          "name": "3",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "CR"
+    },
+    {
+      "id": "iec-coil",
+      "name": "Coil/Relay",
+      "category": "Control",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M10,25h20v20H10z",
+      "pins": [
+        {
+          "id": "A1",
+          "name": "A1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "A2",
+          "name": "A2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "K"
+    },
+    {
+      "id": "iec-on-delay-timer",
+      "name": "On-Delay Timer",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,10v15M25,60V45M15,25h20v20H15zM20,35c0-2.5 5-2.5 5 0M30,30v5h-5",
+      "pins": [
+        {
+          "id": "A1",
+          "name": "A1",
+          "x": 25,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "A2",
+          "name": "A2",
+          "x": 25,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "TR"
+    },
+    {
+      "id": "iec-off-delay-timer",
+      "name": "Off-Delay Timer",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,10v15M25,60V45M15,25h20v20H15zM25,35c0-2.5 5-2.5 5 0M20,30v5h5",
+      "pins": [
+        {
+          "id": "A1",
+          "name": "A1",
+          "x": 25,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "A2",
+          "name": "A2",
+          "x": 25,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "TR"
+    },
+    {
+      "id": "iec-on-delay-no-contact",
+      "name": "On-Delay NO Contact",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M15.75,37H28M26.75,33h-11M20,40c-2.815-.249-5-2.374-5-4.976s2.185-4.726 5-4.975",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "CR"
+    },
+    {
+      "id": "iec-off-delay-no-contact",
+      "name": "Off-Delay NO Contact",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M19.75,37H28M27,33H19.75M15,30.05c2.815.249 5,2.37 5,4.97s-2.185 4.73-5 4.98",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "CR"
+    },
+    {
+      "id": "iec-thermal-overload-relay",
+      "name": "Thermal Overload Relay",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,10v15M25,60V45M15,25h20v20H15zM20,30v10M25,32v6M30,30v10",
+      "pins": [
+        {
+          "id": "95",
+          "name": "95",
+          "x": 25,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "96",
+          "name": "96",
+          "x": 25,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "F"
+    },
+    {
+      "id": "iec-manual-switch",
+      "name": "Manual Switch",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H15M15,30v10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-emergency-stop",
+      "name": "Emergency Stop (E-Stop)",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27,35H15.12M15,40a5,5 0 1 1 0-10z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-selector-switch",
+      "name": "Selector Switch",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H15M15,30v10M17,32l-4,6M17,38l-4-6",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-key-switch",
+      "name": "Key Switch",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,25l5,20v15M30,10v15M27.5,35h-14M11.25,33.75L10,37.5V40h2.5M13,33.75l1.25,3.75V40H12.5",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-foot-switch",
+      "name": "Foot Switch",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H15M10,37.5L12.5,40l5-10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-limit-switch",
+      "name": "Limit Switch",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H15M10,30l10,10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-level-switch",
+      "name": "Level Switch",
+      "category": "Field",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35h-7M15.25,32v-2M20.53,35c-1.109 1.732-3.05 2.875-5.267 2.88-2.22 0-4.15-1.15-5.26-2.88 1.109-1.732 3.05-2.875 5.267-2.875 2.22 0 4.15 1.14 5.26 2.875z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-flow-switch",
+      "name": "Flow Switch",
+      "category": "Field",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H20M10,30h10v10H10zM20,30h2.5",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-pressure-switch",
+      "name": "Pressure Switch",
+      "category": "Field",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H20M10,30h10v10H10zM15,32v6",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-temperature-switch",
+      "name": "Temperature Switch",
+      "category": "Field",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M30,10v15M25,25l5,20v15M27.5,35H20M12,30v10M12,33h6M18,30v10",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 30,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "S"
+    },
+    {
+      "id": "iec-pilot-light",
+      "name": "Pilot Light/Indicator",
+      "category": "Control",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,60V45M20,10v15M13,28l14,14M27,28L13,42",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "L"
+    },
+    {
+      "id": "iec-horn",
+      "name": "Horn/Audible Alarm",
+      "category": "Control",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,10v20M25,60V40M20,30h10l5,10H15z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 25,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 25,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-motor-3ph",
+      "name": "Motor 3-Phase",
+      "category": "Motor",
+      "width": 60,
+      "height": 55,
+      "svgPath": "M30,8a22,22 0 1,1-0.01,0zM15,0v10M30,0v8M45,0v10",
+      "pins": [
+        {
+          "id": "U",
+          "name": "U",
+          "x": 15,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "V",
+          "name": "V",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "W",
+          "name": "W",
+          "x": 45,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        }
+      ],
+      "texts": [
+        {
+          "content": "M",
+          "x": 30,
+          "y": 27,
+          "fontSize": 16,
+          "fontWeight": "bold"
+        },
+        {
+          "content": "3~",
+          "x": 30,
+          "y": 41,
+          "fontSize": 11
+        }
+      ],
+      "tagPrefix": "M"
+    },
+    {
+      "id": "iec-motor-1ph",
+      "name": "Motor 1-Phase",
+      "category": "Motor",
+      "width": 50,
+      "height": 55,
+      "svgPath": "M25,8a20,20 0 1,1-0.01,0zM15,0v10M35,0v10",
+      "pins": [
+        {
+          "id": "L",
+          "name": "L",
+          "x": 15,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "N",
+          "name": "N",
+          "x": 35,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        }
+      ],
+      "texts": [
+        {
+          "content": "M",
+          "x": 25,
+          "y": 27,
+          "fontSize": 16,
+          "fontWeight": "bold"
+        },
+        {
+          "content": "1~",
+          "x": 25,
+          "y": 41,
+          "fontSize": 11
+        }
+      ],
+      "tagPrefix": "M"
+    },
+    {
+      "id": "iec-transformer-3ph",
+      "name": "Transformer 3-Phase",
+      "category": "Power",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M15,25c0-5 10-5 10 0M15,45c0 5 10 5 10 0",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "T"
+    },
+    {
+      "id": "iec-current-transformer",
+      "name": "Current Transformer (CT)",
+      "category": "Power",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M20,10v50M35,35h-8.5M18.5,36.5L21,34",
+      "pins": [
+        {
+          "id": "P1",
+          "name": "P1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "P2",
+          "name": "P2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "S1",
+          "name": "S1",
+          "x": 35,
+          "y": 30,
+          "direction": "right",
+          "pinType": "passive"
+        },
+        {
+          "id": "S2",
+          "name": "S2",
+          "x": 35,
+          "y": 40,
+          "direction": "right",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "T"
+    },
+    {
+      "id": "iec-voltmeter",
+      "name": "Voltmeter",
+      "category": "Meter",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M10,25h20v20H10z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "texts": [
+        {
+          "content": "V",
+          "x": 20,
+          "y": 38,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-ammeter",
+      "name": "Ammeter",
+      "category": "Meter",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M10,25h20v20H10z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "texts": [
+        {
+          "content": "A",
+          "x": 20,
+          "y": 38,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-power-supply-ac-dc",
+      "name": "Power Supply AC/DC",
+      "category": "Power",
+      "width": 50,
+      "height": 60,
+      "svgPath": "M0,0h50v60H0zM25,0v60M6,30Q10,20 14,30Q18,40 22,30M30,26h14M32,32h4M38,32h4",
+      "pins": [
+        {
+          "id": "L",
+          "name": "L",
+          "x": 12,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "N",
+          "name": "N",
+          "x": 12,
+          "y": 60,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "+",
+          "name": "+",
+          "x": 37,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "-",
+          "name": "-",
+          "x": 37,
+          "y": 60,
+          "direction": "bottom",
+          "pinType": "ground"
+        }
+      ],
+      "tagPrefix": "PS"
+    },
+    {
+      "id": "iec-vfd",
+      "name": "Variable Frequency Drive (VFD)",
+      "category": "Power",
+      "width": 60,
+      "height": 80,
+      "svgPath": "M0,0h60v80H0zM20,0v20M30,0v20M40,0v20M20,60v20M30,60v20M40,60v20",
+      "pins": [
+        {
+          "id": "R",
+          "name": "R",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "S",
+          "name": "S",
+          "x": 30,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "T",
+          "name": "T",
+          "x": 40,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "U",
+          "name": "U",
+          "x": 20,
+          "y": 80,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "V",
+          "name": "V",
+          "x": 30,
+          "y": 80,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "W",
+          "name": "W",
+          "x": 40,
+          "y": 80,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "texts": [
+        {
+          "content": "VFD",
+          "x": 30,
+          "y": 45,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-capacitor",
+      "name": "Capacitor",
+      "category": "Passive",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v20M20,60V40M12,30h16M12,40h16",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-resistor",
+      "name": "Resistor",
+      "category": "Passive",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M12,25h16v20H12z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-inductor",
+      "name": "Inductor",
+      "category": "Passive",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v15M20,60V45M20,25c0-3 5-3 5 0c0 3-5 3-5 6c0-3 5-3 5 0c0 3-5 3-5 6c0-3 5-3 5 0c0 3-5 3-5 6",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-diode",
+      "name": "Diode",
+      "category": "Passive",
+      "width": 41,
+      "height": 71,
+      "svgPath": "M20,10v20M20,60V40M12,30l8,10l8-10zM12,40h16",
+      "pins": [
+        {
+          "id": "A",
+          "name": "A",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "K",
+          "name": "K",
+          "x": 20,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-led",
+      "name": "LED",
+      "category": "Passive",
+      "width": 51,
+      "height": 71,
+      "svgPath": "M25,10v20M25,60V40M17,30l8,10l8-10zM17,40h16M35,25l5-5M37,30l5-5",
+      "pins": [
+        {
+          "id": "A",
+          "name": "A",
+          "x": 25,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "K",
+          "name": "K",
+          "x": 25,
+          "y": 71,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "D"
+    },
+    {
+      "id": "iec-earth-ground",
+      "name": "Earth Ground",
+      "category": "Ground",
+      "width": 41,
+      "height": 50,
+      "svgPath": "M20,0v20M10,20h20M13,25h14M16,30h8",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "ground"
+        }
+      ],
+      "tagPrefix": "PE"
+    },
+    {
+      "id": "iec-protective-earth",
+      "name": "Protective Earth (PE)",
+      "category": "Ground",
+      "width": 41,
+      "height": 50,
+      "svgPath": "M20,0v15M5,15h30M20,15v10M10,25h20M15,30h10M18,35h4",
+      "pins": [
+        {
+          "id": "PE",
+          "name": "PE",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "pe"
+        }
+      ],
+      "tagPrefix": "PE"
+    },
+    {
+      "id": "iec-chassis-ground",
+      "name": "Chassis/Frame Ground",
+      "category": "Ground",
+      "width": 41,
+      "height": 50,
+      "svgPath": "M20,0v20M5,20h30v15H5z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "ground"
+        }
+      ],
+      "tagPrefix": "PE"
+    },
+    {
+      "id": "iec-terminal-single",
+      "name": "Terminal (Single Level)",
+      "category": "Terminal",
+      "width": 20,
+      "height": 30,
+      "svgPath": "M5,0L15,0L20,5L20,25L15,30L5,30L0,25L0,5Z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 10,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 10,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "X"
+    },
+    {
+      "id": "iec-terminal-dual",
+      "name": "Terminal (Dual Level)",
+      "category": "Terminal",
+      "width": 20,
+      "height": 55,
+      "svgPath": "M5,0L15,0L20,5L20,25L15,30L5,30L0,25L0,5ZM5,25L15,25L20,30L20,50L15,55L5,55L0,50L0,30Z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 10,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 10,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "passive"
+        },
+        {
+          "id": "3",
+          "name": "3",
+          "x": 10,
+          "y": 25,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "4",
+          "name": "4",
+          "x": 10,
+          "y": 55,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "X"
+    },
+    {
+      "id": "iec-terminal-ground",
+      "name": "Ground Terminal",
+      "category": "Terminal",
+      "width": 20,
+      "height": 30,
+      "svgPath": "M5,0L15,0L20,5L20,25L15,30L5,30L0,25L0,5ZM7,10h6M7,15h6M7,20h6",
+      "pins": [
+        {
+          "id": "PE",
+          "name": "PE",
+          "x": 10,
+          "y": 0,
+          "direction": "top",
+          "pinType": "pe"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 10,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "pe"
+        }
+      ],
+      "tagPrefix": "X"
+    },
+    {
+      "id": "iec-terminal-fuse",
+      "name": "Fuse Terminal",
+      "category": "Terminal",
+      "width": 20,
+      "height": 30,
+      "svgPath": "M5,0L15,0L20,5L20,25L15,30L5,30L0,25L0,5ZM7,12h6v6H7z",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 10,
+          "y": 0,
+          "direction": "top",
+          "pinType": "passive"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 10,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "X"
+    },
+    {
+      "id": "iec-plc-cpu",
+      "name": "PLC CPU Module",
+      "category": "PLC",
+      "width": 80,
+      "height": 100,
+      "svgPath": "M0,0h80v100H0zM5,5h70v60H5zM10,75h15v15H10zM55,75h15v15H55z",
+      "pins": [
+        {
+          "id": "L+",
+          "name": "L+",
+          "x": 17,
+          "y": 100,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "M",
+          "name": "M",
+          "x": 62,
+          "y": 100,
+          "direction": "bottom",
+          "pinType": "ground"
+        }
+      ],
+      "texts": [
+        {
+          "content": "CPU",
+          "x": 40,
+          "y": 40,
+          "fontSize": 16,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "PLC"
+    },
+    {
+      "id": "iec-plc-di-8",
+      "name": "PLC Digital Input 8-Ch",
+      "category": "PLC",
+      "width": 60,
+      "height": 120,
+      "svgPath": "M0,0h60v120H0z",
+      "pins": [
+        {
+          "id": "DI0",
+          "name": "DI0",
+          "x": 0,
+          "y": 15,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI1",
+          "name": "DI1",
+          "x": 0,
+          "y": 30,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI2",
+          "name": "DI2",
+          "x": 0,
+          "y": 45,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI3",
+          "name": "DI3",
+          "x": 0,
+          "y": 60,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI4",
+          "name": "DI4",
+          "x": 0,
+          "y": 75,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI5",
+          "name": "DI5",
+          "x": 0,
+          "y": 90,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI6",
+          "name": "DI6",
+          "x": 0,
+          "y": 105,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "DI7",
+          "name": "DI7",
+          "x": 60,
+          "y": 15,
+          "direction": "right",
+          "pinType": "input"
+        },
+        {
+          "id": "COM",
+          "name": "COM",
+          "x": 60,
+          "y": 105,
+          "direction": "right",
+          "pinType": "passive"
+        }
+      ],
+      "texts": [
+        {
+          "content": "DI",
+          "x": 30,
+          "y": 60,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "PLC"
+    },
+    {
+      "id": "iec-plc-do-8",
+      "name": "PLC Digital Output 8-Ch",
+      "category": "PLC",
+      "width": 60,
+      "height": 120,
+      "svgPath": "M0,0h60v120H0z",
+      "pins": [
+        {
+          "id": "DO0",
+          "name": "DO0",
+          "x": 60,
+          "y": 15,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO1",
+          "name": "DO1",
+          "x": 60,
+          "y": 30,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO2",
+          "name": "DO2",
+          "x": 60,
+          "y": 45,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO3",
+          "name": "DO3",
+          "x": 60,
+          "y": 60,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO4",
+          "name": "DO4",
+          "x": 60,
+          "y": 75,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO5",
+          "name": "DO5",
+          "x": 60,
+          "y": 90,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO6",
+          "name": "DO6",
+          "x": 60,
+          "y": 105,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "DO7",
+          "name": "DO7",
+          "x": 0,
+          "y": 15,
+          "direction": "left",
+          "pinType": "output"
+        },
+        {
+          "id": "COM",
+          "name": "COM",
+          "x": 0,
+          "y": 105,
+          "direction": "left",
+          "pinType": "passive"
+        }
+      ],
+      "texts": [
+        {
+          "content": "DO",
+          "x": 30,
+          "y": 60,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "PLC"
+    },
+    {
+      "id": "iec-plc-ai-4",
+      "name": "PLC Analog Input 4-Ch",
+      "category": "PLC",
+      "width": 60,
+      "height": 80,
+      "svgPath": "M0,0h60v80H0z",
+      "pins": [
+        {
+          "id": "AI0+",
+          "name": "AI0+",
+          "x": 0,
+          "y": 15,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "AI0-",
+          "name": "AI0-",
+          "x": 0,
+          "y": 25,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "AI1+",
+          "name": "AI1+",
+          "x": 0,
+          "y": 40,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "AI1-",
+          "name": "AI1-",
+          "x": 0,
+          "y": 50,
+          "direction": "left",
+          "pinType": "input"
+        },
+        {
+          "id": "AI2+",
+          "name": "AI2+",
+          "x": 60,
+          "y": 15,
+          "direction": "right",
+          "pinType": "input"
+        },
+        {
+          "id": "AI2-",
+          "name": "AI2-",
+          "x": 60,
+          "y": 25,
+          "direction": "right",
+          "pinType": "input"
+        },
+        {
+          "id": "AI3+",
+          "name": "AI3+",
+          "x": 60,
+          "y": 40,
+          "direction": "right",
+          "pinType": "input"
+        },
+        {
+          "id": "AI3-",
+          "name": "AI3-",
+          "x": 60,
+          "y": 50,
+          "direction": "right",
+          "pinType": "input"
+        }
+      ],
+      "texts": [
+        {
+          "content": "AI",
+          "x": 30,
+          "y": 40,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "PLC"
+    },
+    {
+      "id": "iec-plc-ao-4",
+      "name": "PLC Analog Output 4-Ch",
+      "category": "PLC",
+      "width": 60,
+      "height": 80,
+      "svgPath": "M0,0h60v80H0z",
+      "pins": [
+        {
+          "id": "AO0+",
+          "name": "AO0+",
+          "x": 60,
+          "y": 15,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "AO0-",
+          "name": "AO0-",
+          "x": 60,
+          "y": 25,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "AO1+",
+          "name": "AO1+",
+          "x": 60,
+          "y": 40,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "AO1-",
+          "name": "AO1-",
+          "x": 60,
+          "y": 50,
+          "direction": "right",
+          "pinType": "output"
+        },
+        {
+          "id": "AO2+",
+          "name": "AO2+",
+          "x": 0,
+          "y": 15,
+          "direction": "left",
+          "pinType": "output"
+        },
+        {
+          "id": "AO2-",
+          "name": "AO2-",
+          "x": 0,
+          "y": 25,
+          "direction": "left",
+          "pinType": "output"
+        },
+        {
+          "id": "AO3+",
+          "name": "AO3+",
+          "x": 0,
+          "y": 40,
+          "direction": "left",
+          "pinType": "output"
+        },
+        {
+          "id": "AO3-",
+          "name": "AO3-",
+          "x": 0,
+          "y": 50,
+          "direction": "left",
+          "pinType": "output"
+        }
+      ],
+      "texts": [
+        {
+          "content": "AO",
+          "x": 30,
+          "y": 40,
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      ],
+      "tagPrefix": "PLC"
+    }
+  ]
+}

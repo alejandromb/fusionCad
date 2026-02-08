@@ -12,6 +12,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true,
-    "incremental": true
+    "incremental": true,
+    "resolveJsonModule": true
   }
 }

@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-01-29 (JSON+SVG symbol format)
+**Last Updated**: 2026-02-06 (Symbol Editor, Insert Symbol Dialog, JSON Symbols)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 97% Complete (symbols now use JSON+SVG format, need marquee select)
 
@@ -60,15 +60,37 @@ This file tracks where we are in development. **Always read this file at the sta
   - SVG path parser supports M, L, H, V, A, C, Q, Z commands
   - All 6 IEC symbols converted to JSON+SVG format
   - Foundation for importing external SVG libraries
+- ✅ **Playwright E2E Tests**: 28 tests across 8 spec files
+  - Separate test database (`fusion_cad_test`) and ports (API 3003, Vite 5174)
+  - State bridge (`window.__fusionCadState`) for asserting on canvas state
+  - Tests: app loading, placement, select/delete, copy/paste, undo/redo, multi-select, wires, persistence
+  - Commands: `npm run test:e2e`, `test:e2e:headed`, `test:e2e:slow`, `test:e2e:ui`
+  - `SLOWMO=<ms>` env var for human-supervised runs
+- ✅ **JSON-based Symbol Library** (55 IEC 60617 symbols):
+  - Symbols loaded from `builtin-symbols.json` at startup
+  - Each symbol has: id, name, category, svgPath, pins, tagPrefix
+  - `loadSymbolsFromJson()` converts JSON to internal SymbolDefinition
+  - Renderer uses `lookupSymbol()` (ID first, then category fallback)
+- ✅ **Insert Symbol Dialog**:
+  - Searchable modal for selecting symbols (replaces old sidebar palette)
+  - Category filtering, symbol preview with SVG rendering
+  - Symbol ID passed through for correct rendering and tag generation
+- ✅ **Symbol Editor** (Visual Symbol Builder):
+  - Drawing tools: Line, Rectangle, Circle, Polyline
+  - Pin placement with name, direction, type properties
+  - Symbol metadata: name, category, tag prefix, dimensions
+  - Real-time preview, save to library
+  - Access from Symbol Library: "Create Symbol" and "Edit Symbol" buttons
+- ✅ **Wire Preview**: Dashed green line from start pin to mouse during wire creation
 
 ### What We're Working On
-- Phase 2: Canvas interaction tools complete, finalizing editor features
+- Symbol quality tuning (now possible via Symbol Editor)
+- Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
 ### Next Immediate Steps
-1. **Multi-select polish**:
-   - Add drag-select (marquee/rubber band selection)
-2. Consider adding wire properties panel when wire selected
-3. Import symbols from external SVG libraries (KiCad, electricalsymbols repo)
+1. Fine-tune symbol paths using Symbol Editor
+2. Implement IndexedDB storage for free tier (local-only)
+3. Add drag-select (marquee/rubber band selection)
 
 ---
 
@@ -501,6 +523,124 @@ This file tracks where we are in development. **Always read this file at the sta
 - SVG path parser handles most common commands (M, L, H, V, A, C, Q, Z)
 - Arc conversion works for circles; elliptical arcs fall back to lines (rare case)
 
+### Session 8 - 2026-02-05 (Playwright E2E Testing)
+**Duration**: ~1.5 hours
+**Completed**:
+- ✅ **Playwright E2E testing framework** fully set up:
+  - Installed `@playwright/test` + Chromium browser binaries
+  - `playwright.config.ts` with separate test ports (API 3003, Vite 5174)
+  - `e2e/global-setup.ts` creates `fusion_cad_test` database via Docker
+  - `--strictPort` on Vite to prevent silent port fallback
+- ✅ **State bridge** (`window.__fusionCadState`) added to `App.tsx`:
+  - Gated on `import.meta.env.DEV` (stripped in production builds)
+  - Exposes: circuit, devicePositions, interactionMode, selectedDevices, selectedWireIndex, viewport, projectId, projectName, saveStatus, historyLength, historyIndex
+- ✅ **Test helpers** created:
+  - `e2e/helpers/canvas-helpers.ts`: worldToScreen, placeSymbol, createWire, clickCanvas (with modifier key support via keyboard.down/up), waitForDeviceCount, waitForSaveStatus
+  - `e2e/helpers/api-helpers.ts`: deleteAllProjects, createEmptyProject, getProject
+  - `e2e/fixtures/fusion-cad.fixture.ts`: auto-fixture gives each test a clean project
+- ✅ **28 tests across 8 spec files**, all passing:
+  - `app-loads.spec.ts` (5): canvas visible, sidebar, palette, state bridge, empty project
+  - `place-symbol.spec.ts` (4): place, grid snap, auto-tags, mode reset
+  - `select-delete.spec.ts` (5): click select, Delete, Backspace, deselect, Escape
+  - `copy-paste.spec.ts` (2): Cmd+C/V, Cmd+D duplicate
+  - `undo-redo.spec.ts` (3): undo place, redo, undo delete
+  - `multi-select.spec.ts` (3): Shift+click, Cmd+A, group delete
+  - `wire-creation.spec.ts` (3): wire pins, new net, Escape cancel
+  - `persistence.spec.ts` (3): auto-save to API, reload persistence, save status
+- ✅ **npm scripts** added:
+  - `test:e2e` (headless), `test:e2e:headed`, `test:e2e:slow` (500ms delay), `test:e2e:ui`
+  - `SLOWMO=<ms>` env var for custom speed
+
+**Key bugs fixed during setup**:
+- Auto-fixture needed `{ auto: true }` to run for all tests (not just those requesting `projectId`)
+- `page.mouse.click()` doesn't support `modifiers` — used `keyboard.down()/up()` instead
+- Save status starts as `'unsaved'` briefly after load — tests wait for initial save cycle
+
+**Files Created**:
+- `playwright.config.ts`
+- `e2e/global-setup.ts`
+- `e2e/helpers/canvas-helpers.ts`
+- `e2e/helpers/api-helpers.ts`
+- `e2e/fixtures/fusion-cad.fixture.ts`
+- `e2e/tests/*.spec.ts` (8 files)
+
+**Files Modified**:
+- `apps/web/src/App.tsx` - Added state bridge useEffect
+- `package.json` - Added @playwright/test, test scripts
+- `.gitignore` - Added Playwright artifacts
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Full E2E test coverage for all Phase 2 features
+- Tests use isolated ports/database, safe to run alongside dev servers
+- SLOWMO support makes it easy for humans to supervise test runs
+- Foundation ready for adding more tests as new features land
+
+### Session 9 - 2026-02-06 (Symbol Editor, JSON Symbols, Insert Dialog)
+**Duration**: ~2 hours
+**Completed**:
+- ✅ **Downloaded 126 IEC symbols** from Radica Software stencil 229:
+  - Python scripts in `scripts/radica-symbols/` for batch download
+  - 55 symbols converted to fusionCad JSON format in `builtin-symbols.json`
+- ✅ **JSON-based Symbol Library**:
+  - Moved symbols from hardcoded TypeScript to `builtin-symbols.json`
+  - Added `tagPrefix` field to SymbolDefinition and JSON (e.g., "PS" for power supply)
+  - `symbol-loader.ts` converts JSON to internal SymbolDefinition format
+  - `getSymbolById()` added for direct ID lookup (not just category)
+  - Renderer's `lookupSymbol()` tries ID first, then category for backward compat
+- ✅ **Insert Symbol Dialog** (replaces old sidebar palette):
+  - Searchable modal with category filtering
+  - SVG preview for each symbol
+  - Passes symbol ID (not display category) for correct rendering
+- ✅ **Fixed Insert Symbol bug**: Power supply was rendering as contactor
+  - Root cause: dialog passed display category "Power" instead of symbol ID
+  - Fix: Pass symbol ID through system, renderer looks up by ID first
+- ✅ **Wire Preview**: Dashed green line from start pin to cursor during wire creation
+  - Fixed: `setMouseWorldPos` now tracks position in wire mode (was only in place mode)
+- ✅ **Symbol Editor** (Visual Symbol Builder):
+  - Canvas with 5px grid for drawing
+  - Tools: Select, Line, Rectangle, Circle, Polyline, Pin
+  - Pin properties: name, direction (top/bottom/left/right), type (passive/input/output/power/ground/pe)
+  - Symbol properties: name, category, tag prefix, width, height
+  - Real-time preview at actual size
+  - Save to library (registers with registerSymbol)
+  - Edit existing symbols (loads paths and pins)
+  - Integrated into Symbol Library with "Create Symbol" and "Edit Symbol" buttons
+- ✅ **Discussed licensing model**:
+  - Free tier: IndexedDB (local storage), all built-in symbols, no export
+  - Pro tier ($19/mo): Postgres cloud sync, PDF/CSV exports, custom symbols
+
+**Progress**:
+- Phase 2: 🟢 98% Complete (Symbol Editor done, marquee select still pending)
+
+**Files Created**:
+- `packages/core-model/src/symbols/builtin-symbols.json` - 55 IEC symbols
+- `packages/core-model/src/symbols/symbol-loader.ts` - JSON → SymbolDefinition
+- `apps/web/src/components/InsertSymbolDialog.tsx` - Searchable symbol picker
+- `apps/web/src/components/SymbolEditor.tsx` - Visual symbol builder
+- `scripts/radica-symbols/` - Python download/conversion tools
+
+**Files Modified**:
+- `packages/core-model/src/types.ts` - Added tagPrefix to SymbolDefinition
+- `packages/core-model/src/symbol-library.ts` - Added getSymbolById()
+- `packages/core-model/src/symbols/iec-symbols.ts` - Loads from JSON
+- `apps/web/src/renderer/symbols.ts` - lookupSymbol() for ID-first lookup
+- `apps/web/src/components/Sidebar.tsx` - Insert Symbol button
+- `apps/web/src/components/SymbolLibrary.tsx` - Integrated Symbol Editor
+- `apps/web/src/hooks/useCanvasInteraction.ts` - Wire preview mouse tracking
+- `apps/web/src/hooks/useCircuitState.ts` - Tag generation from symbol's tagPrefix
+- `apps/web/src/App.css` - Symbol Editor styles
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Major milestone: Users can now create and edit symbols visually!
+- Symbol Editor enables fine-tuning without touching JSON/code
+- Licensing model clarified: free local tier, paid cloud tier
+- JSON symbol format enables future features: import from KiCad/SVG, custom symbols for paid users
+- Wire preview improves UX during wire creation
+
 ---
 
 ## 🗺️ Roadmap Overview
@@ -559,6 +699,7 @@ These are our end-to-end test cases. Each must always validate and export correc
 | Packaging | Monorepo (pnpm/Turborepo) | Clear boundaries, agent-friendly | 2026-01-26 |
 | Canvas | HTML Canvas 2D (start) | Simple, fast enough for MVP | 2026-01-26 |
 | Testing | Golden circuits + Jest | End-to-end + unit tests | 2026-01-26 |
+| E2E Testing | Playwright | Canvas coord testing, state bridge, headless CI | 2026-02-05 |
 | CLI name | "fcad" (not "vcad") | Better branding, aligns with "fusionCad" | 2026-01-26 |
 | Module system | ESM (type: module) | Modern, better for Node + browser | 2026-01-26 |
 
