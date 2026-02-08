@@ -1,5 +1,22 @@
 # 🛑 STOP! READ THIS FIRST! 🛑
 
+## 🚢 PORT ASSIGNMENTS (DO NOT CONFLICT)
+
+fusionCad uses these specific ports. Never kill other vite/api processes:
+
+| Service | Dev Port | Test Port | Description |
+|---------|----------|-----------|-------------|
+| API     | 3001     | 3003      | Express API server |
+| Vite    | 5173     | 5174      | Vite dev server |
+
+When running tests, servers on ports 3003/5174 are used. If you need to kill a stuck test server:
+```bash
+# Kill only fusionCad test servers (safe)
+lsof -ti:3003,5174 | xargs kill 2>/dev/null
+```
+
+---
+
 ## SESSION START CHECKLIST
 
 Before doing ANYTHING else:
@@ -13,22 +30,22 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-06)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-07)
 
-**Current task:** Symbol Editor & JSON Symbol Library - COMPLETE!
+**Current task:** E2E Test Updates for Insert Symbol Dialog - COMPLETE!
 
 **Status:**
-- ✅ **JSON Symbol Library**: 55 IEC symbols in `builtin-symbols.json`
+- ✅ **E2E Tests Updated**: 28 tests work with new Insert Symbol Dialog
 - ✅ **Insert Symbol Dialog**: Searchable modal replaces old sidebar palette
-- ✅ **Symbol Editor**: Visual tool to create/edit symbols (Line, Rect, Circle, Polyline, Pin tools)
-- ✅ **Wire Preview**: Dashed green line from start pin to cursor
+- ✅ **Symbol Editor**: Visual tool to create/edit symbols
+- ✅ **JSON Symbol Library**: 55 IEC symbols in `builtin-symbols.json`
 - ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, wire bend points)
 - ⚠️ Drag-select (marquee) NOT yet implemented
 
 **Next steps:**
-1. Fine-tune symbol paths using Symbol Editor (user can do this now!)
+1. Add drag-select (marquee/rubber band selection)
 2. Implement IndexedDB storage for free tier
-3. Add drag-select (marquee/rubber band selection)
+3. Import symbols from external SVG libraries
 
 ---
 
@@ -108,6 +125,28 @@ Chrome integration is available for testing the web UI:
 - Or run `/chrome` within an existing session to connect
 - Useful for: testing canvas rendering, debugging console errors, recording demo GIFs
 - Run `/chrome` to check connection status and manage settings
+
+---
+
+## 🚨 BEFORE COMMITTING - MANDATORY
+
+**ALWAYS run tests before any commit:**
+
+```bash
+# 1. TypeScript check (no emit)
+npx tsc --noEmit
+
+# 2. E2E tests (requires Docker: npm run db:up)
+npm run test:e2e
+
+# 3. If API changes were made, also run API tests
+# (add when API tests exist)
+```
+
+**If tests fail:**
+- Fix the failing tests BEFORE committing
+- Update test expectations if UI/behavior intentionally changed
+- Never commit with failing tests
 
 ---
 

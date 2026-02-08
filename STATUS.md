@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-06 (Symbol Editor, Insert Symbol Dialog, JSON Symbols)
+**Last Updated**: 2026-02-07 (E2E Test Updates for Insert Symbol Dialog)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 97% Complete (symbols now use JSON+SVG format, need marquee select)
 
@@ -640,6 +640,34 @@ This file tracks where we are in development. **Always read this file at the sta
 - Licensing model clarified: free local tier, paid cloud tier
 - JSON symbol format enables future features: import from KiCad/SVG, custom symbols for paid users
 - Wire preview improves UX during wire creation
+
+### Session 10 - 2026-02-07 (E2E Test Updates for Insert Symbol Dialog)
+**Duration**: ~30 minutes
+**Completed**:
+- ✅ **Fixed E2E tests after Insert Symbol Dialog changes**:
+  - Updated `placeSymbol()` helper to use new Insert Symbol Dialog flow
+  - Changed from clicking `.symbol-palette .symbol-btn` to opening dialog and searching
+  - Updated `app-loads.spec.ts` to test Insert Symbol Dialog instead of old palette
+  - Fixed symbol name mappings (button → "Manual Switch" for correct `S` tagPrefix)
+  - Updated wire creation tests with correct pin coordinates for Manual Switch symbol
+- ✅ **All 28 E2E tests passing** after UI changes
+- ✅ **Documented fusionCad port assignments** in CLAUDE.md:
+  - Dev: API 3001, Vite 5173
+  - Test: API 3003, Vite 5174
+  - Safe kill command for stuck test servers only
+
+**Files Modified**:
+- `e2e/helpers/canvas-helpers.ts` - Updated placeSymbol for new dialog
+- `e2e/tests/app-loads.spec.ts` - Test Insert Symbol Dialog instead of old palette
+- `e2e/tests/wire-creation.spec.ts` - Correct pin coordinates for Manual Switch
+- `.claude/CLAUDE.md` - Added port assignments documentation
+
+**Blockers/Questions**: None
+
+**Session End Notes**:
+- Established rule: Always run E2E tests before committing UI changes
+- Tests adapted to new Insert Symbol Dialog UX
+- Port documentation prevents accidentally killing unrelated dev servers
 
 ---
 
