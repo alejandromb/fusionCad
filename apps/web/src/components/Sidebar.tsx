@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import type { Part } from '@fusion-cad/core-model';
+import type { Part, Annotation } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import type { InteractionMode, SymbolCategory, PinHit } from '../types';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -25,6 +25,11 @@ interface SidebarProps {
   debugMode: boolean;
   setDebugMode: (mode: boolean) => void;
   onAssignPart: (deviceTag: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
+  onUpdateDevice: (tag: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
+  selectedAnnotationId: string | null;
+  onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
+  onDeleteAnnotation: (id: string) => void;
+  onSelectAnnotation: (id: string | null) => void;
 }
 
 export function Sidebar({
@@ -43,12 +48,15 @@ export function Sidebar({
   debugMode,
   setDebugMode,
   onAssignPart,
+  onUpdateDevice,
+  selectedAnnotationId,
+  onUpdateAnnotation,
+  onDeleteAnnotation,
+  onSelectAnnotation,
 }: SidebarProps) {
   const [showInsertSymbol, setShowInsertSymbol] = useState(false);
 
   // Handle symbol selection from dialog
-  // The symbolId is the key for rendering (e.g., 'iec-power-supply')
-  // We use it directly as the placement category since the renderer looks up by symbol ID
   const handleSelectSymbol = (symbolId: string, _category: string) => {
     setPlacementCategory(symbolId as SymbolCategory);
     setInteractionMode('place');
@@ -71,6 +79,11 @@ export function Sidebar({
     : null;
   const selectedWireNet = selectedWire && circuit
     ? circuit.nets.find(n => n.id === selectedWire.netId)
+    : null;
+
+  // Get selected annotation
+  const selectedAnnotation = selectedAnnotationId && circuit
+    ? (circuit.annotations || []).find(a => a.id === selectedAnnotationId)
     : null;
 
   return (
@@ -164,17 +177,77 @@ export function Sidebar({
       )}
 
       {/* Properties Section */}
-      {selectedDeviceInfo && (
+      {(selectedDeviceInfo || selectedDevices.length > 1) && (
         <section className="sidebar-section">
           <h3>Properties</h3>
           <PropertiesPanel
-            device={selectedDeviceInfo}
+            device={selectedDeviceInfo || null}
             part={selectedDevicePart || null}
             circuit={circuit}
             onDeleteDevices={deleteDevices}
             selectedDevices={selectedDevices}
             onAssignPart={onAssignPart}
+            onUpdateDevice={onUpdateDevice}
           />
+        </section>
+      )}
+
+      {/* Annotation Properties Section */}
+      {selectedAnnotation && !selectedDeviceInfo && (
+        <section className="sidebar-section">
+          <h3>Annotation</h3>
+          <div className="annotation-properties">
+            <div className="property-row">
+              <span className="property-label">Content</span>
+            </div>
+            <textarea
+              className="annotation-content-input"
+              value={selectedAnnotation.content}
+              onChange={e => onUpdateAnnotation(selectedAnnotation.id, { content: e.target.value })}
+              rows={3}
+            />
+            <div className="property-row">
+              <span className="property-label">Font Size</span>
+              <input
+                className="property-input"
+                type="number"
+                min={8}
+                max={72}
+                value={selectedAnnotation.style?.fontSize || 14}
+                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                  style: { ...selectedAnnotation.style, fontSize: parseInt(e.target.value) || 14 },
+                })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Font Weight</span>
+              <select
+                className="property-input"
+                value={selectedAnnotation.style?.fontWeight || 'normal'}
+                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                  style: { ...selectedAnnotation.style, fontWeight: e.target.value as 'normal' | 'bold' },
+                })}
+              >
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+              </select>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Position</span>
+              <span className="property-value">
+                ({Math.round(selectedAnnotation.position.x)}, {Math.round(selectedAnnotation.position.y)})
+              </span>
+            </div>
+            <button
+              className="delete-btn"
+              onClick={() => {
+                onDeleteAnnotation(selectedAnnotation.id);
+                onSelectAnnotation(null);
+              }}
+            >
+              Delete Annotation
+            </button>
+          </div>
         </section>
       )}
 

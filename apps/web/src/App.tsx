@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import './App.css';
-import { registerBuiltinSymbols } from '@fusion-cad/core-model';
+import { registerBuiltinSymbols, registerSymbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
+import { detectStorageProvider, type StorageProvider, type StorageType } from './storage';
 import { useCircuitState } from './hooks/useCircuitState';
 import { useClipboard } from './hooks/useClipboard';
 import { useCanvasInteraction, type ManufacturerPart } from './hooks/useCanvasInteraction';
@@ -25,6 +26,29 @@ registerBuiltinSymbols();
 registerBuiltinDrawFunctions();
 
 export function App() {
+  const [storageProvider, setStorageProvider] = useState<StorageProvider | null>(null);
+  const [storageType, setStorageType] = useState<StorageType | 'detecting'>('detecting');
+
+  // Detect storage provider on mount
+  useEffect(() => {
+    detectStorageProvider().then(result => {
+      setStorageProvider(result.provider);
+      setStorageType(result.type);
+    });
+  }, []);
+
+  if (!storageProvider) {
+    return (
+      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <span style={{ color: '#ccc', fontSize: '14px' }}>Detecting storage...</span>
+      </div>
+    );
+  }
+
+  return <AppInner storageProvider={storageProvider} storageType={storageType as StorageType} />;
+}
+
+function AppInner({ storageProvider, storageType }: { storageProvider: StorageProvider; storageType: StorageType }) {
   const [showReports, setShowReports] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSymbolLibrary, setShowSymbolLibrary] = useState(false);
@@ -36,7 +60,19 @@ export function App() {
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
   }, []);
-  const project = useProjectPersistence();
+
+  // Load custom symbols from storage on mount
+  useEffect(() => {
+    if (storageProvider.listCustomSymbols) {
+      storageProvider.listCustomSymbols().then(symbols => {
+        for (const sym of symbols) {
+          registerSymbol(sym);
+        }
+      }).catch(() => {/* ignore */});
+    }
+  }, [storageProvider]);
+
+  const project = useProjectPersistence(storageProvider);
   const circuitState = useCircuitState(
     project.circuit,
     project.setCircuit,
@@ -68,6 +104,7 @@ export function App() {
     moveWaypoint: circuitState.moveWaypoint,
     removeWaypoint: circuitState.removeWaypoint,
     reconnectWire: circuitState.reconnectWire,
+    connectToWire: circuitState.connectToWire,
     addAnnotation: circuitState.addAnnotation,
     copyDevice: clipboardState.copyDevice,
     pasteDevice: clipboardState.pasteDevice,
@@ -81,6 +118,8 @@ export function App() {
     rotateDevice: circuitState.rotateDevice,
     mirrorDevice: circuitState.mirrorDevice,
     deviceTransforms: circuitState.deviceTransforms,
+    selectAnnotation: circuitState.selectAnnotation,
+    activeSheetId: circuitState.activeSheetId,
   });
 
   // Expose state for E2E testing (dev mode only)
@@ -195,6 +234,11 @@ export function App() {
           debugMode={circuitState.debugMode}
           setDebugMode={circuitState.setDebugMode}
           onAssignPart={circuitState.assignPart}
+          onUpdateDevice={circuitState.updateDevice}
+          selectedAnnotationId={circuitState.selectedAnnotationId}
+          onUpdateAnnotation={circuitState.updateAnnotation}
+          onDeleteAnnotation={circuitState.deleteAnnotation}
+          onSelectAnnotation={circuitState.selectAnnotation}
         />
 
         <div className="canvas-area">
@@ -224,6 +268,7 @@ export function App() {
             addWaypoint={circuitState.addWaypoint}
             pasteDevice={clipboardState.pasteDevice}
             clipboard={clipboardState.clipboard}
+            selectedAnnotationId={circuitState.selectedAnnotationId}
           />
 
           <ZoomControls
@@ -247,6 +292,7 @@ export function App() {
             viewport={interaction.viewport}
             interactionMode={interaction.interactionMode}
             selectedCount={circuitState.selectedDevices.length}
+            storageType={storageType}
           />
         </div>
       </div>
@@ -276,6 +322,7 @@ export function App() {
             interaction.setInteractionMode('place');
             interaction.setPlacementCategory(category);
           }}
+          storageProvider={storageProvider}
         />
       )}
 

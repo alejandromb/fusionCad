@@ -34,6 +34,7 @@ interface CanvasProps {
   addWaypoint?: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   pasteDevice?: (worldX: number, worldY: number) => void;
   clipboard?: unknown;
+  selectedAnnotationId?: string | null;
 }
 
 export function Canvas({
@@ -61,6 +62,7 @@ export function Canvas({
   addWaypoint,
   pasteDevice,
   clipboard,
+  selectedAnnotationId,
 }: CanvasProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,6 +92,7 @@ export function Canvas({
         deviceTransforms,
         marquee,
         showGrid: true,
+        selectedAnnotationId,
       });
     };
 
@@ -99,7 +102,7 @@ export function Canvas({
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee]);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
 
   return (
     <main className="canvas-container">

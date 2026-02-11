@@ -57,6 +57,8 @@ export interface RenderOptions {
   showGrid?: boolean;
   /** Grid size in pixels */
   gridSize?: number;
+  /** Selected annotation ID for highlight */
+  selectedAnnotationId?: string | null;
 }
 
 /**
@@ -999,6 +1001,22 @@ export function renderCircuit(
       ctx.textAlign = (annotation.style?.textAlign as CanvasTextAlign) || 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(annotation.content, annotation.position.x, annotation.position.y);
+
+      // Draw selection highlight if this annotation is selected
+      if (options?.selectedAnnotationId === annotation.id) {
+        const textWidth = annotation.content.length * fontSize * 0.6;
+        const textHeight = fontSize * 1.2;
+        ctx.strokeStyle = '#00bfff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.strokeRect(
+          annotation.position.x - 3,
+          annotation.position.y - 3,
+          textWidth + 6,
+          textHeight + 6
+        );
+        ctx.setLineDash([]);
+      }
     }
   }
 

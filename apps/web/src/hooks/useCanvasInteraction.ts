@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Part } from '@fusion-cad/core-model';
+import type { Part, Annotation } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
@@ -68,6 +68,7 @@ interface UseCanvasInteractionDeps {
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
+  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   copyDevice: () => void;
   pasteDevice: (worldX: number, worldY: number) => void;
@@ -81,6 +82,8 @@ interface UseCanvasInteractionDeps {
   rotateDevice: (deviceTag: string, direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceTag: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
+  selectAnnotation: (id: string | null) => void;
+  activeSheetId: string;
 }
 
 export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasInteractionReturn {
@@ -100,6 +103,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     moveWaypoint,
     removeWaypoint,
     reconnectWire,
+    connectToWire,
     addAnnotation,
     copyDevice,
     pasteDevice,
@@ -112,6 +116,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     rotateDevice,
     mirrorDevice,
     deviceTransforms,
+    selectAnnotation,
+    activeSheetId,
   } = deps;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -555,6 +561,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                 }
                 setWireStart(null);
               }
+            } else if (wireStart) {
+              // Check if clicking on an existing wire for T-junction
+              const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
+              if (hitWire !== null) {
+                connectToWire(hitWire, world.x, world.y, wireStart);
+                setWireStart(null);
+              }
             }
             break;
           }
@@ -579,9 +592,40 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               break;
             }
 
+            // Check annotation hit (if no device/wire hit)
+            if (!hitSymbol && hitWire === null) {
+              const annotations = circuit.annotations || [];
+              const sheetAnnotations = activeSheetId
+                ? annotations.filter(a => a.sheetId === activeSheetId)
+                : annotations;
+
+              let hitAnnotation: string | null = null;
+              for (const annotation of sheetAnnotations) {
+                if (annotation.annotationType !== 'text') continue;
+                const fontSize = annotation.style?.fontSize || 14;
+                const textWidth = annotation.content.length * fontSize * 0.6;
+                const textHeight = fontSize * 1.2;
+                if (
+                  world.x >= annotation.position.x &&
+                  world.x <= annotation.position.x + textWidth &&
+                  world.y >= annotation.position.y &&
+                  world.y <= annotation.position.y + textHeight
+                ) {
+                  hitAnnotation = annotation.id;
+                  break;
+                }
+              }
+
+              if (hitAnnotation) {
+                selectAnnotation(hitAnnotation);
+                break;
+              }
+            }
+
             if (!hitSymbol && hitWire === null && !e.shiftKey) {
               setSelectedDevices([]);
               setSelectedWireIndex(null);
+              selectAnnotation(null);
             }
             break;
           }
@@ -825,7 +869,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit]);
+  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
 
   return {
     canvasRef,

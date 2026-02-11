@@ -52,6 +52,9 @@ export interface UseCircuitStateReturn {
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
 
+  // T-Junction
+  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
+
   // Rotation & mirror
   deviceTransforms: Map<string, DeviceTransform>;
   setDeviceTransforms: React.Dispatch<React.SetStateAction<Map<string, DeviceTransform>>>;
@@ -63,6 +66,9 @@ export interface UseCircuitStateReturn {
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   deleteAnnotation: (annotationId: string) => void;
 
+  // Device update
+  updateDevice: (deviceTag: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+
   // Part assignment
   assignPart: (deviceTag: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
 
@@ -71,6 +77,8 @@ export interface UseCircuitStateReturn {
   setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>>;
   selectedWireIndex: number | null;
   setSelectedWireIndex: React.Dispatch<React.SetStateAction<number | null>>;
+  selectedAnnotationId: string | null;
+  selectAnnotation: (id: string | null) => void;
 }
 
 const DEFAULT_SHEET_ID = 'sheet-1';
@@ -99,10 +107,28 @@ export function useCircuitState(
   setDevicePositions: React.Dispatch<React.SetStateAction<Map<string, Point>>>
 ): UseCircuitStateReturn {
   const [debugMode, setDebugMode] = useState(false);
-  const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
+  const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
   const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
   const [deviceTransforms, setDeviceTransforms] = useState<Map<string, DeviceTransform>>(new Map());
+  const [selectedAnnotationId, setSelectedAnnotationIdRaw] = useState<string | null>(null);
+
+  // Wrapped setters that clear the other selection type
+  const setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>> = useCallback((action) => {
+    setSelectedDevicesRaw(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next.length > 0) setSelectedAnnotationIdRaw(null);
+      return next;
+    });
+  }, []);
+
+  const selectAnnotation = useCallback((id: string | null) => {
+    setSelectedAnnotationIdRaw(id);
+    if (id) {
+      setSelectedDevicesRaw([]);
+      setSelectedWireIndex(null);
+    }
+  }, []);
 
   // Get sheets from circuit data (backward-compatible)
   const sheets = getOrCreateSheets(circuit);
@@ -261,6 +287,9 @@ export function useCircuitState(
         nets: [...circuit.nets],
         parts: [...circuit.parts],
         connections: [...circuit.connections],
+        sheets: circuit.sheets ? [...circuit.sheets] : undefined,
+        annotations: circuit.annotations ? [...circuit.annotations] : undefined,
+        terminals: circuit.terminals ? [...circuit.terminals] : undefined,
       },
       positions: new Map(devicePositions),
     };
@@ -305,10 +334,14 @@ export function useCircuitState(
       nets: [...snapshot.circuit.nets],
       parts: [...snapshot.circuit.parts],
       connections: [...snapshot.circuit.connections],
+      sheets: snapshot.circuit.sheets ? [...snapshot.circuit.sheets] : undefined,
+      annotations: snapshot.circuit.annotations ? [...snapshot.circuit.annotations] : undefined,
+      terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex - 1);
     setSelectedDevices([]);
+    setSelectedAnnotationIdRaw(null);
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
@@ -329,10 +362,14 @@ export function useCircuitState(
       nets: [...snapshot.circuit.nets],
       parts: [...snapshot.circuit.parts],
       connections: [...snapshot.circuit.connections],
+      sheets: snapshot.circuit.sheets ? [...snapshot.circuit.sheets] : undefined,
+      annotations: snapshot.circuit.annotations ? [...snapshot.circuit.annotations] : undefined,
+      terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex + 1);
     setSelectedDevices([]);
+    setSelectedAnnotationIdRaw(null);
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
@@ -588,6 +625,8 @@ export function useCircuitState(
   const updateAnnotation = useCallback((annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => {
     if (!circuit) return;
 
+    pushToHistory();
+
     setCircuit(prev => {
       if (!prev) return prev;
       const annotations = (prev.annotations || []).map(a =>
@@ -597,7 +636,7 @@ export function useCircuitState(
       );
       return { ...prev, annotations };
     });
-  }, [circuit, setCircuit]);
+  }, [circuit, pushToHistory, setCircuit]);
 
   // Rotate device 90° clockwise or counter-clockwise
   const rotateDevice = useCallback((deviceTag: string, direction: 'cw' | 'ccw') => {
@@ -636,6 +675,97 @@ export function useCircuitState(
       };
     });
   }, [circuit, pushToHistory, setCircuit]);
+
+  // Connect a wire to the middle of an existing wire (T-junction)
+  const connectToWire = useCallback((connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => {
+    if (!circuit) return;
+
+    pushToHistory();
+
+    const now = Date.now();
+    const originalConn = circuit.connections[connectionIndex];
+
+    // Create junction part
+    const junctionPartId = generateId();
+    const junctionPart: Part = {
+      id: junctionPartId,
+      type: 'part',
+      manufacturer: 'Internal',
+      partNumber: 'JUNCTION',
+      description: 'Wire junction',
+      category: 'Junction',
+      attributes: {},
+      createdAt: now,
+      modifiedAt: now,
+    };
+
+    // Create junction device with unique tag
+    const junctionTag = generateTag('junction', circuit.devices);
+    const junctionDevice: Device = {
+      id: generateId(),
+      type: 'device',
+      tag: junctionTag,
+      function: 'Wire junction',
+      partId: junctionPartId,
+      sheetId: validActiveSheetId,
+      createdAt: now,
+      modifiedAt: now,
+    };
+
+    // Position junction so pin J (at offset 6,6) aligns with click point
+    const junctionX = snapToGrid(worldX - 6);
+    const junctionY = snapToGrid(worldY - 6);
+
+    // Split original connection into 2 halves through junction
+    const conn1: Connection = {
+      fromDevice: originalConn.fromDevice,
+      fromPin: originalConn.fromPin,
+      toDevice: junctionTag,
+      toPin: 'J',
+      netId: originalConn.netId,
+      sheetId: originalConn.sheetId,
+    };
+
+    const conn2: Connection = {
+      fromDevice: junctionTag,
+      fromPin: 'J',
+      toDevice: originalConn.toDevice,
+      toPin: originalConn.toPin,
+      netId: originalConn.netId,
+      sheetId: originalConn.sheetId,
+    };
+
+    // New connection from the starting pin to the junction
+    const conn3: Connection = {
+      fromDevice: startPin.device,
+      fromPin: startPin.pin,
+      toDevice: junctionTag,
+      toPin: 'J',
+      netId: originalConn.netId,
+      sheetId: originalConn.sheetId,
+    };
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const newConnections = [...prev.connections];
+      // Replace original connection with the two halves
+      newConnections.splice(connectionIndex, 1, conn1, conn2);
+      // Add the new wire from startPin
+      newConnections.push(conn3);
+      return {
+        ...prev,
+        parts: [...prev.parts, junctionPart],
+        devices: [...prev.devices, junctionDevice],
+        connections: newConnections,
+      };
+    });
+
+    setDevicePositions(prev => {
+      const next = new Map(prev);
+      next.set(junctionTag, { x: junctionX, y: junctionY });
+      return next;
+    });
+  }, [circuit, pushToHistory, generateTag, setCircuit, setDevicePositions, validActiveSheetId]);
 
   // Assign a manufacturer part to a device
   const assignPart = useCallback((deviceTag: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => {
@@ -692,6 +822,36 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
+  // Update device properties (tag, function, location)
+  const updateDevice = useCallback((deviceTag: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => {
+    if (!circuit) return;
+
+    pushToHistory();
+
+    const idx = circuit.devices.findIndex(d => d.tag === deviceTag);
+    if (idx === -1) return;
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const updated = [...prev.devices];
+      updated[idx] = { ...updated[idx], ...updates, modifiedAt: Date.now() };
+      return { ...prev, devices: updated };
+    });
+
+    // If tag changed, update selected devices and device positions
+    if (updates.tag && updates.tag !== deviceTag) {
+      setSelectedDevices(prev => prev.map(t => t === deviceTag ? updates.tag! : t));
+      setDevicePositions(prev => {
+        const pos = prev.get(deviceTag);
+        if (!pos) return prev;
+        const next = new Map(prev);
+        next.delete(deviceTag);
+        next.set(updates.tag!, pos);
+        return next;
+      });
+    }
+  }, [circuit, pushToHistory, setCircuit, setSelectedDevices, setDevicePositions]);
+
   return {
     debugMode,
     setDebugMode,
@@ -721,6 +881,7 @@ export function useCircuitState(
     removeWaypoint,
     reconnectWire,
     updateWireNumber,
+    connectToWire,
     deviceTransforms,
     setDeviceTransforms,
     rotateDevice,
@@ -728,10 +889,13 @@ export function useCircuitState(
     addAnnotation,
     updateAnnotation,
     deleteAnnotation,
+    updateDevice,
     assignPart,
     selectedDevices,
     setSelectedDevices,
     selectedWireIndex,
     setSelectedWireIndex,
+    selectedAnnotationId,
+    selectAnnotation,
   };
 }
