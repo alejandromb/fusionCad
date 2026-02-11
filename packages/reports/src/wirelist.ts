@@ -23,7 +23,7 @@ export interface WireListReport {
 }
 
 /**
- * Connection data (simplified for Phase 1)
+ * Connection data
  */
 export interface Connection {
   fromDevice: string;
@@ -31,6 +31,7 @@ export interface Connection {
   toDevice: string;
   toPin: string;
   netId: string;
+  wireNumber?: string;
 }
 
 /**
@@ -53,7 +54,7 @@ export function generateWireList(
     const net = netMap.get(conn.netId);
 
     rows.push({
-      wireNumber: `W${String(i + 1).padStart(3, '0')}`, // W001, W002, etc.
+      wireNumber: conn.wireNumber || `W${String(i + 1).padStart(3, '0')}`,
       fromDevice: conn.fromDevice,
       fromPin: conn.fromPin,
       toDevice: conn.toDevice,

@@ -8,3 +8,12 @@ export const ENGINE_VERSION = '0.1.0';
 
 // Wire routing
 export * from './routing/index.js';
+
+// Wire numbering
+export * from './wire-numbering.js';
+
+// Cross-references
+export * from './cross-references.js';
+
+// Electrical Rules Check
+export * from './erc.js';

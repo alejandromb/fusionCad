@@ -302,55 +302,72 @@ export function createGoldenCircuitMotorStarter(): GoldenCircuit {
     },
   ];
 
-  // Terminals (terminal strip connections)
+  // Terminals (individual terminal blocks on strip X1)
+  // Each terminal is a single part with 1+ levels
+  const sheetId = sheet.id;
   const terminals: Terminal[] = [
     {
       id: generateId(),
       type: 'terminal',
-      deviceId: devices[5].id, // X1
+      stripTag: 'X1',
       index: 1,
       label: '24V IN',
-      netId: nets[0].id, // 24V
+      terminalType: 'single',
+      levels: [{ levelIndex: 0, netId: nets[0].id }],
+      sheetId,
+      deviceId: devices[5].id,
       createdAt: now,
       modifiedAt: now,
     },
     {
       id: generateId(),
       type: 'terminal',
-      deviceId: devices[5].id, // X1
+      stripTag: 'X1',
       index: 2,
       label: '0V',
-      netId: nets[1].id, // 0V
+      terminalType: 'single',
+      levels: [{ levelIndex: 0, netId: nets[1].id }],
+      sheetId,
+      deviceId: devices[5].id,
       createdAt: now,
       modifiedAt: now,
     },
     {
       id: generateId(),
       type: 'terminal',
-      deviceId: devices[5].id, // X1
+      stripTag: 'X1',
       index: 3,
       label: 'L1 IN',
-      netId: nets[4].id, // L1
+      terminalType: 'single',
+      levels: [{ levelIndex: 0, netId: nets[4].id }],
+      sheetId,
+      deviceId: devices[5].id,
       createdAt: now,
       modifiedAt: now,
     },
     {
       id: generateId(),
       type: 'terminal',
-      deviceId: devices[5].id, // X1
+      stripTag: 'X1',
       index: 4,
       label: 'L2 IN',
-      netId: nets[5].id, // L2
+      terminalType: 'single',
+      levels: [{ levelIndex: 0, netId: nets[5].id }],
+      sheetId,
+      deviceId: devices[5].id,
       createdAt: now,
       modifiedAt: now,
     },
     {
       id: generateId(),
       type: 'terminal',
-      deviceId: devices[5].id, // X1
+      stripTag: 'X1',
       index: 5,
       label: 'L3 IN',
-      netId: nets[6].id, // L3
+      terminalType: 'single',
+      levels: [{ levelIndex: 0, netId: nets[6].id }],
+      sheetId,
+      deviceId: devices[5].id,
       createdAt: now,
       modifiedAt: now,
     },

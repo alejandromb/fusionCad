@@ -2154,7 +2154,7 @@
    ============================================ */
 
 .symbol-editor-dialog {
-  width: 900px;
+  width: 1100px;
   max-width: 95vw;
   max-height: 90vh;
 }
@@ -2279,20 +2279,64 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  min-width: 0;
+  min-height: 500px;
+}
+
+.symbol-editor-canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid #444;
+  border-radius: 4px;
+  background: #1a1a1a;
 }
 
 .symbol-editor-canvas {
-  background: #1a1a1a;
-  border: 2px solid #444;
+  display: block;
+}
+
+.symbol-editor-zoom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+.symbol-editor-zoom-controls .action-btn {
+  padding: 0.25rem 0.5rem;
+  background: #333;
+  border: 1px solid #444;
   border-radius: 4px;
-  cursor: crosshair;
+  color: #ccc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-width: 28px;
+  text-align: center;
+}
+
+.symbol-editor-zoom-controls .action-btn:hover {
+  background: #444;
+  color: #fff;
+}
+
+.zoom-percentage {
+  font-size: 0.75rem;
+  color: #888;
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
 }
 
 .canvas-hint {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
   color: #666;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .symbol-editor-properties {

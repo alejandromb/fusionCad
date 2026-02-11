@@ -81,7 +81,7 @@ program
     const circuit = loadCircuit(project);
     console.log('[fcad] Generating BOM...');
 
-    const bom = generateBom(circuit.parts, circuit.devices);
+    const bom = generateBom(circuit.parts, circuit.devices, circuit.terminals || []);
     const csv = bomToCSV(bom);
 
     writeFileSync(options.output, csv, 'utf-8');

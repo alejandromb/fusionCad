@@ -5,13 +5,19 @@
  * - Canvas with grid for drawing symbol graphics
  * - Drawing tools: line, rectangle, circle, polyline
  * - Pin placement tool
+ * - Path selection, dragging, and deletion
+ * - Undo/redo (Cmd+Z / Cmd+Shift+Z)
+ * - Better polyline UX: vertex dots, Escape cancels, Backspace removes last vertex
+ * - Zoom & pan: scroll to zoom, shift+drag or middle-drag to pan
  * - Real-time preview
  * - Export to JSON symbol format
+ * - Persistence via storage provider (custom symbols survive reload)
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { SymbolDefinition, PinDirection, PinType } from '@fusion-cad/core-model';
+import type { SymbolDefinition, SymbolPrimitive, PinDirection, PinType } from '@fusion-cad/core-model';
 import { generateId, registerSymbol, getSymbolById } from '@fusion-cad/core-model';
+import type { StorageProvider } from '../storage/storage-provider';
 
 type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin';
 
@@ -36,22 +42,109 @@ interface EditorPin {
   pinType: PinType;
 }
 
+interface EditorSnapshot {
+  paths: EditorPath[];
+  pins: EditorPin[];
+}
+
 interface SymbolEditorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (symbol: SymbolDefinition) => void;
-  editSymbolId?: string; // If provided, edit existing symbol
+  editSymbolId?: string;
+  storageProvider?: StorageProvider;
 }
 
 const GRID_SIZE = 5;
-const CANVAS_SIZE = 300;
 const PREVIEW_SCALE = 0.8;
+const MAX_EDITOR_HISTORY = 50;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
-export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEditorProps) {
+// ---------------------------------------------------------------------------
+// Hit-testing utilities
+// ---------------------------------------------------------------------------
+
+function pointToSegmentDist(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function hitTestPath(path: EditorPath, point: Point, radius: number): boolean {
+  if (path.type === 'line' && path.points.length >= 2) {
+    return pointToSegmentDist(point, path.points[0], path.points[1]) <= radius;
+  }
+  if (path.type === 'polyline' && path.points.length >= 2) {
+    for (let i = 0; i < path.points.length - 1; i++) {
+      if (pointToSegmentDist(point, path.points[i], path.points[i + 1]) <= radius) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (path.type === 'rect' && path.points.length >= 2) {
+    const [p1, p2] = path.points;
+    const x = Math.min(p1.x, p2.x);
+    const y = Math.min(p1.y, p2.y);
+    const w = Math.abs(p2.x - p1.x);
+    const h = Math.abs(p2.y - p1.y);
+    const corners: Point[] = [
+      { x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h },
+    ];
+    for (let i = 0; i < 4; i++) {
+      if (pointToSegmentDist(point, corners[i], corners[(i + 1) % 4]) <= radius) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (path.type === 'circle' && path.points.length >= 1 && path.radius) {
+    const dist = Math.hypot(point.x - path.points[0].x, point.y - path.points[0].y);
+    return Math.abs(dist - path.radius) <= radius;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Primitive → EditorPath conversion (Task 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert typed SymbolPrimitives back to EditorPaths for editing.
+ * Supports line, rect, circle, polyline. Skips unsupported types with a warning.
+ */
+function primitivesToEditorPaths(primitives: SymbolPrimitive[]): EditorPath[] {
+  const result: EditorPath[] = [];
+  for (const prim of primitives) {
+    const id = `path-${result.length}`;
+    switch (prim.type) {
+      case 'line':
+        result.push({ id, type: 'line', points: [{ x: prim.x1, y: prim.y1 }, { x: prim.x2, y: prim.y2 }] });
+        break;
+      case 'rect':
+        result.push({ id, type: 'rect', points: [{ x: prim.x, y: prim.y }, { x: prim.x + prim.width, y: prim.y + prim.height }] });
+        break;
+      case 'circle':
+        result.push({ id, type: 'circle', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r });
+        break;
+      case 'polyline':
+        result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })) });
+        break;
+      default:
+        console.warn(`SymbolEditor: skipping unsupported primitive type '${(prim as any).type}'`);
+    }
+  }
+  return result;
+}
+
+export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storageProvider }: SymbolEditorProps) {
   // Symbol metadata
   const [symbolName, setSymbolName] = useState('New Symbol');
   const [symbolCategory, setSymbolCategory] = useState('Custom');
@@ -71,12 +164,147 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
   const [currentPath, setCurrentPath] = useState<EditorPath | null>(null);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
 
+  // Drag state for moving selected path
+  const [isDraggingPath, setIsDraggingPath] = useState(false);
+  const dragStartRef = useRef<Point | null>(null);
+
+  // Viewport state (Task 3)
+  const [viewport, setViewport] = useState({ offsetX: 0, offsetY: 0, scale: 1 });
+
+  // Pan state (Task 4)
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<Point | null>(null);
+
+  // Dynamic canvas sizing (Task 2)
+  const [canvasWidth, setCanvasWidth] = useState(500);
+  const [canvasHeight, setCanvasHeight] = useState(500);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Undo/redo history
+  const [editorHistory, setEditorHistory] = useState<EditorSnapshot[]>([]);
+  const [editorHistoryIndex, setEditorHistoryIndex] = useState(-1);
+  const isUndoRedoRef = useRef(false);
+
   // Canvas ref
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Load existing symbol for editing
+  // Push current state onto the history stack (call BEFORE mutation)
+  const pushEditorHistory = useCallback(() => {
+    if (isUndoRedoRef.current) return;
+    const snapshot: EditorSnapshot = {
+      paths: paths.map(p => ({ ...p, points: [...p.points] })),
+      pins: pins.map(p => ({ ...p, position: { ...p.position } })),
+    };
+    setEditorHistory(prev => {
+      const trimmed = prev.slice(0, editorHistoryIndex + 1);
+      trimmed.push(snapshot);
+      if (trimmed.length > MAX_EDITOR_HISTORY) return trimmed.slice(-MAX_EDITOR_HISTORY);
+      return trimmed;
+    });
+    setEditorHistoryIndex(prev => Math.min(prev + 1, MAX_EDITOR_HISTORY - 1));
+  }, [paths, pins, editorHistoryIndex]);
+
+  const editorUndo = useCallback(() => {
+    if (editorHistoryIndex < 0 || editorHistory.length === 0) return;
+    // Save current state for redo
+    const current: EditorSnapshot = {
+      paths: paths.map(p => ({ ...p, points: [...p.points] })),
+      pins: pins.map(p => ({ ...p, position: { ...p.position } })),
+    };
+    if (editorHistoryIndex === editorHistory.length - 1) {
+      setEditorHistory(prev => [...prev, current]);
+    }
+    const snapshot = editorHistory[editorHistoryIndex];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    setPaths(snapshot.paths.map(p => ({ ...p, points: [...p.points] })));
+    setPins(snapshot.pins.map(p => ({ ...p, position: { ...p.position } })));
+    setEditorHistoryIndex(editorHistoryIndex - 1);
+    setSelectedPathId(null);
+    setSelectedPinId(null);
+    setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+  }, [editorHistory, editorHistoryIndex, paths, pins]);
+
+  const editorRedo = useCallback(() => {
+    const targetIndex = editorHistoryIndex + 2;
+    if (targetIndex >= editorHistory.length) return;
+    const snapshot = editorHistory[targetIndex];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    setPaths(snapshot.paths.map(p => ({ ...p, points: [...p.points] })));
+    setPins(snapshot.pins.map(p => ({ ...p, position: { ...p.position } })));
+    setEditorHistoryIndex(editorHistoryIndex + 1);
+    setSelectedPathId(null);
+    setSelectedPinId(null);
+    setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+  }, [editorHistory, editorHistoryIndex]);
+
+  // Keyboard shortcuts for undo/redo/delete/escape/backspace
   useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      // Undo: Cmd/Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        editorUndo();
+        return;
+      }
+      // Redo: Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y
+      if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+        e.preventDefault();
+        editorRedo();
+        return;
+      }
+      // Delete selected
+      if (e.key === 'Delete' || (e.key === 'Backspace' && !isDrawing)) {
+        if (selectedPathId || selectedPinId) {
+          e.preventDefault();
+          handleDelete();
+          return;
+        }
+      }
+      // Backspace during polyline: remove last vertex
+      if (e.key === 'Backspace' && isDrawing && currentPath?.type === 'polyline') {
+        e.preventDefault();
+        if (currentPath.points.length > 1) {
+          setCurrentPath({
+            ...currentPath,
+            points: currentPath.points.slice(0, -1),
+          });
+        }
+        return;
+      }
+      // Escape: cancel in-progress polyline or deselect
+      if (e.key === 'Escape') {
+        if (isDrawing) {
+          e.preventDefault();
+          setIsDrawing(false);
+          setCurrentPath(null);
+          setStartPoint(null);
+        } else {
+          setSelectedPathId(null);
+          setSelectedPinId(null);
+        }
+        return;
+      }
+    };
+    // Capture phase to intercept before canvas handlers
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [isOpen, editorUndo, editorRedo, selectedPathId, selectedPinId, isDrawing, currentPath]);
+
+  // Load existing symbol for editing + auto-center (Task 1 + Task 3)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let symWidth = 40;
+    let symHeight = 60;
+
     if (editSymbolId) {
       const existing = getSymbolById(editSymbolId);
       if (existing) {
@@ -85,16 +313,22 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         setTagPrefix(existing.tagPrefix || 'D');
         setSymbolWidth(existing.geometry.width);
         setSymbolHeight(existing.geometry.height);
+        symWidth = existing.geometry.width;
+        symHeight = existing.geometry.height;
 
-        // Convert paths
-        const loadedPaths: EditorPath[] = (existing.paths || []).map((p, i) => ({
-          id: `path-${i}`,
-          type: 'polyline' as const,
-          points: parseSvgPath(p.d),
-        }));
+        // Load from primitives first (preserves types), fall back to legacy paths
+        let loadedPaths: EditorPath[];
+        if (existing.primitives && existing.primitives.length > 0) {
+          loadedPaths = primitivesToEditorPaths(existing.primitives);
+        } else {
+          loadedPaths = (existing.paths || []).map((p, i) => ({
+            id: `path-${i}`,
+            type: 'polyline' as const,
+            points: parseSvgPath(p.d),
+          }));
+        }
         setPaths(loadedPaths);
 
-        // Convert pins
         const loadedPins: EditorPin[] = existing.pins.map(p => ({
           id: p.id,
           name: p.name,
@@ -105,9 +339,72 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         setPins(loadedPins);
       }
     }
-  }, [editSymbolId]);
 
-  // Parse simple SVG path to points (basic M/L/Z support)
+    // Auto-center after layout settles
+    const raf = requestAnimationFrame(() => {
+      const container = canvasContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const w = Math.floor(rect.width) || 500;
+      const h = Math.floor(rect.height) || 500;
+      setCanvasWidth(w);
+      setCanvasHeight(h);
+
+      const padding = 40;
+      const scaleX = (w - padding * 2) / symWidth;
+      const scaleY = (h - padding * 2) / symHeight;
+      const newScale = Math.max(0.25, Math.min(4.0, Math.min(scaleX, scaleY)));
+      setViewport({
+        scale: newScale,
+        offsetX: (w - symWidth * newScale) / 2,
+        offsetY: (h - symHeight * newScale) / 2,
+      });
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [editSymbolId, isOpen]);
+
+  // ResizeObserver for dynamic canvas sizing (Task 2)
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || !isOpen) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setCanvasWidth(Math.floor(width));
+          setCanvasHeight(Math.floor(height));
+        }
+      }
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [isOpen]);
+
+  // Wheel zoom handler (Task 4)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isOpen) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      setViewport(prev => {
+        const newScale = Math.max(0.25, Math.min(4.0, prev.scale * factor));
+        const ratio = newScale / prev.scale;
+        return {
+          scale: newScale,
+          offsetX: mouseX - (mouseX - prev.offsetX) * ratio,
+          offsetY: mouseY - (mouseY - prev.offsetY) * ratio,
+        };
+      });
+    };
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [isOpen]);
+
   function parseSvgPath(d: string): Point[] {
     const points: Point[] = [];
     const commands = d.match(/[MLZmlz][^MLZmlz]*/g) || [];
@@ -134,7 +431,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     return points;
   }
 
-  // Convert editor paths to SVG path string
   function pathsToSvgD(editorPaths: EditorPath[]): string {
     const parts: string[] = [];
 
@@ -149,7 +445,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         const h = Math.abs(p2.y - p1.y);
         parts.push(`M${x},${y}h${w}v${h}h${-w}Z`);
       } else if (path.type === 'circle' && path.points.length >= 1 && path.radius) {
-        // SVG arc approximation for circle
         const cx = path.points[0].x;
         const cy = path.points[0].y;
         const r = path.radius;
@@ -167,43 +462,101 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     return parts.join('');
   }
 
-  // Render the editor canvas
+  /**
+   * Convert editor paths to typed SymbolPrimitive array.
+   * This preserves semantic type info (rect, circle, line) instead of
+   * flattening to SVG d strings.
+   */
+  function editorPathsToPrimitives(editorPaths: EditorPath[]): SymbolPrimitive[] {
+    const result: SymbolPrimitive[] = [];
+
+    for (const path of editorPaths) {
+      if (path.type === 'line' && path.points.length >= 2) {
+        result.push({
+          type: 'line',
+          x1: path.points[0].x, y1: path.points[0].y,
+          x2: path.points[1].x, y2: path.points[1].y,
+        });
+      } else if (path.type === 'rect' && path.points.length >= 2) {
+        const [p1, p2] = path.points;
+        result.push({
+          type: 'rect',
+          x: Math.min(p1.x, p2.x),
+          y: Math.min(p1.y, p2.y),
+          width: Math.abs(p2.x - p1.x),
+          height: Math.abs(p2.y - p1.y),
+        });
+      } else if (path.type === 'circle' && path.points.length >= 1 && path.radius) {
+        result.push({
+          type: 'circle',
+          cx: path.points[0].x,
+          cy: path.points[0].y,
+          r: path.radius,
+        });
+      } else if (path.type === 'polyline' && path.points.length >= 2) {
+        result.push({
+          type: 'polyline',
+          points: path.points.map(p => ({ x: p.x, y: p.y })),
+        });
+      }
+    }
+
+    return result;
+  }
+
+  // Render the editor canvas (Task 3: viewport transform)
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear
+    const { offsetX, offsetY, scale } = viewport;
+
+    // Clear full canvas
     ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // Draw grid
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    // Compute visible world bounds for grid
+    const worldLeft = -offsetX / scale;
+    const worldTop = -offsetY / scale;
+    const worldRight = (canvasWidth - offsetX) / scale;
+    const worldBottom = (canvasHeight - offsetY) / scale;
+
+    // Draw grid (only visible lines)
+    const gridLeft = Math.floor(worldLeft / GRID_SIZE) * GRID_SIZE;
+    const gridTop = Math.floor(worldTop / GRID_SIZE) * GRID_SIZE;
+    const gridRight = Math.ceil(worldRight / GRID_SIZE) * GRID_SIZE;
+    const gridBottom = Math.ceil(worldBottom / GRID_SIZE) * GRID_SIZE;
+
     ctx.strokeStyle = '#333';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= CANVAS_SIZE; x += GRID_SIZE) {
+    ctx.lineWidth = 0.5 / scale;
+    for (let x = gridLeft; x <= gridRight; x += GRID_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, CANVAS_SIZE);
+      ctx.moveTo(x, gridTop);
+      ctx.lineTo(x, gridBottom);
       ctx.stroke();
     }
-    for (let y = 0; y <= CANVAS_SIZE; y += GRID_SIZE) {
+    for (let y = gridTop; y <= gridBottom; y += GRID_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(CANVAS_SIZE, y);
+      ctx.moveTo(gridLeft, y);
+      ctx.lineTo(gridRight, y);
       ctx.stroke();
     }
 
-    // Draw symbol boundary
+    // Symbol boundary
     ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1 / scale;
+    ctx.setLineDash([4 / scale, 4 / scale]);
     ctx.strokeRect(0, 0, symbolWidth, symbolHeight);
     ctx.setLineDash([]);
 
     // Draw paths
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 / scale;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -240,7 +593,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     // Draw current path being drawn
     if (currentPath && currentPath.points.length > 0) {
       ctx.strokeStyle = '#00ffff';
-      ctx.setLineDash([2, 2]);
+      ctx.setLineDash([2 / scale, 2 / scale]);
 
       if (currentPath.type === 'line' && currentPath.points.length >= 2) {
         ctx.beginPath();
@@ -265,6 +618,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
           ctx.lineTo(currentPath.points[i].x, currentPath.points[i].y);
         }
         ctx.stroke();
+
+        // Draw vertex dots for polyline in progress
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#00ffff';
+        for (const pt of currentPath.points) {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 3 / scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       ctx.setLineDash([]);
@@ -275,14 +637,14 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
       const isSelected = pin.id === selectedPinId;
       ctx.fillStyle = isSelected ? '#ffff00' : '#ff6600';
       ctx.beginPath();
-      ctx.arc(pin.position.x, pin.position.y, 4, 0, Math.PI * 2);
+      ctx.arc(pin.position.x, pin.position.y, 4 / scale, 0, Math.PI * 2);
       ctx.fill();
 
       // Pin direction indicator
       ctx.strokeStyle = isSelected ? '#ffff00' : '#ff6600';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 / scale;
       ctx.beginPath();
-      const len = 8;
+      const len = 8 / scale;
       switch (pin.direction) {
         case 'left':
           ctx.moveTo(pin.position.x, pin.position.y);
@@ -305,12 +667,14 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
 
       // Pin name
       ctx.fillStyle = '#fff';
-      ctx.font = '10px monospace';
+      ctx.font = `${10 / scale}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(pin.name, pin.position.x, pin.position.y - 12);
+      ctx.fillText(pin.name, pin.position.x, pin.position.y - 12 / scale);
     }
-  }, [paths, pins, currentPath, selectedPathId, selectedPinId, symbolWidth, symbolHeight]);
+
+    ctx.restore();
+  }, [paths, pins, currentPath, selectedPathId, selectedPinId, symbolWidth, symbolHeight, viewport, canvasWidth, canvasHeight]);
 
   // Render preview
   const renderPreview = useCallback(() => {
@@ -323,23 +687,20 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     canvas.width = previewSize;
     canvas.height = previewSize;
 
-    // Clear
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, previewSize, previewSize);
 
-    // Scale to fit
     const scale = Math.min(
       (previewSize - 20) / symbolWidth,
       (previewSize - 20) / symbolHeight
     ) * PREVIEW_SCALE;
-    const offsetX = (previewSize - symbolWidth * scale) / 2;
-    const offsetY = (previewSize - symbolHeight * scale) / 2;
+    const pOffsetX = (previewSize - symbolWidth * scale) / 2;
+    const pOffsetY = (previewSize - symbolHeight * scale) / 2;
 
     ctx.save();
-    ctx.translate(offsetX, offsetY);
+    ctx.translate(pOffsetX, pOffsetY);
     ctx.scale(scale, scale);
 
-    // Draw paths
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2 / scale;
     ctx.lineCap = 'round';
@@ -372,7 +733,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
       }
     }
 
-    // Draw pins
     for (const pin of pins) {
       ctx.fillStyle = '#ff6600';
       ctx.beginPath();
@@ -389,24 +749,60 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     renderPreview();
   }, [renderCanvas, renderPreview]);
 
-  // Mouse handlers
+  // Coordinate conversion helpers (Task 3)
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: snapToGrid(e.clientX - rect.left),
-      y: snapToGrid(e.clientY - rect.top),
+      x: snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale),
+      y: snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale),
     };
   };
 
+  /** Un-snapped world position for hit testing */
+  const getWorldPos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left - viewport.offsetX) / viewport.scale,
+      y: (e.clientY - rect.top - viewport.offsetY) / viewport.scale,
+    };
+  };
+
+  /** Screen position for panning */
+  const getScreenPos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Prevent middle-click auto-scroll
+    if (e.button === 1) e.preventDefault();
+
+    // Pan: middle button or Shift+left (Task 4)
+    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+      const screen = getScreenPos(e);
+      setIsPanning(true);
+      panStartRef.current = screen;
+      return;
+    }
+
+    // Only process left-click for tools
+    if (e.button !== 0) return;
+
     const pos = getMousePos(e);
 
     if (selectedTool === 'select') {
+      const worldPos = getWorldPos(e);
+      const hitRadius = 6 / viewport.scale;
+
       // Check if clicking on a pin
       const clickedPin = pins.find(p =>
-        Math.abs(p.position.x - pos.x) < 8 && Math.abs(p.position.y - pos.y) < 8
+        Math.abs(p.position.x - worldPos.x) < hitRadius && Math.abs(p.position.y - worldPos.y) < hitRadius
       );
       if (clickedPin) {
         setSelectedPinId(clickedPin.id);
@@ -414,15 +810,25 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         return;
       }
 
-      // Check if clicking on a path (simplified hit test)
-      // For now, just deselect
+      // Check if clicking on a path (reverse z-order for top-most first)
+      for (let i = paths.length - 1; i >= 0; i--) {
+        if (hitTestPath(paths[i], worldPos, hitRadius)) {
+          setSelectedPathId(paths[i].id);
+          setSelectedPinId(null);
+          // Start drag
+          setIsDraggingPath(true);
+          dragStartRef.current = pos;
+          return;
+        }
+      }
+
       setSelectedPathId(null);
       setSelectedPinId(null);
       return;
     }
 
     if (selectedTool === 'pin') {
-      // Add a new pin
+      pushEditorHistory();
       const newPin: EditorPin = {
         id: `pin-${Date.now()}`,
         name: `${pins.length + 1}`,
@@ -453,9 +859,39 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !currentPath || !startPoint) return;
+    // Pan in progress (Task 4)
+    if (isPanning && panStartRef.current) {
+      const screen = getScreenPos(e);
+      const dx = screen.x - panStartRef.current.x;
+      const dy = screen.y - panStartRef.current.y;
+      panStartRef.current = screen;
+      setViewport(prev => ({
+        ...prev,
+        offsetX: prev.offsetX + dx,
+        offsetY: prev.offsetY + dy,
+      }));
+      return;
+    }
 
     const pos = getMousePos(e);
+
+    // Drag selected path
+    if (isDraggingPath && selectedPathId && dragStartRef.current) {
+      const dx = pos.x - dragStartRef.current.x;
+      const dy = pos.y - dragStartRef.current.y;
+      if (dx === 0 && dy === 0) return;
+      setPaths(prev => prev.map(p => {
+        if (p.id !== selectedPathId) return p;
+        return {
+          ...p,
+          points: p.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy })),
+        };
+      }));
+      dragStartRef.current = pos;
+      return;
+    }
+
+    if (!isDrawing || !currentPath || !startPoint) return;
 
     if (currentPath.type === 'line' || currentPath.type === 'rect') {
       setCurrentPath({
@@ -472,7 +908,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         radius: snapToGrid(radius),
       });
     } else if (currentPath.type === 'polyline') {
-      // Update last point
       const pts = [...currentPath.points];
       if (pts.length > 1) {
         pts[pts.length - 1] = pos;
@@ -484,6 +919,20 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // End pan (Task 4)
+    if (isPanning) {
+      setIsPanning(false);
+      panStartRef.current = null;
+      return;
+    }
+
+    // End path drag
+    if (isDraggingPath) {
+      setIsDraggingPath(false);
+      dragStartRef.current = null;
+      return;
+    }
+
     if (!isDrawing || !currentPath) {
       setIsDrawing(false);
       return;
@@ -492,13 +941,11 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     const pos = getMousePos(e);
 
     if (currentPath.type === 'polyline') {
-      // For polyline, click adds points, double-click ends
       const pts = [...currentPath.points];
       if (pts.length === 1 || (pts.length > 1 && pts[pts.length - 1] !== pos)) {
         pts.push(pos);
       }
       setCurrentPath({ ...currentPath, points: pts });
-      // Don't end drawing yet for polyline
       return;
     }
 
@@ -507,7 +954,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
       currentPath.points = [startPoint!, pos];
     }
 
-    // Only add if it has meaningful size
     const isValid =
       (currentPath.type === 'circle' && currentPath.radius && currentPath.radius > 5) ||
       (currentPath.type !== 'circle' && currentPath.points.length >= 2 &&
@@ -515,6 +961,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
          Math.abs(currentPath.points[1].y - currentPath.points[0].y) > 2));
 
     if (isValid) {
+      pushEditorHistory();
       setPaths([...paths, currentPath]);
     }
 
@@ -524,8 +971,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
   };
 
   const handleDoubleClick = () => {
-    // End polyline drawing
     if (isDrawing && currentPath && currentPath.type === 'polyline' && currentPath.points.length >= 2) {
+      pushEditorHistory();
       setPaths([...paths, currentPath]);
       setIsDrawing(false);
       setCurrentPath(null);
@@ -533,17 +980,19 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     }
   };
 
-  // Delete selected element
-  const handleDelete = () => {
+  // Delete selected element (with history)
+  const handleDelete = useCallback(() => {
     if (selectedPathId) {
-      setPaths(paths.filter(p => p.id !== selectedPathId));
+      pushEditorHistory();
+      setPaths(prev => prev.filter(p => p.id !== selectedPathId));
       setSelectedPathId(null);
     }
     if (selectedPinId) {
-      setPins(pins.filter(p => p.id !== selectedPinId));
+      pushEditorHistory();
+      setPins(prev => prev.filter(p => p.id !== selectedPinId));
       setSelectedPinId(null);
     }
-  };
+  }, [selectedPathId, selectedPinId, pushEditorHistory]);
 
   // Update selected pin
   const updateSelectedPin = (updates: Partial<EditorPin>) => {
@@ -551,8 +1000,57 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     setPins(pins.map(p => p.id === selectedPinId ? { ...p, ...updates } : p));
   };
 
+  // Zoom controls (Task 5)
+  const zoomToFit = useCallback(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const w = Math.floor(rect.width) || canvasWidth;
+    const h = Math.floor(rect.height) || canvasHeight;
+
+    const padding = 40;
+    const scaleX = (w - padding * 2) / symbolWidth;
+    const scaleY = (h - padding * 2) / symbolHeight;
+    const newScale = Math.max(0.25, Math.min(4.0, Math.min(scaleX, scaleY)));
+    setViewport({
+      scale: newScale,
+      offsetX: (w - symbolWidth * newScale) / 2,
+      offsetY: (h - symbolHeight * newScale) / 2,
+    });
+  }, [canvasWidth, canvasHeight, symbolWidth, symbolHeight]);
+
+  const zoomIn = useCallback(() => {
+    setViewport(prev => {
+      const newScale = Math.max(0.25, Math.min(4.0, prev.scale * 1.25));
+      const ratio = newScale / prev.scale;
+      const cx = canvasWidth / 2;
+      const cy = canvasHeight / 2;
+      return {
+        scale: newScale,
+        offsetX: cx - (cx - prev.offsetX) * ratio,
+        offsetY: cy - (cy - prev.offsetY) * ratio,
+      };
+    });
+  }, [canvasWidth, canvasHeight]);
+
+  const zoomOut = useCallback(() => {
+    setViewport(prev => {
+      const newScale = Math.max(0.25, Math.min(4.0, prev.scale * 0.8));
+      const ratio = newScale / prev.scale;
+      const cx = canvasWidth / 2;
+      const cy = canvasHeight / 2;
+      return {
+        scale: newScale,
+        offsetX: cx - (cx - prev.offsetX) * ratio,
+        offsetY: cy - (cy - prev.offsetY) * ratio,
+      };
+    });
+  }, [canvasWidth, canvasHeight]);
+
   // Save symbol
-  const handleSave = () => {
+  const handleSave = async () => {
+    const primitivesList = editorPathsToPrimitives(paths);
+    // Also generate legacy paths for backward compat
     const svgD = pathsToSvgD(paths);
 
     const symbolDef: SymbolDefinition = {
@@ -572,6 +1070,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
         direction: p.direction,
         pinType: p.pinType,
       })),
+      primitives: primitivesList.length > 0 ? primitivesList : undefined,
       paths: svgD ? [{ d: svgD, stroke: true, strokeWidth: 2 }] : [],
       source: 'custom',
       createdAt: Date.now(),
@@ -581,12 +1080,22 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
     // Register in library
     registerSymbol(symbolDef);
 
+    // Persist to storage if available
+    if (storageProvider && 'saveCustomSymbol' in storageProvider) {
+      try {
+        await (storageProvider as any).saveCustomSymbol(symbolDef);
+      } catch {
+        // Silently fail - symbol is still registered in memory
+      }
+    }
+
     onSave(symbolDef);
     onClose();
   };
 
-  // Clear all
+  // Clear all (with history)
   const handleClear = () => {
+    pushEditorHistory();
     setPaths([]);
     setPins([]);
     setSelectedPathId(null);
@@ -658,6 +1167,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
               <button className="action-btn" onClick={handleDelete} disabled={!selectedPathId && !selectedPinId}>
                 Delete
               </button>
+              <button className="action-btn" onClick={editorUndo} disabled={editorHistoryIndex < 0} title="Undo (Cmd+Z)">
+                Undo
+              </button>
+              <button className="action-btn" onClick={editorRedo} disabled={editorHistoryIndex >= editorHistory.length - 1} title="Redo (Cmd+Shift+Z)">
+                Redo
+              </button>
               <button className="action-btn danger" onClick={handleClear}>
                 Clear All
               </button>
@@ -707,21 +1222,32 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId }: SymbolEd
 
           {/* Center: Canvas */}
           <div className="symbol-editor-canvas-area">
-            <canvas
-              ref={canvasRef}
-              width={CANVAS_SIZE}
-              height={CANVAS_SIZE}
-              className="symbol-editor-canvas"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onDoubleClick={handleDoubleClick}
-            />
+            <div ref={canvasContainerRef} className="symbol-editor-canvas-container">
+              <canvas
+                ref={canvasRef}
+                width={canvasWidth}
+                height={canvasHeight}
+                className="symbol-editor-canvas"
+                style={{ cursor: isPanning ? 'grabbing' : (selectedTool === 'select' ? 'default' : 'crosshair') }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onDoubleClick={handleDoubleClick}
+                onContextMenu={e => e.preventDefault()}
+              />
+            </div>
+            <div className="symbol-editor-zoom-controls">
+              <button className="action-btn" onClick={zoomOut} title="Zoom Out">&minus;</button>
+              <span className="zoom-percentage">{Math.round(viewport.scale * 100)}%</span>
+              <button className="action-btn" onClick={zoomIn} title="Zoom In">+</button>
+              <button className="action-btn" onClick={zoomToFit} title="Fit to View">Fit</button>
+            </div>
             <div className="canvas-hint">
-              {selectedTool === 'polyline' ? 'Click to add points, double-click to finish' :
+              {selectedTool === 'polyline' ? 'Click to add points, double-click to finish. Backspace removes last point, Escape cancels.' :
                selectedTool === 'pin' ? 'Click to place pin' :
-               selectedTool === 'select' ? 'Click to select, Delete to remove' :
+               selectedTool === 'select' ? 'Click to select, drag to move, Delete to remove' :
                'Click and drag to draw'}
+              {' \u00b7 Scroll to zoom, Shift+drag to pan'}
             </div>
           </div>
 

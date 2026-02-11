@@ -1,10 +1,15 @@
 /**
  * BOM (Bill of Materials) Generator
  *
- * Groups devices by part and generates a BOM report
+ * Groups devices by part and generates a BOM report.
+ *
+ * Terminal block handling:
+ * - Devices with `terminalId` are visual representations of terminal levels
+ * - BOM counts Terminals (physical parts), not individual Device entities
+ * - A dual-level terminal = 2 Device entities but 1 BOM line item
  */
 
-import type { Part, Device } from '@fusion-cad/core-model';
+import type { Part, Device, Terminal } from '@fusion-cad/core-model';
 
 export interface BomRow {
   partNumber: string;
@@ -22,18 +27,27 @@ export interface BomReport {
 }
 
 /**
- * Generate BOM from parts and devices
+ * Generate BOM from parts, devices, and terminals
+ *
+ * @param parts - All parts in the project
+ * @param devices - All devices (symbols on schematic)
+ * @param terminals - Optional: Terminal entities for proper terminal block counting
  */
-export function generateBom(parts: Part[], devices: Device[]): BomReport {
+export function generateBom(parts: Part[], devices: Device[], terminals: Terminal[] = []): BomReport {
   // Create a map of partId -> part
   const partMap = new Map<string, Part>();
   for (const part of parts) {
     partMap.set(part.id, part);
   }
 
-  // Group devices by partId
+  // Group devices by partId (excluding terminal levels)
   const devicesByPart = new Map<string, Device[]>();
   for (const device of devices) {
+    // Skip devices that are terminal levels - they're counted via Terminal entity
+    if (device.terminalId) {
+      continue;
+    }
+
     if (!device.partId) continue; // Skip devices without assigned parts
 
     if (!devicesByPart.has(device.partId)) {
@@ -42,7 +56,7 @@ export function generateBom(parts: Part[], devices: Device[]): BomReport {
     devicesByPart.get(device.partId)!.push(device);
   }
 
-  // Build BOM rows
+  // Build BOM rows from regular devices
   const rows: BomRow[] = [];
   for (const [partId, devicesForPart] of devicesByPart.entries()) {
     const part = partMap.get(partId);
@@ -55,6 +69,36 @@ export function generateBom(parts: Part[], devices: Device[]): BomReport {
       category: part.category,
       quantity: devicesForPart.length,
       deviceTags: devicesForPart.map((d) => d.tag).sort(),
+    });
+  }
+
+  // Add Terminal entities as BOM items (grouped by partId)
+  const terminalsByPart = new Map<string, Terminal[]>();
+  for (const terminal of terminals) {
+    if (!terminal.partId) continue;
+
+    if (!terminalsByPart.has(terminal.partId)) {
+      terminalsByPart.set(terminal.partId, []);
+    }
+    terminalsByPart.get(terminal.partId)!.push(terminal);
+  }
+
+  for (const [partId, terminalsForPart] of terminalsByPart.entries()) {
+    const part = partMap.get(partId);
+    if (!part) continue;
+
+    // Generate tags like "X1:1", "X1:2", etc.
+    const terminalTags = terminalsForPart
+      .map((t) => `${t.stripTag}:${t.index}`)
+      .sort();
+
+    rows.push({
+      partNumber: part.partNumber,
+      manufacturer: part.manufacturer,
+      description: part.description,
+      category: part.category,
+      quantity: terminalsForPart.length,
+      deviceTags: terminalTags,
     });
   }
 

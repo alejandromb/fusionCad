@@ -4,10 +4,11 @@
  * Renders the golden circuit on canvas
  */
 
-import type { Device, Net, Part } from '@fusion-cad/core-model';
+import type { Device, Net, Part, Sheet, Annotation, Terminal } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
-import type { Point, Viewport } from './types';
+import type { Point, Viewport, DeviceTransform } from './types';
 import { routeWires, type Obstacle, type RouteRequest } from '@fusion-cad/core-engine';
+import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 
 export interface Connection {
   fromDevice: string;
@@ -15,6 +16,10 @@ export interface Connection {
   toDevice: string;
   toPin: string;
   netId: string;
+  /** Sheet this wire belongs to (optional, defaults to active sheet) */
+  sheetId?: string;
+  /** Systematic wire number displayed on drawings */
+  wireNumber?: string;
   /** Manual waypoints for wire routing - if provided, wire routes through these points */
   waypoints?: Point[];
 }
@@ -24,12 +29,17 @@ export interface CircuitData {
   nets: Net[];
   parts: Part[];
   connections: Connection[];
+  sheets?: Sheet[];
+  annotations?: Annotation[];
+  terminals?: Terminal[];
 }
 
 export interface RenderOptions {
   selectedDevices?: string[];
   selectedWireIndex?: number | null;
   wireStart?: { device: string; pin: string } | null;
+  /** Mouse position for wire preview (draws line from wireStart to mouse) */
+  wirePreviewMouse?: { x: number; y: number } | null;
   ghostSymbol?: { category: string; x: number; y: number } | null;
   /** Dragging endpoint for wire reconnection - shows preview line to mouse position */
   draggingEndpoint?: {
@@ -37,6 +47,16 @@ export interface RenderOptions {
     endpoint: 'from' | 'to';
     mousePos: { x: number; y: number };
   } | null;
+  /** Active sheet ID - only render devices/connections on this sheet */
+  activeSheetId?: string;
+  /** Device rotation/mirror transforms */
+  deviceTransforms?: Map<string, DeviceTransform>;
+  /** Marquee selection rectangle (world coordinates) */
+  marquee?: MarqueeRect | null;
+  /** Show visible grid */
+  showGrid?: boolean;
+  /** Grid size in pixels */
+  gridSize?: number;
 }
 
 /**
@@ -478,7 +498,22 @@ export function renderCircuit(
   devicePositions?: Map<string, { x: number; y: number }>,
   options?: RenderOptions
 ): void {
-  const { devices, nets, parts, connections } = circuit;
+  const { nets, parts } = circuit;
+  const activeSheetId = options?.activeSheetId;
+
+  // Filter devices and connections by active sheet if specified
+  const devices = activeSheetId
+    ? circuit.devices.filter(d => d.sheetId === activeSheetId)
+    : circuit.devices;
+  const connections = activeSheetId
+    ? circuit.connections.filter(c => {
+        // Include connection if it has matching sheetId, or if its devices are on the active sheet
+        if (c.sheetId) return c.sheetId === activeSheetId;
+        const fromDevice = devices.find(d => d.tag === c.fromDevice);
+        const toDevice = devices.find(d => d.tag === c.toDevice);
+        return (fromDevice !== undefined) || (toDevice !== undefined);
+      })
+    : circuit.connections;
 
   // Create part lookup
   const partMap = new Map<string, Part>();
@@ -498,6 +533,26 @@ export function renderCircuit(
   ctx.translate(viewport.offsetX, viewport.offsetY);
   ctx.scale(viewport.scale, viewport.scale);
 
+  // Render visible grid
+  if (options?.showGrid !== false) {
+    const gridSize = options?.gridSize || 20;
+    const invScale = 1 / viewport.scale;
+    const startX = Math.floor((-viewport.offsetX * invScale) / gridSize) * gridSize;
+    const startY = Math.floor((-viewport.offsetY * invScale) / gridSize) * gridSize;
+    const endX = startX + (ctx.canvas.width * invScale) + gridSize;
+    const endY = startY + (ctx.canvas.height * invScale) + gridSize;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    for (let gx = startX; gx < endX; gx += gridSize) {
+      for (let gy = startY; gy < endY; gy += gridSize) {
+        ctx.fillRect(gx - 0.5, gy - 0.5, 1, 1);
+      }
+    }
+  }
+
+  // Device transforms
+  const deviceTransforms = options?.deviceTransforms;
+
   // FIRST: Render devices (symbols) - draw these first so wires appear on top
   for (const device of devices) {
     const position = positions.get(device.tag);
@@ -505,8 +560,9 @@ export function renderCircuit(
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const category = part?.category || 'unknown';
+    const transform = deviceTransforms?.get(device.tag);
 
-    drawSymbol(ctx, category, position.x, position.y, device.tag);
+    drawSymbol(ctx, category, position.x, position.y, device.tag, transform);
   }
 
   // Create obstacles from devices for routing
@@ -676,44 +732,65 @@ export function renderCircuit(
       ctx.fill();
     }
 
-    // Debug mode: Draw wire labels and endpoint info
-    if (debugMode) {
-      const wireNumber = `W${String(metadata.index + 1).padStart(3, '0')}`;
-      const net = nets.find(n => n.id === metadata.conn.netId);
-      const netName = net?.name || 'unknown';
+    // Wire number label (always visible)
+    {
+      // Use explicit wireNumber if set, otherwise auto-generate
+      const wireNumber = metadata.conn.wireNumber || `W${String(metadata.index + 1).padStart(3, '0')}`;
 
-      // Wire label at midpoint (wire number + net name)
+      // Calculate label position along the longest segment
+      let labelX = (metadata.fromX + metadata.toX) / 2;
+      let labelY = (metadata.fromY + metadata.toY) / 2;
+      if (pathPoints.length >= 2) {
+        // Find longest segment for label placement
+        let maxLen = 0;
+        let bestMidX = labelX;
+        let bestMidY = labelY;
+        for (let j = 0; j < pathPoints.length - 1; j++) {
+          const segLen = Math.hypot(
+            pathPoints[j + 1].x - pathPoints[j].x,
+            pathPoints[j + 1].y - pathPoints[j].y
+          );
+          if (segLen > maxLen) {
+            maxLen = segLen;
+            bestMidX = (pathPoints[j].x + pathPoints[j + 1].x) / 2;
+            bestMidY = (pathPoints[j].y + pathPoints[j + 1].y) / 2;
+          }
+        }
+        labelX = bestMidX;
+        labelY = bestMidY;
+      }
+
       ctx.save();
       const labelColor = wireColors[metadata.index % wireColors.length];
-      ctx.fillStyle = labelColor;
-      ctx.font = 'bold 11px monospace';
+      ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Calculate midpoint from routed path (or fallback to direct midpoint)
-      let labelX = (metadata.fromX + metadata.toX) / 2;
-      let labelY = (metadata.fromY + metadata.toY) / 2;
-      if (routeResult.success && routeResult.path.waypoints.length > 0) {
-        const midIndex = Math.floor(routeResult.path.waypoints.length / 2);
-        labelX = routeResult.path.waypoints[midIndex].x;
-        labelY = routeResult.path.waypoints[midIndex].y;
-      }
+      const metrics = ctx.measureText(wireNumber);
+      const padding = 3;
 
-      // Draw label with background for readability
-      const labelText = `${wireNumber} (${netName})`;
-      const metrics = ctx.measureText(labelText);
-      const padding = 4;
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      // Background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(
         labelX - metrics.width / 2 - padding,
-        labelY - 8,
+        labelY - 7,
         metrics.width + padding * 2,
-        16
+        14
       );
 
+      // Text
       ctx.fillStyle = labelColor;
-      ctx.fillText(labelText, labelX, labelY);
+      ctx.fillText(wireNumber, labelX, labelY);
+      ctx.restore();
+    }
+
+    // Debug mode: Draw additional endpoint info
+    if (debugMode) {
+      const net = nets.find(n => n.id === metadata.conn.netId);
+      const netName = net?.name || 'unknown';
+
+      ctx.save();
+      const labelColor = wireColors[metadata.index % wireColors.length];
 
       // Endpoint labels (device:pin)
       ctx.font = '10px monospace';
@@ -748,6 +825,19 @@ export function renderCircuit(
       ctx.textBaseline = 'top';
       ctx.fillText(toLabel, metadata.toX, metadata.toY + 6);
 
+      // Net name near wire midpoint
+      const netLabel = `(${netName})`;
+      ctx.font = '9px monospace';
+      const netMetrics = ctx.measureText(netLabel);
+      const midX = (metadata.fromX + metadata.toX) / 2;
+      const midY = (metadata.fromY + metadata.toY) / 2;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(midX - netMetrics.width / 2 - 2, midY + 8, netMetrics.width + 4, 12);
+      ctx.fillStyle = labelColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(netLabel, midX, midY + 8);
+
       ctx.restore();
     }
   }
@@ -779,7 +869,7 @@ export function renderCircuit(
     ctx.setLineDash([]);
   }
 
-  // Draw wire-in-progress indicator (highlight the start pin)
+  // Draw wire-in-progress indicator (highlight the start pin) and preview line
   if (options?.wireStart) {
     const device = devices.find(d => d.tag === options.wireStart!.device);
     if (device) {
@@ -787,11 +877,25 @@ export function renderCircuit(
       if (position) {
         const part = device.partId ? partMap.get(device.partId) : null;
         const geometry = getSymbolGeometry(part?.category || 'unknown');
+        const transform = options.deviceTransforms?.get(device.tag);
         const pin = geometry.pins.find(p => p.id === options.wireStart!.pin);
 
         if (pin) {
-          const pinX = position.x + pin.position.x;
-          const pinY = position.y + pin.position.y;
+          // Apply rotation transform to pin position if device is rotated
+          let pinOffsetX = pin.position.x;
+          let pinOffsetY = pin.position.y;
+          if (transform?.rotation) {
+            const cx = geometry.width / 2;
+            const cy = geometry.height / 2;
+            const rad = (transform.rotation * Math.PI) / 180;
+            const dx = pin.position.x - cx;
+            const dy = pin.position.y - cy;
+            pinOffsetX = cx + dx * Math.cos(rad) - dy * Math.sin(rad);
+            pinOffsetY = cy + dx * Math.sin(rad) + dy * Math.cos(rad);
+          }
+
+          const pinX = position.x + pinOffsetX;
+          const pinY = position.y + pinOffsetY;
 
           // Draw pulsing highlight circle around the pin
           ctx.strokeStyle = '#ff6600'; // Orange for wire start
@@ -805,6 +909,25 @@ export function renderCircuit(
           ctx.beginPath();
           ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
           ctx.fill();
+
+          // Draw preview line from start pin to mouse cursor
+          if (options.wirePreviewMouse) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]); // Dashed line for preview
+            ctx.beginPath();
+            ctx.moveTo(pinX, pinY);
+            ctx.lineTo(options.wirePreviewMouse.x, options.wirePreviewMouse.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw small circle at mouse position
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(options.wirePreviewMouse.x, options.wirePreviewMouse.y, 5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
         }
       }
     }
@@ -858,6 +981,51 @@ export function renderCircuit(
         }
       }
     }
+  }
+
+  // Render annotations (text labels on the active sheet)
+  const annotations = circuit.annotations || [];
+  const sheetAnnotations = activeSheetId
+    ? annotations.filter(a => a.sheetId === activeSheetId)
+    : annotations;
+
+  for (const annotation of sheetAnnotations) {
+    if (annotation.annotationType === 'text') {
+      const fontSize = annotation.style?.fontSize || 14;
+      const fontWeight = annotation.style?.fontWeight || 'normal';
+
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = `${fontWeight} ${fontSize}px monospace`;
+      ctx.textAlign = (annotation.style?.textAlign as CanvasTextAlign) || 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(annotation.content, annotation.position.x, annotation.position.y);
+    }
+  }
+
+  // Draw marquee selection rectangle
+  if (options?.marquee) {
+    const { startX, startY, endX, endY, mode } = options.marquee;
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const w = Math.abs(endX - startX);
+    const h = Math.abs(endY - startY);
+
+    ctx.strokeStyle = mode === 'window' ? '#00bfff' : '#00ff88';
+    ctx.lineWidth = 1 / viewport.scale;
+
+    if (mode === 'window') {
+      // Window select: solid border, light fill
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(0, 191, 255, 0.1)';
+    } else {
+      // Crossing select: dashed border, light fill
+      ctx.setLineDash([6 / viewport.scale, 3 / viewport.scale]);
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+    }
+
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
   }
 
   ctx.restore();
