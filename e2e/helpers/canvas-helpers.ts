@@ -56,26 +56,19 @@ export async function clickCanvas(page: Page, wx: number, wy: number, options?: 
 }
 
 /**
- * Open Insert Symbol dialog, select a symbol, then click the canvas to place it.
+ * Search for a symbol in the right panel, click to enter placement mode, then click canvas.
  */
 export async function placeSymbol(page: Page, category: string, wx: number, wy: number): Promise<void> {
   // Get the label/name to search for
   const label = categoryToLabel(category);
 
-  // Click the "Insert Symbol..." button in sidebar
-  await page.locator('.insert-btn').filter({ hasText: 'Insert Symbol' }).click();
-
-  // Wait for dialog to open
-  await page.locator('.insert-symbol-dialog').waitFor({ state: 'visible' });
-
-  // Type in the search box to find the symbol
-  await page.locator('.insert-symbol-search input').fill(label);
+  // Type in the right panel search box
+  const searchInput = page.locator('.right-panel-search input');
+  await searchInput.fill(label);
   await page.waitForTimeout(100);
 
-  // Click the first matching symbol in the grid
-  await page.locator('.symbol-grid-item').first().click();
-
-  // Wait for dialog to close and mode to switch
+  // Click the first matching symbol in the right panel grid
+  await page.locator('.symbol-palette-item').first().click();
   await page.waitForTimeout(100);
 
   // Click canvas at world position
@@ -93,8 +86,8 @@ export async function createWire(
   fromWx: number, fromWy: number,
   toWx: number, toWy: number,
 ): Promise<void> {
-  // Click wire tool
-  await page.locator('.toolbar .tool-btn').filter({ hasText: 'Wire' }).click();
+  // Press W to enter wire mode
+  await page.keyboard.press('w');
   await page.waitForTimeout(100);
 
   // Click from pin
@@ -154,10 +147,10 @@ export async function pressShortcut(page: Page, key: string, modifiers: string[]
 }
 
 /**
- * Switch to select mode by clicking the Select tool button.
+ * Switch to select mode by pressing the V keyboard shortcut.
  */
 export async function selectMode(page: Page): Promise<void> {
-  await page.locator('.toolbar .tool-btn').filter({ hasText: 'Select' }).click();
+  await page.keyboard.press('v');
   await page.waitForTimeout(50);
 }
 

@@ -48,7 +48,7 @@ test.describe('Wire creation', () => {
 
     // Enter wire mode and click first pin (pin 1 at x=30, y=0 relative to symbol)
     // Symbol at (200, 200), pin 1 at (230, 200)
-    await page.locator('.toolbar .tool-btn').filter({ hasText: 'Wire' }).click();
+    await page.keyboard.press('w');
     await page.waitForTimeout(100);
     await canvasHelpers.clickCanvas(page, 230, 200);
     await page.waitForTimeout(100);

@@ -10,6 +10,7 @@ import { useCanvasInteraction, type ManufacturerPart } from './hooks/useCanvasIn
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
+import { RightPanel } from './components/RightPanel';
 import { Canvas } from './components/Canvas';
 import { SheetTabs } from './components/SheetTabs';
 import { ZoomControls } from './components/ZoomControls';
@@ -220,11 +221,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
       <div className="layout">
         <Sidebar
           interactionMode={interaction.interactionMode}
-          setInteractionMode={interaction.setInteractionMode}
           placementCategory={interaction.placementCategory}
-          setPlacementCategory={interaction.setPlacementCategory}
-          setWireStart={interaction.setWireStart}
-          setSelectedDevices={circuitState.setSelectedDevices}
           wireStart={interaction.wireStart}
           selectedDevices={circuitState.selectedDevices}
           selectedWireIndex={circuitState.selectedWireIndex}
@@ -295,6 +292,17 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
             storageType={storageType}
           />
         </div>
+
+        <RightPanel
+          onSelectSymbol={(symbolId, _category) => {
+            interaction.setInteractionMode('place');
+            interaction.setPlacementCategory(symbolId as any);
+            interaction.setWireStart(null);
+            circuitState.setSelectedDevices([]);
+          }}
+          interactionMode={interaction.interactionMode}
+          placementCategory={interaction.placementCategory}
+        />
       </div>
 
       {showReports && (

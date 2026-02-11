@@ -6,37 +6,31 @@ test.describe('App loads', () => {
     await expect(canvas).toBeVisible();
   });
 
-  test('sidebar tools are present', async ({ page }) => {
-    await expect(page.locator('.tool-btn').filter({ hasText: 'Select' })).toBeVisible();
-    await expect(page.locator('.tool-btn').filter({ hasText: 'Wire' })).toBeVisible();
+  test('toolbar tools are present', async ({ page }) => {
+    await expect(page.locator('.toolbar .toolbar-btn').first()).toBeVisible();
   });
 
-  test('Insert Symbol dialog opens and shows symbols', async ({ page }) => {
-    // Click the "Insert Symbol..." button
-    await page.locator('.insert-btn').filter({ hasText: 'Insert Symbol' }).click();
+  test('right panel shows symbol palette', async ({ page }) => {
+    // Verify right panel is visible
+    const rightPanel = page.locator('.right-panel');
+    await expect(rightPanel).toBeVisible();
 
-    // Verify dialog opens
-    const dialog = page.locator('.insert-symbol-dialog');
-    await expect(dialog).toBeVisible();
+    // Verify tabs
+    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Symbols' })).toBeVisible();
 
-    // Verify search input is present
-    await expect(dialog.locator('.insert-symbol-search input')).toBeVisible();
+    // Verify search input
+    await expect(rightPanel.locator('.right-panel-search input')).toBeVisible();
 
-    // Verify category filters are present
-    await expect(dialog.locator('.insert-symbol-categories')).toBeVisible();
-    await expect(dialog.locator('.category-btn').filter({ hasText: 'All' })).toBeVisible();
+    // Verify category chips
+    await expect(rightPanel.locator('.category-chip').filter({ hasText: 'All' })).toBeVisible();
 
-    // Verify symbols are shown in the grid
-    await expect(dialog.locator('.symbol-grid-item').first()).toBeVisible();
+    // Verify symbols are shown
+    await expect(rightPanel.locator('.symbol-palette-item').first()).toBeVisible();
 
     // Test search functionality
-    await dialog.locator('.insert-symbol-search input').fill('Motor');
+    await rightPanel.locator('.right-panel-search input').fill('Motor');
     await page.waitForTimeout(100);
-    await expect(dialog.locator('.symbol-grid-item').first()).toBeVisible();
-
-    // Close dialog
-    await page.locator('.dialog-close').click();
-    await expect(dialog).not.toBeVisible();
+    await expect(rightPanel.locator('.symbol-palette-item').first()).toBeVisible();
   });
 
   test('state bridge is available in dev mode', async ({ page }) => {

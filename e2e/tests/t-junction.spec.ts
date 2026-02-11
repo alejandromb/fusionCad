@@ -28,7 +28,7 @@ test.describe('T-Junction wire connections', () => {
     const originalNetId = stateBefore.circuit.connections[0].netId;
 
     // Enter wire mode, click S3 pin 1 (430, 300), then click on the vertical wire (230, 340)
-    await page.locator('.toolbar .tool-btn').filter({ hasText: 'Wire' }).click();
+    await page.keyboard.press('w');
     await page.waitForTimeout(100);
     await canvasHelpers.clickCanvas(page, 430, 300);
     await page.waitForTimeout(100);
@@ -70,7 +70,7 @@ test.describe('T-Junction wire connections', () => {
     await canvasHelpers.placeSymbol(page, 'button', 400, 300);
     await canvasHelpers.waitForDeviceCount(page, 3);
 
-    await page.locator('.toolbar .tool-btn').filter({ hasText: 'Wire' }).click();
+    await page.keyboard.press('w');
     await page.waitForTimeout(100);
     await canvasHelpers.clickCanvas(page, 430, 300);
     await page.waitForTimeout(100);
@@ -117,7 +117,7 @@ test.describe('T-Junction wire connections', () => {
     const stateBefore = await canvasHelpers.getState(page);
     const originalConn = stateBefore.circuit.connections[0];
 
-    await page.locator('.toolbar .tool-btn').filter({ hasText: 'Wire' }).click();
+    await page.keyboard.press('w');
     await page.waitForTimeout(100);
     await canvasHelpers.clickCanvas(page, 430, 300);
     await page.waitForTimeout(100);
