@@ -14,6 +14,9 @@ import { loadSymbolsFromJson } from './symbol-loader.js';
 // @ts-ignore - JSON import handled by bundler
 import builtinSymbolsJson from './builtin-symbols.json';
 
+// Re-export raw JSON for API seeding
+export { builtinSymbolsJson };
+
 // Re-export for convenience
 export type { SymbolDefinition } from '../types.js';
 export { registerSymbol, getSymbolDefinition, getSymbolById, getAllSymbols, getAllCategories } from '../symbol-library.js';

@@ -42,6 +42,7 @@ interface JsonSymbolDefinition {
   tagPrefix?: string;
   source?: string;
   iecReference?: string;
+  standard?: string;
 }
 
 interface JsonSymbolFile {
@@ -66,7 +67,7 @@ function convertPin(jsonPin: JsonSymbolPin): SymbolPin {
 /**
  * Convert JSON symbol to internal SymbolDefinition format
  */
-function convertSymbol(jsonSymbol: JsonSymbolDefinition, source?: string): SymbolDefinition {
+export function convertSymbol(jsonSymbol: JsonSymbolDefinition, source?: string): SymbolDefinition {
   const paths: SymbolPath[] = [];
 
   // Convert single svgPath string to paths array
@@ -102,6 +103,7 @@ function convertSymbol(jsonSymbol: JsonSymbolDefinition, source?: string): Symbo
     tagPrefix: jsonSymbol.tagPrefix,
     source: jsonSymbol.source || source,
     iecReference: jsonSymbol.iecReference,
+    standard: jsonSymbol.standard,
     createdAt: Date.now(),
     modifiedAt: Date.now(),
   };

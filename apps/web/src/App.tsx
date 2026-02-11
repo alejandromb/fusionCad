@@ -21,14 +21,15 @@ import { ERCDialog } from './components/ERCDialog';
 import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
+import { fetchAllSymbols } from './api/symbols';
 
-// Initialize symbol registries before any rendering occurs
-registerBuiltinSymbols();
+// Register draw functions synchronously (canvas renderers, not symbol data)
 registerBuiltinDrawFunctions();
 
 export function App() {
   const [storageProvider, setStorageProvider] = useState<StorageProvider | null>(null);
   const [storageType, setStorageType] = useState<StorageType | 'detecting'>('detecting');
+  const [symbolsLoaded, setSymbolsLoaded] = useState(false);
 
   // Detect storage provider on mount
   useEffect(() => {
@@ -38,10 +39,38 @@ export function App() {
     });
   }, []);
 
-  if (!storageProvider) {
+  // Load symbols after storage detection
+  useEffect(() => {
+    if (!storageProvider || symbolsLoaded) return;
+
+    async function loadSymbols() {
+      if (storageType === 'rest') {
+        try {
+          const symbols = await fetchAllSymbols();
+          for (const sym of symbols) {
+            registerSymbol(sym);
+          }
+          console.log(`Loaded ${symbols.length} symbols from API`);
+          setSymbolsLoaded(true);
+          return;
+        } catch {
+          console.warn('Failed to load symbols from API, falling back to static JSON');
+        }
+      }
+      // Fallback: load from static JSON (IndexedDB mode or API failure)
+      registerBuiltinSymbols();
+      setSymbolsLoaded(true);
+    }
+
+    loadSymbols();
+  }, [storageProvider, storageType, symbolsLoaded]);
+
+  if (!storageProvider || !symbolsLoaded) {
     return (
       <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <span style={{ color: '#ccc', fontSize: '14px' }}>Detecting storage...</span>
+        <span style={{ color: '#ccc', fontSize: '14px' }}>
+          {!storageProvider ? 'Detecting storage...' : 'Loading symbols...'}
+        </span>
       </div>
     );
   }

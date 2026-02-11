@@ -18,6 +18,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { SymbolDefinition, SymbolPrimitive, PinDirection, PinType } from '@fusion-cad/core-model';
 import { generateId, registerSymbol, getSymbolById } from '@fusion-cad/core-model';
 import type { StorageProvider } from '../storage/storage-provider';
+import { saveSymbol as saveSymbolApi } from '../api/symbols';
 
 type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin';
 
@@ -28,10 +29,13 @@ interface Point {
 
 interface EditorPath {
   id: string;
-  type: 'line' | 'rect' | 'circle' | 'polyline';
+  type: 'line' | 'rect' | 'circle' | 'polyline' | 'arc';
   points: Point[];
-  // For circle: points[0] = center, radius stored separately
+  // For circle/arc: points[0] = center, radius stored separately
   radius?: number;
+  // For arc: start and end angles in radians
+  startAngle?: number;
+  endAngle?: number;
 }
 
 interface EditorPin {
@@ -109,6 +113,21 @@ function hitTestPath(path: EditorPath, point: Point, radius: number): boolean {
     const dist = Math.hypot(point.x - path.points[0].x, point.y - path.points[0].y);
     return Math.abs(dist - path.radius) <= radius;
   }
+  if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
+    const dist = Math.hypot(point.x - path.points[0].x, point.y - path.points[0].y);
+    if (Math.abs(dist - path.radius) > radius) return false;
+    // Check if point angle is within arc range
+    const angle = Math.atan2(point.y - path.points[0].y, point.x - path.points[0].x);
+    const start = path.startAngle ?? 0;
+    const end = path.endAngle ?? Math.PI * 2;
+    // Normalize angles
+    const normalize = (a: number) => ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const nAngle = normalize(angle);
+    const nStart = normalize(start);
+    const nEnd = normalize(end);
+    if (nStart <= nEnd) return nAngle >= nStart && nAngle <= nEnd;
+    return nAngle >= nStart || nAngle <= nEnd;
+  }
   return false;
 }
 
@@ -137,6 +156,9 @@ function primitivesToEditorPaths(primitives: SymbolPrimitive[]): EditorPath[] {
       case 'polyline':
         result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })) });
         break;
+      case 'arc':
+        result.push({ id, type: 'arc', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r, startAngle: prim.startAngle, endAngle: prim.endAngle });
+        break;
       default:
         console.warn(`SymbolEditor: skipping unsupported primitive type '${(prim as any).type}'`);
     }
@@ -148,6 +170,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   // Symbol metadata
   const [symbolName, setSymbolName] = useState('New Symbol');
   const [symbolCategory, setSymbolCategory] = useState('Custom');
+  const [symbolStandard, setSymbolStandard] = useState('common');
   const [tagPrefix, setTagPrefix] = useState('D');
   const [symbolWidth, setSymbolWidth] = useState(40);
   const [symbolHeight, setSymbolHeight] = useState(60);
@@ -310,6 +333,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       if (existing) {
         setSymbolName(existing.name);
         setSymbolCategory(existing.category);
+        setSymbolStandard(existing.standard || 'common');
         setTagPrefix(existing.tagPrefix || 'D');
         setSymbolWidth(existing.geometry.width);
         setSymbolHeight(existing.geometry.height);
@@ -498,6 +522,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           type: 'polyline',
           points: path.points.map(p => ({ x: p.x, y: p.y })),
         });
+      } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
+        result.push({
+          type: 'arc',
+          cx: path.points[0].x,
+          cy: path.points[0].y,
+          r: path.radius,
+          startAngle: path.startAngle ?? 0,
+          endAngle: path.endAngle ?? Math.PI * 2,
+        });
       }
     }
 
@@ -586,6 +619,10 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         for (let i = 1; i < path.points.length; i++) {
           ctx.lineTo(path.points[i].x, path.points[i].y);
         }
+        ctx.stroke();
+      } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
+        ctx.beginPath();
+        ctx.arc(path.points[0].x, path.points[0].y, path.radius, path.startAngle ?? 0, path.endAngle ?? Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -729,6 +766,10 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         for (let i = 1; i < path.points.length; i++) {
           ctx.lineTo(path.points[i].x, path.points[i].y);
         }
+        ctx.stroke();
+      } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
+        ctx.beginPath();
+        ctx.arc(path.points[0].x, path.points[0].y, path.radius, path.startAngle ?? 0, path.endAngle ?? Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -1000,6 +1041,60 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setPins(pins.map(p => p.id === selectedPinId ? { ...p, ...updates } : p));
   };
 
+  // Update selected path
+  const updateSelectedPath = (updates: Partial<EditorPath>) => {
+    if (!selectedPathId) return;
+    setPaths(paths.map(p => p.id === selectedPathId ? { ...p, ...updates } : p));
+  };
+
+  // Flip selected path (or all paths if none selected)
+  const flipPaths = useCallback((axis: 'horizontal' | 'vertical') => {
+    pushEditorHistory();
+    const targetIds = selectedPathId ? [selectedPathId] : paths.map(p => p.id);
+    setPaths(prev => prev.map(p => {
+      if (!targetIds.includes(p.id)) return p;
+      const flipped = { ...p, points: p.points.map(pt => ({ ...pt })) };
+      if (axis === 'vertical') {
+        // Mirror across horizontal center: y -> symbolHeight - y
+        flipped.points = flipped.points.map(pt => ({ x: pt.x, y: symbolHeight - pt.y }));
+        if (flipped.type === 'arc' && flipped.startAngle != null && flipped.endAngle != null) {
+          // Reflect angles across x-axis: negate angles
+          const newStart = -flipped.endAngle;
+          const newEnd = -flipped.startAngle;
+          flipped.startAngle = newStart;
+          flipped.endAngle = newEnd;
+        }
+      } else {
+        // Mirror across vertical center: x -> symbolWidth - x
+        flipped.points = flipped.points.map(pt => ({ x: symbolWidth - pt.x, y: pt.y }));
+        if (flipped.type === 'arc' && flipped.startAngle != null && flipped.endAngle != null) {
+          // Reflect angles across y-axis: π - angle
+          const newStart = Math.PI - flipped.endAngle;
+          const newEnd = Math.PI - flipped.startAngle;
+          flipped.startAngle = newStart;
+          flipped.endAngle = newEnd;
+        }
+      }
+      return flipped;
+    }));
+    // Also flip pins if flipping all
+    if (!selectedPathId) {
+      setPins(prev => prev.map(pin => {
+        const flipped = { ...pin, position: { ...pin.position } };
+        if (axis === 'vertical') {
+          flipped.position.y = symbolHeight - flipped.position.y;
+          if (flipped.direction === 'top') flipped.direction = 'bottom';
+          else if (flipped.direction === 'bottom') flipped.direction = 'top';
+        } else {
+          flipped.position.x = symbolWidth - flipped.position.x;
+          if (flipped.direction === 'left') flipped.direction = 'right';
+          else if (flipped.direction === 'right') flipped.direction = 'left';
+        }
+        return flipped;
+      }));
+    }
+  }, [selectedPathId, paths, symbolWidth, symbolHeight, pushEditorHistory]);
+
   // Zoom controls (Task 5)
   const zoomToFit = useCallback(() => {
     const container = canvasContainerRef.current;
@@ -1072,20 +1167,25 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       })),
       primitives: primitivesList.length > 0 ? primitivesList : undefined,
       paths: svgD ? [{ d: svgD, stroke: true, strokeWidth: 2 }] : [],
+      standard: symbolStandard || undefined,
       source: 'custom',
       createdAt: Date.now(),
       modifiedAt: Date.now(),
     };
 
-    // Register in library
+    // Register in library (instant UI update)
     registerSymbol(symbolDef);
 
-    // Persist to storage if available
-    if (storageProvider && 'saveCustomSymbol' in storageProvider) {
-      try {
-        await (storageProvider as any).saveCustomSymbol(symbolDef);
-      } catch {
-        // Silently fail - symbol is still registered in memory
+    // Persist to API (Postgres), fallback to storage provider (IndexedDB)
+    try {
+      await saveSymbolApi(symbolDef);
+    } catch {
+      if (storageProvider && 'saveCustomSymbol' in storageProvider) {
+        try {
+          await (storageProvider as any).saveCustomSymbol(symbolDef);
+        } catch {
+          // Silently fail - symbol is still registered in memory
+        }
       }
     }
 
@@ -1167,6 +1267,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               <button className="action-btn" onClick={handleDelete} disabled={!selectedPathId && !selectedPinId}>
                 Delete
               </button>
+              <button className="action-btn" onClick={() => flipPaths('vertical')} title="Flip vertically (mirror top↔bottom)">
+                Flip V
+              </button>
+              <button className="action-btn" onClick={() => flipPaths('horizontal')} title="Flip horizontally (mirror left↔right)">
+                Flip H
+              </button>
               <button className="action-btn" onClick={editorUndo} disabled={editorHistoryIndex < 0} title="Undo (Cmd+Z)">
                 Undo
               </button>
@@ -1218,6 +1324,56 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 </label>
               </div>
             )}
+
+            {/* Path properties (arc angles, radius) */}
+            {selectedPathId && (() => {
+              const selectedPath = paths.find(p => p.id === selectedPathId);
+              if (!selectedPath) return null;
+              return (
+                <div className="pin-properties">
+                  <h4>Path Properties</h4>
+                  <label>
+                    Type: <span style={{ color: '#00ff00' }}>{selectedPath.type}</span>
+                  </label>
+                  {(selectedPath.type === 'arc' || selectedPath.type === 'circle') && (
+                    <label>
+                      Radius:
+                      <input
+                        type="number"
+                        value={selectedPath.radius ?? 0}
+                        onChange={e => updateSelectedPath({ radius: Number(e.target.value) })}
+                        min={1}
+                        step={1}
+                      />
+                    </label>
+                  )}
+                  {selectedPath.type === 'arc' && (
+                    <>
+                      <label>
+                        Start Angle:
+                        <input
+                          type="number"
+                          value={Math.round((selectedPath.startAngle ?? 0) * 180 / Math.PI)}
+                          onChange={e => updateSelectedPath({ startAngle: Number(e.target.value) * Math.PI / 180 })}
+                          step={5}
+                        />
+                        <span className="unit-hint">deg</span>
+                      </label>
+                      <label>
+                        End Angle:
+                        <input
+                          type="number"
+                          value={Math.round((selectedPath.endAngle ?? 0) * 180 / Math.PI)}
+                          onChange={e => updateSelectedPath({ endAngle: Number(e.target.value) * Math.PI / 180 })}
+                          step={5}
+                        />
+                        <span className="unit-hint">deg</span>
+                      </label>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Center: Canvas */}
@@ -1271,6 +1427,18 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 value={symbolCategory}
                 onChange={e => setSymbolCategory(e.target.value)}
               />
+            </label>
+
+            <label>
+              Standard:
+              <select
+                value={symbolStandard}
+                onChange={e => setSymbolStandard(e.target.value)}
+              >
+                <option value="common">Common (both)</option>
+                <option value="IEC 60617">IEC 60617</option>
+                <option value="ANSI/NEMA">ANSI/NEMA</option>
+              </select>
             </label>
 
             <label>

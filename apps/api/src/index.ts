@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import { AppDataSource } from './data-source.js';
 import { Project } from './entities/Project.js';
+import { Symbol } from './entities/Symbol.js';
+import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -121,11 +123,137 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
+// ============ SYMBOL ROUTES ============
+
+// List all symbols
+app.get('/api/symbols', async (_req, res) => {
+  try {
+    const symbolRepo = AppDataSource.getRepository(Symbol);
+    const symbols = await symbolRepo.find({ order: { category: 'ASC', name: 'ASC' } });
+    res.json(symbols.map(s => s.definition));
+  } catch (error) {
+    console.error('Error listing symbols:', error);
+    res.status(500).json({ error: 'Failed to list symbols' });
+  }
+});
+
+// Get single symbol
+app.get('/api/symbols/:id', async (req, res) => {
+  try {
+    const symbolRepo = AppDataSource.getRepository(Symbol);
+    const symbol = await symbolRepo.findOneBy({ id: req.params.id });
+    if (!symbol) {
+      return res.status(404).json({ error: 'Symbol not found' });
+    }
+    res.json(symbol.definition);
+  } catch (error) {
+    console.error('Error getting symbol:', error);
+    res.status(500).json({ error: 'Failed to get symbol' });
+  }
+});
+
+// Create or update symbol
+app.put('/api/symbols/:id', async (req, res) => {
+  try {
+    const symbolRepo = AppDataSource.getRepository(Symbol);
+    const definition = { ...req.body, id: req.params.id };
+
+    const symbol = symbolRepo.create({
+      id: definition.id,
+      name: definition.name,
+      category: definition.category,
+      standard: definition.standard,
+      source: definition.source,
+      tagPrefix: definition.tagPrefix,
+      definition,
+    });
+
+    await symbolRepo.save(symbol);
+    res.json(definition);
+  } catch (error) {
+    console.error('Error saving symbol:', error);
+    res.status(500).json({ error: 'Failed to save symbol' });
+  }
+});
+
+// Delete symbol
+app.delete('/api/symbols/:id', async (req, res) => {
+  try {
+    const symbolRepo = AppDataSource.getRepository(Symbol);
+    const result = await symbolRepo.delete(req.params.id);
+    if (result.affected === 0) {
+      return res.status(404).json({ error: 'Symbol not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting symbol:', error);
+    res.status(500).json({ error: 'Failed to delete symbol' });
+  }
+});
+
+// Force re-seed symbols from builtin JSON
+app.post('/api/symbols/seed', async (_req, res) => {
+  try {
+    const result = await seedBuiltinSymbols();
+    res.json(result);
+  } catch (error) {
+    console.error('Error seeding symbols:', error);
+    res.status(500).json({ error: 'Failed to seed symbols' });
+  }
+});
+
+/**
+ * Seed builtin symbols from JSON into the database.
+ * Only inserts symbols that don't already exist (by id).
+ */
+async function seedBuiltinSymbols(): Promise<{ seeded: number; skipped: number }> {
+  const symbolRepo = AppDataSource.getRepository(Symbol);
+  const jsonData = builtinSymbolsJson as any;
+  let seeded = 0;
+  let skipped = 0;
+
+  for (const jsonSymbol of jsonData.symbols) {
+    const existing = await symbolRepo.findOneBy({ id: jsonSymbol.id });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+
+    const definition = convertSymbol(jsonSymbol, jsonData.source) as any;
+
+    const symbol = symbolRepo.create({
+      id: definition.id,
+      name: definition.name,
+      category: definition.category,
+      standard: definition.standard,
+      source: definition.source,
+      tagPrefix: definition.tagPrefix,
+      definition,
+    });
+
+    await symbolRepo.save(symbol);
+    seeded++;
+  }
+
+  return { seeded, skipped };
+}
+
 // ============ START SERVER ============
 
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log('Database connected successfully');
+
+    // Seed symbols if table is empty
+    const symbolRepo = AppDataSource.getRepository(Symbol);
+    const count = await symbolRepo.count();
+    if (count === 0) {
+      console.log('Seeding builtin symbols...');
+      const result = await seedBuiltinSymbols();
+      console.log(`Symbols seeded: ${result.seeded} new, ${result.skipped} skipped`);
+    } else {
+      console.log(`Symbols table has ${count} symbols`);
+    }
 
     app.listen(PORT, () => {
       console.log(`fusionCad API running on http://localhost:${PORT}`);

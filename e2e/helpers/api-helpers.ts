@@ -41,3 +41,9 @@ export async function getProject(id: string): Promise<any> {
   if (!res.ok) throw new Error('Failed to get project');
   return res.json();
 }
+
+export async function seedSymbols(): Promise<{ seeded: number; skipped: number }> {
+  const res = await fetch(`${API_BASE}/api/symbols/seed`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to seed symbols');
+  return res.json();
+}
