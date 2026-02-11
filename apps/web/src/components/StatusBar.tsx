@@ -10,6 +10,7 @@ interface StatusBarProps {
   interactionMode: InteractionMode;
   selectedCount: number;
   gridSize?: number;
+  storageType?: 'rest' | 'indexeddb';
 }
 
 export function StatusBar({
@@ -18,6 +19,7 @@ export function StatusBar({
   interactionMode,
   selectedCount,
   gridSize = 20,
+  storageType,
 }: StatusBarProps) {
   const zoomPercent = Math.round(viewport.scale * 100);
 
@@ -41,6 +43,11 @@ export function StatusBar({
         )}
       </div>
       <div className="status-bar-right">
+        {storageType && (
+          <span className="status-item storage-type">
+            {storageType === 'rest' ? 'Cloud' : 'Local'}
+          </span>
+        )}
         <span className="status-item cursor-pos">
           X: {mouseWorldPos ? Math.round(mouseWorldPos.x) : '—'}
           {' '}

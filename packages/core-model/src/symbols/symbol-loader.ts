@@ -6,7 +6,7 @@
  * loaded from bundled JSON files (for built-in symbols).
  */
 
-import type { SymbolDefinition, SymbolPin, PinType, PinDirection, SymbolPath, SymbolText } from '../types.js';
+import type { SymbolDefinition, SymbolPrimitive, SymbolPin, PinType, PinDirection, SymbolPath, SymbolText } from '../types.js';
 import { registerSymbol } from '../symbol-library.js';
 
 /**
@@ -36,6 +36,7 @@ interface JsonSymbolDefinition {
   width: number;
   height: number;
   svgPath: string;
+  primitives?: SymbolPrimitive[];
   pins: JsonSymbolPin[];
   texts?: JsonSymbolText[];
   tagPrefix?: string;
@@ -95,6 +96,7 @@ function convertSymbol(jsonSymbol: JsonSymbolDefinition, source?: string): Symbo
       height: jsonSymbol.height,
     },
     pins: jsonSymbol.pins.map(convertPin),
+    primitives: jsonSymbol.primitives && jsonSymbol.primitives.length > 0 ? jsonSymbol.primitives : undefined,
     paths,
     texts: texts.length > 0 ? texts : undefined,
     tagPrefix: jsonSymbol.tagPrefix,

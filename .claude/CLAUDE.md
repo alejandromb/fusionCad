@@ -30,22 +30,22 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-08)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-10)
 
-**Current task:** E2E Test Updates for Insert Symbol Dialog - COMPLETE!
+**Current task:** Object Inspector (Editable Properties Panel) - COMPLETE!
 
 **Status:**
-- ✅ **E2E Tests Updated**: 28 tests work with new Insert Symbol Dialog
-- ✅ **Insert Symbol Dialog**: Searchable modal replaces old sidebar palette
-- ✅ **Symbol Editor**: Visual tool to create/edit symbols
-- ✅ **JSON Symbol Library**: 55 IEC symbols in `builtin-symbols.json`
-- ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, wire bend points)
-- ⚠️ Drag-select (marquee) NOT yet implemented
+- ✅ **Object Inspector**: Inline-editable device tag/function/location in Properties panel
+- ✅ **Annotation Selection**: Click annotations on canvas, cyan dashed highlight, edit in sidebar
+- ✅ **Multi-select Summary**: Tag chips display when 2+ devices selected
+- ✅ **Undo/Redo Bug Fixes**: createSnapshot now includes sheets/annotations/terminals; updateAnnotation now undoable
+- ✅ **35 E2E tests passing**
+- ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, marquee, wire bend points)
 
 **Next steps:**
-1. Add drag-select (marquee/rubber band selection)
-2. Implement IndexedDB storage for free tier
-3. Import symbols from external SVG libraries
+1. Implement IndexedDB storage for free tier
+2. Import symbols from external SVG libraries
+3. Fine-tune symbol paths using Symbol Editor
 
 ---
 
@@ -54,12 +54,12 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (98% complete)
 
 **Recent achievements:**
+- ✅ **Object Inspector** - Inline-editable properties, annotation selection/editing
 - ✅ **Symbol Editor** - Visual tool to create/edit symbols without code
 - ✅ **JSON Symbol Library** - 55 IEC symbols loaded from `builtin-symbols.json`
 - ✅ **Insert Symbol Dialog** - Searchable modal with category filtering
-- ✅ **Wire Preview** - Dashed line from start pin to cursor
 - ✅ Persistence with Postgres + TypeORM (auto-save, project management)
-- ✅ Playwright E2E tests - 28 tests, state bridge, isolated test DB
+- ✅ Playwright E2E tests - 35 tests, state bridge, isolated test DB
 - Professional wire routing (visibility graph + A* + nudging)
 
 **High priority features documented:**
@@ -92,7 +92,7 @@ Use these to improve workflow:
 
 ## 🧪 E2E TESTING (Playwright)
 
-28 tests covering all Phase 2 features. Uses separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
+35 tests covering all Phase 2 features. Uses separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
 
 ```bash
 npm run db:up              # ensure Docker Postgres is running

@@ -15,7 +15,7 @@
  * Reference: https://library.iec.ch/iec60617
  */
 
-import type { SymbolDefinition, SymbolPath, SymbolText } from '@fusion-cad/core-model';
+import type { SymbolDefinition, SymbolPath, SymbolText, SymbolPrimitive } from '@fusion-cad/core-model';
 import { getSymbolDefinition, getSymbolById } from '@fusion-cad/core-model';
 import type { SymbolGeometry, DeviceTransform } from './types';
 import { transformPinPosition } from './types';
@@ -382,6 +382,108 @@ function renderTexts(
 }
 
 // ---------------------------------------------------------------------------
+// Typed Primitive Renderer
+// ---------------------------------------------------------------------------
+
+/**
+ * Render typed geometric primitives to canvas.
+ * Each primitive carries its own type (rect, circle, line, etc.)
+ * enabling native canvas calls instead of parsing SVG path strings.
+ */
+function renderPrimitives(
+  ctx: CanvasRenderingContext2D,
+  primitives: SymbolPrimitive[],
+  x: number,
+  y: number
+): void {
+  for (const p of primitives) {
+    const strokeColor = ('stroke' in p && p.stroke) || '#00ff00';
+    const fillColor = ('fill' in p && p.fill) || 'none';
+    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 2;
+
+    ctx.strokeStyle = strokeColor;
+    ctx.fillStyle = fillColor !== 'none' ? fillColor : '#00ff00';
+    ctx.lineWidth = lineWidth;
+
+    switch (p.type) {
+      case 'rect': {
+        ctx.beginPath();
+        if (p.rx && p.rx > 0) {
+          ctx.roundRect(x + p.x, y + p.y, p.width, p.height, p.rx);
+        } else {
+          ctx.rect(x + p.x, y + p.y, p.width, p.height);
+        }
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'circle': {
+        ctx.beginPath();
+        ctx.arc(x + p.cx, y + p.cy, p.r, 0, Math.PI * 2);
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'line': {
+        ctx.beginPath();
+        ctx.moveTo(x + p.x1, y + p.y1);
+        ctx.lineTo(x + p.x2, y + p.y2);
+        ctx.stroke();
+        break;
+      }
+      case 'arc': {
+        ctx.beginPath();
+        ctx.arc(x + p.cx, y + p.cy, p.r, p.startAngle, p.endAngle);
+        ctx.stroke();
+        break;
+      }
+      case 'ellipse': {
+        ctx.beginPath();
+        ctx.ellipse(x + p.cx, y + p.cy, p.rx, p.ry, 0, 0, Math.PI * 2);
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'polyline': {
+        if (p.points.length < 2) break;
+        ctx.beginPath();
+        ctx.moveTo(x + p.points[0].x, y + p.points[0].y);
+        for (let i = 1; i < p.points.length; i++) {
+          ctx.lineTo(x + p.points[i].x, y + p.points[i].y);
+        }
+        if (p.closed) ctx.closePath();
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'text': {
+        const fontSize = p.fontSize ?? 20;
+        const fontWeight = p.fontWeight ?? 'bold';
+        ctx.fillStyle = '#00ff00';
+        ctx.font = `${fontWeight} ${fontSize}px monospace`;
+        ctx.textAlign = (p.textAnchor as CanvasTextAlign) || 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.content, x + p.x, y + p.y);
+        break;
+      }
+      case 'path': {
+        // Fallback: delegate to existing SVG path parser
+        const commands = parseSVGPath(p.d);
+        const shouldStroke = p.stroke !== 'none';
+        const shouldFill = p.fill != null && p.fill !== 'none';
+        ctx.strokeStyle = (p.stroke && p.stroke !== 'none') ? p.stroke : '#00ff00';
+        ctx.fillStyle = (p.fill && p.fill !== 'none') ? p.fill : '#00ff00';
+        ctx.lineWidth = p.strokeWidth ?? 2;
+        renderPathCommands(ctx, commands, x, y);
+        if (shouldFill) ctx.fill();
+        if (shouldStroke) ctx.stroke();
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Draw function registry
 // ---------------------------------------------------------------------------
 
@@ -580,9 +682,12 @@ export function drawSymbol(
     ctx.translate(-cx, -cy);
   }
 
-  // Priority: 1. paths array, 2. custom draw function, 3. generic fallback
-  if (def.paths && def.paths.length > 0) {
-    // Use SVG path-based rendering
+  // Priority: 1. primitives, 2. paths array, 3. custom draw function, 4. generic fallback
+  if (def.primitives && def.primitives.length > 0) {
+    // Use typed primitive rendering (preferred)
+    renderPrimitives(ctx, def.primitives, x, y);
+  } else if (def.paths && def.paths.length > 0) {
+    // Use SVG path-based rendering (legacy)
     renderPaths(ctx, def.paths, x, y);
     if (def.texts && def.texts.length > 0) {
       renderTexts(ctx, def.texts, x, y);
@@ -598,6 +703,11 @@ export function drawSymbol(
   }
 
   ctx.restore();
+
+  // Junction symbols: just draw the filled dot, skip tag and pins
+  if (def.category?.toLowerCase() === 'junction') {
+    return;
+  }
 
   // Draw tag label (outside rotation transform so text stays readable)
   drawTag(ctx, x, y, def, tag, idOrCategory);
@@ -689,188 +799,24 @@ function drawTransformedPins(
 }
 
 // ---------------------------------------------------------------------------
-// Built-in draw functions (IEC 60617 visual representations)
+// Built-in draw functions (only junction needs special handling)
 // ---------------------------------------------------------------------------
 
-function drawContactor(
+function drawJunction(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   def: SymbolDefinition
 ): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  // Draw coil rectangle (left side)
-  const coilWidth = 20;
-  ctx.strokeRect(x + 5, y + 15, coilWidth, height - 30);
-
-  // Draw contact blocks (right side)
-  const contactX = x + width - 15;
-  const contactSpacing = (height - 20) / 7;
+  const cx = x + def.geometry.width / 2;
+  const cy = y + def.geometry.height / 2;
   ctx.fillStyle = '#00ff00';
-  for (let i = 0; i < 6; i++) {
-    const contactY = y + 15 + i * contactSpacing;
-    ctx.fillRect(contactX - 8, contactY - 2, 16, 4);
-  }
-
-  // Draw aux contact (top)
-  ctx.strokeRect(x + width / 2 - 8, y + 2, 16, 8);
-}
-
-function drawButton(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
-): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  const centerX = x + width / 2;
-  const centerY = y + height / 2;
-
-  // Draw contact line (horizontal)
   ctx.beginPath();
-  ctx.moveTo(x + 5, centerY);
-  ctx.lineTo(x + width - 5, centerY);
-  ctx.stroke();
-
-  // Draw actuator (angled line above)
-  ctx.beginPath();
-  ctx.moveTo(centerX - 8, centerY - 10);
-  ctx.lineTo(centerX + 8, centerY - 5);
-  ctx.stroke();
-
-  // Draw circle around
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, Math.min(width, height) / 2 - 5, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fill();
 }
-
-function drawOverload(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
-): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  // Draw thermal element (zigzag)
-  const centerX = x + width / 2;
-  const segments = 5;
-  const segmentHeight = height / segments;
-
-  ctx.beginPath();
-  ctx.moveTo(centerX - 10, y + 10);
-  for (let i = 0; i < segments; i++) {
-    const yPos = y + 10 + i * segmentHeight;
-    ctx.lineTo(centerX + (i % 2 === 0 ? 10 : -10), yPos);
-  }
-  ctx.stroke();
-
-  // Draw bounding box
-  ctx.strokeRect(x + 5, y + 5, width - 10, height - 10);
-}
-
-function drawMotor(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
-): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  const centerX = x + width / 2;
-  const centerY = y + height / 2;
-  const radius = Math.min(width, height) / 2 - 5;
-
-  // Draw circle
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Draw M
-  ctx.fillStyle = '#00ff00';
-  ctx.font = 'bold 20px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('M', centerX, centerY);
-}
-
-function drawTerminal(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
-): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  // Draw base rectangle
-  ctx.strokeRect(x, y, width, height);
-
-  // Draw terminal points (5 vertical bars at top)
-  const spacing = width / 6;
-  for (let i = 1; i <= 5; i++) {
-    const termX = x + i * spacing;
-    ctx.beginPath();
-    ctx.moveTo(termX, y);
-    ctx.lineTo(termX, y + 15);
-    ctx.stroke();
-
-    // Terminal screw
-    ctx.beginPath();
-    ctx.arc(termX, y + 10, 3, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-}
-
-function drawPowerSupply(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
-): void {
-  const { width, height } = def.geometry;
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-
-  // Draw rectangle
-  ctx.strokeRect(x, y, width, height);
-
-  // Draw +/- symbols
-  ctx.font = 'bold 16px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#00ff00';
-  ctx.fillText('+', x + width - 15, y + 20);
-  ctx.fillText('-', x + width - 15, y + 40);
-
-  // Draw AC wave on left
-  ctx.beginPath();
-  ctx.moveTo(x + 10, y + 25);
-  ctx.quadraticCurveTo(x + 15, y + 15, x + 20, y + 25);
-  ctx.quadraticCurveTo(x + 25, y + 35, x + 30, y + 25);
-  ctx.stroke();
-}
-
-// ---------------------------------------------------------------------------
-// Register built-in draw functions
-// ---------------------------------------------------------------------------
 
 export function registerBuiltinDrawFunctions(): void {
-  registerDrawFunction('contactor', drawContactor);
-  registerDrawFunction('button', drawButton);
-  registerDrawFunction('overload', drawOverload);
-  registerDrawFunction('motor', drawMotor);
-  registerDrawFunction('terminal', drawTerminal);
-  registerDrawFunction('power-supply', drawPowerSupply);
+  registerDrawFunction('junction', drawJunction);
+  registerDrawFunction('Junction', drawJunction);
 }

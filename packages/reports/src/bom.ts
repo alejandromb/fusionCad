@@ -50,6 +50,10 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
 
     if (!device.partId) continue; // Skip devices without assigned parts
 
+    // Skip junction devices (internal wire junctions)
+    const part = partMap.get(device.partId);
+    if (part && part.category === 'Junction') continue;
+
     if (!devicesByPart.has(device.partId)) {
       devicesByPart.set(device.partId, []);
     }

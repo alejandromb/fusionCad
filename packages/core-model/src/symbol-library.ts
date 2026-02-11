@@ -6,7 +6,7 @@
  * Multiple symbols can share a category (e.g., DI-16, DI-32 both in "plc-module").
  */
 
-import type { SymbolDefinition, SymbolPath, SymbolText, SymbolVariant } from './types.js';
+import type { SymbolDefinition, SymbolPrimitive, SymbolPath, SymbolText, SymbolVariant } from './types.js';
 
 // Primary registry: ID -> SymbolDefinition
 const symbolById: Map<string, SymbolDefinition> = new Map();
@@ -98,21 +98,21 @@ export function getSymbolVariants(symbolId: string): SymbolVariant[] {
 }
 
 /**
- * Get the rendering paths for a symbol, optionally for a specific variant.
- * If variantId is not found or not provided, returns the default paths.
+ * Get the rendering data for a symbol, optionally for a specific variant.
+ * Returns primitives (preferred) and paths (legacy fallback).
  *
  * @param symbolId The symbol definition ID
  * @param variantId Optional variant ID (e.g., 'iec-standard', 'ansi')
- * @returns Object with paths and texts for rendering
+ * @returns Object with primitives, paths, and texts for rendering
  */
 export function getSymbolRenderingData(
   symbolId: string,
   variantId?: string
-): { paths: SymbolPath[]; texts: SymbolText[] } {
+): { primitives: SymbolPrimitive[]; paths: SymbolPath[]; texts: SymbolText[] } {
   const def = symbolById.get(symbolId);
 
   if (!def) {
-    return { paths: [], texts: [] };
+    return { primitives: [], paths: [], texts: [] };
   }
 
   // If a variant is requested, try to find it
@@ -120,14 +120,16 @@ export function getSymbolRenderingData(
     const variant = def.variants.find(v => v.variantId === variantId);
     if (variant) {
       return {
+        primitives: variant.primitives || [],
         paths: variant.paths,
         texts: variant.texts || def.texts || [],
       };
     }
   }
 
-  // Return default paths/texts
+  // Return default rendering data
   return {
+    primitives: def.primitives || [],
     paths: def.paths || [],
     texts: def.texts || [],
   };

@@ -161,6 +161,30 @@ export async function selectMode(page: Page): Promise<void> {
   await page.waitForTimeout(50);
 }
 
+/**
+ * Drag a marquee selection rectangle from one world position to another.
+ * Uses steps: 5 to ensure the 3px drag threshold is crossed.
+ */
+export async function dragMarquee(
+  page: Page,
+  fromWx: number, fromWy: number,
+  toWx: number, toWy: number,
+  options?: { modifiers?: ('Shift' | 'Meta' | 'Control')[] }
+): Promise<void> {
+  const from = await worldToScreen(page, fromWx, fromWy);
+  const to = await worldToScreen(page, toWx, toWy);
+  const mods = options?.modifiers || [];
+
+  for (const mod of mods) await page.keyboard.down(mod);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 5 });
+  await page.mouse.up();
+  for (const mod of mods) await page.keyboard.up(mod);
+
+  await page.waitForTimeout(200);
+}
+
 function categoryToLabel(category: string): string {
   // Map old category names to search terms that will find symbols in the Insert Symbol dialog
   // Symbol names come from builtin-symbols.json

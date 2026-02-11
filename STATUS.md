@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-08 (E2E Test Updates for Insert Symbol Dialog)
+**Last Updated**: 2026-02-10 (Object Inspector / Editable Properties Panel)
 **Current Phase**: Phase 2 - Minimal Editor
-**Phase Status**: 97% Complete (symbols now use JSON+SVG format, need marquee select)
+**Phase Status**: 98% Complete
 
 ---
 
@@ -46,7 +46,7 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Copy/Paste**: Cmd+C/V/D for copy, paste, duplicate
 - ✅ **Undo/Redo**: Cmd+Z and Cmd+Shift+Z (50 history entries)
 - ✅ **Multi-select**: Shift+click to add/remove, Cmd+A to select all, move/delete all
-  - ⚠️ Drag-select (marquee) NOT yet implemented
+  - ✅ Drag-select (marquee): Window select (left-to-right, fully enclosed) and Crossing select (right-to-left, any overlap)
 - ✅ **Wire bend points**: Select wire, click to add waypoints, drag to adjust, double-click to delete
   - Orthogonal-only routing enforced (no diagonal wires)
   - Hit detection uses auto-routing for accurate clicks
@@ -82,6 +82,14 @@ This file tracks where we are in development. **Always read this file at the sta
   - Real-time preview, save to library
   - Access from Symbol Library: "Create Symbol" and "Edit Symbol" buttons
 - ✅ **Wire Preview**: Dashed green line from start pin to mouse during wire creation
+- ✅ **Object Inspector (Editable Properties Panel)**:
+  - Inline-editable device tag/function/location (click to edit, Enter/blur to commit, Escape to cancel)
+  - Annotation selection on canvas click with cyan dashed highlight
+  - Annotation properties sidebar (content, font size, font weight, delete)
+  - Multi-select summary with tag chips when 2+ devices selected
+  - Fixed createSnapshot() to include sheets/annotations/terminals in undo/redo
+  - Fixed updateAnnotation() to push history (annotation edits now undoable)
+  - 35 E2E tests passing
 
 ### What We're Working On
 - Symbol quality tuning (now possible via Symbol Editor)
@@ -90,7 +98,7 @@ This file tracks where we are in development. **Always read this file at the sta
 ### Next Immediate Steps
 1. Fine-tune symbol paths using Symbol Editor
 2. Implement IndexedDB storage for free tier (local-only)
-3. Add drag-select (marquee/rubber band selection)
+3. Import symbols from external SVG libraries
 
 ---
 

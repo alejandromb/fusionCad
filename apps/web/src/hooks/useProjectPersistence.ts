@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Device, Net, Part } from '@fusion-cad/core-model';
 import { createGoldenCircuitMotorStarter } from '@fusion-cad/project-io';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
-import * as projectsApi from '../api/projects';
+import type { ProjectSummary } from '../api/projects';
+import type { StorageProvider } from '../storage/storage-provider';
 import type { Point } from '../renderer/types';
 import { AUTO_SAVE_DELAY } from '../types';
 
@@ -36,7 +37,7 @@ export interface UseProjectPersistenceReturn {
   projectName: string;
   saveStatus: 'saved' | 'saving' | 'unsaved' | 'error';
   isLoading: boolean;
-  projectsList: projectsApi.ProjectSummary[];
+  projectsList: ProjectSummary[];
   showProjectMenu: boolean;
   circuit: CircuitData | null;
   devicePositions: Map<string, Point>;
@@ -50,30 +51,30 @@ export interface UseProjectPersistenceReturn {
   refreshProjectsList: () => Promise<void>;
 }
 
-export function useProjectPersistence(): UseProjectPersistenceReturn {
+export function useProjectPersistence(storage: StorageProvider): UseProjectPersistenceReturn {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string>('Untitled Project');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const [isLoading, setIsLoading] = useState(true);
-  const [projectsList, setProjectsList] = useState<projectsApi.ProjectSummary[]>([]);
+  const [projectsList, setProjectsList] = useState<ProjectSummary[]>([]);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [circuit, setCircuit] = useState<CircuitData | null>(null);
   const [devicePositions, setDevicePositions] = useState<Map<string, Point>>(new Map());
 
   const refreshProjectsList = useCallback(async () => {
     try {
-      const projects = await projectsApi.listProjects();
+      const projects = await storage.listProjects();
       setProjectsList(projects);
     } catch (error) {
       console.error('Failed to load projects list:', error);
     }
-  }, []);
+  }, [storage]);
 
   const switchProject = useCallback(async (id: string) => {
     setIsLoading(true);
     setShowProjectMenu(false);
     try {
-      const project = await projectsApi.getProject(id);
+      const project = await storage.getProject(id);
       setProjectId(project.id);
       setProjectName(project.name);
 
@@ -99,7 +100,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [storage]);
 
   const createNewProject = useCallback(async () => {
     setShowProjectMenu(false);
@@ -108,7 +109,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
 
     setIsLoading(true);
     try {
-      const project = await projectsApi.createProject(name, '', {
+      const project = await storage.createProject(name, '', {
         devices: [],
         nets: [],
         parts: [],
@@ -134,7 +135,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshProjectsList]);
+  }, [storage, refreshProjectsList]);
 
   const deleteCurrentProject = useCallback(async () => {
     if (!projectId) return;
@@ -142,10 +143,10 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
 
     setShowProjectMenu(false);
     try {
-      await projectsApi.deleteProject(projectId);
+      await storage.deleteProject(projectId);
       await refreshProjectsList();
 
-      const projects = await projectsApi.listProjects();
+      const projects = await storage.listProjects();
       if (projects.length > 0) {
         await switchProject(projects[0].id);
       } else {
@@ -154,7 +155,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
     } catch (error) {
       console.error('Failed to delete project:', error);
     }
-  }, [projectId, projectName, refreshProjectsList, switchProject, createNewProject]);
+  }, [storage, projectId, projectName, refreshProjectsList, switchProject, createNewProject]);
 
   const renameProject = useCallback(async () => {
     if (!projectId) return;
@@ -163,13 +164,13 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
 
     setShowProjectMenu(false);
     try {
-      await projectsApi.updateProject(projectId, { name: newName });
+      await storage.updateProject(projectId, { name: newName });
       setProjectName(newName);
       await refreshProjectsList();
     } catch (error) {
       console.error('Failed to rename project:', error);
     }
-  }, [projectId, projectName, refreshProjectsList]);
+  }, [storage, projectId, projectName, refreshProjectsList]);
 
   // Save project to API
   const saveProject = useCallback(async () => {
@@ -182,7 +183,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
         positions[tag] = pos;
       });
 
-      await projectsApi.updateProject(projectId, {
+      await storage.updateProject(projectId, {
         circuitData: {
           devices: circuit.devices,
           nets: circuit.nets,
@@ -196,7 +197,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
       console.error('Failed to save project:', error);
       setSaveStatus('error');
     }
-  }, [projectId, circuit, devicePositions]);
+  }, [storage, projectId, circuit, devicePositions]);
 
   // Debounced auto-save
   const debouncedSave = useDebouncedCallback(saveProject, AUTO_SAVE_DELAY);
@@ -218,7 +219,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
         const urlProjectId = urlParams.get('project');
 
         if (urlProjectId) {
-          const project = await projectsApi.getProject(urlProjectId);
+          const project = await storage.getProject(urlProjectId);
           setProjectId(project.id);
           setProjectName(project.name);
 
@@ -237,10 +238,10 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
             connections: project.circuitData.connections as Connection[],
           });
         } else {
-          const projects = await projectsApi.listProjects();
+          const projects = await storage.listProjects();
 
           if (projects.length > 0) {
-            const project = await projectsApi.getProject(projects[0].id);
+            const project = await storage.getProject(projects[0].id);
             setProjectId(project.id);
             setProjectName(project.name);
 
@@ -270,7 +271,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
               positions: {} as Record<string, Point>,
             };
 
-            const project = await projectsApi.createProject(
+            const project = await storage.createProject(
               '3-Wire Motor Starter',
               'Golden circuit - standard motor starter configuration',
               circuitData
@@ -305,7 +306,7 @@ export function useProjectPersistence(): UseProjectPersistenceReturn {
 
     loadOrCreateProject();
     refreshProjectsList();
-  }, [refreshProjectsList]);
+  }, [storage, refreshProjectsList]);
 
   return {
     projectId,

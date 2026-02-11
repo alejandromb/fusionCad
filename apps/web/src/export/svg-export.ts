@@ -5,7 +5,7 @@
  * Reuses SVG path data already defined in symbol definitions.
  */
 
-import type { Part } from '@fusion-cad/core-model';
+import type { Part, SymbolPrimitive } from '@fusion-cad/core-model';
 import { getSymbolDefinition } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
@@ -109,8 +109,12 @@ export function exportToSVG(
 
     lines.push(`  <g id="dev-${device.tag}"${transformAttr}>`);
 
-    // Render symbol paths
-    if (def.paths) {
+    // Render symbol: primitives (preferred) -> paths (legacy) -> fallback
+    if (def.primitives && def.primitives.length > 0) {
+      for (const prim of def.primitives) {
+        lines.push(`    ${primitiveToSVGString(prim, strokeColor, pos.x, pos.y)}`);
+      }
+    } else if (def.paths) {
       for (const path of def.paths) {
         const sw = path.strokeWidth ?? 2;
         const fill = path.fill ? strokeColor : 'none';
@@ -206,6 +210,51 @@ export function exportToSVG(
 
   lines.push('</svg>');
   return lines.join('\n');
+}
+
+/**
+ * Convert a SymbolPrimitive to an SVG element string.
+ * Uses native SVG elements (rect, circle, line) instead of path+d.
+ */
+function primitiveToSVGString(p: SymbolPrimitive, strokeColor: string, tx: number, ty: number): string {
+  const stroke = ('stroke' in p && p.stroke) || strokeColor;
+  const fill = ('fill' in p && p.fill) || 'none';
+  const sw = ('strokeWidth' in p && p.strokeWidth) || 2;
+
+  switch (p.type) {
+    case 'rect':
+      return `<rect x="${tx + p.x}" y="${ty + p.y}" width="${p.width}" height="${p.height}"${p.rx ? ` rx="${p.rx}"` : ''} fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    case 'circle':
+      return `<circle cx="${tx + p.cx}" cy="${ty + p.cy}" r="${p.r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    case 'line':
+      return `<line x1="${tx + p.x1}" y1="${ty + p.y1}" x2="${tx + p.x2}" y2="${ty + p.y2}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    case 'arc': {
+      const r = p.r;
+      const x1 = p.cx + r * Math.cos(p.startAngle);
+      const y1 = p.cy + r * Math.sin(p.startAngle);
+      const x2 = p.cx + r * Math.cos(p.endAngle);
+      const y2 = p.cy + r * Math.sin(p.endAngle);
+      const largeArc = Math.abs(p.endAngle - p.startAngle) > Math.PI ? 1 : 0;
+      const sweep = p.endAngle > p.startAngle ? 1 : 0;
+      return `<path d="M${tx + x1},${ty + y1} A${r},${r} 0 ${largeArc},${sweep} ${tx + x2},${ty + y2}" fill="none" stroke="${stroke}" stroke-width="${sw}"/>`;
+    }
+    case 'ellipse':
+      return `<ellipse cx="${tx + p.cx}" cy="${ty + p.cy}" rx="${p.rx}" ry="${p.ry}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    case 'polyline': {
+      const pts = p.points.map(pt => `${tx + pt.x},${ty + pt.y}`).join(' ');
+      const tag = p.closed ? 'polygon' : 'polyline';
+      return `<${tag} points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    }
+    case 'text': {
+      const fs = p.fontSize ?? 20;
+      const fw = p.fontWeight ?? 'bold';
+      return `<text x="${tx + p.x}" y="${ty + p.y}" font-size="${fs}" font-weight="${fw}" fill="${stroke}" text-anchor="${p.textAnchor || 'middle'}" dominant-baseline="central">${escapeXml(p.content)}</text>`;
+    }
+    case 'path':
+      return `<path d="${p.d}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" transform="translate(${tx},${ty})"/>`;
+    default:
+      return '';
+  }
 }
 
 function escapeXml(s: string): string {

@@ -15,6 +15,7 @@
 import type {
   SymbolDefinition,
   SymbolPath,
+  SymbolPrimitive,
   SymbolText,
   SymbolPin,
   PinType,
@@ -81,14 +82,16 @@ export function importSVGToSymbol(
 
   // ---- 3. Walk the SVG tree and collect shapes / texts / pin-candidates ----
   const collectedPaths: SymbolPath[] = [];
+  const collectedPrimitives: SymbolPrimitive[] = [];
   const collectedTexts: SymbolText[] = [];
   const pinCandidateCircles: { cx: number; cy: number; r: number }[] = [];
 
-  walkElement(svgEl, { tx: 0, ty: 0 }, collectedPaths, collectedTexts, pinCandidateCircles, warnings);
+  walkElement(svgEl, { tx: 0, ty: 0 }, collectedPaths, collectedPrimitives, collectedTexts, pinCandidateCircles, warnings);
 
   // ---- 4. Pin detection -----------------------------------------------------
   const pins: SymbolPin[] = [];
   const pathsWithoutPins: SymbolPath[] = [];
+  const primitivesWithoutPins: SymbolPrimitive[] = [...collectedPrimitives];
 
   if (autoDetectPins && pinCandidateCircles.length > 0) {
     const edgeThreshold = Math.max(srcWidth, srcHeight) * 0.15;
@@ -106,12 +109,9 @@ export function importSVGToSymbol(
           direction,
         });
       } else {
-        // Not at an edge: treat as a normal graphic circle
-        pathsWithoutPins.push({
-          d: circleToPath(c.cx, c.cy, c.r),
-          stroke: true,
-          fill: false,
-          strokeWidth: 2,
+        // Not at an edge: treat as a normal graphic circle primitive
+        primitivesWithoutPins.push({
+          type: 'circle', cx: c.cx, cy: c.cy, r: c.r,
         });
       }
     }
@@ -119,14 +119,11 @@ export function importSVGToSymbol(
     // Keep all non-pin paths
     pathsWithoutPins.unshift(...collectedPaths);
   } else {
-    // No pin detection: pin circles stay as graphic paths
+    // No pin detection: pin circles stay as graphic primitives
     pathsWithoutPins.push(...collectedPaths);
     for (const c of pinCandidateCircles) {
-      pathsWithoutPins.push({
-        d: circleToPath(c.cx, c.cy, c.r),
-        stroke: true,
-        fill: false,
-        strokeWidth: 2,
+      primitivesWithoutPins.push({
+        type: 'circle', cx: c.cx, cy: c.cy, r: c.r,
       });
     }
   }
@@ -135,10 +132,11 @@ export function importSVGToSymbol(
   const targetWidth = options.targetWidth ?? srcWidth;
   const targetHeight = options.targetHeight ?? srcHeight;
 
-  const { paths: scaledPaths, texts: scaledTexts, pins: scaledPins } = scaleAll(
+  const { paths: scaledPaths, texts: scaledTexts, pins: scaledPins, primitives: scaledPrimitives } = scaleAll(
     pathsWithoutPins,
     collectedTexts,
     pins,
+    primitivesWithoutPins,
     srcWidth,
     srcHeight,
     targetWidth,
@@ -154,6 +152,7 @@ export function importSVGToSymbol(
     category: options.category,
     pins: scaledPins,
     geometry: { width: targetWidth, height: targetHeight },
+    primitives: scaledPrimitives.length > 0 ? scaledPrimitives : undefined,
     paths: scaledPaths.length > 0 ? scaledPaths : undefined,
     texts: scaledTexts.length > 0 ? scaledTexts : undefined,
     createdAt: now,
@@ -202,6 +201,7 @@ function walkElement(
   el: Element,
   offset: TranslateOffset,
   paths: SymbolPath[],
+  primitives: SymbolPrimitive[],
   texts: SymbolText[],
   pinCircles: { cx: number; cy: number; r: number }[],
   warnings: string[],
@@ -217,28 +217,32 @@ function walkElement(
 
     if (tag === 'g') {
       const childOffset = applyGroupTransform(child, offset, warnings);
-      walkElement(child, childOffset, paths, texts, pinCircles, warnings);
+      walkElement(child, childOffset, paths, primitives, texts, pinCircles, warnings);
       continue;
     }
 
-    // Shape elements
+    // Shape elements -> produce SymbolPrimitives directly
     if (tag === 'path') {
       const d = child.getAttribute('d');
       if (d) {
         const translated = translatePathData(d, offset.tx, offset.ty);
+        const style = extractPrimitiveStyle(child);
+        primitives.push({ type: 'path', d: translated, ...style });
+        // Also keep legacy path for backward compat during transition
         paths.push(extractPathStyle(child, translated));
       }
       continue;
     }
 
     if (tag === 'rect') {
-      const pathData = rectToPath(
-        num(child, 'x') + offset.tx,
-        num(child, 'y') + offset.ty,
-        num(child, 'width'),
-        num(child, 'height'),
-      );
-      paths.push(extractPathStyle(child, pathData));
+      const x = num(child, 'x') + offset.tx;
+      const y = num(child, 'y') + offset.ty;
+      const w = num(child, 'width');
+      const h = num(child, 'height');
+      const style = extractPrimitiveStyle(child);
+      primitives.push({ type: 'rect', x, y, width: w, height: h, ...style });
+      // Legacy path
+      paths.push(extractPathStyle(child, rectToPath(x, y, w, h)));
       continue;
     }
 
@@ -249,6 +253,8 @@ function walkElement(
       if (r < 5) {
         pinCircles.push({ cx, cy, r });
       } else {
+        const style = extractPrimitiveStyle(child);
+        primitives.push({ type: 'circle', cx, cy, r, ...style });
         paths.push(extractPathStyle(child, circleToPath(cx, cy, r)));
       }
       continue;
@@ -259,26 +265,30 @@ function walkElement(
       const cy = num(child, 'cy') + offset.ty;
       const rx = num(child, 'rx');
       const ry = num(child, 'ry');
+      const style = extractPrimitiveStyle(child);
+      primitives.push({ type: 'ellipse', cx, cy, rx, ry, ...style });
       paths.push(extractPathStyle(child, ellipseToPath(cx, cy, rx, ry)));
       continue;
     }
 
     if (tag === 'line') {
-      const pathData = lineToPath(
-        num(child, 'x1') + offset.tx,
-        num(child, 'y1') + offset.ty,
-        num(child, 'x2') + offset.tx,
-        num(child, 'y2') + offset.ty,
-      );
-      paths.push(extractPathStyle(child, pathData));
+      const x1 = num(child, 'x1') + offset.tx;
+      const y1 = num(child, 'y1') + offset.ty;
+      const x2 = num(child, 'x2') + offset.tx;
+      const y2 = num(child, 'y2') + offset.ty;
+      const style = extractPrimitiveStyle(child);
+      primitives.push({ type: 'line', x1, y1, x2, y2, ...style });
+      paths.push(extractPathStyle(child, lineToPath(x1, y1, x2, y2)));
       continue;
     }
 
     if (tag === 'polyline') {
       const pts = child.getAttribute('points') ?? '';
       if (pts.trim()) {
-        const pathData = polylineToPath(pts, offset);
-        paths.push(extractPathStyle(child, pathData));
+        const parsed = parsePointList(pts, offset);
+        const style = extractPrimitiveStyle(child);
+        primitives.push({ type: 'polyline', points: parsed, ...style });
+        paths.push(extractPathStyle(child, polylineToPath(pts, offset)));
       }
       continue;
     }
@@ -286,8 +296,10 @@ function walkElement(
     if (tag === 'polygon') {
       const pts = child.getAttribute('points') ?? '';
       if (pts.trim()) {
-        const pathData = polygonToPath(pts, offset);
-        paths.push(extractPathStyle(child, pathData));
+        const parsed = parsePointList(pts, offset);
+        const style = extractPrimitiveStyle(child);
+        primitives.push({ type: 'polyline', points: parsed, closed: true, ...style });
+        paths.push(extractPathStyle(child, polygonToPath(pts, offset)));
       }
       continue;
     }
@@ -300,13 +312,14 @@ function walkElement(
         const fontSize = parseFontSize(child);
         const fontWeight = parseFontWeight(child);
         texts.push({ content, x, y, fontSize, fontWeight });
+        primitives.push({ type: 'text', x, y, content, fontSize, fontWeight });
       }
       continue;
     }
 
     // Recurse into unknown containers (e.g., <a>, <switch>)
     if (child.children.length > 0) {
-      walkElement(child, offset, paths, texts, pinCircles, warnings);
+      walkElement(child, offset, paths, primitives, texts, pinCircles, warnings);
     }
   }
 }
@@ -565,13 +578,14 @@ function scaleAll(
   paths: SymbolPath[],
   texts: SymbolText[],
   pins: SymbolPin[],
+  primitives: SymbolPrimitive[],
   srcWidth: number,
   srcHeight: number,
   targetWidth: number,
   targetHeight: number,
-): { paths: SymbolPath[]; texts: SymbolText[]; pins: SymbolPin[] } {
+): { paths: SymbolPath[]; texts: SymbolText[]; pins: SymbolPin[]; primitives: SymbolPrimitive[] } {
   if (srcWidth <= 0 || srcHeight <= 0) {
-    return { paths, texts, pins };
+    return { paths, texts, pins, primitives };
   }
 
   const ratioX = targetWidth / srcWidth;
@@ -579,7 +593,7 @@ function scaleAll(
   const ratio = Math.min(ratioX, ratioY); // Uniform scaling
 
   if (Math.abs(ratio - 1) < 0.0001) {
-    return { paths, texts, pins };
+    return { paths, texts, pins, primitives };
   }
 
   const scaledPaths = paths.map(p => ({
@@ -602,7 +616,35 @@ function scaleAll(
     },
   }));
 
-  return { paths: scaledPaths, texts: scaledTexts, pins: scaledPins };
+  const scaledPrimitives = primitives.map(p => scalePrimitive(p, ratio));
+
+  return { paths: scaledPaths, texts: scaledTexts, pins: scaledPins, primitives: scaledPrimitives };
+}
+
+/**
+ * Scale a single SymbolPrimitive by a uniform ratio.
+ */
+function scalePrimitive(p: SymbolPrimitive, ratio: number): SymbolPrimitive {
+  switch (p.type) {
+    case 'line':
+      return { ...p, x1: r(p.x1 * ratio), y1: r(p.y1 * ratio), x2: r(p.x2 * ratio), y2: r(p.y2 * ratio) };
+    case 'rect':
+      return { ...p, x: r(p.x * ratio), y: r(p.y * ratio), width: r(p.width * ratio), height: r(p.height * ratio), rx: p.rx ? r(p.rx * ratio) : undefined };
+    case 'circle':
+      return { ...p, cx: r(p.cx * ratio), cy: r(p.cy * ratio), r: r(p.r * ratio) };
+    case 'arc':
+      return { ...p, cx: r(p.cx * ratio), cy: r(p.cy * ratio), r: r(p.r * ratio) };
+    case 'ellipse':
+      return { ...p, cx: r(p.cx * ratio), cy: r(p.cy * ratio), rx: r(p.rx * ratio), ry: r(p.ry * ratio) };
+    case 'polyline':
+      return { ...p, points: p.points.map(pt => ({ x: r(pt.x * ratio), y: r(pt.y * ratio) })) };
+    case 'text':
+      return { ...p, x: r(p.x * ratio), y: r(p.y * ratio), fontSize: p.fontSize ? r(p.fontSize * ratio) : undefined };
+    case 'path':
+      return { ...p, d: scalePathData(p.d, ratio) };
+    default:
+      return p;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -634,6 +676,39 @@ function detectPinDirection(
 // ---------------------------------------------------------------------------
 // Style extraction from SVG elements
 // ---------------------------------------------------------------------------
+
+/**
+ * Extract stroke/fill/strokeWidth from an SVG element for SymbolPrimitive styling.
+ */
+function extractPrimitiveStyle(el: Element): { stroke?: string; fill?: string; strokeWidth?: number } {
+  const stroke = el.getAttribute('stroke');
+  const fill = el.getAttribute('fill');
+  const strokeWidthAttr = el.getAttribute('stroke-width');
+  const style = el.getAttribute('style') ?? '';
+
+  const styleStroke = extractStyleProp(style, 'stroke');
+  const styleFill = extractStyleProp(style, 'fill');
+  const styleStrokeWidth = extractStyleProp(style, 'stroke-width');
+
+  const result: { stroke?: string; fill?: string; strokeWidth?: number } = {};
+
+  const effectiveStroke = styleStroke || stroke;
+  const effectiveFill = styleFill || fill;
+  const effectiveStrokeWidth = styleStrokeWidth || strokeWidthAttr;
+
+  if (effectiveStroke && effectiveStroke !== 'none' && effectiveStroke !== 'transparent') {
+    result.stroke = effectiveStroke;
+  }
+  if (effectiveFill && effectiveFill !== 'none' && effectiveFill !== 'transparent') {
+    result.fill = effectiveFill;
+  }
+  if (effectiveStrokeWidth) {
+    const sw = parseFloat(effectiveStrokeWidth);
+    if (!isNaN(sw) && sw > 0) result.strokeWidth = sw;
+  }
+
+  return result;
+}
 
 function extractPathStyle(el: Element, d: string): SymbolPath {
   const stroke = el.getAttribute('stroke');

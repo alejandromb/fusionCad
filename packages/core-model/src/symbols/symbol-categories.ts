@@ -15,6 +15,7 @@ export interface SymbolCategoryDef {
  */
 export const HIDDEN_SYMBOL_CATEGORIES: SymbolCategoryDef[] = [
   { id: 'generic', label: 'Generic Component', prefix: 'U' },
+  { id: 'Junction', label: 'Junction', prefix: 'J' },
 ];
 
 export interface SymbolCategoryGroup {

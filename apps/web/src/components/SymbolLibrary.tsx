@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { SymbolDefinition, SymbolPath, SymbolText } from '@fusion-cad/core-model';
+import type { SymbolDefinition, SymbolPath, SymbolText, SymbolPrimitive } from '@fusion-cad/core-model';
 import {
   getAllSymbols,
   getSymbolDefinition,
@@ -18,6 +18,7 @@ import { SymbolEditor } from './SymbolEditor';
 interface SymbolLibraryProps {
   onClose: () => void;
   onSelectSymbol?: (category: string) => void;
+  storageProvider?: import('../storage/storage-provider').StorageProvider;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +228,10 @@ function renderSymbolPreview(
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
 
-  // Render paths if available
-  if (def.paths && def.paths.length > 0) {
+  // Render primitives (preferred) or paths
+  if (def.primitives && def.primitives.length > 0) {
+    renderPrimitivesToCanvas(ctx, def.primitives, 0, 0);
+  } else if (def.paths && def.paths.length > 0) {
     renderSymbolPaths(ctx, def.paths, 0, 0);
     if (def.texts && def.texts.length > 0) {
       renderSymbolTexts(ctx, def.texts, 0, 0);
@@ -292,6 +295,98 @@ function renderSymbolTexts(
 }
 
 // ---------------------------------------------------------------------------
+// Typed primitive renderer for canvas previews
+// ---------------------------------------------------------------------------
+
+function renderPrimitivesToCanvas(
+  ctx: CanvasRenderingContext2D,
+  primitives: SymbolPrimitive[],
+  x: number,
+  y: number,
+): void {
+  for (const p of primitives) {
+    const strokeColor = ('stroke' in p && p.stroke) || '#00ff00';
+    const fillColor = ('fill' in p && p.fill) || 'none';
+    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 2;
+
+    ctx.strokeStyle = strokeColor;
+    ctx.fillStyle = fillColor !== 'none' ? fillColor : '#00ff00';
+    ctx.lineWidth = lineWidth;
+
+    switch (p.type) {
+      case 'rect': {
+        ctx.beginPath();
+        ctx.rect(x + p.x, y + p.y, p.width, p.height);
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'circle': {
+        ctx.beginPath();
+        ctx.arc(x + p.cx, y + p.cy, p.r, 0, Math.PI * 2);
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'line': {
+        ctx.beginPath();
+        ctx.moveTo(x + p.x1, y + p.y1);
+        ctx.lineTo(x + p.x2, y + p.y2);
+        ctx.stroke();
+        break;
+      }
+      case 'arc': {
+        ctx.beginPath();
+        ctx.arc(x + p.cx, y + p.cy, p.r, p.startAngle, p.endAngle);
+        ctx.stroke();
+        break;
+      }
+      case 'ellipse': {
+        ctx.beginPath();
+        ctx.ellipse(x + p.cx, y + p.cy, p.rx, p.ry, 0, 0, Math.PI * 2);
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'polyline': {
+        if (p.points.length < 2) break;
+        ctx.beginPath();
+        ctx.moveTo(x + p.points[0].x, y + p.points[0].y);
+        for (let i = 1; i < p.points.length; i++) {
+          ctx.lineTo(x + p.points[i].x, y + p.points[i].y);
+        }
+        if (p.closed) ctx.closePath();
+        if (fillColor !== 'none') ctx.fill();
+        if (strokeColor !== 'none') ctx.stroke();
+        break;
+      }
+      case 'text': {
+        const fontSize = p.fontSize ?? 20;
+        const fontWeight = p.fontWeight ?? 'bold';
+        ctx.fillStyle = '#00ff00';
+        ctx.font = `${fontWeight} ${fontSize}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.content, x + p.x, y + p.y);
+        break;
+      }
+      case 'path': {
+        const commands = parseSVGPath(p.d);
+        const shouldStroke = p.stroke !== 'none';
+        const shouldFill = p.fill != null && p.fill !== 'none';
+        ctx.strokeStyle = '#00ff00';
+        ctx.fillStyle = '#00ff00';
+        ctx.lineWidth = p.strokeWidth ?? 2;
+        renderPathCommands(ctx, commands, x, y);
+        if (shouldFill) ctx.fill();
+        if (shouldStroke) ctx.stroke();
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // SymbolPreviewCanvas component
 // ---------------------------------------------------------------------------
 
@@ -317,7 +412,7 @@ function SymbolPreviewCanvas({
 // Main SymbolLibrary component
 // ---------------------------------------------------------------------------
 
-export function SymbolLibrary({ onClose, onSelectSymbol }: SymbolLibraryProps) {
+export function SymbolLibrary({ onClose, onSelectSymbol, storageProvider }: SymbolLibraryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolDefinition | null>(null);
@@ -633,6 +728,7 @@ export function SymbolLibrary({ onClose, onSelectSymbol }: SymbolLibraryProps) {
           setSelectedSymbol(symbol);
         }}
         editSymbolId={editSymbolId}
+        storageProvider={storageProvider}
       />
     </div>
   );

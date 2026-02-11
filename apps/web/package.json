@@ -11,11 +11,12 @@
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
-    "@fusion-cad/core-model": "*",
     "@fusion-cad/core-engine": "*",
-    "@fusion-cad/rules": "*",
-    "@fusion-cad/reports": "*",
+    "@fusion-cad/core-model": "*",
     "@fusion-cad/project-io": "*",
+    "@fusion-cad/reports": "*",
+    "@fusion-cad/rules": "*",
+    "idb": "^8.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

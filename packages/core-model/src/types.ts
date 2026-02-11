@@ -93,6 +93,26 @@ export interface SymbolPath {
 }
 
 /**
+ * Typed geometric primitive for symbol rendering.
+ *
+ * Instead of opaque SVG path strings, primitives carry semantic type info
+ * (rect, circle, line, etc.) enabling native canvas/SVG rendering and
+ * better editor round-tripping.
+ *
+ * Inspired by EPLAN's typed primitives (O31=Line, O32=Circle, O34=Rectangle)
+ * and ODB++ typed feature records.
+ */
+export type SymbolPrimitive =
+  | { type: 'line'; x1: number; y1: number; x2: number; y2: number; stroke?: string; strokeWidth?: number }
+  | { type: 'rect'; x: number; y: number; width: number; height: number; stroke?: string; fill?: string; strokeWidth?: number; rx?: number }
+  | { type: 'circle'; cx: number; cy: number; r: number; stroke?: string; fill?: string; strokeWidth?: number }
+  | { type: 'arc'; cx: number; cy: number; r: number; startAngle: number; endAngle: number; stroke?: string; strokeWidth?: number }
+  | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number; stroke?: string; fill?: string; strokeWidth?: number }
+  | { type: 'polyline'; points: Array<{ x: number; y: number }>; closed?: boolean; stroke?: string; fill?: string; strokeWidth?: number }
+  | { type: 'text'; x: number; y: number; content: string; fontSize?: number; fontWeight?: string; textAnchor?: string }
+  | { type: 'path'; d: string; stroke?: string; fill?: string; strokeWidth?: number };
+
+/**
  * Text element for symbol rendering
  */
 export interface SymbolText {
@@ -112,6 +132,7 @@ export interface SymbolVariant {
   variantId: string;        // e.g., 'iec-standard', 'ansi', 'simplified'
   name: string;             // Human-readable name
   paths: SymbolPath[];      // SVG paths for this variant
+  primitives?: SymbolPrimitive[]; // Typed primitives (preferred over paths)
   texts?: SymbolText[];     // Optional variant-specific texts
   description?: string;     // When to use this variant
 }
@@ -129,7 +150,8 @@ export interface SymbolDefinition extends Entity {
   category: string;
   pins: SymbolPin[];
   geometry: SymbolGeometryData;
-  paths?: SymbolPath[]; // Default SVG-based rendering
+  paths?: SymbolPath[]; // Default SVG-based rendering (legacy)
+  primitives?: SymbolPrimitive[]; // Typed geometric primitives (preferred)
   texts?: SymbolText[]; // Default text elements
 
   /**
