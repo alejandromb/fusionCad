@@ -34,6 +34,10 @@ export interface CircuitData {
   parts: unknown[];
   connections: ConnectionData[];
   positions: Record<string, DevicePosition>;
+  sheets?: unknown[];
+  annotations?: unknown[];
+  terminals?: unknown[];
+  rungs?: unknown[];
 }
 
 @Entity('projects')

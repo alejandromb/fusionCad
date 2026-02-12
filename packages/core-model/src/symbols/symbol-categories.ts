@@ -25,58 +25,57 @@ export interface SymbolCategoryGroup {
 
 export const SYMBOL_CATEGORY_GROUPS: SymbolCategoryGroup[] = [
   {
-    name: 'PLC',
-    categories: [
-      { id: 'plc-di-16', label: 'DI-16', prefix: 'PLC' },
-      { id: 'plc-do-16', label: 'DO-16', prefix: 'PLC' },
-      { id: 'plc-ai-8', label: 'AI-8', prefix: 'PLC' },
-      { id: 'plc-ao-4', label: 'AO-4', prefix: 'PLC' },
-      { id: 'plc-cpu', label: 'CPU', prefix: 'PLC' },
-      { id: 'plc-ps', label: 'PLC PS', prefix: 'PLC' },
-    ],
-  },
-  {
     name: 'Power',
     categories: [
-      { id: 'power-supply', label: 'Power Supply', prefix: 'PS' },
-      { id: 'circuit-breaker', label: 'Circuit Breaker', prefix: 'CB' },
-      { id: 'fuse', label: 'Fuse', prefix: 'FU' },
-      { id: 'transformer', label: 'Transformer', prefix: 'T' },
-      { id: 'disconnect', label: 'Disconnect', prefix: 'QS' },
+      { id: 'Power', label: 'Power', prefix: 'CB' },
     ],
   },
   {
     name: 'Control',
     categories: [
-      { id: 'contactor', label: 'Contactor', prefix: 'K' },
-      { id: 'button', label: 'Button', prefix: 'S' },
-      { id: 'overload', label: 'Overload', prefix: 'F' },
-      { id: 'relay-coil', label: 'Relay Coil', prefix: 'CR' },
-      { id: 'relay-contact-no', label: 'Contact NO', prefix: 'CR' },
-      { id: 'relay-contact-nc', label: 'Contact NC', prefix: 'CR' },
-      { id: 'timer-relay', label: 'Timer Relay', prefix: 'TR' },
+      { id: 'Control', label: 'Control', prefix: 'CR' },
     ],
   },
   {
-    name: 'Terminal',
+    name: 'Motor',
     categories: [
-      // Single terminal = one octagon. For multi-level terminals (dual/triple),
-      // place multiple single terminals and link them via terminalId.
-      { id: 'single-terminal', label: 'Terminal', prefix: 'X' },
-      { id: 'fuse-terminal', label: 'Fuse Terminal', prefix: 'X' },
-      { id: 'ground-terminal', label: 'Ground Terminal', prefix: 'X' },
-      { id: 'disconnect-terminal', label: 'Disconnect Terminal', prefix: 'X' },
+      { id: 'Motor', label: 'Motor', prefix: 'M' },
     ],
   },
   {
     name: 'Field',
     categories: [
-      { id: 'motor', label: 'Motor', prefix: 'M' },
-      { id: 'level-switch', label: 'Level Switch', prefix: 'LSL' },
-      { id: 'pressure-xmtr', label: 'Pressure Xmtr', prefix: 'PT' },
-      { id: 'flow-meter', label: 'Flow Meter', prefix: 'FT' },
-      { id: 'valve', label: 'Valve', prefix: 'XV' },
-      { id: 'solenoid', label: 'Solenoid', prefix: 'YV' },
+      { id: 'Field', label: 'Field', prefix: 'S' },
+    ],
+  },
+  {
+    name: 'Passive',
+    categories: [
+      { id: 'Passive', label: 'Passive', prefix: 'R' },
+    ],
+  },
+  {
+    name: 'Ground',
+    categories: [
+      { id: 'Ground', label: 'Ground', prefix: 'PE' },
+    ],
+  },
+  {
+    name: 'Meter',
+    categories: [
+      { id: 'Meter', label: 'Meter', prefix: 'M' },
+    ],
+  },
+  {
+    name: 'Terminal',
+    categories: [
+      { id: 'Terminal', label: 'Terminal', prefix: 'X' },
+    ],
+  },
+  {
+    name: 'PLC',
+    categories: [
+      { id: 'PLC', label: 'PLC', prefix: 'PLC' },
     ],
   },
 ];

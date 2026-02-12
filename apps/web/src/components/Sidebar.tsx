@@ -14,12 +14,12 @@ interface SidebarProps {
   selectedDevices: string[];
   selectedWireIndex: number | null;
   circuit: CircuitData | null;
-  deleteDevices: (tags: string[]) => void;
+  deleteDevices: (deviceIds: string[]) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
   debugMode: boolean;
   setDebugMode: (mode: boolean) => void;
-  onAssignPart: (deviceTag: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
-  onUpdateDevice: (tag: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
+  onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
+  onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
   selectedAnnotationId: string | null;
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
@@ -44,10 +44,10 @@ export function Sidebar({
   onDeleteAnnotation,
   onSelectAnnotation,
 }: SidebarProps) {
-  // Get selected device info for properties panel
-  const primarySelectedDevice = selectedDevices.length > 0 ? selectedDevices[0] : null;
-  const selectedDeviceInfo = primarySelectedDevice && circuit
-    ? circuit.devices.find(d => d.tag === primarySelectedDevice)
+  // Get selected device info for properties panel (selectedDevices contains device IDs)
+  const primarySelectedDeviceId = selectedDevices.length > 0 ? selectedDevices[0] : null;
+  const selectedDeviceInfo = primarySelectedDeviceId && circuit
+    ? circuit.devices.find(d => d.id === primarySelectedDeviceId)
     : null;
   const selectedDevicePart = selectedDeviceInfo?.partId && circuit
     ? circuit.parts.find(p => p.id === selectedDeviceInfo.partId)
@@ -79,7 +79,10 @@ export function Sidebar({
           {interactionMode === 'wire' && (
             <p className="status-message info">
               {wireStart
-                ? `From ${wireStart.device}:${wireStart.pin} → click target pin`
+                ? (() => {
+                    const dev = circuit?.devices.find(d => d.id === wireStart.device);
+                    return `From ${dev?.tag || wireStart.device}:${wireStart.pin} → click target pin`;
+                  })()
                 : 'Click a pin to start wire'}
             </p>
           )}

@@ -4,16 +4,34 @@
  * Renders the golden circuit on canvas
  */
 
-import type { Device, Net, Part, Sheet, Annotation, Terminal } from '@fusion-cad/core-model';
+import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
 import { routeWires, type Obstacle, type RouteRequest } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
+import { renderLadderOverlay } from './ladder-renderer';
+
+/**
+ * Resolve device for a connection endpoint.
+ * Uses fromDeviceId/toDeviceId when present, falls back to tag lookup.
+ */
+function resolveDevice(
+  conn: Connection,
+  endpoint: 'from' | 'to',
+  devices: Device[],
+): Device | undefined {
+  const id = endpoint === 'from' ? conn.fromDeviceId : conn.toDeviceId;
+  if (id) return devices.find(d => d.id === id);
+  const tag = endpoint === 'from' ? conn.fromDevice : conn.toDevice;
+  return devices.find(d => d.tag === tag);
+}
 
 export interface Connection {
-  fromDevice: string;
+  fromDevice: string;       // device tag (kept for display/export)
+  fromDeviceId?: string;    // device ULID (authoritative when present)
   fromPin: string;
-  toDevice: string;
+  toDevice: string;         // device tag
+  toDeviceId?: string;      // device ULID
   toPin: string;
   netId: string;
   /** Sheet this wire belongs to (optional, defaults to active sheet) */
@@ -32,6 +50,7 @@ export interface CircuitData {
   sheets?: Sheet[];
   annotations?: Annotation[];
   terminals?: Terminal[];
+  rungs?: Rung[];
 }
 
 export interface RenderOptions {
@@ -147,13 +166,13 @@ export function getWireAtPoint(
 
   for (let i = 0; i < connections.length; i++) {
     const conn = connections[i];
-    const fromPos = positions.get(conn.fromDevice);
-    const toPos = positions.get(conn.toDevice);
-    if (!fromPos || !toPos) continue;
-
-    const fromDevice = devices.find(d => d.tag === conn.fromDevice);
-    const toDevice = devices.find(d => d.tag === conn.toDevice);
+    const fromDevice = resolveDevice(conn, 'from', devices);
+    const toDevice = resolveDevice(conn, 'to', devices);
     if (!fromDevice || !toDevice) continue;
+
+    const fromPos = positions.get(fromDevice.id);
+    const toPos = positions.get(toDevice.id);
+    if (!fromPos || !toPos) continue;
 
     const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
     const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
@@ -254,14 +273,14 @@ function createObstaclesForHitTest(
   const obstacles: Obstacle[] = [];
 
   for (const device of devices) {
-    const position = positions.get(device.tag);
+    const position = positions.get(device.id);
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const geometry = getSymbolGeometry(part?.category || 'unknown');
 
     obstacles.push({
-      id: device.tag,
+      id: device.id,
       bounds: {
         x: position.x,
         y: position.y,
@@ -322,13 +341,13 @@ export function getWireEndpointAtPoint(
     partMap.set(part.id, part);
   }
 
-  const fromPos = positions.get(conn.fromDevice);
-  const toPos = positions.get(conn.toDevice);
-  if (!fromPos || !toPos) return null;
-
-  const fromDevice = devices.find(d => d.tag === conn.fromDevice);
-  const toDevice = devices.find(d => d.tag === conn.toDevice);
+  const fromDevice = resolveDevice(conn, 'from', devices);
+  const toDevice = resolveDevice(conn, 'to', devices);
   if (!fromDevice || !toDevice) return null;
+
+  const fromPos = positions.get(fromDevice.id);
+  const toPos = positions.get(toDevice.id);
+  if (!fromPos || !toPos) return null;
 
   const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
   const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
@@ -409,49 +428,42 @@ export function getWireSegmentAtPoint(
  *
  * @param devicePositions - Optional map of device positions for dynamically placed devices
  */
+/**
+ * Layout devices — positions keyed by device ID.
+ * devicePositions map is keyed by device ID.
+ */
 function layoutDevices(
   devices: Device[],
   parts: Part[],
   devicePositions?: Map<string, Point>
 ): Map<string, Point> {
-  const partMap = new Map<string, Part>();
-  for (const part of parts) {
-    partMap.set(part.id, part);
-  }
-
   const positions = new Map<string, Point>();
 
-  // Manual positions for better schematic layout
-  // Left column: power distribution
-  // Center: control circuit (buttons + coil)
-  // Right: power circuit (main contacts)
+  // Legacy fallback layouts keyed by tag (for golden circuit with no saved positions)
   const layouts: Record<string, Point> = {
-    'PS1': { x: 50, y: 80 },       // Power supply top-left
-    'X1': { x: 50, y: 280 },       // Terminal strip - moved down for wire clearance
-    'S2': { x: 250, y: 250 },      // Stop button (E-stop) center
-    'S1': { x: 400, y: 250 },      // Start button center-right
-    'K1': { x: 550, y: 250 },      // Contactor right side
-    'F1': { x: 550, y: 400 },      // Overload relay below contractor
-    'M1': { x: 550, y: 550 },      // Motor at bottom-right
+    'PS1': { x: 50, y: 80 },
+    'X1': { x: 50, y: 280 },
+    'S2': { x: 250, y: 250 },
+    'S1': { x: 400, y: 250 },
+    'K1': { x: 550, y: 250 },
+    'F1': { x: 550, y: 400 },
+    'M1': { x: 550, y: 550 },
   };
 
   for (const device of devices) {
-    // First check if there's a dynamic position from placement
-    const dynamicPos = devicePositions?.get(device.tag);
+    // First check if there's a dynamic position (keyed by device ID)
+    const dynamicPos = devicePositions?.get(device.id);
     if (dynamicPos) {
-      positions.set(device.tag, dynamicPos);
+      positions.set(device.id, dynamicPos);
+    } else if (layouts[device.tag]) {
+      // Fall back to hardcoded layout by tag
+      positions.set(device.id, layouts[device.tag]);
     } else {
-      // Fall back to hardcoded layout
-      const pos = layouts[device.tag];
-      if (pos) {
-        positions.set(device.tag, pos);
-      } else {
-        // Fallback for unknown devices - place them in a grid
-        const existingCount = positions.size;
-        const col = existingCount % 3;
-        const row = Math.floor(existingCount / 3);
-        positions.set(device.tag, { x: 100 + col * 200, y: 100 + row * 150 });
-      }
+      // Fallback for unknown devices - place them in a grid
+      const existingCount = positions.size;
+      const col = existingCount % 3;
+      const row = Math.floor(existingCount / 3);
+      positions.set(device.id, { x: 100 + col * 200, y: 100 + row * 150 });
     }
   }
 
@@ -469,14 +481,14 @@ function createObstacles(
   const obstacles: Obstacle[] = [];
 
   for (const device of devices) {
-    const position = positions.get(device.tag);
+    const position = positions.get(device.id);
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const geometry = getSymbolGeometry(part?.category || 'unknown');
 
     obstacles.push({
-      id: device.tag,
+      id: device.id,
       bounds: {
         x: position.x,
         y: position.y,
@@ -507,13 +519,14 @@ export function renderCircuit(
   const devices = activeSheetId
     ? circuit.devices.filter(d => d.sheetId === activeSheetId)
     : circuit.devices;
+  const deviceIdSet = new Set(devices.map(d => d.id));
   const connections = activeSheetId
     ? circuit.connections.filter(c => {
         // Include connection if it has matching sheetId, or if its devices are on the active sheet
         if (c.sheetId) return c.sheetId === activeSheetId;
-        const fromDevice = devices.find(d => d.tag === c.fromDevice);
-        const toDevice = devices.find(d => d.tag === c.toDevice);
-        return (fromDevice !== undefined) || (toDevice !== undefined);
+        const fromDev = resolveDevice(c, 'from', devices);
+        const toDev = resolveDevice(c, 'to', devices);
+        return (fromDev !== undefined) || (toDev !== undefined);
       })
     : circuit.connections;
 
@@ -552,17 +565,24 @@ export function renderCircuit(
     }
   }
 
+  // Render ladder overlay (rails, rung numbers) if active sheet is a ladder diagram
+  const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
+  if (activeSheet?.diagramType === 'ladder') {
+    const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
+    renderLadderOverlay(ctx, activeSheet, sheetRungs);
+  }
+
   // Device transforms
   const deviceTransforms = options?.deviceTransforms;
 
   // FIRST: Render devices (symbols) - draw these first so wires appear on top
   for (const device of devices) {
-    const position = positions.get(device.tag);
+    const position = positions.get(device.id);
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const category = part?.category || 'unknown';
-    const transform = deviceTransforms?.get(device.tag);
+    const transform = deviceTransforms?.get(device.id);
 
     drawSymbol(ctx, category, position.x, position.y, device.tag, transform);
   }
@@ -583,15 +603,13 @@ export function renderCircuit(
 
   for (let i = 0; i < connections.length; i++) {
     const conn = connections[i];
-    const fromPos = positions.get(conn.fromDevice);
-    const toPos = positions.get(conn.toDevice);
-
-    if (!fromPos || !toPos) continue;
-
-    const fromDevice = devices.find(d => d.tag === conn.fromDevice);
-    const toDevice = devices.find(d => d.tag === conn.toDevice);
-
+    const fromDevice = resolveDevice(conn, 'from', devices);
+    const toDevice = resolveDevice(conn, 'to', devices);
     if (!fromDevice || !toDevice) continue;
+
+    const fromPos = positions.get(fromDevice.id);
+    const toPos = positions.get(toDevice.id);
+    if (!fromPos || !toPos) continue;
 
     const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
     const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
@@ -844,16 +862,16 @@ export function renderCircuit(
     }
   }
 
-  // Draw selection highlights for all selected devices
+  // Draw selection highlights for all selected devices (selectedDevices contains device IDs)
   if (options?.selectedDevices && options.selectedDevices.length > 0) {
     ctx.strokeStyle = '#00bfff'; // Cyan highlight
     ctx.lineWidth = 3;
     ctx.setLineDash([6, 3]);
 
-    for (const selectedTag of options.selectedDevices) {
-      const device = devices.find(d => d.tag === selectedTag);
+    for (const selectedId of options.selectedDevices) {
+      const device = devices.find(d => d.id === selectedId);
       if (device) {
-        const position = positions.get(device.tag);
+        const position = positions.get(device.id);
         if (position) {
           const part = device.partId ? partMap.get(device.partId) : null;
           const geometry = getSymbolGeometry(part?.category || 'unknown');
@@ -872,14 +890,15 @@ export function renderCircuit(
   }
 
   // Draw wire-in-progress indicator (highlight the start pin) and preview line
+  // wireStart.device is now device ID
   if (options?.wireStart) {
-    const device = devices.find(d => d.tag === options.wireStart!.device);
+    const device = devices.find(d => d.id === options.wireStart!.device);
     if (device) {
-      const position = positions.get(device.tag);
+      const position = positions.get(device.id);
       if (position) {
         const part = device.partId ? partMap.get(device.partId) : null;
         const geometry = getSymbolGeometry(part?.category || 'unknown');
-        const transform = options.deviceTransforms?.get(device.tag);
+        const transform = options.deviceTransforms?.get(device.id);
         const pin = geometry.pins.find(p => p.id === options.wireStart!.pin);
 
         if (pin) {
@@ -948,13 +967,12 @@ export function renderCircuit(
     if (conn) {
       // Get the fixed endpoint position (the one NOT being dragged)
       const fixedEndpoint = options.draggingEndpoint.endpoint === 'from' ? 'to' : 'from';
-      const fixedDevice = fixedEndpoint === 'from' ? conn.fromDevice : conn.toDevice;
       const fixedPinId = fixedEndpoint === 'from' ? conn.fromPin : conn.toPin;
+      const fixedDeviceObj = resolveDevice(conn, fixedEndpoint, devices);
 
-      const fixedPos = positions.get(fixedDevice);
-      if (fixedPos) {
-        const fixedDeviceObj = devices.find(d => d.tag === fixedDevice);
-        if (fixedDeviceObj) {
+      if (fixedDeviceObj) {
+        const fixedPos = positions.get(fixedDeviceObj.id);
+        if (fixedPos) {
           const fixedPart = fixedDeviceObj.partId ? partMap.get(fixedDeviceObj.partId) : null;
           const fixedGeometry = getSymbolGeometry(fixedPart?.category || 'unknown');
           const fixedPin = fixedGeometry.pins.find(p => p.id === fixedPinId);

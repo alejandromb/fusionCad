@@ -1,8 +1,8 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-10 (Object Inspector / Editable Properties Panel)
+**Last Updated**: 2026-02-12 (Linked Device Representations — ID-Keyed Architecture)
 **Current Phase**: Phase 2 - Minimal Editor
-**Phase Status**: 98% Complete
+**Phase Status**: 99% Complete
 
 ---
 
@@ -92,13 +92,15 @@ This file tracks where we are in development. **Always read this file at the sta
   - 35 E2E tests passing
 
 ### What We're Working On
+- Linked Device Representations — just completed ID-keyed architecture migration
 - Symbol quality tuning (now possible via Symbol Editor)
 - Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
 ### Next Immediate Steps
-1. Fine-tune symbol paths using Symbol Editor
+1. Test linked device workflow end-to-end (place K1 contactor + K1 coil + K1 aux)
 2. Implement IndexedDB storage for free tier (local-only)
-3. Import symbols from external SVG libraries
+3. Fine-tune symbol paths using Symbol Editor
+4. Import symbols from external SVG libraries
 
 ---
 
@@ -676,6 +678,74 @@ This file tracks where we are in development. **Always read this file at the sta
 - Established rule: Always run E2E tests before committing UI changes
 - Tests adapted to new Insert Symbol Dialog UX
 - Port documentation prevents accidentally killing unrelated dev servers
+
+### Checkpoint: 2026-02-11 - MCP Server Implementation
+
+**Changes Made**:
+- Built `packages/mcp-server/` — MCP server exposing 18 tools for AI-driven circuit manipulation
+- Created `.mcp.json` at repo root for Claude Code auto-discovery
+
+**Architecture Updates**:
+- New package: `@fusion-cad/mcp-server` depends on core-model, core-engine, reports
+- Pattern: Load project from API → mutate circuitData in memory → save back
+- Device tags used as human-readable identifiers (not ULIDs) in MCP tools
+- Pure function helpers in `circuit-helpers.ts` (no React dependencies)
+
+**Completed**:
+- [x] MCP server with 18 tools (9 read-only, 9 write)
+- [x] Read tools: list_projects, get_project_summary, list_devices, list_connections, list_symbols, search_symbols, run_erc, generate_bom, list_parts_catalog
+- [x] Write tools: create_project, place_device, delete_device, update_device, create_wire, delete_wire, assign_part, add_sheet, add_annotation
+- [x] API client for HTTP communication with fusionCad API
+- [x] Circuit helpers extracted from useCircuitState.ts as pure functions
+- [x] `.mcp.json` for Claude Code auto-discovery
+- [x] Clean build, 35 E2E tests still passing
+
+**Files Created**:
+- `packages/mcp-server/package.json`
+- `packages/mcp-server/tsconfig.json`
+- `packages/mcp-server/src/index.ts` — stdio entry point
+- `packages/mcp-server/src/api-client.ts` — HTTP client
+- `packages/mcp-server/src/circuit-helpers.ts` — pure circuit manipulation functions
+- `packages/mcp-server/src/server.ts` — McpServer with 18 tool registrations
+- `.mcp.json` — Claude Code MCP discovery
+
+### Checkpoint: 2026-02-12 - Linked Device Representations (ID-Keyed Architecture)
+
+**Changes Made**:
+- Migrated entire codebase from tag-keyed to ID-keyed device lookups (7-phase plan)
+- Added `deviceGroupId` field to Device type for linking representations of same physical device
+- New MCP tool: `place_linked_device` (19 tools total now)
+- ERC updated: duplicate tag check skips devices sharing same `deviceGroupId`
+- BOM updated: linked device groups count as 1 physical item
+- All 35 E2E tests passing after migration
+
+**Architecture Updates**:
+- Positions: `Map<deviceId, Point>` / `Record<deviceId, {x,y}>` (was tag-keyed)
+- Connections: Added `fromDeviceId`/`toDeviceId` fields (tag fields kept for display)
+- Selection: `selectedDevices` now contains device IDs (not tags)
+- Hit testing: returns device IDs (not tags)
+- Backward compat: `migratePositions()` auto-detects ULID vs tag keys on load
+- `resolveDevice()` helper resolves connections by ID first, then tag fallback
+
+**Completed**:
+- [x] Phase 1: Foundation — ID-Keyed Positions + deviceGroupId
+- [x] Phase 2: ID-Based Connections
+- [x] Phase 3: ID-Based Selection & Hit Testing
+- [x] Phase 4: Relax Tag Uniqueness (ERC deviceGroupId-aware)
+- [x] Phase 5: Place Linked Device MCP Tool
+- [x] Phase 6: BOM Grouping by deviceGroupId
+- [x] Phase 7: Fix E2E Tests
+
+**Key Files Modified** (~15 files):
+- `packages/core-model/src/types.ts` — deviceGroupId field
+- `apps/web/src/hooks/useCircuitState.ts` — largest change, all operations ID-based
+- `apps/web/src/hooks/useCanvasInteraction.ts` — drag/click/marquee use IDs
+- `apps/web/src/renderer/circuit-renderer.ts` — rendering uses ID-based positions
+- `apps/web/src/types.ts` — hit testing returns device IDs
+- `packages/mcp-server/src/circuit-helpers.ts` — placeLinkedDevice + ID-based ops
+- `packages/mcp-server/src/server.ts` — place_linked_device tool
+- `packages/core-engine/src/erc.ts` — deviceGroupId-aware duplicate check
+- `packages/reports/src/bom.ts` — linked device group = 1 BOM item
 
 ---
 

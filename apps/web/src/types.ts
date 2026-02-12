@@ -21,7 +21,7 @@ export const AUTO_SAVE_DELAY = 1000;
 export const MAX_HISTORY_SIZE = 50;
 
 export interface PinHit {
-  device: string;
+  device: string;  // device ID (ULID)
   pin: string;
 }
 
@@ -36,6 +36,8 @@ export function snapToGrid(value: number): number {
 
 /**
  * Get pin at world coordinates (8px hit radius)
+ * Positions map is keyed by device ID.
+ * Returns device ID in PinHit.device.
  */
 export function getPinAtPoint(
   worldX: number,
@@ -51,7 +53,7 @@ export function getPinAtPoint(
   }
 
   for (const device of devices) {
-    const pos = positions.get(device.tag);
+    const pos = positions.get(device.id);
     if (!pos) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
@@ -63,7 +65,7 @@ export function getPinAtPoint(
       const dist = Math.hypot(worldX - pinX, worldY - pinY);
 
       if (dist <= HIT_RADIUS) {
-        return { device: device.tag, pin: pin.id };
+        return { device: device.id, pin: pin.id };
       }
     }
   }
@@ -73,6 +75,8 @@ export function getPinAtPoint(
 
 /**
  * Get symbol at world coordinates (bounding box check)
+ * Positions map is keyed by device ID.
+ * Returns device ID (not tag).
  */
 export function getSymbolAtPoint(
   worldX: number,
@@ -87,7 +91,7 @@ export function getSymbolAtPoint(
   }
 
   for (const device of devices) {
-    const pos = positions.get(device.tag);
+    const pos = positions.get(device.id);
     if (!pos) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
@@ -99,7 +103,7 @@ export function getSymbolAtPoint(
       worldY >= pos.y &&
       worldY <= pos.y + geometry.height
     ) {
-      return device.tag;
+      return device.id;
     }
   }
 

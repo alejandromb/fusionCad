@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SymbolDefinition, SymbolPath, SymbolText, SymbolPrimitive } from '@fusion-cad/core-model';
 import {
   getAllSymbols,
+  getSymbolById,
   getSymbolDefinition,
   registerSymbol,
   SYMBOL_CATEGORY_GROUPS,
@@ -197,7 +198,7 @@ function renderSymbolPreview(
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, size, size);
 
-  const def = getSymbolDefinition(category);
+  const def = getSymbolById(category) || getSymbolDefinition(category);
   if (!def) {
     // Draw placeholder
     ctx.strokeStyle = '#444';
@@ -391,19 +392,19 @@ function renderPrimitivesToCanvas(
 // ---------------------------------------------------------------------------
 
 function SymbolPreviewCanvas({
-  category,
+  symbolId,
   size,
 }: {
-  category: string;
+  symbolId: string;
   size: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (canvasRef.current) {
-      renderSymbolPreview(canvasRef.current, category, size);
+      renderSymbolPreview(canvasRef.current, symbolId, size);
     }
-  }, [category, size]);
+  }, [symbolId, size]);
 
   return <canvas ref={canvasRef} />;
 }
@@ -599,7 +600,7 @@ export function SymbolLibrary({ onClose, onSelectSymbol, storageProvider }: Symb
                 <div className="symbol-library-detail-layout">
                   <div className="symbol-library-detail-preview">
                     <SymbolPreviewCanvas
-                      category={selectedSymbol.category}
+                      symbolId={selectedSymbol.id}
                       size={160}
                     />
                   </div>
@@ -698,7 +699,7 @@ export function SymbolLibrary({ onClose, onSelectSymbol, storageProvider }: Symb
                             title={`${sym.name} (${sym.category})`}
                           >
                             <SymbolPreviewCanvas
-                              category={sym.category}
+                              symbolId={sym.id}
                               size={60}
                             />
                             <span className="symbol-library-card-name">

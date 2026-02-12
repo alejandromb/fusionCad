@@ -15,10 +15,10 @@ interface PropertiesPanelProps {
   device: Device | null;
   part: Part | null;
   circuit: CircuitData | null;
-  onDeleteDevices: (tags: string[]) => void;
-  selectedDevices: string[];
-  onAssignPart: (deviceTag: string, part: ManufacturerPart) => void;
-  onUpdateDevice?: (tag: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+  onDeleteDevices: (deviceIds: string[]) => void;
+  selectedDevices: string[];  // device IDs
+  onAssignPart: (deviceId: string, part: ManufacturerPart) => void;
+  onUpdateDevice?: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
 }
 
 function EditableValue({
@@ -89,8 +89,12 @@ export function PropertiesPanel({
   const [editingField, setEditingField] = useState<EditableField>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Multi-select summary
+  // Multi-select summary — selectedDevices contains device IDs, display tags
   if (selectedDevices.length > 1) {
+    const selectedTags = selectedDevices.map(id => {
+      const d = circuit?.devices.find(dev => dev.id === id);
+      return d?.tag || id.slice(0, 6);
+    });
     return (
       <div className="properties-panel">
         <div className="multi-select-summary">
@@ -99,8 +103,8 @@ export function PropertiesPanel({
             {selectedDevices.length} devices selected
           </p>
           <div className="multi-select-tags">
-            {selectedDevices.map(tag => (
-              <span key={tag} className="multi-select-tag">{tag}</span>
+            {selectedTags.map((tag, i) => (
+              <span key={selectedDevices[i]} className="multi-select-tag">{tag}</span>
             ))}
           </div>
         </div>
@@ -141,7 +145,7 @@ export function PropertiesPanel({
       (device.location || '');
 
     if (trimmed && trimmed !== original) {
-      onUpdateDevice(device.tag, { [editingField]: trimmed });
+      onUpdateDevice(device.id, { [editingField]: trimmed });
     }
     setEditingField(null);
   };
@@ -154,14 +158,16 @@ export function PropertiesPanel({
   const catalogFilter = part?.category || undefined;
 
   const handleSelectPart = (selectedPart: ManufacturerPart) => {
-    onAssignPart(device.tag, selectedPart);
+    onAssignPart(device.id, selectedPart);
     setShowCatalog(false);
   };
 
-  // Get cross-references for this device
-  const crossRefs = circuit?.connections?.filter(
-    c => c.fromDevice === device.tag || c.toDevice === device.tag
-  ) || [];
+  // Get cross-references for this device (match by ID when available, fall back to tag)
+  const crossRefs = circuit?.connections?.filter(c => {
+    const matchFrom = c.fromDeviceId ? c.fromDeviceId === device.id : c.fromDevice === device.tag;
+    const matchTo = c.toDeviceId ? c.toDeviceId === device.id : c.toDevice === device.tag;
+    return matchFrom || matchTo;
+  }) || [];
 
   const editableProps = { editingField, onStartEdit: handleStartEdit, onCommit: handleCommit, onCancel: handleCancel, editValue, setEditValue };
 
@@ -286,7 +292,7 @@ export function PropertiesPanel({
             <div className="properties-section-label">Connections ({crossRefs.length})</div>
             <div className="properties-xrefs">
               {crossRefs.slice(0, 5).map((conn, idx) => {
-                const isFrom = conn.fromDevice === device.tag;
+                const isFrom = conn.fromDeviceId ? conn.fromDeviceId === device.id : conn.fromDevice === device.tag;
                 const otherDevice = isFrom ? conn.toDevice : conn.fromDevice;
                 const otherPin = isFrom ? conn.toPin : conn.fromPin;
                 const myPin = isFrom ? conn.fromPin : conn.toPin;

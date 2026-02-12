@@ -2157,6 +2157,8 @@
   width: 1100px;
   max-width: 95vw;
   max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .symbol-editor-body {
@@ -2164,11 +2166,15 @@
   gap: 1.5rem;
   padding: 1rem;
   min-height: 400px;
+  flex: 1;
+  overflow: hidden;
 }
 
 .symbol-editor-tools {
   width: 140px;
   flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 .symbol-editor-tools h4 {
@@ -2275,6 +2281,12 @@
   font-size: 0.85rem;
 }
 
+.unit-hint {
+  font-size: 0.75rem;
+  color: #666;
+  margin-left: 0.25rem;
+}
+
 .symbol-editor-canvas-area {
   flex: 1;
   display: flex;
@@ -2342,6 +2354,8 @@
 .symbol-editor-properties {
   width: 180px;
   flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 .symbol-editor-properties h4 {
@@ -2361,7 +2375,8 @@
   color: #888;
 }
 
-.symbol-editor-properties input {
+.symbol-editor-properties input,
+.symbol-editor-properties select {
   padding: 0.4rem 0.5rem;
   background: #222;
   border: 1px solid #444;
@@ -2370,7 +2385,8 @@
   font-size: 0.9rem;
 }
 
-.symbol-editor-properties input:focus {
+.symbol-editor-properties input:focus,
+.symbol-editor-properties select:focus {
   outline: none;
   border-color: #00ff00;
 }
@@ -2606,6 +2622,39 @@
   color: #666;
 }
 
+/* Standard filter chips */
+.standard-filter {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px 6px;
+  flex-shrink: 0;
+}
+
+.standard-chip {
+  flex: 1;
+  padding: 3px 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  color: #888;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.standard-chip:hover {
+  background: #333;
+  color: #ccc;
+}
+
+.standard-chip.active {
+  background: #00ff0018;
+  border-color: #00ff0040;
+  color: #00ff00;
+}
+
 .right-panel-categories {
   display: flex;
   flex-wrap: wrap;
@@ -2647,6 +2696,7 @@
 }
 
 .symbol-palette-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2696,6 +2746,37 @@
   font-size: 0.8rem;
   padding: 2rem 1rem;
   grid-column: 1 / -1;
+}
+
+/* Favorite star */
+.favorite-star {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 0.7rem;
+  color: #555;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 1;
+  transition: color 0.15s ease;
+}
+
+.favorite-star:hover {
+  color: #ffd700;
+}
+
+.favorite-star.active {
+  color: #ffd700;
+}
+
+/* Favorites empty state */
+.favorites-empty {
+  text-align: center;
+  color: #666;
+  font-size: 0.75rem;
+  padding: 2rem 1rem;
+  grid-column: 1 / -1;
+  line-height: 1.5;
 }
 
 /* ============================================

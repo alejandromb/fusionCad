@@ -178,6 +178,26 @@ export async function dragMarquee(
   await page.waitForTimeout(200);
 }
 
+/**
+ * Get a device's position by its tag.
+ * Resolves through device list since positions are keyed by device ID.
+ */
+export function getPositionByTag(state: any, tag: string): { x: number; y: number } | undefined {
+  const device = state.circuit?.devices?.find((d: any) => d.tag === tag);
+  if (!device) return undefined;
+  return state.devicePositions[device.id];
+}
+
+/**
+ * Check if a device with the given tag is selected.
+ * selectedDevices contains device IDs, so we resolve via the device list.
+ */
+export function isSelectedByTag(state: any, tag: string): boolean {
+  const device = state.circuit?.devices?.find((d: any) => d.tag === tag);
+  if (!device) return false;
+  return state.selectedDevices.includes(device.id);
+}
+
 function categoryToLabel(category: string): string {
   // Map old category names to search terms that will find symbols in the Insert Symbol dialog
   // Symbol names come from builtin-symbols.json

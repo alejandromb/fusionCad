@@ -43,9 +43,11 @@ test.describe('Copy and paste', () => {
     expect(tags).toEqual(['K1', 'K2']);
 
     // Duplicated device should be at an offset from original
-    const pos1 = state.devicePositions['K1'];
-    const pos2 = state.devicePositions['K2'];
-    expect(pos2.x).toBeGreaterThan(pos1.x);
-    expect(pos2.y).toBeGreaterThan(pos1.y);
+    const pos1 = canvasHelpers.getPositionByTag(state, 'K1');
+    const pos2 = canvasHelpers.getPositionByTag(state, 'K2');
+    expect(pos1).toBeTruthy();
+    expect(pos2).toBeTruthy();
+    expect(pos2!.x).toBeGreaterThan(pos1!.x);
+    expect(pos2!.y).toBeGreaterThan(pos1!.y);
   });
 });

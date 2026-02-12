@@ -10,7 +10,7 @@ test.describe('Select and delete', () => {
     await page.waitForTimeout(200);
 
     const state = await canvasHelpers.getState(page);
-    expect(state.selectedDevices).toContain('S1');
+    expect(canvasHelpers.isSelectedByTag(state, 'S1')).toBe(true);
   });
 
   test('Delete key removes selected device', async ({ page, canvasHelpers }) => {

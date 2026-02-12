@@ -11,6 +11,33 @@ import type { StorageProvider } from '../storage/storage-provider';
 import type { Point } from '../renderer/types';
 import { AUTO_SAVE_DELAY } from '../types';
 
+/**
+ * Detect whether positions are tag-keyed (legacy) or ID-keyed (new).
+ * ULID keys are 26 uppercase alphanumeric characters.
+ * Tag keys are short like "K1", "S2", "PS1".
+ */
+function migratePositions(
+  positions: Record<string, Point>,
+  devices: Device[],
+): Record<string, Point> {
+  const migrated: Record<string, Point> = {};
+  for (const [key, pos] of Object.entries(positions)) {
+    // ULID pattern: 26 chars, uppercase alphanumeric
+    if (key.length === 26 && /^[0-9A-Z]+$/.test(key)) {
+      // Already ID-keyed
+      migrated[key] = pos;
+    } else {
+      // Tag-keyed — find the device and migrate to its ID
+      const device = devices.find(d => d.tag === key);
+      if (device) {
+        migrated[device.id] = pos;
+      }
+      // If device not found, drop the position (orphaned)
+    }
+  }
+  return migrated;
+}
+
 function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   callback: T,
   delay: number
@@ -78,19 +105,25 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
       setProjectId(project.id);
       setProjectName(project.name);
 
+      const devices = project.circuitData.devices as Device[];
       const positionsMap = new Map<string, Point>();
       if (project.circuitData.positions) {
-        Object.entries(project.circuitData.positions).forEach(([tag, pos]) => {
-          positionsMap.set(tag, pos as Point);
+        const migrated = migratePositions(project.circuitData.positions as Record<string, Point>, devices);
+        Object.entries(migrated).forEach(([id, pos]) => {
+          positionsMap.set(id, pos);
         });
       }
       setDevicePositions(positionsMap);
 
       setCircuit({
-        devices: project.circuitData.devices as Device[],
+        devices,
         nets: project.circuitData.nets as Net[],
         parts: project.circuitData.parts as Part[],
         connections: project.circuitData.connections as Connection[],
+        ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
+        ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
+        ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
+        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
       });
 
       window.history.replaceState({}, '', `?project=${project.id}`);
@@ -173,14 +206,15 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
   }, [storage, projectId, projectName, refreshProjectsList]);
 
   // Save project to API
+  // Positions are stored keyed by device ID (ULID)
   const saveProject = useCallback(async () => {
     if (!projectId || !circuit) return;
 
     setSaveStatus('saving');
     try {
       const positions: Record<string, Point> = {};
-      devicePositions.forEach((pos, tag) => {
-        positions[tag] = pos;
+      devicePositions.forEach((pos, deviceId) => {
+        positions[deviceId] = pos;
       });
 
       await storage.updateProject(projectId, {
@@ -190,6 +224,10 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
           parts: circuit.parts,
           connections: circuit.connections,
           positions,
+          ...(circuit.sheets ? { sheets: circuit.sheets } : {}),
+          ...(circuit.annotations ? { annotations: circuit.annotations } : {}),
+          ...(circuit.terminals ? { terminals: circuit.terminals } : {}),
+          ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
         },
       });
       setSaveStatus('saved');
@@ -223,19 +261,25 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
           setProjectId(project.id);
           setProjectName(project.name);
 
+          const devices = project.circuitData.devices as Device[];
           const positionsMap = new Map<string, Point>();
           if (project.circuitData.positions) {
-            Object.entries(project.circuitData.positions).forEach(([tag, pos]) => {
-              positionsMap.set(tag, pos as Point);
+            const migrated = migratePositions(project.circuitData.positions as Record<string, Point>, devices);
+            Object.entries(migrated).forEach(([id, pos]) => {
+              positionsMap.set(id, pos);
             });
           }
           setDevicePositions(positionsMap);
 
           setCircuit({
-            devices: project.circuitData.devices as Device[],
+            devices,
             nets: project.circuitData.nets as Net[],
             parts: project.circuitData.parts as Part[],
             connections: project.circuitData.connections as Connection[],
+            ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
+            ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
+            ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
+        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
           });
         } else {
           const projects = await storage.listProjects();
@@ -245,19 +289,25 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
             setProjectId(project.id);
             setProjectName(project.name);
 
+            const loadedDevices = project.circuitData.devices as Device[];
             const positionsMap = new Map<string, Point>();
             if (project.circuitData.positions) {
-              Object.entries(project.circuitData.positions).forEach(([tag, pos]) => {
-                positionsMap.set(tag, pos as Point);
+              const migrated = migratePositions(project.circuitData.positions as Record<string, Point>, loadedDevices);
+              Object.entries(migrated).forEach(([id, pos]) => {
+                positionsMap.set(id, pos);
               });
             }
             setDevicePositions(positionsMap);
 
             setCircuit({
-              devices: project.circuitData.devices as Device[],
+              devices: loadedDevices,
               nets: project.circuitData.nets as Net[],
               parts: project.circuitData.parts as Part[],
               connections: project.circuitData.connections as Connection[],
+              ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
+              ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
+              ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
+        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
             });
 
             window.history.replaceState({}, '', `?project=${project.id}`);

@@ -6,49 +6,94 @@
       "id": "iec-contactor-3p",
       "name": "Contactor 3P",
       "category": "Power",
-      "width": 40,
+      "standard": "IEC 60617",
+      "width": 60,
       "height": 72,
       "svgPath": "",
       "pins": [
-        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "power" },
-        { "id": "2", "name": "2", "x": 20, "y": 72, "direction": "bottom", "pinType": "power" }
+        { "id": "L1", "name": "L1", "x": 10, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T1", "name": "T1", "x": 10, "y": 72, "direction": "bottom", "pinType": "power" },
+        { "id": "L2", "name": "L2", "x": 30, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T2", "name": "T2", "x": 30, "y": 72, "direction": "bottom", "pinType": "power" },
+        { "id": "L3", "name": "L3", "x": 50, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T3", "name": "T3", "x": 50, "y": 72, "direction": "bottom", "pinType": "power" }
       ],
       "tagPrefix": "K",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 20 },
-        { "type": "rect", "x": 10, "y": 20, "width": 20, "height": 12 },
-        { "type": "line", "x1": 20, "y1": 32, "x2": 20, "y2": 35 },
-        { "type": "line", "x1": 16, "y1": 35, "x2": 24, "y2": 50 },
-        { "type": "line", "x1": 17, "y1": 48, "x2": 23, "y2": 48 },
-        { "type": "line", "x1": 17, "y1": 48, "x2": 17, "y2": 52 },
-        { "type": "line", "x1": 23, "y1": 48, "x2": 23, "y2": 52 },
-        { "type": "line", "x1": 20, "y1": 50, "x2": 20, "y2": 72 }
+        { "type": "line", "x1": 10, "y1": 0, "x2": 10, "y2": 20 },
+        { "type": "rect", "x": 4, "y": 20, "width": 12, "height": 12 },
+        { "type": "line", "x1": 10, "y1": 32, "x2": 10, "y2": 35 },
+        { "type": "line", "x1": 6, "y1": 35, "x2": 14, "y2": 50 },
+        { "type": "line", "x1": 7, "y1": 48, "x2": 13, "y2": 48 },
+        { "type": "line", "x1": 7, "y1": 48, "x2": 7, "y2": 52 },
+        { "type": "line", "x1": 13, "y1": 48, "x2": 13, "y2": 52 },
+        { "type": "line", "x1": 10, "y1": 50, "x2": 10, "y2": 72 },
+
+        { "type": "line", "x1": 30, "y1": 0, "x2": 30, "y2": 20 },
+        { "type": "rect", "x": 24, "y": 20, "width": 12, "height": 12 },
+        { "type": "line", "x1": 30, "y1": 32, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 26, "y1": 35, "x2": 34, "y2": 50 },
+        { "type": "line", "x1": 27, "y1": 48, "x2": 33, "y2": 48 },
+        { "type": "line", "x1": 27, "y1": 48, "x2": 27, "y2": 52 },
+        { "type": "line", "x1": 33, "y1": 48, "x2": 33, "y2": 52 },
+        { "type": "line", "x1": 30, "y1": 50, "x2": 30, "y2": 72 },
+
+        { "type": "line", "x1": 50, "y1": 0, "x2": 50, "y2": 20 },
+        { "type": "rect", "x": 44, "y": 20, "width": 12, "height": 12 },
+        { "type": "line", "x1": 50, "y1": 32, "x2": 50, "y2": 35 },
+        { "type": "line", "x1": 46, "y1": 35, "x2": 54, "y2": 50 },
+        { "type": "line", "x1": 47, "y1": 48, "x2": 53, "y2": 48 },
+        { "type": "line", "x1": 47, "y1": 48, "x2": 47, "y2": 52 },
+        { "type": "line", "x1": 53, "y1": 48, "x2": 53, "y2": 52 },
+        { "type": "line", "x1": 50, "y1": 50, "x2": 50, "y2": 72 },
+
+        { "type": "line", "x1": 7, "y1": 26, "x2": 47, "y2": 26, "strokeWidth": 1 }
       ]
     },
     {
       "id": "iec-circuit-breaker-3p",
       "name": "Circuit Breaker 3P",
       "category": "Power",
-      "width": 40,
+      "standard": "IEC 60617",
+      "width": 60,
       "height": 60,
       "svgPath": "",
       "pins": [
-        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "power" },
-        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "power" }
+        { "id": "L1", "name": "L1", "x": 10, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T1", "name": "T1", "x": 10, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L2", "name": "L2", "x": 30, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T2", "name": "T2", "x": 30, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L3", "name": "L3", "x": 50, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T3", "name": "T3", "x": 50, "y": 60, "direction": "bottom", "pinType": "power" }
       ],
       "tagPrefix": "CB",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 20 },
-        { "type": "line", "x1": 18, "y1": 18, "x2": 22, "y2": 22 },
-        { "type": "line", "x1": 22, "y1": 18, "x2": 18, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 40, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 10, "y1": 40, "x2": 20, "y2": 20 }
+        { "type": "line", "x1": 10, "y1": 0, "x2": 10, "y2": 18 },
+        { "type": "line", "x1": 8, "y1": 16, "x2": 12, "y2": 20 },
+        { "type": "line", "x1": 12, "y1": 16, "x2": 8, "y2": 20 },
+        { "type": "line", "x1": 10, "y1": 38, "x2": 4, "y2": 18 },
+        { "type": "line", "x1": 10, "y1": 38, "x2": 10, "y2": 60 },
+
+        { "type": "line", "x1": 30, "y1": 0, "x2": 30, "y2": 18 },
+        { "type": "line", "x1": 28, "y1": 16, "x2": 32, "y2": 20 },
+        { "type": "line", "x1": 32, "y1": 16, "x2": 28, "y2": 20 },
+        { "type": "line", "x1": 30, "y1": 38, "x2": 24, "y2": 18 },
+        { "type": "line", "x1": 30, "y1": 38, "x2": 30, "y2": 60 },
+
+        { "type": "line", "x1": 50, "y1": 0, "x2": 50, "y2": 18 },
+        { "type": "line", "x1": 48, "y1": 16, "x2": 52, "y2": 20 },
+        { "type": "line", "x1": 52, "y1": 16, "x2": 48, "y2": 20 },
+        { "type": "line", "x1": 50, "y1": 38, "x2": 44, "y2": 18 },
+        { "type": "line", "x1": 50, "y1": 38, "x2": 50, "y2": 60 },
+
+        { "type": "line", "x1": 7, "y1": 28, "x2": 47, "y2": 28, "strokeWidth": 1 }
       ]
     },
     {
       "id": "iec-circuit-breaker-thermal-magnetic",
       "name": "Circuit Breaker Thermal/Magnetic",
       "category": "Power",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -58,56 +103,88 @@
       ],
       "tagPrefix": "CB",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 20 },
-        { "type": "line", "x1": 18, "y1": 18, "x2": 22, "y2": 22 },
-        { "type": "line", "x1": 22, "y1": 18, "x2": 18, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 40, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 10, "y1": 40, "x2": 20, "y2": 20 },
-        { "type": "arc", "cx": 28, "cy": 30, "r": 4, "startAngle": 3.14, "endAngle": 0 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "line", "x1": 17, "y1": 15, "x2": 23, "y2": 21 },
+        { "type": "line", "x1": 23, "y1": 15, "x2": 17, "y2": 21 },
+        { "type": "line", "x1": 20, "y1": 38, "x2": 13, "y2": 18 },
+        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "arc", "cx": 18, "cy": 28, "r": 3, "startAngle": -1.57, "endAngle": 1.57 }
       ]
     },
     {
       "id": "iec-disconnector-3p",
       "name": "Disconnector/Isolator 3P",
       "category": "Power",
-      "width": 40,
+      "standard": "IEC 60617",
+      "width": 60,
       "height": 60,
       "svgPath": "",
       "pins": [
-        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "power" },
-        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "power" }
+        { "id": "L1", "name": "L1", "x": 10, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T1", "name": "T1", "x": 10, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L2", "name": "L2", "x": 30, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T2", "name": "T2", "x": 30, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L3", "name": "L3", "x": 50, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T3", "name": "T3", "x": 50, "y": 60, "direction": "bottom", "pinType": "power" }
       ],
       "tagPrefix": "QS",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 18, "y1": 22, "x2": 22, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 15, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 }
+        { "type": "line", "x1": 10, "y1": 0, "x2": 10, "y2": 22 },
+        { "type": "line", "x1": 8, "y1": 22, "x2": 12, "y2": 22 },
+        { "type": "line", "x1": 10, "y1": 38, "x2": 5, "y2": 22 },
+        { "type": "line", "x1": 10, "y1": 38, "x2": 10, "y2": 60 },
+
+        { "type": "line", "x1": 30, "y1": 0, "x2": 30, "y2": 22 },
+        { "type": "line", "x1": 28, "y1": 22, "x2": 32, "y2": 22 },
+        { "type": "line", "x1": 30, "y1": 38, "x2": 25, "y2": 22 },
+        { "type": "line", "x1": 30, "y1": 38, "x2": 30, "y2": 60 },
+
+        { "type": "line", "x1": 50, "y1": 0, "x2": 50, "y2": 22 },
+        { "type": "line", "x1": 48, "y1": 22, "x2": 52, "y2": 22 },
+        { "type": "line", "x1": 50, "y1": 38, "x2": 45, "y2": 22 },
+        { "type": "line", "x1": 50, "y1": 38, "x2": 50, "y2": 60 },
+
+        { "type": "line", "x1": 7, "y1": 30, "x2": 47, "y2": 30, "strokeWidth": 1 }
       ]
     },
     {
       "id": "iec-fuse-3p",
       "name": "Fuse 3P",
       "category": "Power",
-      "width": 40,
+      "standard": "IEC 60617",
+      "width": 60,
       "height": 60,
       "svgPath": "",
       "pins": [
-        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "power" },
-        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "power" }
+        { "id": "L1", "name": "L1", "x": 10, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T1", "name": "T1", "x": 10, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L2", "name": "L2", "x": 30, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T2", "name": "T2", "x": 30, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L3", "name": "L3", "x": 50, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T3", "name": "T3", "x": 50, "y": 60, "direction": "bottom", "pinType": "power" }
       ],
       "tagPrefix": "FU",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
-        { "type": "rect", "x": 15, "y": 18, "width": 10, "height": 24 },
-        { "type": "line", "x1": 20, "y1": 18, "x2": 20, "y2": 42 },
-        { "type": "line", "x1": 20, "y1": 42, "x2": 20, "y2": 60 }
+        { "type": "line", "x1": 10, "y1": 0, "x2": 10, "y2": 18 },
+        { "type": "rect", "x": 5, "y": 18, "width": 10, "height": 24 },
+        { "type": "line", "x1": 10, "y1": 42, "x2": 10, "y2": 60 },
+
+        { "type": "line", "x1": 30, "y1": 0, "x2": 30, "y2": 18 },
+        { "type": "rect", "x": 25, "y": 18, "width": 10, "height": 24 },
+        { "type": "line", "x1": 30, "y1": 42, "x2": 30, "y2": 60 },
+
+        { "type": "line", "x1": 50, "y1": 0, "x2": 50, "y2": 18 },
+        { "type": "rect", "x": 45, "y": 18, "width": 10, "height": 24 },
+        { "type": "line", "x1": 50, "y1": 42, "x2": 50, "y2": 60 },
+
+        { "type": "line", "x1": 7, "y1": 30, "x2": 47, "y2": 30, "strokeWidth": 1 }
       ]
     },
     {
       "id": "iec-normally-open-contact",
       "name": "Normally Open Contact (NO)",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -117,16 +194,17 @@
       ],
       "tagPrefix": "CR",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 }
       ]
     },
     {
       "id": "iec-normally-closed-contact",
       "name": "Normally Closed Contact (NC)",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -136,17 +214,18 @@
       ],
       "tagPrefix": "CR",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 14, "y1": 38, "x2": 26, "y2": 22 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 30, "y1": 25, "x2": 10, "y2": 35 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 }
       ]
     },
     {
       "id": "iec-changeover-contact",
       "name": "Changeover Contact",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 50,
       "height": 60,
       "svgPath": "",
@@ -157,19 +236,20 @@
       ],
       "tagPrefix": "CR",
       "primitives": [
-        { "type": "line", "x1": 25, "y1": 0, "x2": 25, "y2": 22 },
-        { "type": "line", "x1": 13, "y1": 22, "x2": 25, "y2": 22 },
-        { "type": "line", "x1": 25, "y1": 38, "x2": 37, "y2": 38 },
-        { "type": "line", "x1": 14, "y1": 38, "x2": 26, "y2": 22 },
-        { "type": "line", "x1": 35, "y1": 38, "x2": 35, "y2": 60 },
-        { "type": "line", "x1": 15, "y1": 38, "x2": 15, "y2": 60 },
-        { "type": "line", "x1": 13, "y1": 38, "x2": 17, "y2": 38 }
+        { "type": "line", "x1": 25, "y1": 0, "x2": 25, "y2": 25 },
+        { "type": "line", "x1": 7, "y1": 25, "x2": 43, "y2": 25 },
+        { "type": "line", "x1": 28, "y1": 35, "x2": 42, "y2": 35 },
+        { "type": "line", "x1": 8, "y1": 35, "x2": 22, "y2": 35 },
+        { "type": "line", "x1": 22, "y1": 25, "x2": 8, "y2": 35 },
+        { "type": "line", "x1": 35, "y1": 35, "x2": 35, "y2": 60 },
+        { "type": "line", "x1": 15, "y1": 35, "x2": 15, "y2": 60 }
       ]
     },
     {
       "id": "iec-coil",
       "name": "Coil/Relay",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -188,6 +268,7 @@
       "id": "iec-on-delay-timer",
       "name": "On-Delay Timer",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -207,6 +288,7 @@
       "id": "iec-off-delay-timer",
       "name": "Off-Delay Timer",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -226,6 +308,7 @@
       "id": "iec-on-delay-no-contact",
       "name": "On-Delay NO Contact",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -235,10 +318,10 @@
       ],
       "tagPrefix": "CR",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 33, "cy": 27, "r": 4, "startAngle": 3.14, "endAngle": 0 }
       ]
     },
@@ -246,6 +329,7 @@
       "id": "iec-off-delay-no-contact",
       "name": "Off-Delay NO Contact",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -255,10 +339,10 @@
       ],
       "tagPrefix": "CR",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 33, "cy": 33, "r": 4, "startAngle": 0, "endAngle": 3.14 }
       ]
     },
@@ -266,6 +350,7 @@
       "id": "iec-thermal-overload-relay",
       "name": "Thermal Overload Relay",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -282,9 +367,46 @@
       ]
     },
     {
+      "id": "iec-thermal-overload-relay-3p",
+      "name": "Thermal Overload Relay 3P",
+      "category": "Power",
+      "standard": "IEC 60617",
+      "width": 60,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "L1", "name": "L1", "x": 10, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T1", "name": "T1", "x": 10, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L2", "name": "L2", "x": 30, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T2", "name": "T2", "x": 30, "y": 60, "direction": "bottom", "pinType": "power" },
+        { "id": "L3", "name": "L3", "x": 50, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "T3", "name": "T3", "x": 50, "y": 60, "direction": "bottom", "pinType": "power" }
+      ],
+      "tagPrefix": "F",
+      "primitives": [
+        { "type": "line", "x1": 10, "y1": 0, "x2": 10, "y2": 18 },
+        { "type": "rect", "x": 4, "y": 18, "width": 12, "height": 24 },
+        { "type": "polyline", "points": [{"x": 6, "y": 26}, {"x": 8, "y": 24}, {"x": 10, "y": 28}, {"x": 12, "y": 24}, {"x": 14, "y": 26}] },
+        { "type": "line", "x1": 10, "y1": 42, "x2": 10, "y2": 60 },
+
+        { "type": "line", "x1": 30, "y1": 0, "x2": 30, "y2": 18 },
+        { "type": "rect", "x": 24, "y": 18, "width": 12, "height": 24 },
+        { "type": "polyline", "points": [{"x": 26, "y": 26}, {"x": 28, "y": 24}, {"x": 30, "y": 28}, {"x": 32, "y": 24}, {"x": 34, "y": 26}] },
+        { "type": "line", "x1": 30, "y1": 42, "x2": 30, "y2": 60 },
+
+        { "type": "line", "x1": 50, "y1": 0, "x2": 50, "y2": 18 },
+        { "type": "rect", "x": 44, "y": 18, "width": 12, "height": 24 },
+        { "type": "polyline", "points": [{"x": 46, "y": 26}, {"x": 48, "y": 24}, {"x": 50, "y": 28}, {"x": 52, "y": 24}, {"x": 54, "y": 26}] },
+        { "type": "line", "x1": 50, "y1": 42, "x2": 50, "y2": 60 },
+
+        { "type": "line", "x1": 7, "y1": 30, "x2": 47, "y2": 30, "strokeWidth": 1 }
+      ]
+    },
+    {
       "id": "iec-manual-switch",
       "name": "Manual Switch",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -294,17 +416,18 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 20, "y1": 30, "x2": 20, "y2": 22 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "line", "x1": 20, "y1": 18, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 }
       ]
     },
     {
       "id": "iec-emergency-stop",
       "name": "Emergency Stop (E-Stop)",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -314,11 +437,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 14, "y1": 38, "x2": 26, "y2": 22 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 30, "y1": 25, "x2": 10, "y2": 35 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "circle", "cx": 20, "cy": 18, "r": 5 },
         { "type": "line", "x1": 16, "y1": 14, "x2": 24, "y2": 14 }
       ]
@@ -327,6 +450,7 @@
       "id": "iec-selector-switch",
       "name": "Selector Switch",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -336,10 +460,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 20, "cy": 18, "r": 4, "startAngle": 3.93, "endAngle": 5.50 }
       ]
     },
@@ -347,6 +471,7 @@
       "id": "iec-key-switch",
       "name": "Key Switch",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -356,10 +481,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 17, "y": 18}, {"x": 20, "y": 14}, {"x": 23, "y": 18}] },
         { "type": "polyline", "points": [{"x": 17, "y": 14}, {"x": 20, "y": 10}, {"x": 23, "y": 14}] }
       ]
@@ -368,6 +493,7 @@
       "id": "iec-foot-switch",
       "name": "Foot Switch",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -377,10 +503,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 12, "y": 18}, {"x": 20, "y": 10}, {"x": 28, "y": 18}], "closed": true }
       ]
     },
@@ -388,6 +514,7 @@
       "id": "iec-limit-switch",
       "name": "Limit Switch",
       "category": "Control",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -397,18 +524,19 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 20, "y1": 22, "x2": 28, "y2": 14 },
-        { "type": "circle", "cx": 30, "cy": 12, "r": 3 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 25, "x2": 28, "y2": 17 },
+        { "type": "circle", "cx": 30, "cy": 15, "r": 3 }
       ]
     },
     {
       "id": "iec-level-switch",
       "name": "Level Switch",
       "category": "Field",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -418,10 +546,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 20, "cy": 14, "r": 5, "startAngle": 3.14, "endAngle": 6.28 }
       ]
     },
@@ -429,6 +557,7 @@
       "id": "iec-flow-switch",
       "name": "Flow Switch",
       "category": "Field",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -438,10 +567,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "rect", "x": 15, "y": 8, "width": 10, "height": 10 }
       ]
     },
@@ -449,6 +578,7 @@
       "id": "iec-pressure-switch",
       "name": "Pressure Switch",
       "category": "Field",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -458,10 +588,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 16, "y": 16}, {"x": 16, "y": 8}, {"x": 24, "y": 8}, {"x": 24, "y": 16}] }
       ]
     },
@@ -469,6 +599,7 @@
       "id": "iec-temperature-switch",
       "name": "Temperature Switch",
       "category": "Field",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -478,10 +609,10 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 8, "y1": 22, "x2": 20, "y2": 22 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 32, "y2": 38 },
-        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
+        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
+        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
         { "type": "line", "x1": 18, "y1": 16, "x2": 18, "y2": 8 },
         { "type": "line", "x1": 22, "y1": 16, "x2": 22, "y2": 8 },
         { "type": "line", "x1": 18, "y1": 8, "x2": 22, "y2": 8 }
@@ -491,6 +622,7 @@
       "id": "iec-pilot-light",
       "name": "Pilot Light/Indicator",
       "category": "Control",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -511,6 +643,7 @@
       "id": "iec-horn",
       "name": "Horn/Audible Alarm",
       "category": "Control",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -529,6 +662,7 @@
       "id": "iec-motor-3ph",
       "name": "Motor 3-Phase",
       "category": "Motor",
+      "standard": "common",
       "width": 60,
       "height": 55,
       "svgPath": "",
@@ -554,6 +688,7 @@
       "id": "iec-motor-1ph",
       "name": "Motor 1-Phase",
       "category": "Motor",
+      "standard": "common",
       "width": 50,
       "height": 55,
       "svgPath": "",
@@ -576,6 +711,7 @@
       "id": "iec-transformer-3ph",
       "name": "Transformer 3-Phase",
       "category": "Power",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -595,6 +731,7 @@
       "id": "iec-current-transformer",
       "name": "Current Transformer (CT)",
       "category": "Power",
+      "standard": "common",
       "width": 50,
       "height": 60,
       "svgPath": "",
@@ -616,6 +753,7 @@
       "id": "iec-voltmeter",
       "name": "Voltmeter",
       "category": "Meter",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -635,6 +773,7 @@
       "id": "iec-ammeter",
       "name": "Ammeter",
       "category": "Meter",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -654,6 +793,7 @@
       "id": "iec-power-supply-ac-dc",
       "name": "Power Supply AC/DC",
       "category": "Power",
+      "standard": "common",
       "width": 50,
       "height": 60,
       "svgPath": "",
@@ -679,6 +819,7 @@
       "id": "iec-vfd",
       "name": "Variable Frequency Drive (VFD)",
       "category": "Power",
+      "standard": "common",
       "width": 60,
       "height": 80,
       "svgPath": "",
@@ -706,6 +847,7 @@
       "id": "iec-capacitor",
       "name": "Capacitor",
       "category": "Passive",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -725,6 +867,7 @@
       "id": "iec-resistor",
       "name": "Resistor",
       "category": "Passive",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -743,6 +886,7 @@
       "id": "iec-inductor",
       "name": "Inductor",
       "category": "Passive",
+      "standard": "IEC 60617",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -763,6 +907,7 @@
       "id": "iec-diode",
       "name": "Diode",
       "category": "Passive",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -782,6 +927,7 @@
       "id": "iec-led",
       "name": "LED",
       "category": "Passive",
+      "standard": "common",
       "width": 40,
       "height": 60,
       "svgPath": "",
@@ -807,6 +953,7 @@
       "id": "iec-earth-ground",
       "name": "Earth Ground",
       "category": "Ground",
+      "standard": "common",
       "width": 40,
       "height": 40,
       "svgPath": "",
@@ -825,6 +972,7 @@
       "id": "iec-protective-earth",
       "name": "Protective Earth (PE)",
       "category": "Ground",
+      "standard": "common",
       "width": 40,
       "height": 40,
       "svgPath": "",
@@ -845,6 +993,7 @@
       "id": "iec-chassis-ground",
       "name": "Chassis/Frame Ground",
       "category": "Ground",
+      "standard": "common",
       "width": 40,
       "height": 40,
       "svgPath": "",
@@ -861,6 +1010,7 @@
       "id": "iec-terminal-single",
       "name": "Terminal (Single Level)",
       "category": "Terminal",
+      "standard": "common",
       "width": 20,
       "height": 30,
       "svgPath": "",
@@ -884,6 +1034,7 @@
       "id": "iec-terminal-dual",
       "name": "Terminal (Dual Level)",
       "category": "Terminal",
+      "standard": "common",
       "width": 20,
       "height": 55,
       "svgPath": "",
@@ -916,6 +1067,7 @@
       "id": "iec-terminal-ground",
       "name": "Ground Terminal",
       "category": "Terminal",
+      "standard": "common",
       "width": 20,
       "height": 30,
       "svgPath": "",
@@ -941,6 +1093,7 @@
       "id": "iec-terminal-fuse",
       "name": "Fuse Terminal",
       "category": "Terminal",
+      "standard": "common",
       "width": 20,
       "height": 30,
       "svgPath": "",
@@ -965,6 +1118,7 @@
       "id": "iec-plc-cpu",
       "name": "PLC CPU Module",
       "category": "PLC",
+      "standard": "common",
       "width": 80,
       "height": 100,
       "svgPath": "",
@@ -987,6 +1141,7 @@
       "id": "iec-plc-di-8",
       "name": "PLC Digital Input 8-Ch",
       "category": "PLC",
+      "standard": "common",
       "width": 60,
       "height": 120,
       "svgPath": "",
@@ -1021,6 +1176,7 @@
       "id": "iec-plc-do-8",
       "name": "PLC Digital Output 8-Ch",
       "category": "PLC",
+      "standard": "common",
       "width": 60,
       "height": 120,
       "svgPath": "",
@@ -1055,6 +1211,7 @@
       "id": "iec-plc-ai-4",
       "name": "PLC Analog Input 4-Ch",
       "category": "PLC",
+      "standard": "common",
       "width": 60,
       "height": 80,
       "svgPath": "",
@@ -1087,6 +1244,7 @@
       "id": "iec-plc-ao-4",
       "name": "PLC Analog Output 4-Ch",
       "category": "PLC",
+      "standard": "common",
       "width": 60,
       "height": 80,
       "svgPath": "",
@@ -1119,6 +1277,7 @@
       "id": "junction",
       "name": "Junction",
       "category": "Junction",
+      "standard": "common",
       "width": 12,
       "height": 12,
       "svgPath": "",
@@ -1128,6 +1287,201 @@
       "tagPrefix": "J",
       "primitives": [
         { "type": "circle", "cx": 6, "cy": 6, "r": 4, "fill": "#00ff00" }
+      ]
+    },
+
+    {
+      "id": "ansi-normally-open-contact",
+      "name": "NO Contact (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "CR",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-normally-closed-contact",
+      "name": "NC Contact (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "CR",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 25 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-coil",
+      "name": "Coil/Relay (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "A1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "A2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "K",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "circle", "cx": 20, "cy": 30, "r": 12 },
+        { "type": "arc", "cx": 14, "cy": 30, "r": 4, "startAngle": 1.57, "endAngle": 4.71 },
+        { "type": "arc", "cx": 26, "cy": 30, "r": 4, "startAngle": 4.71, "endAngle": 1.57 },
+        { "type": "line", "x1": 20, "y1": 42, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-resistor",
+      "name": "Resistor (ANSI)",
+      "category": "Passive",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "R",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "polyline", "points": [
+          {"x": 20, "y": 18}, {"x": 28, "y": 21}, {"x": 12, "y": 25},
+          {"x": 28, "y": 29}, {"x": 12, "y": 33}, {"x": 28, "y": 37},
+          {"x": 20, "y": 40}
+        ]},
+        { "type": "line", "x1": 20, "y1": 40, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-capacitor",
+      "name": "Capacitor (ANSI)",
+      "category": "Passive",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "C",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 26 },
+        { "type": "line", "x1": 6, "y1": 26, "x2": 34, "y2": 26 },
+        { "type": "arc", "cx": 20, "cy": 40, "r": 10, "startAngle": 4.44, "endAngle": 5.0 },
+        { "type": "line", "x1": 20, "y1": 34, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-inductor",
+      "name": "Inductor (ANSI)",
+      "category": "Passive",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "L",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "arc", "cx": 20, "cy": 22, "r": 4, "startAngle": 3.14, "endAngle": 0 },
+        { "type": "arc", "cx": 20, "cy": 26, "r": 4, "startAngle": 3.14, "endAngle": 0 },
+        { "type": "arc", "cx": 20, "cy": 30, "r": 4, "startAngle": 3.14, "endAngle": 0 },
+        { "type": "arc", "cx": 20, "cy": 34, "r": 4, "startAngle": 3.14, "endAngle": 0 },
+        { "type": "line", "x1": 20, "y1": 38, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-fuse",
+      "name": "Fuse (ANSI)",
+      "category": "Power",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "power" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "power" }
+      ],
+      "tagPrefix": "FU",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "arc", "cx": 20, "cy": 24, "r": 6, "startAngle": 4.71, "endAngle": 1.57 },
+        { "type": "arc", "cx": 20, "cy": 36, "r": 6, "startAngle": 1.57, "endAngle": 4.71 },
+        { "type": "line", "x1": 20, "y1": 42, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-overload-relay",
+      "name": "Overload Relay (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "F",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
+        { "type": "polyline", "points": [
+          {"x": 20, "y": 18}, {"x": 28, "y": 21}, {"x": 12, "y": 25},
+          {"x": 28, "y": 29}, {"x": 12, "y": 33}, {"x": 28, "y": 37},
+          {"x": 20, "y": 40}
+        ]},
+        { "type": "line", "x1": 12, "y1": 40, "x2": 28, "y2": 40 },
+        { "type": "line", "x1": 20, "y1": 40, "x2": 20, "y2": 60 }
+      ]
+    },
+    {
+      "id": "ansi-manual-switch",
+      "name": "Manual Switch (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 60, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "S",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "#00ff00" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 16, "y1": 31, "x2": 16, "y2": 20 }
       ]
     }
   ]

@@ -3,16 +3,16 @@ import { test, expect } from '../fixtures/fusion-cad.fixture';
 test.describe('T-Junction wire connections', () => {
   /**
    * Setup helper: place two switches and wire them vertically.
-   * S1 at (200, 200): pin 1 (230, 200), pin 2 (230, 271)
-   * S2 at (200, 400): pin 1 (230, 400), pin 2 (230, 471)
-   * Wire from S1 pin 2 (230, 271) → S2 pin 1 (230, 400) = vertical wire at x=230
+   * S1 at (200, 200): pin 1 (220, 200), pin 2 (220, 260)
+   * S2 at (200, 400): pin 1 (220, 400), pin 2 (220, 460)
+   * Wire from S1 pin 2 (220, 260) → S2 pin 1 (220, 400) = vertical wire at x=220
    */
   async function setupBaseWire(page: any, canvasHelpers: any) {
     await canvasHelpers.placeSymbol(page, 'button', 200, 200);
     await canvasHelpers.waitForDeviceCount(page, 1);
     await canvasHelpers.placeSymbol(page, 'button', 200, 400);
     await canvasHelpers.waitForDeviceCount(page, 2);
-    await canvasHelpers.createWire(page, 230, 271, 230, 400);
+    await canvasHelpers.createWire(page, 220, 260, 220, 400);
     await canvasHelpers.waitForConnectionCount(page, 1);
   }
 
@@ -27,12 +27,12 @@ test.describe('T-Junction wire connections', () => {
     const stateBefore = await canvasHelpers.getState(page);
     const originalNetId = stateBefore.circuit.connections[0].netId;
 
-    // Enter wire mode, click S3 pin 1 (430, 300), then click on the vertical wire (230, 340)
+    // Enter wire mode, click S3 pin 1 (420, 300), then click on the vertical wire (220, 340)
     await page.keyboard.press('w');
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 430, 300);
+    await canvasHelpers.clickCanvas(page, 420, 300);
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 230, 340);
+    await canvasHelpers.clickCanvas(page, 220, 340);
     await page.waitForTimeout(300);
 
     // Should now have 4 devices (S1, S2, S3, J1) and 3 connections
@@ -72,24 +72,24 @@ test.describe('T-Junction wire connections', () => {
 
     await page.keyboard.press('w');
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 430, 300);
+    await canvasHelpers.clickCanvas(page, 420, 300);
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 230, 340);
+    await canvasHelpers.clickCanvas(page, 220, 340);
     await page.waitForTimeout(300);
 
     await canvasHelpers.waitForDeviceCount(page, 4);
     await canvasHelpers.waitForConnectionCount(page, 3);
 
     // Switch to select mode and click on junction to select it
-    // Junction position: snapToGrid(230-6)=220, snapToGrid(340-6)=340
+    // Junction position: snapToGrid(220-6)=220, snapToGrid(340-6)=340
     // Junction symbol is 12x12 at (220, 340), center at (226, 346)
     await canvasHelpers.selectMode(page);
     await canvasHelpers.clickCanvas(page, 226, 346);
     await page.waitForTimeout(200);
 
-    // Verify junction is selected
+    // Verify junction is selected (selectedDevices contains device IDs)
     const stateSelected = await canvasHelpers.getState(page);
-    expect(stateSelected.selectedDevices).toContain('J1');
+    expect(canvasHelpers.isSelectedByTag(stateSelected, 'J1')).toBe(true);
 
     // Delete the junction
     await page.keyboard.press('Delete');
@@ -119,9 +119,9 @@ test.describe('T-Junction wire connections', () => {
 
     await page.keyboard.press('w');
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 430, 300);
+    await canvasHelpers.clickCanvas(page, 420, 300);
     await page.waitForTimeout(100);
-    await canvasHelpers.clickCanvas(page, 230, 340);
+    await canvasHelpers.clickCanvas(page, 220, 340);
     await page.waitForTimeout(300);
 
     await canvasHelpers.waitForDeviceCount(page, 4);

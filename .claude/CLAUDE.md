@@ -30,22 +30,23 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-10)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-12)
 
-**Current task:** Object Inspector (Editable Properties Panel) - COMPLETE!
+**Current task:** Linked Device Representations - COMPLETE!
 
 **Status:**
-- ✅ **Object Inspector**: Inline-editable device tag/function/location in Properties panel
-- ✅ **Annotation Selection**: Click annotations on canvas, cyan dashed highlight, edit in sidebar
-- ✅ **Multi-select Summary**: Tag chips display when 2+ devices selected
-- ✅ **Undo/Redo Bug Fixes**: createSnapshot now includes sheets/annotations/terminals; updateAnnotation now undoable
+- ✅ **ID-Keyed Architecture**: All internal systems use `device.id` (not `device.tag`)
+- ✅ **deviceGroupId**: Links multiple representations of same physical device
+- ✅ **MCP Server** (`packages/mcp-server/`): 19 tools (9 read, 10 write) incl. `place_linked_device`
+- ✅ **ERC + BOM updated**: deviceGroupId-aware duplicate checks and BOM grouping
 - ✅ **35 E2E tests passing**
 - ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, marquee, wire bend points)
 
 **Next steps:**
-1. Implement IndexedDB storage for free tier
-2. Import symbols from external SVG libraries
-3. Fine-tune symbol paths using Symbol Editor
+1. Test linked device workflow end-to-end (K1 contactor + K1 coil + K1 aux contacts)
+2. Implement IndexedDB storage for free tier
+3. Import symbols from external SVG libraries
+4. Fine-tune symbol paths using Symbol Editor
 
 ---
 
@@ -54,6 +55,8 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (98% complete)
 
 **Recent achievements:**
+- ✅ **Linked Device Representations** - ID-keyed architecture, deviceGroupId, place_linked_device MCP tool
+- ✅ **MCP Server** - 19 tools for AI-driven circuit manipulation (prerequisite for AI-assisted drawing)
 - ✅ **Object Inspector** - Inline-editable properties, annotation selection/editing
 - ✅ **Symbol Editor** - Visual tool to create/edit symbols without code
 - ✅ **JSON Symbol Library** - 55 IEC symbols loaded from `builtin-symbols.json`
@@ -66,6 +69,22 @@ Before doing ANYTHING else:
 - ⭐ Automatic terminal block calculation (Phase 3-4)
 - ⭐ Panel layout editor (Phase 6-7)
 - ⭐ Dual storage: IndexedDB (free) + Postgres (paid)
+
+---
+
+## 🤖 MCP SERVER
+
+The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for AI agents.
+
+**To use:** Start the API (`npm run dev:api`), then restart Claude Code — it discovers `.mcp.json` automatically.
+
+**19 Tools:** `list_projects`, `get_project_summary`, `list_devices`, `list_connections`, `list_symbols`, `search_symbols`, `run_erc`, `generate_bom`, `list_parts_catalog`, `create_project`, `place_device`, `place_linked_device`, `delete_device`, `update_device`, `create_wire`, `delete_wire`, `assign_part`, `add_sheet`, `add_annotation`
+
+**Key files:**
+- `packages/mcp-server/src/server.ts` - All tool registrations
+- `packages/mcp-server/src/circuit-helpers.ts` - Pure circuit mutation functions
+- `packages/mcp-server/src/api-client.ts` - HTTP client for fusionCad API
+- `.mcp.json` - Claude Code auto-discovery config
 
 ---
 

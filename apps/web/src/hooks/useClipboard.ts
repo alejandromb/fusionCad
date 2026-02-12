@@ -30,16 +30,17 @@ export function useClipboard(
     position: Point;
   } | null>(null);
 
+  // selectedDevices contains device IDs
   const copyDevice = useCallback(() => {
     if (selectedDevices.length === 0 || !circuit) return;
 
-    const selectedDevice = selectedDevices[0];
-    const device = circuit.devices.find(d => d.tag === selectedDevice);
+    const selectedDeviceId = selectedDevices[0];
+    const device = circuit.devices.find(d => d.id === selectedDeviceId);
     if (!device) return;
 
     const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
     const allPositions = getAllPositions();
-    const position = allPositions.get(selectedDevice) || { x: 100, y: 100 };
+    const position = allPositions.get(selectedDeviceId) || { x: 100, y: 100 };
 
     setClipboard({ device, part: part || null, position });
   }, [selectedDevices, circuit, getAllPositions]);
@@ -71,9 +72,10 @@ export function useClipboard(
       modifiedAt: now,
     } : null;
 
+    const newDeviceId = generateId();
     const newDevice: Device = {
       ...clipboard.device,
-      id: generateId(),
+      id: newDeviceId,
       tag: newTag,
       partId: newPart ? newPartId : undefined,
       createdAt: now,
@@ -91,25 +93,26 @@ export function useClipboard(
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(newTag, { x: snappedX, y: snappedY });
+      next.set(newDeviceId, { x: snappedX, y: snappedY });
       return next;
     });
 
-    setSelectedDevices([newTag]);
+    setSelectedDevices([newDeviceId]);
   }, [clipboard, circuit, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices]);
 
+  // selectedDevices contains device IDs
   const duplicateDevice = useCallback(() => {
     if (selectedDevices.length === 0 || !circuit) return;
 
-    const selectedDevice = selectedDevices[0];
-    const device = circuit.devices.find(d => d.tag === selectedDevice);
+    const selectedDeviceId = selectedDevices[0];
+    const device = circuit.devices.find(d => d.id === selectedDeviceId);
     if (!device) return;
 
     pushToHistory();
 
     const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
     const allPositions = getAllPositions();
-    const position = allPositions.get(selectedDevice) || { x: 100, y: 100 };
+    const position = allPositions.get(selectedDeviceId) || { x: 100, y: 100 };
 
     const offsetX = position.x + 40;
     const offsetY = position.y + 40;
@@ -134,9 +137,10 @@ export function useClipboard(
       modifiedAt: now,
     } : null;
 
+    const newDeviceId = generateId();
     const newDevice: Device = {
       ...device,
-      id: generateId(),
+      id: newDeviceId,
       tag: newTag,
       partId: newPart ? newPartId : undefined,
       createdAt: now,
@@ -154,11 +158,11 @@ export function useClipboard(
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(newTag, { x: snapToGrid(offsetX), y: snapToGrid(offsetY) });
+      next.set(newDeviceId, { x: snapToGrid(offsetX), y: snapToGrid(offsetY) });
       return next;
     });
 
-    setSelectedDevices([newTag]);
+    setSelectedDevices([newDeviceId]);
   }, [selectedDevices, circuit, getAllPositions, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices]);
 
   return {

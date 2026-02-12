@@ -54,16 +54,16 @@ export interface UseCanvasInteractionReturn {
 
 interface UseCanvasInteractionDeps {
   circuit: CircuitData | null;
-  selectedDevices: string[];
+  selectedDevices: string[];  // device IDs
   setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>>;
   selectedWireIndex: number | null;
   setSelectedWireIndex: React.Dispatch<React.SetStateAction<number | null>>;
-  getAllPositions: () => Map<string, Point>;
+  getAllPositions: () => Map<string, Point>;  // keyed by device ID
   placeSymbol: (worldX: number, worldY: number, category: SymbolCategory, partData?: ManufacturerPart) => void;
   pendingPartData: ManufacturerPart | null;
   clearPendingPartData: () => void;
   createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
-  deleteDevices: (deviceTags: string[]) => void;
+  deleteDevices: (deviceIds: string[]) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
@@ -79,8 +79,8 @@ interface UseCanvasInteractionDeps {
   redoRef: React.MutableRefObject<() => void>;
   devicePositions: Map<string, Point>;
   setDevicePositions: React.Dispatch<React.SetStateAction<Map<string, Point>>>;
-  rotateDevice: (deviceTag: string, direction: 'cw' | 'ccw') => void;
-  mirrorDevice: (deviceTag: string) => void;
+  rotateDevice: (deviceId: string, direction: 'cw' | 'ccw') => void;
+  mirrorDevice: (deviceId: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
   selectAnnotation: (id: string | null) => void;
   activeSheetId: string;
@@ -165,7 +165,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const device of circuit.devices) {
-      const pos = allPositions.get(device.tag);
+      const pos = allPositions.get(device.id);
       if (!pos) continue;
       const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
       const geom = getSymbolGeometry(part?.category || 'unknown');
@@ -279,27 +279,28 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
         }
 
-        const hitSymbol = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
-        if (hitSymbol) {
+        // hitSymbol returns device ID
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+        if (hitDeviceId) {
           setSelectedWireIndex(null);
 
           if (e.shiftKey) {
             setSelectedDevices(prev => {
-              if (prev.includes(hitSymbol)) {
-                return prev.filter(d => d !== hitSymbol);
+              if (prev.includes(hitDeviceId)) {
+                return prev.filter(d => d !== hitDeviceId);
               } else {
-                return [...prev, hitSymbol];
+                return [...prev, hitDeviceId];
               }
             });
           } else {
-            if (!selectedDevices.includes(hitSymbol)) {
-              setSelectedDevices([hitSymbol]);
+            if (!selectedDevices.includes(hitDeviceId)) {
+              setSelectedDevices([hitDeviceId]);
             }
           }
 
-          setDraggingDevice(hitSymbol);
+          setDraggingDevice(hitDeviceId);
           dragHistoryPushedRef.current = false;
-          const symbolPos = allPositions.get(hitSymbol);
+          const symbolPos = allPositions.get(hitDeviceId);
           if (symbolPos) {
             dragOffsetRef.current = {
               x: world.x - symbolPos.x,
@@ -371,6 +372,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       // Drag device
+      // draggingDevice is now a device ID
       if (draggingDevice && dragOffsetRef.current) {
         if (!dragHistoryPushedRef.current) {
           pushToHistoryRef.current();
@@ -385,16 +387,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           const dx = newX - draggedPos.x;
           const dy = newY - draggedPos.y;
 
+          // selectedDevices and draggingDevice are both device IDs now
           const devicesToMove = selectedDevices.includes(draggingDevice)
             ? selectedDevices
             : [draggingDevice];
 
           setDevicePositions(prev => {
             const next = new Map(prev);
-            for (const tag of devicesToMove) {
-              const currentPos = allPositions.get(tag);
+            for (const deviceId of devicesToMove) {
+              const currentPos = allPositions.get(deviceId);
               if (currentPos) {
-                next.set(tag, {
+                next.set(deviceId, {
                   x: snapToGrid(currentPos.x + dx),
                   y: snapToGrid(currentPos.y + dy),
                 });
@@ -494,11 +497,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
         const hits: string[] = [];
         for (const device of circuit.devices) {
-          const pos = allPositions.get(device.tag);
+          const pos = allPositions.get(device.id);
           if (!pos) continue;
           const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
-          const getGeom = getSymbolGeometry;
-          const geom = getGeom(part?.category || 'unknown');
+          const geom = getSymbolGeometry(part?.category || 'unknown');
 
           const devMinX = pos.x;
           const devMinY = pos.y;
@@ -508,12 +510,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           if (marquee.mode === 'window') {
             // Window select: fully enclosed
             if (devMinX >= minX && devMaxX <= maxX && devMinY >= minY && devMaxY <= maxY) {
-              hits.push(device.tag);
+              hits.push(device.id);
             }
           } else {
             // Crossing select: any overlap
             if (devMaxX >= minX && devMinX <= maxX && devMaxY >= minY && devMinY <= maxY) {
-              hits.push(device.tag);
+              hits.push(device.id);
             }
           }
         }
@@ -579,7 +581,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'select': {
-            const hitSymbol = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
             const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
@@ -593,7 +595,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             }
 
             // Check annotation hit (if no device/wire hit)
-            if (!hitSymbol && hitWire === null) {
+            if (!hitDeviceId && hitWire === null) {
               const annotations = circuit.annotations || [];
               const sheetAnnotations = activeSheetId
                 ? annotations.filter(a => a.sheetId === activeSheetId)
@@ -622,7 +624,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
             }
 
-            if (!hitSymbol && hitWire === null && !e.shiftKey) {
+            if (!hitDeviceId && hitWire === null && !e.shiftKey) {
               setSelectedDevices([]);
               setSelectedWireIndex(null);
               selectAnnotation(null);
@@ -773,7 +775,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
-        setSelectedDevices(circuit.devices.map(d => d.tag));
+        setSelectedDevices(circuit.devices.map(d => d.id));
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedDevices.length > 0) {
@@ -820,12 +822,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const allPositions = getAllPositions();
       const rect = canvas.getBoundingClientRect();
 
-      const hitSymbol = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
       const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
 
-      if (hitSymbol) {
-        if (!selectedDevices.includes(hitSymbol)) {
-          setSelectedDevices([hitSymbol]);
+      if (hitDeviceId) {
+        if (!selectedDevices.includes(hitDeviceId)) {
+          setSelectedDevices([hitDeviceId]);
         }
         setContextMenu({
           x: e.clientX - rect.left,
@@ -833,7 +835,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           worldX: world.x,
           worldY: world.y,
           target: 'device',
-          deviceTag: hitSymbol,
+          deviceTag: hitDeviceId,  // now actually device ID
         });
       } else if (hitWire !== null) {
         setSelectedWireIndex(hitWire);

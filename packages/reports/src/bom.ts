@@ -40,31 +40,43 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     partMap.set(part.id, part);
   }
 
-  // Group devices by partId (excluding terminal levels)
-  const devicesByPart = new Map<string, Device[]>();
+  // Separate devices into linked groups (by deviceGroupId) and standalone
+  // Linked devices share a deviceGroupId → count as 1 physical item in BOM
+  const linkedGroups = new Map<string, Device[]>();
+  const standaloneDevices: Device[] = [];
+
   for (const device of devices) {
-    // Skip devices that are terminal levels - they're counted via Terminal entity
-    if (device.terminalId) {
-      continue;
-    }
+    // Skip terminal levels - counted via Terminal entity
+    if (device.terminalId) continue;
+    if (!device.partId) continue;
 
-    if (!device.partId) continue; // Skip devices without assigned parts
-
-    // Skip junction devices (internal wire junctions)
+    // Skip junction devices
     const part = partMap.get(device.partId);
     if (part && part.category === 'Junction') continue;
 
-    if (!devicesByPart.has(device.partId)) {
-      devicesByPart.set(device.partId, []);
+    if (device.deviceGroupId) {
+      const group = linkedGroups.get(device.deviceGroupId) || [];
+      group.push(device);
+      linkedGroups.set(device.deviceGroupId, group);
+    } else {
+      standaloneDevices.push(device);
     }
-    devicesByPart.get(device.partId)!.push(device);
   }
 
-  // Build BOM rows from regular devices
+  // Group standalone devices by partId (original behavior)
+  const devicesByPart = new Map<string, Device[]>();
+  for (const device of standaloneDevices) {
+    if (!devicesByPart.has(device.partId!)) {
+      devicesByPart.set(device.partId!, []);
+    }
+    devicesByPart.get(device.partId!)!.push(device);
+  }
+
+  // Build BOM rows from standalone devices
   const rows: BomRow[] = [];
   for (const [partId, devicesForPart] of devicesByPart.entries()) {
     const part = partMap.get(partId);
-    if (!part) continue; // Shouldn't happen, but be defensive
+    if (!part) continue;
 
     rows.push({
       partNumber: part.partNumber,
@@ -73,6 +85,23 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
       category: part.category,
       quantity: devicesForPart.length,
       deviceTags: devicesForPart.map((d) => d.tag).sort(),
+    });
+  }
+
+  // Build BOM rows from linked device groups (each group = 1 physical item)
+  for (const [, groupDevices] of linkedGroups.entries()) {
+    // Use the first device's part for the BOM row (they represent the same physical device)
+    const primaryDevice = groupDevices[0];
+    const part = partMap.get(primaryDevice.partId!);
+    if (!part) continue;
+
+    rows.push({
+      partNumber: part.partNumber,
+      manufacturer: part.manufacturer,
+      description: part.description,
+      category: part.category,
+      quantity: 1, // Linked representations = 1 physical device
+      deviceTags: [primaryDevice.tag], // All share the same tag
     });
   }
 

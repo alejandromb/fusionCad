@@ -52,6 +52,14 @@ export interface Device extends Entity {
   partId?: EntityId; // reference to Part (optional - can be unassigned)
   sheetId: EntityId; // which sheet/page this device appears on
   /**
+   * Links multiple representations of the same physical device.
+   * E.g., a contactor K1 has power contacts, coil, and aux contacts —
+   * all share the same tag "K1" and the same deviceGroupId.
+   * BOM groups by deviceGroupId when present.
+   * Standalone devices leave this undefined (they are their own group).
+   */
+  deviceGroupId?: EntityId;
+  /**
    * For terminal levels: links this device (octagon) to its parent Terminal.
    * Multiple devices can share the same terminalId (e.g., dual-level = 2 devices, 1 terminal).
    * BOM groups by Terminal, not by Device.
@@ -338,6 +346,41 @@ export interface TitleBlockData {
 }
 
 /**
+ * Diagram type — determines rendering and placement rules for a sheet.
+ * - 'schematic': free placement (default, current behavior)
+ * - 'ladder': IEC/NEMA ladder logic with L1/L2 rails and horizontal rungs
+ * - 'single-line': single-line / one-line diagram (future)
+ * - 'wiring': point-to-point wiring diagram (future)
+ */
+export type DiagramType = 'ladder' | 'single-line' | 'schematic' | 'wiring';
+
+/**
+ * Configuration for ladder diagram layout.
+ * Controls rail positions, rung spacing, and labeling.
+ */
+export interface LadderConfig {
+  railL1X: number;        // X position of L1 (hot) rail (default: 100)
+  railL2X: number;        // X position of L2 (neutral/return) rail (default: 900)
+  firstRungY: number;     // Y of first rung (default: 100)
+  rungSpacing: number;    // Y spacing between rungs (default: 120)
+  railLabelL1?: string;   // Label for left rail (default: "L1")
+  railLabelL2?: string;   // Label for right rail (default: "L2")
+  voltage?: string;       // "480V", "120VAC", "24VDC" — displayed at top
+}
+
+/**
+ * Rung — a horizontal circuit path in a ladder diagram.
+ * Contains an ordered list of device IDs from left (L1) to right (L2).
+ */
+export interface Rung extends Entity {
+  type: 'rung';
+  number: number;                // Rung number (1, 2, 3...)
+  sheetId: EntityId;
+  deviceIds: string[];           // Ordered device IDs left-to-right
+  description?: string;          // Optional rung function description
+}
+
+/**
  * Sheet - A page in the project
  */
 export interface Sheet extends Entity {
@@ -346,6 +389,8 @@ export interface Sheet extends Entity {
   number: number;
   size: 'A4' | 'A3' | 'A2' | 'A1' | 'A0' | 'Letter' | 'ANSI-D';
   titleBlock?: TitleBlockData;
+  diagramType?: DiagramType;
+  ladderConfig?: LadderConfig;
 }
 
 /**

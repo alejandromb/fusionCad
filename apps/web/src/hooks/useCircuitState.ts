@@ -45,7 +45,7 @@ export interface UseCircuitStateReturn {
   getAllPositions: () => Map<string, Point>;
   placeSymbol: (worldX: number, worldY: number, category: SymbolCategory, partData?: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
   createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
-  deleteDevices: (deviceTags: string[]) => void;
+  deleteDevices: (deviceIds: string[]) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
@@ -58,19 +58,19 @@ export interface UseCircuitStateReturn {
   // Rotation & mirror
   deviceTransforms: Map<string, DeviceTransform>;
   setDeviceTransforms: React.Dispatch<React.SetStateAction<Map<string, DeviceTransform>>>;
-  rotateDevice: (deviceTag: string, direction: 'cw' | 'ccw') => void;
-  mirrorDevice: (deviceTag: string) => void;
+  rotateDevice: (deviceId: string, direction: 'cw' | 'ccw') => void;
+  mirrorDevice: (deviceId: string) => void;
 
   // Annotations
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   deleteAnnotation: (annotationId: string) => void;
 
-  // Device update
-  updateDevice: (deviceTag: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+  // Device update (by device ID)
+  updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
 
-  // Part assignment
-  assignPart: (deviceTag: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
+  // Part assignment (by device ID)
+  assignPart: (deviceId: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
 
   // Selection
   selectedDevices: string[];
@@ -192,6 +192,7 @@ export function useCircuitState(
     setCircuit(prev => {
       if (!prev) return prev;
       const prevSheets = getOrCreateSheets(prev);
+      const devicesOnSheet = new Set(prev.devices.filter(d => d.sheetId === sheetId).map(d => d.id));
       return {
         ...prev,
         sheets: prevSheets.filter(s => s.id !== sheetId),
@@ -200,9 +201,10 @@ export function useCircuitState(
         // Remove connections that reference devices on this sheet
         connections: prev.connections.filter(c => {
           if (c.sheetId === sheetId) return false;
-          const fromDevice = prev.devices.find(d => d.tag === c.fromDevice);
-          const toDevice = prev.devices.find(d => d.tag === c.toDevice);
-          if (fromDevice?.sheetId === sheetId || toDevice?.sheetId === sheetId) return false;
+          const fromId = c.fromDeviceId || prev.devices.find(d => d.tag === c.fromDevice)?.id;
+          const toId = c.toDeviceId || prev.devices.find(d => d.tag === c.toDevice)?.id;
+          if (fromId && devicesOnSheet.has(fromId)) return false;
+          if (toId && devicesOnSheet.has(toId)) return false;
           return true;
         }),
       };
@@ -248,9 +250,11 @@ export function useCircuitState(
   }, []);
 
   // Get all device positions including golden circuit defaults
+  // Keys are device IDs (ULIDs)
   const getAllPositions = useCallback((): Map<string, Point> => {
     if (!circuit) return new Map();
 
+    // Legacy fallback layouts keyed by tag (for golden circuit with no saved positions)
     const layouts: Record<string, Point> = {
       'PS1': { x: 50, y: 80 },
       'X1': { x: 50, y: 280 },
@@ -263,16 +267,16 @@ export function useCircuitState(
 
     const positions = new Map<string, Point>();
     for (const device of circuit.devices) {
-      const dynamicPos = devicePositions.get(device.tag);
+      const dynamicPos = devicePositions.get(device.id);
       if (dynamicPos) {
-        positions.set(device.tag, dynamicPos);
+        positions.set(device.id, dynamicPos);
       } else if (layouts[device.tag]) {
-        positions.set(device.tag, layouts[device.tag]);
+        positions.set(device.id, layouts[device.tag]);
       } else {
         const existingCount = positions.size;
         const col = existingCount % 3;
         const row = Math.floor(existingCount / 3);
-        positions.set(device.tag, { x: 100 + col * 200, y: 100 + row * 150 });
+        positions.set(device.id, { x: 100 + col * 200, y: 100 + row * 150 });
       }
     }
     return positions;
@@ -413,8 +417,9 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
+    const newDeviceId = generateId();
     const newDevice: Device = {
-      id: generateId(),
+      id: newDeviceId,
       type: 'device',
       tag,
       function: partData?.description || displayName,
@@ -435,16 +440,21 @@ export function useCircuitState(
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(tag, { x: snappedX, y: snappedY });
+      next.set(newDeviceId, { x: snappedX, y: snappedY });
       return next;
     });
   }, [circuit, generateTag, pushToHistory, setCircuit, setDevicePositions, validActiveSheetId]);
 
   // Create a wire connection
+  // PinHit.device is now device ID (ULID)
   const createWireConnection = useCallback((fromPin: PinHit, toPin: PinHit) => {
     if (!circuit) return;
 
     pushToHistory();
+
+    // Look up device tags for the connection (display/export)
+    const fromDevice = circuit.devices.find(d => d.id === fromPin.device);
+    const toDevice = circuit.devices.find(d => d.id === toPin.device);
 
     const newNetId = generateId();
     const now = Date.now();
@@ -458,9 +468,11 @@ export function useCircuitState(
     };
 
     const newConnection: Connection = {
-      fromDevice: fromPin.device,
+      fromDevice: fromDevice?.tag || fromPin.device,
+      fromDeviceId: fromPin.device,
       fromPin: fromPin.pin,
-      toDevice: toPin.device,
+      toDevice: toDevice?.tag || toPin.device,
+      toDeviceId: toPin.device,
       toPin: toPin.pin,
       netId: newNetId,
     };
@@ -475,28 +487,34 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
-  // Delete devices
-  const deleteDevices = useCallback((deviceTags: string[]) => {
-    if (deviceTags.length === 0) return;
+  // Delete devices by ID
+  const deleteDevices = useCallback((deviceIds: string[]) => {
+    if (deviceIds.length === 0) return;
 
     pushToHistory();
 
-    const tagsToDelete = new Set(deviceTags);
+    const idsToDelete = new Set(deviceIds);
 
     setCircuit(prev => {
       if (!prev) return prev;
+      // Build a set of tags for the devices being deleted (for connection cleanup)
+      const deletedDevices = prev.devices.filter(d => idsToDelete.has(d.id));
+      const deletedIds = new Set(deletedDevices.map(d => d.id));
       return {
         ...prev,
-        devices: prev.devices.filter(d => !tagsToDelete.has(d.tag)),
-        connections: prev.connections.filter(
-          c => !tagsToDelete.has(c.fromDevice) && !tagsToDelete.has(c.toDevice)
-        ),
+        devices: prev.devices.filter(d => !deletedIds.has(d.id)),
+        connections: prev.connections.filter(c => {
+          // Use fromDeviceId/toDeviceId if available, fall back to tag lookup
+          const fromId = c.fromDeviceId || prev.devices.find(d => d.tag === c.fromDevice)?.id;
+          const toId = c.toDeviceId || prev.devices.find(d => d.tag === c.toDevice)?.id;
+          return !deletedIds.has(fromId!) && !deletedIds.has(toId!);
+        }),
       };
     });
     setDevicePositions(prev => {
       const next = new Map(prev);
-      for (const tag of deviceTags) {
-        next.delete(tag);
+      for (const id of deviceIds) {
+        next.delete(id);
       }
       return next;
     });
@@ -582,11 +600,15 @@ export function useCircuitState(
       const newConnections = [...prev.connections];
       const conn = { ...newConnections[connectionIndex] };
 
+      // PinHit.device is now device ID
+      const device = prev.devices.find(d => d.id === newPin.device);
       if (endpoint === 'from') {
-        conn.fromDevice = newPin.device;
+        conn.fromDevice = device?.tag || newPin.device;
+        conn.fromDeviceId = newPin.device;
         conn.fromPin = newPin.pin;
       } else {
-        conn.toDevice = newPin.device;
+        conn.toDevice = device?.tag || newPin.device;
+        conn.toDeviceId = newPin.device;
         conn.toPin = newPin.pin;
       }
 
@@ -640,26 +662,26 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
-  // Rotate device 90° clockwise or counter-clockwise
-  const rotateDevice = useCallback((deviceTag: string, direction: 'cw' | 'ccw') => {
+  // Rotate device 90° clockwise or counter-clockwise (by device ID)
+  const rotateDevice = useCallback((deviceId: string, direction: 'cw' | 'ccw') => {
     pushToHistory();
     setDeviceTransforms(prev => {
       const next = new Map(prev);
-      const current = next.get(deviceTag) || { rotation: 0, mirrorH: false };
+      const current = next.get(deviceId) || { rotation: 0, mirrorH: false };
       const delta = direction === 'cw' ? 90 : -90;
       const newRotation = ((current.rotation + delta) % 360 + 360) % 360;
-      next.set(deviceTag, { ...current, rotation: newRotation });
+      next.set(deviceId, { ...current, rotation: newRotation });
       return next;
     });
   }, [pushToHistory]);
 
-  // Mirror device horizontally
-  const mirrorDevice = useCallback((deviceTag: string) => {
+  // Mirror device horizontally (by device ID)
+  const mirrorDevice = useCallback((deviceId: string) => {
     pushToHistory();
     setDeviceTransforms(prev => {
       const next = new Map(prev);
-      const current = next.get(deviceTag) || { rotation: 0, mirrorH: false };
-      next.set(deviceTag, { ...current, mirrorH: !current.mirrorH });
+      const current = next.get(deviceId) || { rotation: 0, mirrorH: false };
+      next.set(deviceId, { ...current, mirrorH: !current.mirrorH });
       return next;
     });
   }, [pushToHistory]);
@@ -703,8 +725,9 @@ export function useCircuitState(
 
     // Create junction device with unique tag
     const junctionTag = generateTag('junction', circuit.devices);
+    const junctionDeviceId = generateId();
     const junctionDevice: Device = {
-      id: generateId(),
+      id: junctionDeviceId,
       type: 'device',
       tag: junctionTag,
       function: 'Wire junction',
@@ -718,11 +741,16 @@ export function useCircuitState(
     const junctionX = snapToGrid(worldX - 6);
     const junctionY = snapToGrid(worldY - 6);
 
+    // Resolve device ID for startPin (startPin.device is now device ID)
+    const startDevice = circuit.devices.find(d => d.id === startPin.device);
+
     // Split original connection into 2 halves through junction
     const conn1: Connection = {
       fromDevice: originalConn.fromDevice,
+      fromDeviceId: originalConn.fromDeviceId,
       fromPin: originalConn.fromPin,
       toDevice: junctionTag,
+      toDeviceId: junctionDeviceId,
       toPin: 'J',
       netId: originalConn.netId,
       sheetId: originalConn.sheetId,
@@ -730,8 +758,10 @@ export function useCircuitState(
 
     const conn2: Connection = {
       fromDevice: junctionTag,
+      fromDeviceId: junctionDeviceId,
       fromPin: 'J',
       toDevice: originalConn.toDevice,
+      toDeviceId: originalConn.toDeviceId,
       toPin: originalConn.toPin,
       netId: originalConn.netId,
       sheetId: originalConn.sheetId,
@@ -739,9 +769,11 @@ export function useCircuitState(
 
     // New connection from the starting pin to the junction
     const conn3: Connection = {
-      fromDevice: startPin.device,
+      fromDevice: startDevice?.tag || startPin.device,
+      fromDeviceId: startPin.device,
       fromPin: startPin.pin,
       toDevice: junctionTag,
+      toDeviceId: junctionDeviceId,
       toPin: 'J',
       netId: originalConn.netId,
       sheetId: originalConn.sheetId,
@@ -764,13 +796,13 @@ export function useCircuitState(
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(junctionTag, { x: junctionX, y: junctionY });
+      next.set(junctionDeviceId, { x: junctionX, y: junctionY });
       return next;
     });
   }, [circuit, pushToHistory, generateTag, setCircuit, setDevicePositions, validActiveSheetId]);
 
-  // Assign a manufacturer part to a device
-  const assignPart = useCallback((deviceTag: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => {
+  // Assign a manufacturer part to a device (by device ID)
+  const assignPart = useCallback((deviceId: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => {
     if (!circuit) return;
 
     pushToHistory();
@@ -798,18 +830,18 @@ export function useCircuitState(
       }
 
       // Find the device and get its old partId
-      const device = prev.devices.find(d => d.tag === deviceTag);
+      const device = prev.devices.find(d => d.id === deviceId);
       const oldPartId = device?.partId;
 
       // Update the device to point to the new part
       const updatedDevices = prev.devices.map(d =>
-        d.tag === deviceTag ? { ...d, partId: existingPart!.id, modifiedAt: Date.now() } : d
+        d.id === deviceId ? { ...d, partId: existingPart!.id, modifiedAt: Date.now() } : d
       );
 
       // Remove orphaned old part if no other device references it
       if (oldPartId) {
         const otherDevicesUsingOldPart = updatedDevices.filter(
-          d => d.partId === oldPartId && d.tag !== deviceTag
+          d => d.partId === oldPartId && d.id !== deviceId
         );
         if (otherDevicesUsingOldPart.length === 0) {
           updatedParts = updatedParts.filter(p => p.id !== oldPartId);
@@ -824,13 +856,13 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
-  // Update device properties (tag, function, location)
-  const updateDevice = useCallback((deviceTag: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => {
+  // Update device properties (tag, function, location) — looked up by device ID
+  const updateDevice = useCallback((deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => {
     if (!circuit) return;
 
     pushToHistory();
 
-    const idx = circuit.devices.findIndex(d => d.tag === deviceTag);
+    const idx = circuit.devices.findIndex(d => d.id === deviceId);
     if (idx === -1) return;
 
     setCircuit(prev => {
@@ -840,19 +872,8 @@ export function useCircuitState(
       return { ...prev, devices: updated };
     });
 
-    // If tag changed, update selected devices and device positions
-    if (updates.tag && updates.tag !== deviceTag) {
-      setSelectedDevices(prev => prev.map(t => t === deviceTag ? updates.tag! : t));
-      setDevicePositions(prev => {
-        const pos = prev.get(deviceTag);
-        if (!pos) return prev;
-        const next = new Map(prev);
-        next.delete(deviceTag);
-        next.set(updates.tag!, pos);
-        return next;
-      });
-    }
-  }, [circuit, pushToHistory, setCircuit, setSelectedDevices, setDevicePositions]);
+    // No need to update positions or selection on tag rename — they're ID-keyed
+  }, [circuit, pushToHistory, setCircuit]);
 
   return {
     debugMode,

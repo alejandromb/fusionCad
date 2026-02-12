@@ -15,11 +15,11 @@ test.describe('Place symbol', () => {
     await canvasHelpers.waitForDeviceCount(page, 1);
 
     const state = await canvasHelpers.getState(page);
-    const pos = state.devicePositions['S1'];
+    const pos = canvasHelpers.getPositionByTag(state, 'S1');
     expect(pos).toBeTruthy();
     // Grid size is 20, so 213 -> 220, 197 -> 200
-    expect(pos.x % 20).toBe(0);
-    expect(pos.y % 20).toBe(0);
+    expect(pos!.x % 20).toBe(0);
+    expect(pos!.y % 20).toBe(0);
   });
 
   test('place multiple symbols with auto-incrementing tags', async ({ page, canvasHelpers }) => {

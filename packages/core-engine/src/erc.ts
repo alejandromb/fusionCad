@@ -97,7 +97,8 @@ export function runERC(circuit: ERCCircuitData): ERCReport {
 
 /**
  * Rule: Duplicate Device Tags (error)
- * Two devices with the same tag on the same sheet.
+ * Two devices with the same tag on the same sheet — unless they share
+ * a deviceGroupId (linked representations of the same physical device).
  */
 function checkDuplicateTags(circuit: ERCCircuitData, addViolation: AddViolationFn): void {
   // Group devices by sheet+tag
@@ -112,6 +113,13 @@ function checkDuplicateTags(circuit: ERCCircuitData, addViolation: AddViolationF
 
   for (const [, group] of seen) {
     if (group.length > 1) {
+      // If all devices in the group share the same deviceGroupId, they're
+      // linked representations and NOT duplicates.
+      const allLinked = group.every(
+        d => d.deviceGroupId && d.deviceGroupId === group[0].deviceGroupId,
+      );
+      if (allLinked) continue;
+
       addViolation(
         'error',
         'duplicate-tag',

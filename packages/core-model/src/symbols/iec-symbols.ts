@@ -12,7 +12,7 @@ import { registerSymbol } from '../symbol-library.js';
 import { loadSymbolsFromJson } from './symbol-loader.js';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - JSON import handled by bundler
-import builtinSymbolsJson from './builtin-symbols.json';
+import builtinSymbolsJson from './builtin-symbols.json' with { type: 'json' };
 
 // Re-export raw JSON for API seeding
 export { builtinSymbolsJson };

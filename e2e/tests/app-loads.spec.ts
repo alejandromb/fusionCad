@@ -15,11 +15,18 @@ test.describe('App loads', () => {
     const rightPanel = page.locator('.right-panel');
     await expect(rightPanel).toBeVisible();
 
-    // Verify tabs
+    // Verify tabs (Symbols, Favorites, Parts)
     await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Symbols' })).toBeVisible();
+    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Favorites' })).toBeVisible();
+    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Parts' })).toBeVisible();
 
     // Verify search input
     await expect(rightPanel.locator('.right-panel-search input')).toBeVisible();
+
+    // Verify standard filter chips
+    await expect(rightPanel.locator('.standard-chip').filter({ hasText: 'All' })).toBeVisible();
+    await expect(rightPanel.locator('.standard-chip').filter({ hasText: 'IEC 60617' })).toBeVisible();
+    await expect(rightPanel.locator('.standard-chip').filter({ hasText: 'ANSI/NEMA' })).toBeVisible();
 
     // Verify category chips
     await expect(rightPanel.locator('.category-chip').filter({ hasText: 'All' })).toBeVisible();
