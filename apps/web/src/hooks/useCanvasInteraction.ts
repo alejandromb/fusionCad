@@ -648,6 +648,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept keys when user is typing in an input field
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        return;
+      }
+
       // Close context menu on any key
       if (contextMenu) {
         setContextMenu(null);
