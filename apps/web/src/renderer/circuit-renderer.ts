@@ -51,6 +51,34 @@ export interface CircuitData {
   annotations?: Annotation[];
   terminals?: Terminal[];
   rungs?: Rung[];
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>;
+}
+
+/**
+ * Compute a pin's world position accounting for device rotation.
+ * Rotates the pin offset around the symbol center, then adds device position.
+ */
+function getPinWorldPosition(
+  devicePos: Point,
+  pinPos: Point,
+  geometry: { width: number; height: number },
+  transform?: DeviceTransform | { rotation: number; mirrorH?: boolean },
+): Point {
+  let px = pinPos.x;
+  let py = pinPos.y;
+
+  const rotation = transform?.rotation || 0;
+  if (rotation !== 0) {
+    const cx = geometry.width / 2;
+    const cy = geometry.height / 2;
+    const rad = (rotation * Math.PI) / 180;
+    const dx = pinPos.x - cx;
+    const dy = pinPos.y - cy;
+    px = cx + dx * Math.cos(rad) - dy * Math.sin(rad);
+    py = cy + dx * Math.sin(rad) + dy * Math.cos(rad);
+  }
+
+  return { x: devicePos.x + px, y: devicePos.y + py };
 }
 
 export interface RenderOptions {
@@ -143,7 +171,8 @@ export function getWireAtPoint(
   devices: Device[],
   parts: Part[],
   positions: Map<string, Point>,
-  hitRadius = 8
+  hitRadius = 8,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
 ): number | null {
   const partMap = new Map<string, Part>();
   for (const part of parts) {
@@ -180,13 +209,20 @@ export function getWireAtPoint(
     const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
     const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
 
-    const fromPin = fromGeometry.pins.find(p => p.id === conn.fromPin);
-    const toPin = toGeometry.pins.find(p => p.id === conn.toPin);
+    const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
+    const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
 
-    const fromX = fromPos.x + (fromPin?.position.x ?? fromGeometry.width / 2);
-    const fromY = fromPos.y + (fromPin?.position.y ?? fromGeometry.height / 2);
-    const toX = toPos.x + (toPin?.position.x ?? toGeometry.width / 2);
-    const toY = toPos.y + (toPin?.position.y ?? toGeometry.height / 2);
+    const fromPinPos = fromPinDef
+      ? getPinWorldPosition(fromPos, fromPinDef.position, fromGeometry, transforms?.[fromDevice.id])
+      : { x: fromPos.x + fromGeometry.width / 2, y: fromPos.y + fromGeometry.height / 2 };
+    const toPinPos = toPinDef
+      ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
+      : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
+
+    const fromX = fromPinPos.x;
+    const fromY = fromPinPos.y;
+    const toX = toPinPos.x;
+    const toY = toPinPos.y;
 
     // For wires with manual waypoints, use the orthogonal path directly
     if (conn.waypoints && conn.waypoints.length > 0) {
@@ -331,7 +367,8 @@ export function getWireEndpointAtPoint(
   devices: Device[],
   parts: Part[],
   positions: Map<string, Point>,
-  hitRadius = 10
+  hitRadius = 10,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
 ): { connectionIndex: number; endpoint: 'from' | 'to' } | null {
   const conn = connections[connectionIndex];
   if (!conn) return null;
@@ -355,13 +392,20 @@ export function getWireEndpointAtPoint(
   const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
   const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
 
-  const fromPin = fromGeometry.pins.find(p => p.id === conn.fromPin);
-  const toPin = toGeometry.pins.find(p => p.id === conn.toPin);
+  const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
+  const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
 
-  const fromX = fromPos.x + (fromPin?.position.x ?? fromGeometry.width / 2);
-  const fromY = fromPos.y + (fromPin?.position.y ?? fromGeometry.height / 2);
-  const toX = toPos.x + (toPin?.position.x ?? toGeometry.width / 2);
-  const toY = toPos.y + (toPin?.position.y ?? toGeometry.height / 2);
+  const fromPinPos = fromPinDef
+    ? getPinWorldPosition(fromPos, fromPinDef.position, fromGeometry, transforms?.[fromDevice.id])
+    : { x: fromPos.x + fromGeometry.width / 2, y: fromPos.y + fromGeometry.height / 2 };
+  const toPinPos = toPinDef
+    ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
+    : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
+
+  const fromX = fromPinPos.x;
+  const fromY = fromPinPos.y;
+  const toX = toPinPos.x;
+  const toY = toPinPos.y;
 
   // Check 'from' endpoint
   const fromDist = Math.hypot(worldX - fromX, worldY - fromY);
@@ -565,15 +609,26 @@ export function renderCircuit(
     }
   }
 
-  // Render ladder overlay (rails, rung numbers) if active sheet is a ladder diagram
+  // Device transforms — merge persisted transforms from circuitData with runtime transforms
+  const deviceTransforms = options?.deviceTransforms;
+  const persistedTransforms = circuit.transforms;
+
+  // Render ladder overlay (rails, rung numbers, rail stubs) if active sheet is a ladder diagram
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
   if (activeSheet?.diagramType === 'ladder') {
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
-    renderLadderOverlay(ctx, activeSheet, sheetRungs);
+    renderLadderOverlay(ctx, activeSheet, sheetRungs, devices, parts, positions, persistedTransforms);
   }
 
-  // Device transforms
-  const deviceTransforms = options?.deviceTransforms;
+  /** Resolve the effective transform for a device (runtime overrides persisted) */
+  function getTransform(deviceId: string): DeviceTransform | undefined {
+    if (deviceTransforms?.has(deviceId)) return deviceTransforms.get(deviceId);
+    if (persistedTransforms?.[deviceId]) {
+      const t = persistedTransforms[deviceId];
+      return { rotation: t.rotation, mirrorH: t.mirrorH ?? false };
+    }
+    return undefined;
+  }
 
   // FIRST: Render devices (symbols) - draw these first so wires appear on top
   for (const device of devices) {
@@ -582,7 +637,7 @@ export function renderCircuit(
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const category = part?.category || 'unknown';
-    const transform = deviceTransforms?.get(device.id);
+    const transform = getTransform(device.id);
 
     drawSymbol(ctx, category, position.x, position.y, device.tag, transform);
   }
@@ -617,15 +672,21 @@ export function renderCircuit(
     const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
     const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
 
-    // Find pin positions
-    const fromPin = fromGeometry.pins.find(p => p.id === conn.fromPin);
-    const toPin = toGeometry.pins.find(p => p.id === conn.toPin);
+    // Find pin positions (accounting for device rotation)
+    const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
+    const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
 
-    // Default to center if pin not found
-    const fromX = fromPos.x + (fromPin?.position.x ?? fromGeometry.width / 2);
-    const fromY = fromPos.y + (fromPin?.position.y ?? fromGeometry.height / 2);
-    const toX = toPos.x + (toPin?.position.x ?? toGeometry.width / 2);
-    const toY = toPos.y + (toPin?.position.y ?? toGeometry.height / 2);
+    const fromPinPos = fromPinDef
+      ? getPinWorldPosition(fromPos, fromPinDef.position, fromGeometry, getTransform(fromDevice.id))
+      : { x: fromPos.x + fromGeometry.width / 2, y: fromPos.y + fromGeometry.height / 2 };
+    const toPinPos = toPinDef
+      ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, getTransform(toDevice.id))
+      : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
+
+    const fromX = fromPinPos.x;
+    const fromY = fromPinPos.y;
+    const toX = toPinPos.x;
+    const toY = toPinPos.y;
 
     routeRequests.push({
       id: `wire_${i}`,

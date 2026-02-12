@@ -7,19 +7,52 @@
  * - Rung numbers in the left margin
  * - Rung description text in the right margin
  * - Horizontal rung guide lines
+ * - Rail-to-device stub wires (L1 → first device, last device → L2)
  */
 
-import type { Sheet, Rung } from '@fusion-cad/core-model';
+import type { Device, Part, Sheet, Rung } from '@fusion-cad/core-model';
 import { DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
+import { getSymbolGeometry } from './symbols';
+import type { Point } from './types';
 
 /**
- * Render the ladder diagram overlay (rails, rung numbers, labels).
+ * Compute a pin's world position accounting for device rotation.
+ * (Duplicated from circuit-renderer to avoid circular imports.)
+ */
+function getPinWorldPos(
+  devicePos: Point,
+  pinPos: Point,
+  geometry: { width: number; height: number },
+  rotation: number,
+): Point {
+  let px = pinPos.x;
+  let py = pinPos.y;
+
+  if (rotation !== 0) {
+    const cx = geometry.width / 2;
+    const cy = geometry.height / 2;
+    const rad = (rotation * Math.PI) / 180;
+    const dx = pinPos.x - cx;
+    const dy = pinPos.y - cy;
+    px = cx + dx * Math.cos(rad) - dy * Math.sin(rad);
+    py = cy + dx * Math.sin(rad) + dy * Math.cos(rad);
+  }
+
+  return { x: devicePos.x + px, y: devicePos.y + py };
+}
+
+/**
+ * Render the ladder diagram overlay (rails, rung numbers, labels, rail stubs).
  * Called after grid but before devices in the render pipeline.
  */
 export function renderLadderOverlay(
   ctx: CanvasRenderingContext2D,
   sheet: Sheet,
   rungs: Rung[],
+  devices?: Device[],
+  parts?: Part[],
+  positions?: Map<string, Point>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
 ): void {
   const config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
   const { railL1X, railL2X, firstRungY, rungSpacing } = config;
@@ -36,6 +69,16 @@ export function renderLadderOverlay(
   // Rail vertical extent: from above first rung to below last rung
   const railTopY = firstRungY - 40;
   const railBottomY = firstRungY + (maxRungNumber - 1) * rungSpacing + 40;
+
+  // Build part lookup for pin resolution
+  const partMap = new Map<string, Part>();
+  if (parts) {
+    for (const p of parts) partMap.set(p.id, p);
+  }
+  const deviceMap = new Map<string, Device>();
+  if (devices) {
+    for (const d of devices) deviceMap.set(d.id, d);
+  }
 
   ctx.save();
 
@@ -73,7 +116,7 @@ export function renderLadderOverlay(
     ctx.fillText(voltage, centerX, railTopY - 8);
   }
 
-  // ---- Rung guide lines and numbers ----
+  // ---- Rung guide lines, numbers, and rail stubs ----
   for (const rung of sortedRungs) {
     const rungY = firstRungY + (rung.number - 1) * rungSpacing;
 
@@ -101,6 +144,54 @@ export function renderLadderOverlay(
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#888888';
       ctx.fillText(rung.description, railL2X + 16, rungY);
+    }
+
+    // ---- Rail-to-device stub wires ----
+    // Draw horizontal lines from L1 rail to leftmost device pin "1" (input)
+    // and from rightmost device pin "2" (output) to L2 rail
+    if (positions && rung.deviceIds.length > 0) {
+      const firstDeviceId = rung.deviceIds[0];
+      const lastDeviceId = rung.deviceIds[rung.deviceIds.length - 1];
+
+      // L1 → first device's input pin
+      const firstDevice = deviceMap.get(firstDeviceId);
+      const firstPos = positions.get(firstDeviceId);
+      if (firstDevice && firstPos) {
+        const firstPart = firstDevice.partId ? partMap.get(firstDevice.partId) : undefined;
+        const firstGeometry = getSymbolGeometry(firstPart?.category || 'unknown');
+        const pin1 = firstGeometry.pins.find(p => p.id === '1');
+        if (pin1) {
+          const rotation = transforms?.[firstDeviceId]?.rotation || 0;
+          const pinWorld = getPinWorldPos(firstPos, pin1.position, firstGeometry, rotation);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(railL1X, pinWorld.y);
+          ctx.lineTo(pinWorld.x, pinWorld.y);
+          ctx.stroke();
+        }
+      }
+
+      // Last device's output pin → L2 (skip for branch rungs — they wire up to parent rung)
+      if (!rung.branchOf) {
+        const lastDevice = deviceMap.get(lastDeviceId);
+        const lastPos = positions.get(lastDeviceId);
+        if (lastDevice && lastPos) {
+          const lastPart = lastDevice.partId ? partMap.get(lastDevice.partId) : undefined;
+          const lastGeometry = getSymbolGeometry(lastPart?.category || 'unknown');
+          const pin2 = lastGeometry.pins.find(p => p.id === '2');
+          if (pin2) {
+            const rotation = transforms?.[lastDeviceId]?.rotation || 0;
+            const pinWorld = getPinWorldPos(lastPos, pin2.position, lastGeometry, rotation);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pinWorld.x, pinWorld.y);
+            ctx.lineTo(railL2X, pinWorld.y);
+            ctx.stroke();
+          }
+        }
+      }
     }
   }
 

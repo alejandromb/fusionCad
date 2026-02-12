@@ -378,6 +378,7 @@ export interface Rung extends Entity {
   sheetId: EntityId;
   deviceIds: string[];           // Ordered device IDs left-to-right
   description?: string;          // Optional rung function description
+  branchOf?: number;             // If set, this rung branches from another rung (no L2 rail stub)
 }
 
 /**

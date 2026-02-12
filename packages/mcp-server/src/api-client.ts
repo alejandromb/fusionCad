@@ -33,6 +33,7 @@ export interface CircuitData {
   annotations?: Annotation[];
   terminals?: Terminal[];
   rungs?: Rung[];
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>;
 }
 
 /** Project shape returned by the API */

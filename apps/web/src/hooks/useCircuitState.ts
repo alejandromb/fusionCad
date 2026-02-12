@@ -46,6 +46,7 @@ export interface UseCircuitStateReturn {
   placeSymbol: (worldX: number, worldY: number, category: SymbolCategory, partData?: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
   createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
   deleteDevices: (deviceIds: string[]) => void;
+  deleteWire: (connectionIndex: number) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
@@ -521,6 +522,19 @@ export function useCircuitState(
     setSelectedDevices([]);
   }, [pushToHistory, setCircuit, setDevicePositions]);
 
+  const deleteWire = useCallback((connectionIndex: number) => {
+    if (!circuit || connectionIndex < 0 || connectionIndex >= circuit.connections.length) return;
+
+    pushToHistory();
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const newConnections = [...prev.connections];
+      newConnections.splice(connectionIndex, 1);
+      return { ...prev, connections: newConnections };
+    });
+  }, [circuit, pushToHistory, setCircuit]);
+
   // Waypoint operations
   const addWaypoint = useCallback((connectionIndex: number, segmentIndex: number, point: Point) => {
     if (!circuit) return;
@@ -899,6 +913,7 @@ export function useCircuitState(
     placeSymbol,
     createWireConnection,
     deleteDevices,
+    deleteWire,
     addWaypoint,
     moveWaypoint,
     removeWaypoint,

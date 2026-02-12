@@ -38,6 +38,7 @@ export interface CircuitData {
   annotations?: unknown[];
   terminals?: unknown[];
   rungs?: unknown[];
+  transforms?: Record<string, unknown>;
 }
 
 @Entity('projects')

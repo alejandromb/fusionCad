@@ -124,6 +124,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
         ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
         ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
         ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
+        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
       });
 
       window.history.replaceState({}, '', `?project=${project.id}`);
@@ -228,6 +229,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
           ...(circuit.annotations ? { annotations: circuit.annotations } : {}),
           ...(circuit.terminals ? { terminals: circuit.terminals } : {}),
           ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
+          ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
         },
       });
       setSaveStatus('saved');
@@ -280,6 +282,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
             ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
             ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
         ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
+        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
           });
         } else {
           const projects = await storage.listProjects();
@@ -308,6 +311,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
               ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
               ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
         ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
+        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
             });
 
             window.history.replaceState({}, '', `?project=${project.id}`);

@@ -35,6 +35,7 @@ export interface CircuitData {
   annotations?: unknown[];
   terminals?: unknown[];
   rungs?: unknown[];
+  transforms?: Record<string, unknown>;
 }
 
 export interface Project extends ProjectSummary {

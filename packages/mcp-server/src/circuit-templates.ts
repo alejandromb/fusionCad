@@ -88,10 +88,9 @@ export function generateMotorStarter(
   const rung1 = addRung(cd, sheetId, 1, ['OL', 'S2', 'S1', 'K1'], 'Motor starter control');
   cd = rung1.circuit;
 
-  // Rung 2: OL2 → K1 seal-in → K1 coil (need to use device IDs for linked devices)
-  // But addRung resolves by tag — for linked devices with the same tag,
-  // we need to use the specific device IDs. Let's build the rung manually.
-  const rung2Ids = [ol2.deviceId, sealin.deviceId, coil.deviceId];
+  // Rung 2: OL2 → K1 seal-in (branch of rung 1 — coil is on rung 1)
+  // The seal-in contact output wires UP to K1 coil on rung 1.
+  const rung2Ids = [ol2.deviceId, sealin.deviceId];
   const rung2Rung = {
     id: require_generateId(),
     type: 'rung' as const,
@@ -99,6 +98,7 @@ export function generateMotorStarter(
     sheetId,
     deviceIds: rung2Ids,
     description: 'Seal-in circuit',
+    branchOf: 1,
     createdAt: Date.now(),
     modifiedAt: Date.now(),
   };

@@ -64,6 +64,7 @@ interface UseCanvasInteractionDeps {
   clearPendingPartData: () => void;
   createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
   deleteDevices: (deviceIds: string[]) => void;
+  deleteWire: (connectionIndex: number) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
@@ -99,6 +100,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     clearPendingPartData,
     createWireConnection,
     deleteDevices,
+    deleteWire,
     addWaypoint,
     moveWaypoint,
     removeWaypoint,
@@ -253,7 +255,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         if (selectedWireIndex !== null) {
           const endpointHit = getWireEndpointAtPoint(
             world.x, world.y, selectedWireIndex,
-            circuit.connections, circuit.devices, circuit.parts, allPositions
+            circuit.connections, circuit.devices, circuit.parts, allPositions, 10, circuit.transforms
           );
           if (endpointHit) {
             const conn = circuit.connections[selectedWireIndex];
@@ -280,7 +282,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
 
         // hitSymbol returns device ID
-        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
         if (hitDeviceId) {
           setSelectedWireIndex(null);
 
@@ -311,7 +313,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           return;
         }
 
-        const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
+        const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
         if (hitWire !== null) {
           setSelectedDevices([]);
           if (hitWire !== selectedWireIndex) {
@@ -453,7 +455,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       // End endpoint dragging
       if (draggingEndpoint) {
-        const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+        const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
         if (hitPin) {
           const isOriginalPin = hitPin.device === draggingEndpoint.originalPin.device &&
                                hitPin.pin === draggingEndpoint.originalPin.pin;
@@ -553,7 +555,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'wire': {
-            const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
+            const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
             if (hitPin) {
               if (!wireStart) {
                 setWireStart(hitPin);
@@ -565,7 +567,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
             } else if (wireStart) {
               // Check if clicking on an existing wire for T-junction
-              const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
+              const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
               if (hitWire !== null) {
                 connectToWire(hitWire, world.x, world.y, wireStart);
                 setWireStart(null);
@@ -581,8 +583,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'select': {
-            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
-            const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
+            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
+            const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
               const conn = circuit.connections[hitWire];
@@ -747,9 +749,15 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDevices.length > 0) {
-        e.preventDefault();
-        deleteDevices(selectedDevices);
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedDevices.length > 0) {
+          e.preventDefault();
+          deleteDevices(selectedDevices);
+        } else if (selectedWireIndex !== null) {
+          e.preventDefault();
+          deleteWire(selectedWireIndex);
+          setSelectedWireIndex(null);
+        }
       }
 
       // Rotation: R = clockwise, Shift+R = counter-clockwise
@@ -822,8 +830,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const allPositions = getAllPositions();
       const rect = canvas.getBoundingClientRect();
 
-      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions);
-      const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions);
+      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
+      const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
 
       if (hitDeviceId) {
         if (!selectedDevices.includes(hitDeviceId)) {

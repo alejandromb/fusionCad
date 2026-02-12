@@ -26,6 +26,7 @@ interface ToolbarProps {
 
   // Edit operations
   deleteDevices: (tags: string[]) => void;
+  deleteWire: (connectionIndex: number) => void;
   copyDevice: () => void;
   pasteDevice: () => void;
   hasClipboard: boolean;
@@ -45,12 +46,13 @@ interface ToolbarProps {
 
 export function Toolbar({
   selectedDevices,
-  selectedWireIndex: _selectedWireIndex,
+  selectedWireIndex,
   interactionMode,
   setInteractionMode,
   rotateDevice,
   mirrorDevice,
   deleteDevices,
+  deleteWire,
   copyDevice,
   pasteDevice,
   hasClipboard,
@@ -63,7 +65,9 @@ export function Toolbar({
   zoomToFit,
   zoomLevel,
 }: ToolbarProps) {
-  const hasSelection = selectedDevices.length > 0;
+  const hasDeviceSelection = selectedDevices.length > 0;
+  const hasWireSelection = selectedWireIndex !== null;
+  const hasSelection = hasDeviceSelection || hasWireSelection;
   const hasSingleSelection = selectedDevices.length === 1;
 
   const handleRotateCW = () => {
@@ -85,8 +89,10 @@ export function Toolbar({
   };
 
   const handleDelete = () => {
-    if (hasSelection) {
+    if (hasDeviceSelection) {
       deleteDevices(selectedDevices);
+    } else if (hasWireSelection) {
+      deleteWire(selectedWireIndex);
     }
   };
 

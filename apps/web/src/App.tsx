@@ -130,6 +130,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
     clearPendingPartData,
     createWireConnection: circuitState.createWireConnection,
     deleteDevices: circuitState.deleteDevices,
+    deleteWire: circuitState.deleteWire,
     addWaypoint: circuitState.addWaypoint,
     moveWaypoint: circuitState.moveWaypoint,
     removeWaypoint: circuitState.removeWaypoint,
@@ -226,6 +227,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
         rotateDevice={circuitState.rotateDevice}
         mirrorDevice={circuitState.mirrorDevice}
         deleteDevices={circuitState.deleteDevices}
+        deleteWire={circuitState.deleteWire}
         copyDevice={clipboardState.copyDevice}
         pasteDevice={() => {
           // Paste at center of viewport

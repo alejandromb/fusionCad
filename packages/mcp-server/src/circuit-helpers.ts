@@ -678,13 +678,22 @@ export function autoLayoutLadder(
     updatedPositions[deviceId] = pos;
   }
 
+  // Set rotation = -90 for all devices on rungs so pins face left/right
+  // (pin "1"/top rotates to face left toward L1, pin "2"/bottom faces right toward L2)
+  const updatedTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = {
+    ...(circuit.transforms || {}),
+  };
+  for (const deviceId of Object.keys(result.positions)) {
+    updatedTransforms[deviceId] = { rotation: -90 };
+  }
+
   let deviceCount = 0;
   for (const rung of rungs) {
     deviceCount += rung.deviceIds.length;
   }
 
   return {
-    circuit: { ...circuit, positions: updatedPositions },
+    circuit: { ...circuit, positions: updatedPositions, transforms: updatedTransforms },
     layoutSummary: {
       rungCount: rungs.length,
       deviceCount,
