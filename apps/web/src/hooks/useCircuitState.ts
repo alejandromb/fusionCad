@@ -390,7 +390,9 @@ export function useCircuitState(
 
     const tag = generateTag(category, circuit.devices);
     const now = Date.now();
+    const symbolDef = getSymbolById(category);
     const categoryInfo = SYMBOL_CATEGORIES.find(c => c.id === category);
+    const displayName = symbolDef?.name || categoryInfo?.label || category;
     const newPartId = generateId();
 
     // If partData is provided, use it; otherwise create an unassigned placeholder part
@@ -404,7 +406,7 @@ export function useCircuitState(
       type: 'part' as const,
       manufacturer: 'Unassigned',
       partNumber: 'TBD',
-      description: `${categoryInfo?.label || category} (unassigned)`,
+      description: `${displayName} (unassigned)`,
       category: category,
       attributes: {},
       createdAt: now,
@@ -415,7 +417,7 @@ export function useCircuitState(
       id: generateId(),
       type: 'device',
       tag,
-      function: partData?.description || `${categoryInfo?.label || category} device`,
+      function: partData?.description || displayName,
       partId: newPartId,
       sheetId: validActiveSheetId,
       createdAt: now,
