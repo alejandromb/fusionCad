@@ -2,7 +2,7 @@
  * Circuit state hook - CRUD operations, undo/redo
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { generateId, getSymbolById, type Device, type Sheet, type Annotation, type Part } from '@fusion-cad/core-model';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
@@ -50,6 +50,7 @@ export interface UseCircuitStateReturn {
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
+  replaceWaypoints: (connectionIndex: number, waypoints: Point[] | undefined) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
 
@@ -111,7 +112,36 @@ export function useCircuitState(
   const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
   const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
-  const [deviceTransforms, setDeviceTransforms] = useState<Map<string, DeviceTransform>>(new Map());
+  // Derive deviceTransforms from persisted circuit.transforms (single source of truth)
+  const deviceTransforms = useMemo(() => {
+    const map = new Map<string, DeviceTransform>();
+    if (circuit?.transforms) {
+      for (const [id, t] of Object.entries(circuit.transforms)) {
+        map.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false });
+      }
+    }
+    return map;
+  }, [circuit?.transforms]);
+
+  // Compat setter that writes through to circuit.transforms
+  const setDeviceTransforms: React.Dispatch<React.SetStateAction<Map<string, DeviceTransform>>> = useCallback((action) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const currentMap = new Map<string, DeviceTransform>();
+      if (prev.transforms) {
+        for (const [id, t] of Object.entries(prev.transforms)) {
+          currentMap.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false });
+        }
+      }
+      const nextMap = typeof action === 'function' ? action(currentMap) : action;
+      const newTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = {};
+      for (const [id, t] of nextMap) {
+        newTransforms[id] = { rotation: t.rotation, mirrorH: t.mirrorH || undefined };
+      }
+      return { ...prev, transforms: newTransforms };
+    });
+  }, [setCircuit]);
+
   const [selectedAnnotationId, setSelectedAnnotationIdRaw] = useState<string | null>(null);
 
   // Wrapped setters that clear the other selection type
@@ -295,6 +325,8 @@ export function useCircuitState(
         sheets: circuit.sheets ? [...circuit.sheets] : undefined,
         annotations: circuit.annotations ? [...circuit.annotations] : undefined,
         terminals: circuit.terminals ? [...circuit.terminals] : undefined,
+        rungs: circuit.rungs ? [...circuit.rungs] : undefined,
+        transforms: circuit.transforms ? { ...circuit.transforms } : undefined,
       },
       positions: new Map(devicePositions),
     };
@@ -342,6 +374,8 @@ export function useCircuitState(
       sheets: snapshot.circuit.sheets ? [...snapshot.circuit.sheets] : undefined,
       annotations: snapshot.circuit.annotations ? [...snapshot.circuit.annotations] : undefined,
       terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
+      rungs: snapshot.circuit.rungs ? [...snapshot.circuit.rungs] : undefined,
+      transforms: snapshot.circuit.transforms ? { ...snapshot.circuit.transforms } : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex - 1);
@@ -370,6 +404,8 @@ export function useCircuitState(
       sheets: snapshot.circuit.sheets ? [...snapshot.circuit.sheets] : undefined,
       annotations: snapshot.circuit.annotations ? [...snapshot.circuit.annotations] : undefined,
       terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
+      rungs: snapshot.circuit.rungs ? [...snapshot.circuit.rungs] : undefined,
+      transforms: snapshot.circuit.transforms ? { ...snapshot.circuit.transforms } : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex + 1);
@@ -591,6 +627,19 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
+  const replaceWaypoints = useCallback((connectionIndex: number, waypoints: Point[] | undefined) => {
+    if (!circuit) return;
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const newConnections = [...prev.connections];
+      const conn = { ...newConnections[connectionIndex] };
+      conn.waypoints = waypoints;
+      newConnections[connectionIndex] = conn;
+      return { ...prev, connections: newConnections };
+    });
+  }, [circuit, setCircuit]);
+
   const updateWireNumber = useCallback((connectionIndex: number, wireNumber: string) => {
     if (!circuit) return;
 
@@ -679,26 +728,28 @@ export function useCircuitState(
   // Rotate device 90° clockwise or counter-clockwise (by device ID)
   const rotateDevice = useCallback((deviceId: string, direction: 'cw' | 'ccw') => {
     pushToHistory();
-    setDeviceTransforms(prev => {
-      const next = new Map(prev);
-      const current = next.get(deviceId) || { rotation: 0, mirrorH: false };
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const transforms = { ...(prev.transforms || {}) };
+      const current = transforms[deviceId] || { rotation: 0 };
       const delta = direction === 'cw' ? 90 : -90;
       const newRotation = ((current.rotation + delta) % 360 + 360) % 360;
-      next.set(deviceId, { ...current, rotation: newRotation });
-      return next;
+      transforms[deviceId] = { ...current, rotation: newRotation };
+      return { ...prev, transforms };
     });
-  }, [pushToHistory]);
+  }, [pushToHistory, setCircuit]);
 
   // Mirror device horizontally (by device ID)
   const mirrorDevice = useCallback((deviceId: string) => {
     pushToHistory();
-    setDeviceTransforms(prev => {
-      const next = new Map(prev);
-      const current = next.get(deviceId) || { rotation: 0, mirrorH: false };
-      next.set(deviceId, { ...current, mirrorH: !current.mirrorH });
-      return next;
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const transforms = { ...(prev.transforms || {}) };
+      const current = transforms[deviceId] || { rotation: 0 };
+      transforms[deviceId] = { ...current, mirrorH: !current.mirrorH };
+      return { ...prev, transforms };
     });
-  }, [pushToHistory]);
+  }, [pushToHistory, setCircuit]);
 
   const deleteAnnotation = useCallback((annotationId: string) => {
     if (!circuit) return;
@@ -917,6 +968,7 @@ export function useCircuitState(
     addWaypoint,
     moveWaypoint,
     removeWaypoint,
+    replaceWaypoints,
     reconnectWire,
     updateWireNumber,
     connectToWire,

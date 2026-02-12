@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
-import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint } from '../renderer/circuit-renderer';
+import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice } from '../renderer/circuit-renderer';
+import type { Connection } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
 import {
   snapToGrid,
@@ -68,6 +69,7 @@ interface UseCanvasInteractionDeps {
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   moveWaypoint: (connectionIndex: number, waypointIndex: number, point: Point) => void;
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
+  replaceWaypoints: (connectionIndex: number, waypoints: Point[] | undefined) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
@@ -87,6 +89,70 @@ interface UseCanvasInteractionDeps {
   activeSheetId: string;
 }
 
+/**
+ * Compute pin world positions for a connection's from/to devices.
+ */
+function computeWirePinPositions(
+  conn: Connection,
+  devices: import('@fusion-cad/core-model').Device[],
+  parts: import('@fusion-cad/core-model').Part[],
+  positions: Map<string, Point>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+): { fromPinPos: Point | null; toPinPos: Point | null } {
+  const fromDevice = resolveDevice(conn, 'from', devices);
+  const toDevice = resolveDevice(conn, 'to', devices);
+  if (!fromDevice || !toDevice) return { fromPinPos: null, toPinPos: null };
+
+  const fromPos = positions.get(fromDevice.id);
+  const toPos = positions.get(toDevice.id);
+  if (!fromPos || !toPos) return { fromPinPos: null, toPinPos: null };
+
+  const partMap = new Map<string, import('@fusion-cad/core-model').Part>();
+  for (const part of parts) {
+    partMap.set(part.id, part);
+  }
+
+  const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
+  const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
+
+  const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
+  const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
+
+  const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
+  const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
+
+  const fromPinPos = fromPinDef
+    ? getPinWorldPosition(fromPos, fromPinDef.position, fromGeometry, transforms?.[fromDevice.id])
+    : { x: fromPos.x + fromGeometry.width / 2, y: fromPos.y + fromGeometry.height / 2 };
+  const toPinPos = toPinDef
+    ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
+    : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
+
+  return { fromPinPos, toPinPos };
+}
+
+/**
+ * Remove collinear intermediate waypoints (3 consecutive points on same line → remove middle).
+ */
+function simplifyWaypoints(waypoints: Point[]): Point[] | undefined {
+  if (waypoints.length <= 1) return waypoints.length === 0 ? undefined : waypoints;
+
+  const result: Point[] = [waypoints[0]];
+  for (let i = 1; i < waypoints.length - 1; i++) {
+    const prev = result[result.length - 1];
+    const curr = waypoints[i];
+    const next = waypoints[i + 1];
+    // Skip if collinear (all same X or all same Y)
+    const sameX = Math.abs(prev.x - curr.x) < 1 && Math.abs(curr.x - next.x) < 1;
+    const sameY = Math.abs(prev.y - curr.y) < 1 && Math.abs(curr.y - next.y) < 1;
+    if (!sameX && !sameY) {
+      result.push(curr);
+    }
+  }
+  result.push(waypoints[waypoints.length - 1]);
+  return result.length > 0 ? result : undefined;
+}
+
 export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasInteractionReturn {
   const {
     circuit,
@@ -104,6 +170,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     addWaypoint,
     moveWaypoint,
     removeWaypoint,
+    replaceWaypoints,
     reconnectWire,
     connectToWire,
     addAnnotation,
@@ -150,6 +217,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
   // Wire endpoint dragging state
   const [draggingEndpoint, setDraggingEndpoint] = useState<DraggingEndpointState | null>(null);
+
+  // Wire segment dragging state
+  const [draggingSegment, setDraggingSegment] = useState<{
+    connectionIndex: number;
+    direction: 'h' | 'v';
+    wpIndices: number[];        // waypoint indices to move (1 for edge, 2 for middle)
+    isFirst: boolean;           // first segment (need jog insertion)
+    isLast: boolean;            // last segment (need jog insertion)
+    jogInserted: boolean;       // whether we've already inserted the jog waypoint
+    pinPos: Point;              // pin position on the fixed side (for jog computation)
+  } | null>(null);
 
   // Marquee selection state
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
@@ -279,6 +357,59 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             canvas.style.cursor = 'move';
             return;
           }
+
+          // Check for segment drag on selected wire
+          const conn = circuit.connections[selectedWireIndex];
+          const { fromPinPos, toPinPos } = computeWirePinPositions(
+            conn, circuit.devices, circuit.parts, allPositions, circuit.transforms
+          );
+          if (fromPinPos && toPinPos) {
+            const segIdx = getWireSegmentAtPoint(
+              world.x, world.y, conn, fromPinPos.x, fromPinPos.y, toPinPos.x, toPinPos.y
+            );
+            if (segIdx !== null) {
+              // Materialize the full rendered path as waypoints
+              const fullPath = toOrthogonalPath([
+                fromPinPos, ...(conn.waypoints || []), toPinPos
+              ]);
+              const interior = fullPath.slice(1, -1);
+              const totalSegments = fullPath.length - 1;
+
+              // Determine segment direction
+              const p1 = fullPath[segIdx];
+              const p2 = fullPath[segIdx + 1];
+              const dir: 'h' | 'v' = Math.abs(p1.y - p2.y) < 1 ? 'h' : 'v';
+
+              const isFirst = segIdx === 0;
+              const isLast = segIdx === totalSegments - 1;
+
+              // Map to waypoint indices (interior is offset by 1 from fullPath)
+              let wpIndices: number[];
+              if (isFirst) {
+                wpIndices = [0]; // only first interior point
+              } else if (isLast) {
+                wpIndices = [interior.length - 1]; // only last interior point
+              } else {
+                wpIndices = [segIdx - 1, segIdx]; // both endpoints in interior
+              }
+
+              // Materialize waypoints
+              replaceWaypoints(selectedWireIndex, interior.length > 0 ? interior : undefined);
+
+              setDraggingSegment({
+                connectionIndex: selectedWireIndex,
+                direction: dir,
+                wpIndices,
+                isFirst,
+                isLast,
+                jogInserted: false,
+                pinPos: isFirst ? fromPinPos : toPinPos,
+              });
+              dragHistoryPushedRef.current = false;
+              canvas.style.cursor = dir === 'h' ? 'ns-resize' : 'ew-resize';
+              return;
+            }
+          }
         }
 
         // hitSymbol returns device ID
@@ -366,6 +497,70 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // Drag segment
+      if (draggingSegment) {
+        if (!dragHistoryPushedRef.current) {
+          pushToHistoryRef.current();
+          dragHistoryPushedRef.current = true;
+        }
+
+        const conn = circuit.connections[draggingSegment.connectionIndex];
+        if (!conn.waypoints) return;
+        const waypoints = [...conn.waypoints.map(wp => ({ ...wp }))];
+
+        const snappedX = snapToGrid(world.x);
+        const snappedY = snapToGrid(world.y);
+
+        if (draggingSegment.direction === 'h') {
+          // Horizontal segment: move Y of waypoints
+          for (const idx of draggingSegment.wpIndices) {
+            if (idx >= 0 && idx < waypoints.length) {
+              waypoints[idx] = { ...waypoints[idx], y: snappedY };
+            }
+          }
+          // For first/last segment: insert jog waypoint on first move
+          if ((draggingSegment.isFirst || draggingSegment.isLast) && !draggingSegment.jogInserted) {
+            const jogPoint = { x: draggingSegment.pinPos.x, y: snappedY };
+            if (draggingSegment.isFirst) {
+              waypoints.unshift(jogPoint);
+              setDraggingSegment(prev => prev ? {
+                ...prev,
+                wpIndices: prev.wpIndices.map(i => i + 1),
+                jogInserted: true,
+              } : null);
+            } else {
+              waypoints.push(jogPoint);
+              setDraggingSegment(prev => prev ? { ...prev, jogInserted: true } : null);
+            }
+          }
+        } else {
+          // Vertical segment: move X of waypoints
+          for (const idx of draggingSegment.wpIndices) {
+            if (idx >= 0 && idx < waypoints.length) {
+              waypoints[idx] = { ...waypoints[idx], x: snappedX };
+            }
+          }
+          if ((draggingSegment.isFirst || draggingSegment.isLast) && !draggingSegment.jogInserted) {
+            const jogPoint = { x: snappedX, y: draggingSegment.pinPos.y };
+            if (draggingSegment.isFirst) {
+              waypoints.unshift(jogPoint);
+              setDraggingSegment(prev => prev ? {
+                ...prev,
+                wpIndices: prev.wpIndices.map(i => i + 1),
+                jogInserted: true,
+              } : null);
+            } else {
+              waypoints.push(jogPoint);
+              setDraggingSegment(prev => prev ? { ...prev, jogInserted: true } : null);
+            }
+          }
+        }
+
+        replaceWaypoints(draggingSegment.connectionIndex, waypoints);
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
       // Drag endpoint
       if (draggingEndpoint) {
         setMouseWorldPos(world);
@@ -413,7 +608,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       // Marquee selection
-      if (interactionMode === 'select' && marqueeStartRef.current && !draggingDevice && !draggingWaypoint && !draggingEndpoint) {
+      if (interactionMode === 'select' && marqueeStartRef.current && !draggingDevice && !draggingWaypoint && !draggingEndpoint && !draggingSegment) {
         if (hasDraggedRef.current) {
           const startWorld = marqueeStartRef.current;
           const mode = world.x >= startWorld.x ? 'window' : 'crossing';
@@ -448,6 +643,20 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       // End waypoint dragging
       if (draggingWaypoint) {
         setDraggingWaypoint(null);
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
+
+      // End segment dragging
+      if (draggingSegment) {
+        // Simplify: remove collinear waypoints
+        const conn = circuit.connections[draggingSegment.connectionIndex];
+        if (conn.waypoints && conn.waypoints.length > 2) {
+          const simplified = simplifyWaypoints(conn.waypoints);
+          replaceWaypoints(draggingSegment.connectionIndex, simplified);
+        }
+        setDraggingSegment(null);
         isDraggingRef.current = false;
         canvas.style.cursor = getCursor();
         return;
@@ -885,7 +1094,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
+  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
 
   return {
     canvasRef,

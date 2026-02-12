@@ -134,6 +134,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
     addWaypoint: circuitState.addWaypoint,
     moveWaypoint: circuitState.moveWaypoint,
     removeWaypoint: circuitState.removeWaypoint,
+    replaceWaypoints: circuitState.replaceWaypoints,
     reconnectWire: circuitState.reconnectWire,
     connectToWire: circuitState.connectToWire,
     addAnnotation: circuitState.addAnnotation,

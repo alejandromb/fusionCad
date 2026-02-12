@@ -15,7 +15,7 @@ import { renderLadderOverlay } from './ladder-renderer';
  * Resolve device for a connection endpoint.
  * Uses fromDeviceId/toDeviceId when present, falls back to tag lookup.
  */
-function resolveDevice(
+export function resolveDevice(
   conn: Connection,
   endpoint: 'from' | 'to',
   devices: Device[],
@@ -58,7 +58,7 @@ export interface CircuitData {
  * Compute a pin's world position accounting for device rotation.
  * Rotates the pin offset around the symbol center, then adds device position.
  */
-function getPinWorldPosition(
+export function getPinWorldPosition(
   devicePos: Point,
   pinPos: Point,
   geometry: { width: number; height: number },
@@ -112,7 +112,7 @@ export interface RenderOptions {
  * Convert a series of points to orthogonal path (horizontal/vertical segments only)
  * Uses "horizontal first" approach: go horizontal to target X, then vertical to target Y
  */
-function toOrthogonalPath(points: Point[]): Point[] {
+export function toOrthogonalPath(points: Point[]): Point[] {
   if (points.length < 2) return points;
 
   const result: Point[] = [points[0]];
@@ -617,7 +617,7 @@ export function renderCircuit(
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
   if (activeSheet?.diagramType === 'ladder') {
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
-    renderLadderOverlay(ctx, activeSheet, sheetRungs, devices, parts, positions, persistedTransforms);
+    renderLadderOverlay(ctx, activeSheet, sheetRungs, devices, parts, positions, persistedTransforms, !!options?.wireStart);
   }
 
   /** Resolve the effective transform for a device (runtime overrides persisted) */
