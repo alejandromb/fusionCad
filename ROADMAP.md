@@ -129,46 +129,133 @@ Status: Active Development
 
 ---
 
-## Phase 10: Advanced Schematic Features
+## Phase 10: AI Datasheet-to-Part Importer
+
+**Goal**: Automatically create Parts from manufacturer datasheets using AI extraction.
+
+**This is the first concrete AI feature** — a stepping stone toward full AI-assisted drawing generation. Instead of manually typing part specs, the user drops a datasheet and gets a complete Part with symbol assignments.
+
+### Pipeline
+
+```
+Datasheet PDF
+    → AI extraction tool (Google AI Studio, Claude, etc.)
+    → Structured markdown + images (saved to folder)
+    → fusionCad importer agent reads folder
+    → Creates Part entity with all specs populated
+    → Suggests schematic symbol (from existing library)
+    → Suggests layout symbol (from mechanical drawing dimensions)
+    → User confirms symbol assignments
+    → Part saved to database, ready to place on schematic
+```
+
+### What the AI Extracts (proven with Mean Well NDR-120-24)
+
+From `document.md`:
+- Manufacturer, part number, model variants
+- Electrical specs (voltage, current, power rating, efficiency)
+- Environmental specs (temperature range, humidity)
+- Certifications (UL, CE, CSA, TUV)
+- Pin assignments (terminal blocks with pin numbers and functions)
+- Physical dimensions (W × H × D in mm)
+- DIN rail compatibility
+- Supplier URLs
+
+From `assets/` images:
+- Mechanical drawings with exact dimensions → layout symbol generation
+- Block diagrams → pin count/function verification
+- Product photos → visual reference in Parts Catalog
+
+### 10.1 Datasheet Folder Convention
+- [ ] Define folder structure: `datasheets/<folder-id>/document.md` + `assets/`
+- [ ] Folder ID = supplier part ID or internal ID
+- [ ] Store extracted datasheets alongside project (or in shared library)
+
+### 10.2 AI Parsing Agent (`parse-datasheet` skill)
+- [ ] Read `document.md` → extract structured Part fields
+- [ ] Parse spec tables for model variants (one Part per variant)
+- [ ] Extract pin assignments → map to SymbolPin definitions
+- [ ] Parse dimensions → physical footprint data for layout symbol
+- [ ] Extract certifications, supplier URLs, datasheet URL
+- [ ] Output: structured JSON matching `Part` type + pin mapping + dimensions
+
+### 10.3 Symbol Matching
+- [ ] Match extracted specs to existing schematic symbols (e.g., power supply → `iec-power-supply-dc`)
+- [ ] Score confidence: exact match, category match, or "no match — needs new symbol"
+- [ ] For layout: generate rectangle primitive from mechanical dimensions
+- [ ] Present suggestions to user with confidence scores
+- [ ] User confirms or overrides symbol assignments
+
+### 10.4 Part Creation API
+- [ ] `POST /api/parts/from-datasheet` — accepts parsed datasheet JSON, creates Part
+- [ ] Auto-assign `symbolCategory` and `layoutSymbolId` from user-confirmed suggestions
+- [ ] Support batch creation (all model variants from one datasheet family)
+- [ ] Deduplication: check if part number already exists in database
+
+### 10.5 UI Integration
+- [ ] "Import from Datasheet" button in Parts Catalog
+- [ ] Upload folder or paste folder path
+- [ ] Preview extracted data before confirming
+- [ ] Symbol suggestion dialog with visual preview
+- [ ] Bulk import progress indicator
+
+### Prerequisites
+- Parts database ✅
+- Symbol persistence (Postgres) ✅
+- Dual symbol architecture (type ready) ✅
+- AI extraction tool (external, e.g., Google AI Studio) — user-provided
+
+### Reference Implementation
+First test case: Mean Well NDR-120-24 (folder `4661010/`)
+- 3 model variants (NDR-120-12, -24, -48)
+- DIN rail mount, 40 × 125.2 × 113.5mm
+- TB1: FG, AC/N, AC/L (3 pins, input)
+- TB2: DC-V ×2, DC+V ×2 (4 pins, output)
+- Schematic symbol: `iec-power-supply-dc`
+- Layout symbol: 40mm wide DIN rail rectangle with terminal positions
+
+---
+
+## Phase 11: Advanced Schematic Features
 
 **Goal**: Feature parity with professional electrical CAD.
 
-### 10.1 Enhanced Wiring
+### 11.1 Enhanced Wiring
 - [ ] Wire gauge/color/type properties
 - [ ] Cable assignments (group wires into cables)
 - [ ] Auto-routing improvements
 - [ ] Wire bend point snapping
 
-### 10.2 Cross-References
+### 11.2 Cross-References
 - [ ] Clickable cross-reference navigation
 - [ ] Auto-updating page/zone references
 - [ ] Contact mirror display (show all contacts on coil symbol)
 
-### 10.3 Terminal Blocks
+### 11.3 Terminal Blocks
 - [ ] Visual terminal strip builder
 - [ ] Drag to create linked multi-level terminals
 - [ ] Jumper/bridge connections
 - [ ] Terminal label positioning
 
-### 10.4 Advanced Selection
+### 11.4 Advanced Selection
 - [ ] Marquee/rubber-band selection
 - [ ] Crossing vs window select modes
 - [ ] Select by type/property filters
 
 ---
 
-## Phase 11: Panel Layout View (Future)
+## Phase 12: Panel Layout View (Future)
 
 **Goal**: Physical layout drawings for control panels.
 
 **Prerequisite**: Schematic features must be mature first.
 
-### 11.1 Layout Canvas
+### 12.1 Layout Canvas
 - [ ] Physical coordinate system (mm/inches)
 - [ ] Enclosure outline (NEMA 4X, UL 508A dimensions)
 - [ ] DIN rail placement
 
-### 11.2 Dual Symbol Architecture (Schematic + Layout)
+### 12.2 Dual Symbol Architecture (Schematic + Layout)
 Each part can reference **two symbols**:
 - **`symbolCategory`** → schematic symbol (electrical diagram — coil, contacts, etc.)
 - **`layoutSymbolId`** → layout symbol (physical footprint — DIN rail outline, mounting holes)
@@ -182,33 +269,33 @@ The `Part.layoutSymbolId` field is already in the type system (added 2026-02-11)
 - [ ] Auto-place from schematic devices using `layoutSymbolId`
 - [ ] Drag to arrange on DIN rails
 
-### 11.3 Wire Duct
+### 12.3 Wire Duct
 - [ ] Rectangular wire duct/trough elements
 - [ ] Wire routing through ducts
 - [ ] Fill calculation
 
-### 11.4 Panel BOM
+### 12.4 Panel BOM
 - [ ] Enclosure, DIN rails, wire duct quantities
 - [ ] Mounting hardware
 - [ ] Labels and markers
 
 ---
 
-## Phase 12: Alpha Release
+## Phase 13: Alpha Release
 
 **Goal**: Public alpha with real users.
 
-### 12.1 Deployment
+### 13.1 Deployment
 - [ ] Deploy web app (Vercel/Cloudflare)
 - [ ] PWA manifest (offline capable)
 - [ ] Error reporting (Sentry)
 
-### 12.2 User Onboarding
+### 13.2 User Onboarding
 - [ ] Landing page with demo
 - [ ] Example projects (motor starter, VFD, PLC panel)
 - [ ] Video tutorials
 
-### 12.3 Feedback
+### 13.3 Feedback
 - [ ] Discord community
 - [ ] Feature request tracking
 - [ ] Bug report workflow
@@ -238,7 +325,7 @@ Each step is a composable **skill** that an orchestrating agent calls:
 - `select-parts` — spec → BOM with manufacturer part numbers
 - `place-schematic` — devices + wiring on multi-sheet schematic
 - `assign-terminals` — auto-calculate terminal blocks and wire numbers
-- `generate-panel-layout` — physical footprints on DIN rails (Phase 11)
+- `generate-panel-layout` — physical footprints on DIN rails (Phase 12)
 - `validate` — run ERC, flag issues, iterate
 - `export` — produce all reports + drawings
 
@@ -248,7 +335,8 @@ Each step is a composable **skill** that an orchestrating agent calls:
 - Symbol persistence (Postgres) ✅
 - Multi-sheet support ✅
 - Reports generation ✅
-- **Dual symbols per part** (schematic + layout) ✅ (type ready, layout symbols Phase 11)
+- **Dual symbols per part** (schematic + layout) ✅ (type ready, layout symbols Phase 12)
+- AI datasheet-to-part importer (Phase 10)
 - Programmatic circuit manipulation API (needed — not just UI events)
 - Template circuits for common patterns (motor starters, VFD, PLC racks)
 
@@ -258,7 +346,7 @@ Each step is a composable **skill** that an orchestrating agent calls:
 3. **Agent framework** — composable skills with tool-calling LLM orchestrator
 4. **Requirement parser** — NL → structured spec with validation
 5. **Iterative generation** — generate → validate → fix → re-validate loop
-6. **Panel layout agent** — after Phase 11 panel layout view is built
+6. **Panel layout agent** — after Phase 12 panel layout view is built
 
 ---
 
@@ -283,12 +371,13 @@ Each step is a composable **skill** that an orchestrating agent calls:
 | Save latency | ~200ms (full) | <100ms (delta) |
 | IEC compliance | ~70% | 95%+ |
 | Parts with dual symbols | 0 (type ready) | All catalog parts |
+| AI-imported parts | 0 | 50+ (common industrial parts) |
 
 ---
 
 ## Next Actions
 
 1. **Immediate**: Continue symbol quality improvements
-2. **Short-term**: Design delta save architecture
-3. **Medium-term**: Implement normalized storage schema
-4. **Long-term**: Panel layout view after schematic maturity
+2. **Short-term**: AI datasheet-to-part importer (Phase 10) — first AI feature
+3. **Medium-term**: Delta save architecture, advanced schematic features
+4. **Long-term**: Panel layout view, full AI-assisted drawing generation

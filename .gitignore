@@ -42,3 +42,11 @@ pnpm-debug.log*
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Datasheet extractions (AI-imported, contain large assets)
+/datasheets/
+/4661010/
+
+# Misc project files
+*.dxf
+*.pdf
