@@ -35,9 +35,9 @@ The system is intentionally layered to keep electrical correctness deterministic
 
 The model is device-centric and graph-based.
 
-- Part: catalog item (manufacturer, part number, attributes).
+- Part: catalog item (manufacturer, part number, attributes). Each part can reference two symbols: `symbolCategory` (schematic) and `layoutSymbolId` (panel footprint). Many parts can share the same symbols — e.g., 10 circuit breakers may share one schematic symbol and one layout footprint.
 - Device: a project instance (tag, function, location, assigned part).
-- SymbolDefinition: reusable symbol geometry + logical pins.
+- SymbolDefinition: reusable symbol geometry + logical pins. Used for both schematic symbols and layout footprints (distinguished by category/convention).
 - SymbolInstance: placed symbol tied to a device (position/rotation/overrides).
 - PinInstance: pin on a symbol instance (type: input/output/passive/power/pe/etc.).
 - Node/Junction: connection nodes in the graph (including pin nodes).

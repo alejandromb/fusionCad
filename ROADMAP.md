@@ -8,8 +8,9 @@ Status: Active Development
 
 ## Current Status
 
-**Phases 1-7**: Complete (28 E2E tests passing)
-**Current Focus**: Symbol quality refinement, storage architecture planning
+**Phases 1-7**: Complete (35 E2E tests passing)
+**Phase 8**: Symbol persistence via Postgres complete (2026-02-11)
+**Current Focus**: Symbol quality refinement, dual-symbol architecture for panel layout
 
 ---
 
@@ -167,9 +168,18 @@ Status: Active Development
 - [ ] Enclosure outline (NEMA 4X, UL 508A dimensions)
 - [ ] DIN rail placement
 
-### 11.2 Component Footprints
-- [ ] Physical dimensions from parts database
-- [ ] Auto-place from schematic devices
+### 11.2 Dual Symbol Architecture (Schematic + Layout)
+Each part can reference **two symbols**:
+- **`symbolCategory`** → schematic symbol (electrical diagram — coil, contacts, etc.)
+- **`layoutSymbolId`** → layout symbol (physical footprint — DIN rail outline, mounting holes)
+
+Example: 10 different circuit breakers may all share the same schematic symbol (`circuit-breaker`) and the same layout footprint (`layout-gv2-3p`), but they are different parts with different ratings, prices, and part numbers. The Part → Symbol relationship is many-to-one in both directions.
+
+The `Part.layoutSymbolId` field is already in the type system (added 2026-02-11). Layout symbols will be stored in the same `symbols` table with a `layout-` prefix convention and a `layout` category.
+
+- [ ] Create layout symbol primitives (rectangles with dimensions, mounting holes, terminal positions)
+- [ ] Layout symbol editor mode (mm grid, physical dimensions)
+- [ ] Auto-place from schematic devices using `layoutSymbolId`
 - [ ] Drag to arrange on DIN rails
 
 ### 11.3 Wire Duct
@@ -207,30 +217,48 @@ Status: Active Development
 
 ## Long-Term Vision: AI-Assisted Drawing Generation
 
-**Goal**: Natural language → complete schematic drawings.
+**Goal**: Natural language → complete schematic + panel layout drawings via AI agents.
+
+**This is the core differentiator.** No product on the market does this today.
 
 ### Concept
 User provides requirements in plain English:
-> "Allen-Bradley CompactLogix, 10 DI, 10 DO, 4 AI, 4 AO, UL stainless steel 304 panel"
+> "I need a motor starter contactor controlled by a PLC output, with start/stop pushbuttons and a Hand-Off-Auto selector switch. Allen-Bradley CompactLogix, UL stainless steel 304 panel."
 
-System generates:
-1. Structured spec (PLC model, I/O counts, panel requirements)
-2. Compatible parts selection from catalog
-3. Complete schematic with symbols, wiring, terminals, wire numbers
-4. BOM and reports
+AI agents:
+1. **Parse** requirements into structured spec (PLC model, I/O mapping, motor data, control philosophy)
+2. **Select parts** from catalog (contactor, overload, HOA switch, pushbuttons, terminal blocks)
+3. **Generate schematic** — place symbols, wire I/O, assign terminals, auto-number wires
+4. **Generate panel layout** — place footprints on DIN rails inside enclosure
+5. **Produce deliverables** — BOM, wire list, terminal plan, cable schedule, I/O list
+
+### Architecture: Agent Skills
+Each step is a composable **skill** that an orchestrating agent calls:
+- `parse-requirements` — NL → structured spec (JSON)
+- `select-parts` — spec → BOM with manufacturer part numbers
+- `place-schematic` — devices + wiring on multi-sheet schematic
+- `assign-terminals` — auto-calculate terminal blocks and wire numbers
+- `generate-panel-layout` — physical footprints on DIN rails (Phase 11)
+- `validate` — run ERC, flag issues, iterate
+- `export` — produce all reports + drawings
 
 ### Prerequisites
 - Robust symbol library ✅
 - Parts database with specifications ✅
-- Programmatic circuit manipulation API (in progress)
+- Symbol persistence (Postgres) ✅
 - Multi-sheet support ✅
 - Reports generation ✅
+- **Dual symbols per part** (schematic + layout) ✅ (type ready, layout symbols Phase 11)
+- Programmatic circuit manipulation API (needed — not just UI events)
+- Template circuits for common patterns (motor starters, VFD, PLC racks)
 
 ### Implementation Path
-1. Programmatic API for circuit CRUD (not just UI events)
-2. Template circuits for common patterns
-3. LLM integration for requirement parsing
-4. Iterative generation with validation feedback
+1. **Programmatic API** for circuit CRUD (server-side, not canvas mouse events)
+2. **Template circuits** for common patterns (DOL starter, star-delta, VFD, etc.)
+3. **Agent framework** — composable skills with tool-calling LLM orchestrator
+4. **Requirement parser** — NL → structured spec with validation
+5. **Iterative generation** — generate → validate → fix → re-validate loop
+6. **Panel layout agent** — after Phase 11 panel layout view is built
 
 ---
 
@@ -249,11 +277,12 @@ System generates:
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| E2E Tests | 28 passing | 50+ |
-| Symbol count | ~30 | 100+ |
+| E2E Tests | 35 passing | 50+ |
+| Symbol count | 61 (persisted in Postgres) | 100+ |
 | Max project size | ~500 devices | 5000+ |
 | Save latency | ~200ms (full) | <100ms (delta) |
 | IEC compliance | ~70% | 95%+ |
+| Parts with dual symbols | 0 (type ready) | All catalog parts |
 
 ---
 

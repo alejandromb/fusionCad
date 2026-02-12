@@ -36,7 +36,8 @@ export interface Part extends Entity {
   certifications?: string[];     // e.g., ['UL', 'CE', 'CSA']
   datasheetUrl?: string;
   supplierUrls?: Record<string, string>;  // e.g., { 'Mouser': 'https://...' }
-  symbolCategory?: string;       // which symbol category to use for rendering
+  symbolCategory?: string;       // schematic symbol category (e.g., 'contactor', 'circuit-breaker')
+  layoutSymbolId?: string;       // panel layout symbol ID (physical footprint for panel view)
   attributes: Record<string, unknown>; // flexible attributes
 }
 
@@ -173,6 +174,12 @@ export interface SymbolDefinition extends Entity {
    * e.g., 'builtin', 'radica-software', 'kicad-import', 'custom'
    */
   source?: string;
+
+  /**
+   * Symbol standard this definition conforms to.
+   * e.g., 'IEC 60617', 'ANSI/NEMA', 'common' (appears under all standards)
+   */
+  standard?: string;
 
   /**
    * IEC 60617 reference (if applicable).
