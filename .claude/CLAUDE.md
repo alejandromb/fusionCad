@@ -32,21 +32,19 @@ Before doing ANYTHING else:
 
 ## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-12)
 
-**Current task:** Linked Device Representations - COMPLETE!
+**Current task:** Ladder Diagram Layout System — testing MCP generation workflow
 
 **Status:**
-- ✅ **ID-Keyed Architecture**: All internal systems use `device.id` (not `device.tag`)
-- ✅ **deviceGroupId**: Links multiple representations of same physical device
-- ✅ **MCP Server** (`packages/mcp-server/`): 19 tools (9 read, 10 write) incl. `place_linked_device`
-- ✅ **ERC + BOM updated**: deviceGroupId-aware duplicate checks and BOM grouping
+- ✅ **Ladder Layout System**: DiagramType, LadderConfig, Rung types, layout engine, renderer
+- ✅ **24 MCP tools** (9 read, 15 write) incl. ladder tools + motor starter generator
+- ✅ **Transform-aware interaction**: Rotated devices fully selectable/editable
+- ✅ **Wire deletion**: Delete key + toolbar button works for wires
 - ✅ **35 E2E tests passing**
-- ✅ All prior features working (persistence, copy/paste, undo/redo, multi-select, marquee, wire bend points)
 
 **Next steps:**
-1. Test linked device workflow end-to-end (K1 contactor + K1 coil + K1 aux contacts)
+1. Clean DB → generate motor starter via MCP tools → verify rendering
 2. Implement IndexedDB storage for free tier
 3. Import symbols from external SVG libraries
-4. Fine-tune symbol paths using Symbol Editor
 
 ---
 
@@ -78,7 +76,7 @@ The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for 
 
 **To use:** Start the API (`npm run dev:api`), then restart Claude Code — it discovers `.mcp.json` automatically.
 
-**19 Tools:** `list_projects`, `get_project_summary`, `list_devices`, `list_connections`, `list_symbols`, `search_symbols`, `run_erc`, `generate_bom`, `list_parts_catalog`, `create_project`, `place_device`, `place_linked_device`, `delete_device`, `update_device`, `create_wire`, `delete_wire`, `assign_part`, `add_sheet`, `add_annotation`
+**24 Tools:** `list_projects`, `get_project_summary`, `list_devices`, `list_connections`, `list_symbols`, `search_symbols`, `run_erc`, `generate_bom`, `list_parts_catalog`, `create_project`, `place_device`, `place_linked_device`, `delete_device`, `update_device`, `create_wire`, `delete_wire`, `assign_part`, `add_sheet`, `add_annotation`, `set_sheet_type`, `add_rung`, `auto_layout_ladder`, `generate_motor_starter`, `add_control_rung`
 
 **Key files:**
 - `packages/mcp-server/src/server.ts` - All tool registrations

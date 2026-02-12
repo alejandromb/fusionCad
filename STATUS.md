@@ -709,6 +709,42 @@ This file tracks where we are in development. **Always read this file at the sta
 - `packages/mcp-server/src/server.ts` — McpServer with 18 tool registrations
 - `.mcp.json` — Claude Code MCP discovery
 
+### Checkpoint: 2026-02-12 - Ladder Diagram Layout System & Interactive Fixes
+
+**Changes Made**:
+- Implemented complete ladder diagram layout system (data model, layout engine, renderer, MCP tools)
+- Fixed symbol rotation for horizontal current flow (devices rotated -90° on ladder rungs)
+- Fixed rail-to-device stub wires (L1→first device, last device→L2)
+- Added `branchOf` field to Rung type for parallel branch rungs (seal-in circuits)
+- Fixed motor starter template: coil on rung 1 only, rung 2 is branch
+- Added transform-aware hit-testing for devices, wires, and pins (rotated symbols now selectable)
+- Added wire deletion via Delete/Backspace key and toolbar button
+- Persisted `transforms` and `rungs` in circuitData across all interfaces
+
+**Architecture Updates**:
+- New types: `DiagramType`, `LadderConfig`, `Rung` (with `branchOf`)
+- New package: `packages/core-engine/src/ladder-layout.ts` — pure layout function
+- New renderer: `apps/web/src/renderer/ladder-renderer.ts` — rails, rung numbers, rail stubs
+- New templates: `packages/mcp-server/src/circuit-templates.ts` — motor starter, control rung generators
+- 5 new MCP tools: `set_sheet_type`, `add_rung`, `auto_layout_ladder`, `generate_motor_starter`, `add_control_rung`
+- `CircuitData` now includes `transforms` and `rungs` fields (persisted)
+
+**Completed**:
+- [x] Ladder data model (DiagramType, LadderConfig, Rung)
+- [x] Layout engine (pure function: rungs + config → device positions)
+- [x] Power rail & rung rendering (L1/L2 rails, rung numbers, voltage labels)
+- [x] MCP tools for ladder operations (low-level + high-level)
+- [x] Motor starter circuit template (3-wire, 8 devices, 3 rungs, 6 wires)
+- [x] Transform-aware hit-testing (select/wire/delete on rotated devices)
+- [x] Wire deletion (Delete key + toolbar button)
+- [x] 35 E2E tests passing
+
+**Still In Progress**:
+- [ ] End-to-end MCP test: clean DB → generate motor starter via MCP tools → verify in browser
+- [ ] New MCP tools need server restart to be available (restart Claude Code)
+
+---
+
 ### Checkpoint: 2026-02-12 - Linked Device Representations (ID-Keyed Architecture)
 
 **Changes Made**:
