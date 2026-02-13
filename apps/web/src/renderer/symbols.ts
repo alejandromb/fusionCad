@@ -19,6 +19,7 @@ import type { SymbolDefinition, SymbolPath, SymbolText, SymbolPrimitive } from '
 import { getSymbolDefinition, getSymbolById } from '@fusion-cad/core-model';
 import type { SymbolGeometry, DeviceTransform } from './types';
 import { transformPinPosition } from './types';
+import { getTheme } from './theme';
 
 /**
  * Look up a symbol by ID first, then fall back to category lookup.
@@ -339,14 +340,15 @@ function renderPaths(
   x: number,
   y: number
 ): void {
+  const t = getTheme();
   for (const path of paths) {
     const commands = parseSVGPath(path.d);
     const shouldStroke = path.stroke !== false; // default true
     const shouldFill = path.fill === true; // default false
-    const strokeWidth = path.strokeWidth ?? 2;
+    const strokeWidth = path.strokeWidth ?? t.symbolStrokeWidth;
 
-    ctx.strokeStyle = '#00ff00';
-    ctx.fillStyle = '#00ff00';
+    ctx.strokeStyle = t.symbolStroke;
+    ctx.fillStyle = t.symbolStroke;
     ctx.lineWidth = strokeWidth;
 
     renderPathCommands(ctx, commands, x, y);
@@ -369,11 +371,12 @@ function renderTexts(
   x: number,
   y: number
 ): void {
+  const t = getTheme();
   for (const text of texts) {
     const fontSize = text.fontSize ?? 20;
     const fontWeight = text.fontWeight ?? 'bold';
 
-    ctx.fillStyle = '#00ff00';
+    ctx.fillStyle = t.symbolTextFill;
     ctx.font = `${fontWeight} ${fontSize}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -396,13 +399,14 @@ function renderPrimitives(
   x: number,
   y: number
 ): void {
+  const t = getTheme();
   for (const p of primitives) {
-    const strokeColor = ('stroke' in p && p.stroke) || '#00ff00';
+    const strokeColor = ('stroke' in p && p.stroke) || t.symbolStroke;
     const fillColor = ('fill' in p && p.fill) || 'none';
-    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 2;
+    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || t.symbolStrokeWidth;
 
     ctx.strokeStyle = strokeColor;
-    ctx.fillStyle = fillColor !== 'none' ? fillColor : '#00ff00';
+    ctx.fillStyle = fillColor !== 'none' ? fillColor : t.symbolStroke;
     ctx.lineWidth = lineWidth;
 
     switch (p.type) {
@@ -459,7 +463,7 @@ function renderPrimitives(
       case 'text': {
         const fontSize = p.fontSize ?? 20;
         const fontWeight = p.fontWeight ?? 'bold';
-        ctx.fillStyle = '#00ff00';
+        ctx.fillStyle = t.symbolTextFill;
         ctx.font = `${fontWeight} ${fontSize}px monospace`;
         ctx.textAlign = (p.textAnchor as CanvasTextAlign) || 'center';
         ctx.textBaseline = 'middle';
@@ -471,9 +475,9 @@ function renderPrimitives(
         const commands = parseSVGPath(p.d);
         const shouldStroke = p.stroke !== 'none';
         const shouldFill = p.fill != null && p.fill !== 'none';
-        ctx.strokeStyle = (p.stroke && p.stroke !== 'none') ? p.stroke : '#00ff00';
-        ctx.fillStyle = (p.fill && p.fill !== 'none') ? p.fill : '#00ff00';
-        ctx.lineWidth = p.strokeWidth ?? 2;
+        ctx.strokeStyle = (p.stroke && p.stroke !== 'none') ? p.stroke : t.symbolStroke;
+        ctx.fillStyle = (p.fill && p.fill !== 'none') ? p.fill : t.symbolStroke;
+        ctx.lineWidth = p.strokeWidth ?? t.symbolStrokeWidth;
         renderPathCommands(ctx, commands, x, y);
         if (shouldFill) ctx.fill();
         if (shouldStroke) ctx.stroke();
@@ -514,13 +518,20 @@ export function registerDrawFunction(
 /**
  * Get symbol geometry by ID or category.
  * Tries ID lookup first, then falls back to category for backward compatibility.
+ * Results are cached since symbol definitions don't change at runtime.
  */
+const geometryCache = new Map<string, SymbolGeometry>();
+const UNKNOWN_GEOMETRY: SymbolGeometry = { width: 40, height: 40, pins: [] };
+
 export function getSymbolGeometry(idOrCategory: string): SymbolGeometry {
+  const cached = geometryCache.get(idOrCategory);
+  if (cached) return cached;
+
   const def = lookupSymbol(idOrCategory);
   if (!def) {
-    return { width: 40, height: 40, pins: [] };
+    return UNKNOWN_GEOMETRY;
   }
-  return {
+  const geometry: SymbolGeometry = {
     width: def.geometry.width,
     height: def.geometry.height,
     pins: def.pins.map((p) => ({
@@ -529,6 +540,8 @@ export function getSymbolGeometry(idOrCategory: string): SymbolGeometry {
       direction: p.direction,
     })),
   };
+  geometryCache.set(idOrCategory, geometry);
+  return geometry;
 }
 
 // ---------------------------------------------------------------------------
@@ -542,12 +555,13 @@ function drawGenericSymbol(
   def: SymbolDefinition,
   tag: string
 ): void {
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
+  const t = getTheme();
+  ctx.strokeStyle = t.symbolStroke;
+  ctx.lineWidth = t.symbolStrokeWidth;
   ctx.strokeRect(x, y, def.geometry.width, def.geometry.height);
 
-  ctx.fillStyle = '#00ff00';
-  ctx.font = 'bold 12px monospace';
+  ctx.fillStyle = t.tagColor;
+  ctx.font = t.tagFont;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(tag, x + 2, y + 2);
@@ -563,7 +577,8 @@ function drawPins(
   y: number,
   def: SymbolDefinition
 ): void {
-  ctx.fillStyle = '#00ffff'; // Cyan for pin dots
+  const t = getTheme();
+  ctx.fillStyle = t.pinDotColor;
   ctx.font = '10px monospace';
 
   for (const pin of def.pins) {
@@ -572,11 +587,11 @@ function drawPins(
 
     // Draw pin dot
     ctx.beginPath();
-    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
+    ctx.arc(pinX, pinY, t.pinDotRadius, 0, Math.PI * 2);
     ctx.fill();
 
     // Draw pin label
-    ctx.fillStyle = '#ffff00'; // Yellow for pin labels
+    ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
     switch (pin.direction) {
@@ -601,7 +616,7 @@ function drawPins(
     }
 
     // Reset fill for next pin dot
-    ctx.fillStyle = '#00ffff';
+    ctx.fillStyle = t.pinDotColor;
   }
 }
 
@@ -613,16 +628,17 @@ function drawTag(
   tag: string,
   category: string
 ): void {
+  const t = getTheme();
   if (category === 'motor') {
     // Motor shows tag below the symbol
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = t.tagColor;
+    ctx.font = t.tagFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(tag, x + def.geometry.width / 2, y + def.geometry.height + 15);
   } else {
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = t.tagColor;
+    ctx.font = t.tagFont;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(tag, x + 2, y + 2);
@@ -647,16 +663,17 @@ export function drawSymbol(
   transform?: DeviceTransform
 ): void {
   const def = lookupSymbol(idOrCategory);
+  const t = getTheme();
 
   ctx.save();
 
   if (!def) {
     // No definition at all -- draw a placeholder rectangle
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = t.symbolStroke;
+    ctx.lineWidth = t.symbolStrokeWidth;
     ctx.strokeRect(x, y, 40, 40);
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = t.tagColor;
+    ctx.font = t.tagFont;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(tag, x + 2, y + 2);
@@ -752,8 +769,9 @@ function drawTransformedPins(
   rotation: number,
   mirrorH: boolean
 ): void {
+  const t = getTheme();
   const { width, height } = def.geometry;
-  ctx.fillStyle = '#00ffff';
+  ctx.fillStyle = t.pinDotColor;
   ctx.font = '10px monospace';
 
   for (const pin of def.pins) {
@@ -767,12 +785,12 @@ function drawTransformedPins(
     const pinX = x + transformed.position.x;
     const pinY = y + transformed.position.y;
 
-    ctx.fillStyle = '#00ffff';
+    ctx.fillStyle = t.pinDotColor;
     ctx.beginPath();
-    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
+    ctx.arc(pinX, pinY, t.pinDotRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#ffff00';
+    ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
     switch (transformed.direction) {
@@ -808,9 +826,10 @@ function drawJunction(
   y: number,
   def: SymbolDefinition
 ): void {
+  const t = getTheme();
   const cx = x + def.geometry.width / 2;
   const cy = y + def.geometry.height / 2;
-  ctx.fillStyle = '#00ff00';
+  ctx.fillStyle = t.junctionFill;
   ctx.beginPath();
   ctx.arc(cx, cy, 4, 0, Math.PI * 2);
   ctx.fill();

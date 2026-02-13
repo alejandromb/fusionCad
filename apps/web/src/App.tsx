@@ -6,6 +6,7 @@ import { useProjectPersistence } from './hooks/useProjectPersistence';
 import { detectStorageProvider, type StorageProvider, type StorageType } from './storage';
 import { useCircuitState } from './hooks/useCircuitState';
 import { useClipboard } from './hooks/useClipboard';
+import { useTheme } from './hooks/useTheme';
 import { useCanvasInteraction, type ManufacturerPart } from './hooks/useCanvasInteraction';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
@@ -21,6 +22,7 @@ import { ERCDialog } from './components/ERCDialog';
 import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
+import { AIPromptDialog } from './components/AIPromptDialog';
 import { fetchAllSymbols } from './api/symbols';
 
 // Register draw functions synchronously (canvas renderers, not symbol data)
@@ -79,12 +81,14 @@ export function App() {
 }
 
 function AppInner({ storageProvider, storageType }: { storageProvider: StorageProvider; storageType: StorageType }) {
+  const theme = useTheme();
   const [showReports, setShowReports] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSymbolLibrary, setShowSymbolLibrary] = useState(false);
   const [showERC, setShowERC] = useState(false);
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
 
   const clearPendingPartData = useCallback(() => {
@@ -213,6 +217,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
         onOpenSymbols={() => setShowSymbolLibrary(true)}
         onOpenParts={() => setShowPartsCatalog(true)}
         onOpenERC={() => setShowERC(true)}
+        onOpenAIPrompt={() => setShowAIPrompt(true)}
       />
 
       {/* Click outside to close menu */}
@@ -268,6 +273,12 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
           onUpdateAnnotation={circuitState.updateAnnotation}
           onDeleteAnnotation={circuitState.deleteAnnotation}
           onSelectAnnotation={circuitState.selectAnnotation}
+          activeSheet={circuitState.sheets.find(s => s.id === circuitState.activeSheetId) || null}
+          onUpdateSheet={circuitState.updateSheet}
+          themeId={theme.themeId}
+          setThemeId={theme.setThemeId}
+          customColors={theme.customColors}
+          setCustomColors={theme.setCustomColors}
         />
 
         <div className="canvas-area">
@@ -387,6 +398,14 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
 
       {showShortcuts && (
         <ShortcutsHelp onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {showAIPrompt && project.projectId && (
+        <AIPromptDialog
+          projectId={project.projectId}
+          onClose={() => setShowAIPrompt(false)}
+          onGenerated={() => project.reloadProject()}
+        />
       )}
     </div>
   );

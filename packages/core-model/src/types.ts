@@ -355,6 +355,47 @@ export interface TitleBlockData {
 export type DiagramType = 'ladder' | 'single-line' | 'schematic' | 'wiring';
 
 /**
+ * Block type — a placeable region on a sheet with its own diagram style.
+ * Multiple blocks can coexist on one sheet (e.g., a ladder block next to a wiring detail).
+ */
+export type DiagramBlockType = 'ladder' | 'panel-layout' | 'single-line';
+
+/**
+ * DiagramBlock — a placeable region on a sheet with its own diagram style.
+ * Replaces sheet-level diagramType for new designs.
+ * Device positions remain absolute world coordinates; the block's position
+ * is used by the renderer to offset visual chrome (rails, labels) via ctx.translate().
+ */
+export interface DiagramBlock extends Entity {
+  type: 'block';
+  blockType: DiagramBlockType;
+  sheetId: EntityId;
+  name: string;
+  position: { x: number; y: number };  // top-left corner in world coords
+}
+
+/**
+ * LadderBlock — a ladder diagram region with rail configuration.
+ */
+export interface LadderBlock extends DiagramBlock {
+  blockType: 'ladder';
+  ladderConfig: LadderConfig;
+}
+
+/**
+ * PanelLayoutBlock — a 2D front-view of an enclosure (future).
+ */
+export interface PanelLayoutBlock extends DiagramBlock {
+  blockType: 'panel-layout';
+  panelConfig?: Record<string, unknown>;  // future — enclosure dimensions, DIN rails
+}
+
+/**
+ * Union of all block types.
+ */
+export type AnyDiagramBlock = LadderBlock | PanelLayoutBlock;
+
+/**
  * Configuration for ladder diagram layout.
  * Controls rail positions, rung spacing, and labeling.
  */
@@ -376,6 +417,8 @@ export interface Rung extends Entity {
   type: 'rung';
   number: number;                // Rung number (1, 2, 3...)
   sheetId: EntityId;
+  /** Block this rung belongs to (preferred). Falls back to sheetId for legacy data. */
+  blockId?: EntityId;
   deviceIds: string[];           // Ordered device IDs left-to-right
   description?: string;          // Optional rung function description
   branchOf?: number;             // If set, this rung branches from another rung (no L2 rail stub)
@@ -473,4 +516,5 @@ export type AnyEntity =
   | PLCRack
   | PLCModule
   | PLCChannel
-  | Project;
+  | Project
+  | AnyDiagramBlock;

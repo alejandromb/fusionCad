@@ -30,22 +30,21 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-12)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-13)
 
-**Current task:** Wire interaction improvements
+**Current task:** Visibility Bug Fix + Canvas Navigation
 
 **Status:**
-- ✅ **Wire segment dragging**: Click-drag segments perpendicular to direction (H→up/down, V→left/right)
-- ✅ **Ladder Layout System**: DiagramType, LadderConfig, Rung types, layout engine, renderer
-- ✅ **24 MCP tools** (9 read, 15 write) incl. ladder tools + motor starter generator
-- ✅ **Transform-aware interaction**: Rotated devices fully selectable/editable
-- ✅ **Wire deletion**: Delete key + toolbar button works for wires
-- ✅ **35 E2E tests passing**
+- ✅ **VISIBILITY BUG FIXED**: Root cause was RAF coalescing in Canvas.tsx — `needsRenderRef` boolean got stuck at `true` when `cancelAnimationFrame` in effect cleanup cancelled the pending RAF before it could reset the flag. Fixed with simpler cancel-and-reschedule pattern (no boolean guard).
+- ✅ **Canvas panning implemented**: Click+drag on empty space = pan, Space+drag = pan anywhere, middle-click = pan. Shift+drag = marquee selection.
+- ✅ **Canvas buffer optimization**: Only resets `canvas.width`/`.height` on actual container resize, uses `clearRect` otherwise.
+- ✅ **35 E2E tests passing** (updated dragMarquee helper to use Shift)
 
 **Next steps:**
-1. Clean DB → generate motor starter via MCP tools → verify rendering
-2. Implement IndexedDB storage for free tier
-3. Import symbols from external SVG libraries
+1. Add E2E visibility test (user requested: "we need to add a visibility test!!!!!!")
+2. Wire preview improvement: orthogonal L-shaped preview
+3. Implement IndexedDB storage for free tier
+4. Further zoom performance optimization if needed
 
 ---
 
@@ -54,8 +53,14 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (98% complete)
 
 **Recent achievements:**
+- ✅ **Visibility Bug Fixed** - RAF coalescing broke rendering; fixed with cancel-and-reschedule pattern
+- ✅ **Canvas Panning** - Click+drag pan, Space+drag, middle-click pan; Shift+drag for marquee
+- ✅ **AI Panel Generation** - Natural language → full motor starter design with Claude API backend
+- ✅ **Multi-theme system** - 5 presets + custom theme, CSS vars + canvas theming
+- ✅ **Diagram Block Architecture** - Sheets are now canvases; diagram type is a placeable block (LadderBlock, PanelLayoutBlock)
+- ✅ **Motor Starter Auto-Generation** - Real Schneider parts from 216-config database, BOM-ready
 - ✅ **Linked Device Representations** - ID-keyed architecture, deviceGroupId, place_linked_device MCP tool
-- ✅ **MCP Server** - 19 tools for AI-driven circuit manipulation (prerequisite for AI-assisted drawing)
+- ✅ **MCP Server** - 29 tools for AI-driven circuit manipulation (prerequisite for AI-assisted drawing)
 - ✅ **Object Inspector** - Inline-editable properties, annotation selection/editing
 - ✅ **Symbol Editor** - Visual tool to create/edit symbols without code
 - ✅ **JSON Symbol Library** - 55 IEC symbols loaded from `builtin-symbols.json`
@@ -77,12 +82,16 @@ The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for 
 
 **To use:** Start the API (`npm run dev:api`), then restart Claude Code — it discovers `.mcp.json` automatically.
 
-**24 Tools:** `list_projects`, `get_project_summary`, `list_devices`, `list_connections`, `list_symbols`, `search_symbols`, `run_erc`, `generate_bom`, `list_parts_catalog`, `create_project`, `place_device`, `place_linked_device`, `delete_device`, `update_device`, `create_wire`, `delete_wire`, `assign_part`, `add_sheet`, `add_annotation`, `set_sheet_type`, `add_rung`, `auto_layout_ladder`, `generate_motor_starter`, `add_control_rung`
+**30 Tools:** `list_projects`, `get_project_summary`, `list_devices`, `list_connections`, `list_symbols`, `search_symbols`, `run_erc`, `generate_bom`, `list_parts_catalog`, `create_project`, `place_device`, `place_linked_device`, `delete_device`, `update_device`, `create_wire`, `delete_wire`, `assign_part`, `add_sheet`, `add_annotation`, `create_ladder_block`, `list_blocks`, `delete_block`, `set_sheet_type` _(deprecated)_, `add_rung`, `auto_layout_ladder`, `generate_motor_starter`, `generate_motor_starter_panel`, `add_control_rung`, `lookup_motor_starter`, `generate_motor_starter_from_spec`
 
 **Key files:**
 - `packages/mcp-server/src/server.ts` - All tool registrations
 - `packages/mcp-server/src/circuit-helpers.ts` - Pure circuit mutation functions
+- `packages/mcp-server/src/circuit-templates.ts` - Motor starter + control rung generators
 - `packages/mcp-server/src/api-client.ts` - HTTP client for fusionCad API
+- `packages/core-model/src/motor-data/lookup.ts` - Motor starter component lookup engine
+- `packages/core-model/src/motor-data/motor-database.json` - 216 Schneider Electric motor configs
+- `packages/core-model/src/parts/schneider-motor-catalog.ts` - 289 parts with datasheet URLs
 - `.mcp.json` - Claude Code auto-discovery config
 
 ---

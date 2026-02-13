@@ -3,6 +3,7 @@
  */
 
 import type { Sheet } from '@fusion-cad/core-model';
+import { getTheme } from './theme';
 
 // Sheet dimensions in pixels (at 1:1 scale)
 // Standard engineering drawing sizes
@@ -28,13 +29,14 @@ export function renderTitleBlock(
   sheet: Sheet
 ): void {
   const size = SHEET_SIZES[sheet.size] || SHEET_SIZES['Letter'];
+  const t = getTheme();
 
-  // Draw sheet background (white area)
-  ctx.fillStyle = '#252525';
+  // Draw sheet background
+  ctx.fillStyle = t.titleBlockBg;
   ctx.fillRect(0, 0, size.width, size.height);
 
   // Draw border
-  ctx.strokeStyle = '#444';
+  ctx.strokeStyle = t.titleBlockBorder;
   ctx.lineWidth = 1;
   ctx.strokeRect(BORDER_MARGIN, BORDER_MARGIN, size.width - BORDER_MARGIN * 2, size.height - BORDER_MARGIN * 2);
 
@@ -42,7 +44,7 @@ export function renderTitleBlock(
   const tbX = size.width - BORDER_MARGIN - TITLE_BLOCK_WIDTH;
   const tbY = size.height - BORDER_MARGIN - TITLE_BLOCK_HEIGHT;
 
-  ctx.strokeStyle = '#555';
+  ctx.strokeStyle = t.titleBlockDivider;
   ctx.lineWidth = 1;
   ctx.strokeRect(tbX, tbY, TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT);
 
@@ -64,7 +66,7 @@ export function renderTitleBlock(
   ctx.textBaseline = 'middle';
 
   // Title row (top)
-  ctx.fillStyle = '#e0e0e0';
+  ctx.fillStyle = t.titleBlockTitleColor;
   ctx.font = 'bold 14px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(
@@ -75,7 +77,7 @@ export function renderTitleBlock(
 
   // Drawing number + revision
   ctx.font = '11px monospace';
-  ctx.fillStyle = '#aaa';
+  ctx.fillStyle = t.titleBlockFieldColor;
   ctx.textAlign = 'left';
   ctx.fillText(`Dwg: ${titleBlock?.drawingNumber || '---'}`, tbX + 8, tbY + 42);
   ctx.fillText(`Rev: ${titleBlock?.revision || '---'}`, tbX + TITLE_BLOCK_WIDTH / 2 + 8, tbY + 42);
@@ -88,7 +90,7 @@ export function renderTitleBlock(
   if (titleBlock?.sheetOf) {
     ctx.font = '10px monospace';
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = t.titleBlockSheetColor;
     ctx.fillText(`Sheet ${titleBlock.sheetOf}`, tbX + TITLE_BLOCK_WIDTH - 8, tbY + TITLE_BLOCK_HEIGHT - 8);
   }
 }

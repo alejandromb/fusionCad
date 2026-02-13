@@ -22,6 +22,7 @@ interface HeaderProps {
   onOpenSymbols?: () => void;
   onOpenParts?: () => void;
   onOpenERC?: () => void;
+  onOpenAIPrompt?: () => void;
 }
 
 export function Header({
@@ -41,6 +42,7 @@ export function Header({
   onOpenSymbols,
   onOpenParts,
   onOpenERC,
+  onOpenAIPrompt,
 }: HeaderProps) {
   return (
     <header className="header">
@@ -94,6 +96,11 @@ export function Header({
       </div>
 
       <div className="header-right">
+        {circuit && onOpenAIPrompt && (
+          <button className="reports-header-btn ai-generate-btn" onClick={onOpenAIPrompt}>
+            AI Generate
+          </button>
+        )}
         {circuit && onOpenSymbols && (
           <button className="reports-header-btn" onClick={onOpenSymbols}>
             Symbols

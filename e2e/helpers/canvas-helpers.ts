@@ -166,7 +166,9 @@ export async function dragMarquee(
 ): Promise<void> {
   const from = await worldToScreen(page, fromWx, fromWy);
   const to = await worldToScreen(page, toWx, toWy);
-  const mods = options?.modifiers || [];
+  // Marquee requires Shift (plain drag = pan). Merge with any extra modifiers.
+  const mods = new Set(options?.modifiers || []);
+  mods.add('Shift');
 
   for (const mod of mods) await page.keyboard.down(mod);
   await page.mouse.move(from.x, from.y);

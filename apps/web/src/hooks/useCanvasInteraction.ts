@@ -229,6 +229,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     pinPos: Point;              // pin position on the fixed side (for jog computation)
   } | null>(null);
 
+  // Pan state (middle-click or Space+drag)
+  const isPanningRef = useRef(false);
+  const spaceHeldRef = useRef(false);
+
   // Marquee selection state
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const marqueeStartRef = useRef<Point | null>(null);
@@ -319,6 +323,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      // Middle-click or Space+left-click → pan
+      if (e.button === 1 || (e.button === 0 && spaceHeldRef.current)) {
+        e.preventDefault();
+        isPanningRef.current = true;
+        isDraggingRef.current = true;
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+
       if (e.button !== 0) return;
 
       const world = getWorldCoords(e);
@@ -455,9 +469,20 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
-      // If no hit in select mode, start marquee selection
+      // If no hit in select mode:
+      // - Shift+drag = marquee selection
+      // - Plain drag = pan canvas
       if (interactionMode === 'select') {
-        marqueeStartRef.current = world;
+        if (e.shiftKey) {
+          marqueeStartRef.current = world;
+        } else {
+          // Deselect everything and start panning
+          setSelectedDevices([]);
+          setSelectedWireIndex(null);
+          isPanningRef.current = true;
+          canvas.style.cursor = 'grabbing';
+          return;
+        }
       }
 
       canvas.style.cursor = getCursor();
@@ -478,6 +503,19 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       if (!isDraggingRef.current) return;
+
+      // Pan canvas (middle-click or Space+drag)
+      if (isPanningRef.current) {
+        const dx = e.clientX - lastMousePosRef.current.x;
+        const dy = e.clientY - lastMousePosRef.current.y;
+        setViewport(prev => ({
+          ...prev,
+          offsetX: prev.offsetX + dx,
+          offsetY: prev.offsetY + dy,
+        }));
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
 
       const deltaX = e.clientX - lastMousePosRef.current.x;
       const deltaY = e.clientY - lastMousePosRef.current.y;
@@ -624,19 +662,18 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
-      // Pan canvas
-      if (interactionMode === 'select' || hasDraggedRef.current) {
-        setViewport(prev => ({
-          ...prev,
-          offsetX: prev.offsetX + deltaX,
-          offsetY: prev.offsetY + deltaY,
-        }));
-      }
-
       lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleMouseUp = (e: MouseEvent) => {
+      // End pan
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        isDraggingRef.current = false;
+        canvas.style.cursor = spaceHeldRef.current ? 'grab' : getCursor();
+        return;
+      }
+
       const world = getWorldCoords(e);
       const allPositions = getAllPositions();
 
@@ -867,6 +904,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // Space = temporary pan mode
+      if (e.key === ' ' && !spaceHeldRef.current) {
+        e.preventDefault();
+        spaceHeldRef.current = true;
+        if (canvas) canvas.style.cursor = 'grab';
+        return;
+      }
+
       // Close context menu on any key
       if (contextMenu) {
         setContextMenu(null);
@@ -1075,6 +1120,15 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        spaceHeldRef.current = false;
+        if (!isPanningRef.current && canvas) {
+          canvas.style.cursor = getCursor();
+        }
+      }
+    };
+
     canvas.addEventListener('wheel', handleWheel);
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('dblclick', handleDoubleClick);
@@ -1082,6 +1136,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
     canvas.style.cursor = getCursor();
 
@@ -1093,6 +1148,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
 

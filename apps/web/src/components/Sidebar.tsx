@@ -2,10 +2,13 @@
  * Sidebar component - properties panel only (tools moved to Toolbar, symbols to RightPanel)
  */
 
-import type { Part, Annotation } from '@fusion-cad/core-model';
+import type { Part, Annotation, Sheet } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import type { InteractionMode, SymbolCategory, PinHit } from '../types';
 import { PropertiesPanel } from './PropertiesPanel';
+import { ThemePicker } from './ThemePicker';
+import { SHEET_SIZES } from '../renderer/title-block';
+import type { ThemeId, CustomThemeInput } from '../renderer/theme';
 
 interface SidebarProps {
   interactionMode: InteractionMode;
@@ -24,6 +27,12 @@ interface SidebarProps {
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
   onSelectAnnotation: (id: string | null) => void;
+  activeSheet: Sheet | null;
+  onUpdateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
+  themeId: ThemeId;
+  setThemeId: (id: ThemeId) => void;
+  customColors: CustomThemeInput;
+  setCustomColors: (colors: CustomThemeInput) => void;
 }
 
 export function Sidebar({
@@ -43,6 +52,12 @@ export function Sidebar({
   onUpdateAnnotation,
   onDeleteAnnotation,
   onSelectAnnotation,
+  activeSheet,
+  onUpdateSheet,
+  themeId,
+  setThemeId,
+  customColors,
+  setCustomColors,
 }: SidebarProps) {
   // Get selected device info for properties panel (selectedDevices contains device IDs)
   const primarySelectedDeviceId = selectedDevices.length > 0 ? selectedDevices[0] : null;
@@ -204,9 +219,90 @@ export function Sidebar({
         </section>
       )}
 
-      {/* Debug Section */}
+      {/* Title Block Section (visible when nothing selected) */}
+      {activeSheet && !selectedDeviceInfo && !selectedAnnotation && selectedWireIndex === null && (
+        <section className="sidebar-section">
+          <h3>Title Block</h3>
+          <div className="properties-panel">
+            <div className="property-row">
+              <span className="property-label">Title</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.title || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, title: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Dwg #</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.drawingNumber || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, drawingNumber: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Revision</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.revision || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, revision: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Date</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.date || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, date: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Drawn By</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.drawnBy || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, drawnBy: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Company</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.company || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, company: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Sheet Size</span>
+              <select
+                className="property-input"
+                value={activeSheet.size}
+                onChange={e => onUpdateSheet(activeSheet.id, { size: e.target.value })}
+              >
+                {Object.keys(SHEET_SIZES).map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Theme & Debug Section */}
       <section className="sidebar-section sidebar-footer">
-        <label className="debug-toggle">
+        <ThemePicker
+          themeId={themeId}
+          setThemeId={setThemeId}
+          customColors={customColors}
+          setCustomColors={setCustomColors}
+        />
+        <label className="debug-toggle" style={{ marginTop: '0.5rem' }}>
           <input
             type="checkbox"
             checked={debugMode}

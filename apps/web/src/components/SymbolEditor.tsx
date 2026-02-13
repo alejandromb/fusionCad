@@ -19,6 +19,7 @@ import type { SymbolDefinition, SymbolPrimitive, PinDirection, PinType } from '@
 import { generateId, registerSymbol, getSymbolById } from '@fusion-cad/core-model';
 import type { StorageProvider } from '../storage/storage-provider';
 import { saveSymbol as saveSymbolApi } from '../api/symbols';
+import { getTheme } from '../renderer/theme';
 
 type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin';
 
@@ -595,7 +596,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     for (const path of paths) {
       const isSelected = path.id === selectedPathId;
-      ctx.strokeStyle = isSelected ? '#ffff00' : '#00ff00';
+      ctx.strokeStyle = isSelected ? '#ffff00' : getTheme().symbolStroke;
 
       if (path.type === 'line' && path.points.length >= 2) {
         ctx.beginPath();
@@ -738,7 +739,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     ctx.translate(pOffsetX, pOffsetY);
     ctx.scale(scale, scale);
 
-    ctx.strokeStyle = '#00ff00';
+    ctx.strokeStyle = getTheme().symbolStroke;
     ctx.lineWidth = 2 / scale;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -1333,7 +1334,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 <div className="pin-properties">
                   <h4>Path Properties</h4>
                   <label>
-                    Type: <span style={{ color: '#00ff00' }}>{selectedPath.type}</span>
+                    Type: <span style={{ color: getTheme().symbolStroke }}>{selectedPath.type}</span>
                   </label>
                   {(selectedPath.type === 'arc' || selectedPath.type === 'circle') && (
                     <label>

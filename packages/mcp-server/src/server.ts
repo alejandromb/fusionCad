@@ -36,6 +36,8 @@ import {
   setSheetType,
   addRung,
   autoLayoutLadder,
+  createLadderBlock,
+  deleteBlock,
 } from './circuit-helpers.js';
 
 // Register built-in symbols so getSymbolById works
@@ -444,12 +446,85 @@ export function createServer(apiBase: string) {
   );
 
   // ================================================================
-  //  LADDER DIAGRAM TOOLS (3)
+  //  DIAGRAM BLOCK TOOLS (3 new)
+  // ================================================================
+
+  server.tool(
+    'create_ladder_block',
+    'Create a ladder diagram block on a sheet at a given position. Multiple ladder blocks can coexist on one sheet. Replaces set_sheet_type for new designs.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
+      position: z.object({
+        x: z.number().describe('X position of block top-left corner'),
+        y: z.number().describe('Y position of block top-left corner'),
+      }).optional().describe('Block position (default: {x: 0, y: 0})'),
+      name: z.string().optional().describe('Block name (default: "<sheet name> Ladder")'),
+      ladderConfig: z.object({
+        railL1X: z.number().optional().describe('X position of L1 rail (default: 100)'),
+        railL2X: z.number().optional().describe('X position of L2 rail (default: 900)'),
+        firstRungY: z.number().optional().describe('Y of first rung (default: 100)'),
+        rungSpacing: z.number().optional().describe('Y spacing between rungs (default: 120)'),
+        railLabelL1: z.string().optional().describe('Label for left rail (default: "L1")'),
+        railLabelL2: z.string().optional().describe('Label for right rail (default: "L2")'),
+        voltage: z.string().optional().describe('Voltage label displayed at top (e.g., "24VDC", "120VAC")'),
+      }).optional().describe('Ladder configuration'),
+    },
+    async ({ projectId, sheetId, position, name, ladderConfig }) => {
+      const project = await api.getProject(projectId);
+      const targetSheet = sheetId || getDefaultSheetId(project.circuitData);
+      const result = createLadderBlock(project.circuitData, targetSheet, ladderConfig, position, name);
+      await api.updateCircuitData(projectId, result.circuit);
+      return textResult({ created: true, blockId: result.blockId, sheetId: targetSheet, position: position || { x: 0, y: 0 } });
+    },
+  );
+
+  server.tool(
+    'list_blocks',
+    'List all diagram blocks in a project. Optionally filter by sheet.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      sheetId: z.string().optional().describe('Filter by sheet ID'),
+    },
+    async ({ projectId, sheetId }) => {
+      const project = await api.getProject(projectId);
+      const blocks = project.circuitData.blocks || [];
+      const filtered = sheetId ? blocks.filter(b => b.sheetId === sheetId) : blocks;
+      return textResult({
+        count: filtered.length,
+        blocks: filtered.map(b => ({
+          id: b.id,
+          blockType: b.blockType,
+          name: b.name,
+          sheetId: b.sheetId,
+          position: b.position,
+        })),
+      });
+    },
+  );
+
+  server.tool(
+    'delete_block',
+    'Remove a diagram block and its associated rungs.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      blockId: z.string().describe('Block ID to delete'),
+    },
+    async ({ projectId, blockId }) => {
+      const project = await api.getProject(projectId);
+      const updated = deleteBlock(project.circuitData, blockId);
+      await api.updateCircuitData(projectId, updated);
+      return textResult({ deleted: true, blockId });
+    },
+  );
+
+  // ================================================================
+  //  LADDER DIAGRAM TOOLS (3 — set_sheet_type deprecated)
   // ================================================================
 
   server.tool(
     'set_sheet_type',
-    'Set a sheet\'s diagram type (ladder, schematic, single-line, wiring) and optionally configure ladder layout.',
+    '[DEPRECATED — use create_ladder_block instead] Set a sheet\'s diagram type and optionally configure ladder layout.',
     {
       projectId: z.string().describe('Project UUID'),
       sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
@@ -469,47 +544,55 @@ export function createServer(apiBase: string) {
       const targetSheet = sheetId || getDefaultSheetId(project.circuitData);
       const updated = setSheetType(project.circuitData, targetSheet, diagramType, ladderConfig);
       await api.updateCircuitData(projectId, updated);
-      return textResult({ updated: true, sheetId: targetSheet, diagramType, ladderConfig });
+      return textResult({
+        updated: true,
+        sheetId: targetSheet,
+        diagramType,
+        ladderConfig,
+        _deprecation: 'set_sheet_type is deprecated. Use create_ladder_block for ladder diagrams.',
+      });
     },
   );
 
   server.tool(
     'add_rung',
-    'Add a rung to a ladder diagram sheet. Specify the ordered device tags from left (L1) to right (L2).',
+    'Add a rung to a ladder diagram. Specify the ordered device tags from left (L1) to right (L2). Prefer blockId over sheetId.',
     {
       projectId: z.string().describe('Project UUID'),
       sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
+      blockId: z.string().optional().describe('Block ID (preferred over sheetId for new designs)'),
       rungNumber: z.number().describe('Rung number (1, 2, 3...)'),
       deviceTags: z.array(z.string()).describe('Ordered device tags left-to-right (e.g., ["S2", "S1", "K1"])'),
       description: z.string().optional().describe('Optional rung function description'),
     },
-    async ({ projectId, sheetId, rungNumber, deviceTags, description }) => {
+    async ({ projectId, sheetId, blockId, rungNumber, deviceTags, description }) => {
       const project = await api.getProject(projectId);
       const targetSheet = sheetId || getDefaultSheetId(project.circuitData);
-      const result = addRung(project.circuitData, targetSheet, rungNumber, deviceTags, description);
+      const result = addRung(project.circuitData, targetSheet, rungNumber, deviceTags, description, blockId);
       await api.updateCircuitData(projectId, result.circuit);
-      return textResult({ added: true, rungId: result.rungId, rungNumber, deviceTags, sheetId: targetSheet });
+      return textResult({ added: true, rungId: result.rungId, rungNumber, deviceTags, sheetId: targetSheet, blockId });
     },
   );
 
   server.tool(
     'auto_layout_ladder',
-    'Recalculate all device positions for a ladder diagram sheet based on rung definitions.',
+    'Recalculate all device positions for a ladder diagram based on rung definitions. Prefer blockId over sheetId.',
     {
       projectId: z.string().describe('Project UUID'),
       sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
+      blockId: z.string().optional().describe('Block ID (preferred over sheetId for new designs)'),
     },
-    async ({ projectId, sheetId }) => {
+    async ({ projectId, sheetId, blockId }) => {
       const project = await api.getProject(projectId);
       const targetSheet = sheetId || getDefaultSheetId(project.circuitData);
-      const result = autoLayoutLadder(project.circuitData, targetSheet);
+      const result = autoLayoutLadder(project.circuitData, targetSheet, blockId);
       await api.updateCircuitData(projectId, result.circuit);
-      return textResult({ layoutComplete: true, ...result.layoutSummary, sheetId: targetSheet });
+      return textResult({ layoutComplete: true, ...result.layoutSummary, sheetId: targetSheet, blockId });
     },
   );
 
   // ================================================================
-  //  HIGH-LEVEL GENERATION TOOLS (2)
+  //  HIGH-LEVEL GENERATION TOOLS (4)
   // ================================================================
 
   server.tool(
@@ -566,6 +649,128 @@ export function createServer(apiBase: string) {
         rungNumber,
         sheetId: targetSheet,
         devices: result.deviceTags,
+      });
+    },
+  );
+
+  server.tool(
+    'lookup_motor_starter',
+    'Look up Schneider Electric motor starter components for a given motor spec (HP, voltage, country, phase, starter type). Read-only — does not modify any project.',
+    {
+      hp: z.string().describe('Motor horsepower (e.g., "20", "0.5", "1/2")'),
+      voltage: z.string().describe('Supply voltage (e.g., "208V", "480V")'),
+      country: z.enum(['USA', 'Canada']).optional().describe('Country (default: "USA")'),
+      phase: z.enum(['single', 'three']).optional().describe('Phase (default: "three")'),
+      starterType: z.enum(['iec-open', 'iec-enclosed', 'nema-open', 'nema-enclosed']).optional().describe('Starter type (default: "iec-open")'),
+    },
+    async ({ hp, voltage, country, phase, starterType }) => {
+      const { lookupMotorStarter } = await import('@fusion-cad/core-model');
+      const result = lookupMotorStarter({ hp, voltage, country, phase, starterType });
+      if (!result) {
+        return textResult({ found: false, message: `No motor starter data found for ${hp} HP @ ${voltage} (${country || 'USA'}, ${phase || 'three'}-phase, ${starterType || 'iec-open'})` });
+      }
+      return textResult({
+        found: true,
+        motorFLA: result.motorFLA,
+        wireSize: result.wireSize,
+        breakerSize: result.breakerSize,
+        safetySwitchSize: result.safetySwitchSize,
+        components: Object.fromEntries(
+          Object.entries(result.components)
+            .filter(([, v]) => v != null)
+            .map(([k, v]) => [k, { partNumber: v!.partNumber, description: v!.description, datasheetUrl: v!.datasheetUrl }]),
+        ),
+      });
+    },
+  );
+
+  server.tool(
+    'generate_motor_starter_from_spec',
+    'Generate a complete motor starter schematic with real Schneider Electric parts assigned. Looks up components by HP/voltage, creates power + control sheets, places all devices, wires, and assigns catalog parts with datasheet URLs.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      hp: z.string().describe('Motor horsepower (e.g., "20", "0.5", "1/2")'),
+      voltage: z.string().describe('Supply voltage (e.g., "208V", "480V")'),
+      country: z.enum(['USA', 'Canada']).optional().describe('Country (default: "USA")'),
+      phase: z.enum(['single', 'three']).optional().describe('Phase (default: "three")'),
+      starterType: z.enum(['iec-open', 'iec-enclosed', 'nema-open', 'nema-enclosed']).optional().describe('Starter type (default: "iec-open")'),
+      controlVoltage: z.enum(['24VDC', '120VAC']).optional().describe('Control circuit voltage (default: "120VAC")'),
+    },
+    async ({ projectId, hp, voltage, country, phase, starterType, controlVoltage }) => {
+      const { lookupMotorStarter } = await import('@fusion-cad/core-model');
+      const { generateMotorStarter } = await import('./circuit-templates.js');
+
+      const motorData = lookupMotorStarter({ hp, voltage, country, phase, starterType });
+      if (!motorData) {
+        return textResult({
+          generated: false,
+          message: `No motor starter data found for ${hp} HP @ ${voltage} (${country || 'USA'}, ${phase || 'three'}-phase, ${starterType || 'iec-open'}). Try a different starter type or check available HP/voltage combinations with lookup_motor_starter.`,
+        });
+      }
+
+      const project = await api.getProject(projectId);
+      const cv = controlVoltage || '120VAC';
+
+      const result = generateMotorStarter(project.circuitData, cv, 'M1', motorData);
+      await api.updateCircuitData(projectId, result.circuit);
+
+      return textResult({
+        generated: true,
+        powerSheetId: result.powerSheetId,
+        controlSheetId: result.controlSheetId,
+        controlVoltage: cv,
+        motor: { hp, voltage, fla: motorData.motorFLA, wireSize: motorData.wireSize },
+        components: Object.fromEntries(
+          Object.entries(motorData.components)
+            .filter(([, v]) => v != null)
+            .map(([k, v]) => [k, { partNumber: v!.partNumber, description: v!.description, datasheetUrl: v!.datasheetUrl }]),
+        ),
+        summary: result.summary,
+      });
+    },
+  );
+
+  server.tool(
+    'generate_motor_starter_panel',
+    'Generate a complete motor starter panel with power circuit, control ladder, and optional HOA switch, pilot light, PLC remote contact, E-stop, and panel layout. Assigns real Schneider Electric parts when available.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      hp: z.string().describe('Motor horsepower (e.g., "20", "0.5", "1/2")'),
+      voltage: z.string().describe('Supply voltage (e.g., "208V", "480V")'),
+      country: z.enum(['USA', 'Canada']).optional().describe('Country (default: "USA")'),
+      phase: z.enum(['single', 'three']).optional().describe('Phase (default: "three")'),
+      starterType: z.enum(['iec-open', 'iec-enclosed', 'nema-open', 'nema-enclosed']).optional().describe('Starter type (default: "iec-open")'),
+      controlVoltage: z.enum(['24VDC', '120VAC']).optional().describe('Control circuit voltage (default: "120VAC")'),
+      hoaSwitch: z.boolean().optional().describe('Include Hand-Off-Auto selector switch'),
+      pilotLight: z.boolean().optional().describe('Include running indicator pilot light (default: true)'),
+      plcRemote: z.boolean().optional().describe('Include PLC remote start contact'),
+      eStop: z.boolean().optional().describe('Include emergency stop (default: true)'),
+      panelLayout: z.boolean().optional().describe('Generate panel layout sheet'),
+    },
+    async ({ projectId, hp, voltage, country, phase, starterType, controlVoltage, hoaSwitch, pilotLight, plcRemote, eStop, panelLayout }) => {
+      const { lookupMotorStarter } = await import('@fusion-cad/core-model');
+      const { generateMotorStarterPanel } = await import('./circuit-templates.js');
+
+      const motorData = lookupMotorStarter({ hp, voltage, country, phase, starterType });
+      const project = await api.getProject(projectId);
+
+      const result = generateMotorStarterPanel(project.circuitData, {
+        hp, voltage,
+        phase: phase || 'three',
+        controlVoltage: controlVoltage || '120VAC',
+        country: country || 'USA',
+        starterType: starterType || 'iec-open',
+        hoaSwitch, pilotLight, plcRemote, eStop, panelLayout,
+      }, motorData || undefined);
+
+      await api.updateCircuitData(projectId, result.circuit);
+
+      return textResult({
+        generated: true,
+        partsAssigned: !!motorData,
+        deviceCount: result.circuit.devices.length,
+        wireCount: result.circuit.connections.length,
+        summary: result.summary,
       });
     },
   );

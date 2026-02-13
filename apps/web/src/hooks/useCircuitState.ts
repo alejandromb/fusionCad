@@ -27,6 +27,7 @@ export interface UseCircuitStateReturn {
   addSheet: () => void;
   renameSheet: (sheetId: string, newName: string) => void;
   deleteSheet: (sheetId: string) => void;
+  updateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
 
   // History
   history: HistorySnapshot[];
@@ -97,6 +98,11 @@ function getOrCreateSheets(circuit: CircuitData | null): Sheet[] {
     name: 'Sheet 1',
     number: 1,
     size: 'Letter',
+    titleBlock: {
+      title: 'Sheet 1',
+      date: new Date().toISOString().slice(0, 10),
+      revision: 'A',
+    },
     createdAt: now,
     modifiedAt: now,
   }];
@@ -184,6 +190,11 @@ export function useCircuitState(
       name: `Sheet ${nextNumber}`,
       number: nextNumber,
       size: 'Letter',
+      titleBlock: {
+        title: `Sheet ${nextNumber}`,
+        date: new Date().toISOString().slice(0, 10),
+        revision: 'A',
+      },
       createdAt: now,
       modifiedAt: now,
     };
@@ -251,6 +262,28 @@ export function useCircuitState(
     setSelectedDevices([]);
     setSelectedWireIndex(null);
   }, [circuit, activeSheetId, setCircuit]);
+
+  const updateSheet = useCallback((sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const currentSheets = getOrCreateSheets(prev);
+      return {
+        ...prev,
+        sheets: currentSheets.map(s =>
+          s.id === sheetId
+            ? {
+                ...s,
+                ...(updates.size !== undefined ? { size: updates.size } : {}),
+                ...(updates.titleBlock !== undefined
+                  ? { titleBlock: { ...s.titleBlock, ...updates.titleBlock } }
+                  : {}),
+                modifiedAt: Date.now(),
+              }
+            : s
+        ),
+      };
+    });
+  }, [setCircuit]);
 
   // Undo/Redo history state
   const [history, setHistory] = useState<HistorySnapshot[]>([]);
@@ -327,6 +360,7 @@ export function useCircuitState(
         terminals: circuit.terminals ? [...circuit.terminals] : undefined,
         rungs: circuit.rungs ? [...circuit.rungs] : undefined,
         transforms: circuit.transforms ? { ...circuit.transforms } : undefined,
+        blocks: circuit.blocks ? [...circuit.blocks] : undefined,
       },
       positions: new Map(devicePositions),
     };
@@ -376,6 +410,7 @@ export function useCircuitState(
       terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
       rungs: snapshot.circuit.rungs ? [...snapshot.circuit.rungs] : undefined,
       transforms: snapshot.circuit.transforms ? { ...snapshot.circuit.transforms } : undefined,
+      blocks: snapshot.circuit.blocks ? [...snapshot.circuit.blocks] : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex - 1);
@@ -406,6 +441,7 @@ export function useCircuitState(
       terminals: snapshot.circuit.terminals ? [...snapshot.circuit.terminals] : undefined,
       rungs: snapshot.circuit.rungs ? [...snapshot.circuit.rungs] : undefined,
       transforms: snapshot.circuit.transforms ? { ...snapshot.circuit.transforms } : undefined,
+      blocks: snapshot.circuit.blocks ? [...snapshot.circuit.blocks] : undefined,
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex + 1);
@@ -949,6 +985,7 @@ export function useCircuitState(
     addSheet,
     renameSheet,
     deleteSheet,
+    updateSheet,
     history,
     historyIndex,
     pushToHistory,

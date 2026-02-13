@@ -5,6 +5,7 @@ import { AppDataSource } from './data-source.js';
 import { Project } from './entities/Project.js';
 import { Symbol } from './entities/Symbol.js';
 import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
+import { aiGenerate } from './ai-generate.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -237,6 +238,46 @@ async function seedBuiltinSymbols(): Promise<{ seeded: number; skipped: number }
 
   return { seeded, skipped };
 }
+
+// ============ AI GENERATION ROUTES ============
+
+// AI-powered circuit generation from natural language
+app.post('/api/projects/:id/ai-generate', async (req, res) => {
+  try {
+    const projectRepo = AppDataSource.getRepository(Project);
+    const project = await projectRepo.findOneBy({ id: req.params.id });
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'A "prompt" string is required' });
+    }
+
+    const result = await aiGenerate(prompt, (project.circuitData || {
+      devices: [], nets: [], parts: [], connections: [], positions: {},
+    }) as any);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error, parsedOptions: result.parsedOptions });
+    }
+
+    // Save generated circuit data
+    project.circuitData = result.circuitData as any;
+    await projectRepo.save(project);
+
+    res.json({
+      success: true,
+      summary: result.summary,
+      parsedOptions: result.parsedOptions,
+    });
+  } catch (error: any) {
+    console.error('Error in AI generation:', error);
+    res.status(500).json({ error: `AI generation failed: ${error.message}` });
+  }
+});
 
 // ============ START SERVER ============
 

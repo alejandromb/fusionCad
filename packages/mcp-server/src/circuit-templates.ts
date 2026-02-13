@@ -20,6 +20,7 @@
  */
 
 import type { CircuitData } from './api-client.js';
+import type { MotorStarterResult } from '@fusion-cad/core-model';
 import {
   placeDevice,
   placeLinkedDevice,
@@ -27,8 +28,11 @@ import {
   setSheetType,
   addSheet,
   addRung,
+  addAnnotation,
   autoLayoutLadder,
   createLadderRails,
+  assignPart,
+  createLadderBlock,
 } from './circuit-helpers.js';
 
 /**
@@ -44,6 +48,7 @@ export function generateMotorStarter(
   circuit: CircuitData,
   controlVoltage: '24VDC' | '120VAC',
   _motorTag: string,
+  motorData?: MotorStarterResult,
 ): { circuit: CircuitData; summary: string; powerSheetId: string; controlSheetId: string } {
   let cd = circuit;
 
@@ -58,13 +63,17 @@ export function generateMotorStarter(
   cd = controlSheet.circuit;
   const controlSheetId = controlSheet.sheetId;
 
-  // Set sheet types
+  // Set power sheet type (schematic — no block needed)
   cd = setSheetType(cd, powerSheetId, 'schematic');
-  cd = setSheetType(cd, controlSheetId, 'ladder', {
+
+  // Create ladder block on control sheet (replaces setSheetType for ladder)
+  const ladderBlock = createLadderBlock(cd, controlSheetId, {
     voltage: controlVoltage,
     railLabelL1: controlVoltage === '24VDC' ? '+24V' : 'L1',
     railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
-  });
+  }, undefined, 'Motor Control');
+  cd = ladderBlock.circuit;
+  const controlBlockId = ladderBlock.blockId;
 
   // ================================================================
   //  SHEET 1 — Power Section (schematic, top-to-bottom)
@@ -148,6 +157,7 @@ export function generateMotorStarter(
     type: 'rung' as const,
     number: 1,
     sheetId: controlSheetId,
+    blockId: controlBlockId,
     deviceIds: rung1Ids,
     description: 'Motor starter control',
     createdAt: Date.now(),
@@ -162,6 +172,7 @@ export function generateMotorStarter(
     type: 'rung' as const,
     number: 2,
     sheetId: controlSheetId,
+    blockId: controlBlockId,
     deviceIds: rung2Ids,
     description: 'Seal-in circuit',
     branchOf: 1,
@@ -177,6 +188,7 @@ export function generateMotorStarter(
     type: 'rung' as const,
     number: 3,
     sheetId: controlSheetId,
+    blockId: controlBlockId,
     deviceIds: rung3Ids,
     description: 'Running indicator',
     createdAt: Date.now(),
@@ -184,8 +196,8 @@ export function generateMotorStarter(
   };
   cd = { ...cd, rungs: [...(cd.rungs || []), rung3Rung] };
 
-  // Auto-layout control sheet
-  const layout = autoLayoutLadder(cd, controlSheetId);
+  // Auto-layout control sheet using block
+  const layout = autoLayoutLadder(cd, controlSheetId, controlBlockId);
   cd = layout.circuit;
 
   // Wire rung 1: F1.2→S2.1, S2.2→S1.1, S1.2→J1.1, J1.1→K1.1
@@ -202,7 +214,39 @@ export function generateMotorStarter(
   cd = createWire(cd, 'K1', '2', 'PL1', '1', k1aux.deviceId, pilot.deviceId);
 
   // Create L1/L2 rail junctions and wires
-  cd = createLadderRails(cd, controlSheetId);
+  cd = createLadderRails(cd, controlSheetId, controlBlockId);
+
+  // ================================================================
+  //  Assign real parts (if motor data provided)
+  // ================================================================
+  const partLines: string[] = [];
+  if (motorData) {
+    const { components } = motorData;
+    // Circuit breaker
+    cd = assignPart(cd, 'CB1', components.circuitBreaker.manufacturer,
+      components.circuitBreaker.partNumber, components.circuitBreaker.description,
+      components.circuitBreaker.category);
+    partLines.push(`    CB1: ${components.circuitBreaker.partNumber} (${components.circuitBreaker.description})`);
+
+    // Contactor
+    cd = assignPart(cd, 'K1', components.contactor.manufacturer,
+      components.contactor.partNumber, components.contactor.description,
+      components.contactor.category);
+    partLines.push(`    K1:  ${components.contactor.partNumber} (${components.contactor.description})`);
+
+    // Overload relay
+    cd = assignPart(cd, 'F1', components.overloadRelay.manufacturer,
+      components.overloadRelay.partNumber, components.overloadRelay.description,
+      components.overloadRelay.category);
+    partLines.push(`    F1:  ${components.overloadRelay.partNumber} (${components.overloadRelay.description})`);
+
+    // Motor (generic description)
+    cd = assignPart(cd, 'M1', 'Generic',
+      `MOTOR-${motorData.spec.hp}HP-${motorData.spec.voltage}`,
+      `${motorData.spec.hp} HP ${motorData.spec.voltage} ${motorData.spec.phase === 'three' ? '3-Phase' : '1-Phase'} Motor`,
+      'motor');
+    partLines.push(`    M1:  ${motorData.spec.hp} HP ${motorData.spec.voltage} Motor`);
+  }
 
   const summary = [
     'Complete 3-wire motor starter generated (2 sheets):',
@@ -219,6 +263,12 @@ export function generateMotorStarter(
     '',
     '  Linked devices: K1 (power ↔ coil + seal-in + aux), F1 (power ↔ OL contacts)',
     '  Totals: 18 devices (4 power + 9 control + 5 rail), 24 wires',
+    ...(motorData ? [
+      '',
+      `  Motor: ${motorData.spec.hp} HP @ ${motorData.spec.voltage}, FLA: ${motorData.motorFLA}A, Wire: ${motorData.wireSize} AWG`,
+      '  Assigned parts (Schneider Electric):',
+      ...partLines,
+    ] : []),
   ].join('\n');
 
   return { circuit: cd, summary, powerSheetId, controlSheetId };
@@ -327,6 +377,423 @@ export function addControlRung(
   cd = layout.circuit;
 
   return { circuit: cd, deviceTags };
+}
+
+/**
+ * Generate a motor starter panel with configurable options.
+ *
+ * Creates a single sheet with power on top and a control ladder block below.
+ * Supports optional HOA switch, pilot light, PLC remote contact, and E-stop.
+ *
+ * Power section (top of sheet, schematic):
+ *   CB1 → K1(3P) → F1(OL) → M1(Motor)
+ *
+ * Control ladder (bottom of sheet):
+ *   Rung 1: F1(OL NC) → E-STOP(NC) → S2(Stop NC) → S1(Start NO) → J1 → K1(Coil)
+ *   Rung 2: K1(Seal-in NO) → J1 [branch of rung 1]
+ *   Rung 3 (if HOA): HOA-H(Selector) → K1(Coil) — manual override
+ *   Rung 4 (if HOA+PLC): HOA-A(Selector) → PLC(NO contact) → K1(Coil) — auto mode
+ *   Last rung (if pilotLight): K1(Aux NO) → PL1(Pilot Light)
+ *
+ * If panelLayout is true, creates Sheet 2 with enclosure and component footprints.
+ */
+export function generateMotorStarterPanel(
+  circuit: CircuitData,
+  options: {
+    hp: string;
+    voltage: string;
+    phase?: 'single' | 'three';
+    controlVoltage?: '24VDC' | '120VAC';
+    country?: 'USA' | 'Canada';
+    starterType?: string;
+    hoaSwitch?: boolean;
+    pilotLight?: boolean;
+    plcRemote?: boolean;
+    eStop?: boolean;
+    panelLayout?: boolean;
+  },
+  motorData?: MotorStarterResult,
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const controlVoltage = options.controlVoltage || '120VAC';
+  const hasEStop = options.eStop !== false; // default true
+  const hasHOA = options.hoaSwitch || false;
+  const hasPLC = options.plcRemote || false;
+  const hasPilot = options.pilotLight !== false; // default true
+
+  // ================================================================
+  //  Create sheet (single sheet: power on top, control below)
+  // ================================================================
+  const mainSheet = addSheet(cd, 'Motor Starter');
+  cd = mainSheet.circuit;
+  const sheetId = mainSheet.sheetId;
+  cd = setSheetType(cd, sheetId, 'schematic');
+
+  // ================================================================
+  //  Power Section (top of sheet, y=60..420)
+  // ================================================================
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 60, sheetId, 'CB1');
+  cd = cb1.circuit;
+
+  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 180, sheetId, 'K1');
+  cd = k1power.circuit;
+
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 300, sheetId, 'F1');
+  cd = f1power.circuit;
+
+  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 420, sheetId, 'M1');
+  cd = m1.circuit;
+
+  // Wire 9 phase connections (3 phases × 3 hops)
+  cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T1', 'M1', '1', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T2', 'M1', '2', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T3', 'M1', '3', f1power.deviceId, m1.deviceId);
+
+  // ================================================================
+  //  Control Section (ladder block below power, starting at y=560)
+  // ================================================================
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    voltage: controlVoltage,
+    railLabelL1: controlVoltage === '24VDC' ? '+24V' : 'L1',
+    railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
+    firstRungY: 100,
+    rungSpacing: 120,
+  }, { x: 0, y: 560 }, 'Motor Control');
+  cd = ladderBlock.circuit;
+  const controlBlockId = ladderBlock.blockId;
+
+  // -- Rung 1: OL → (E-Stop) → Stop → Start → Junction → K1 Coil --
+  let rungNumber = 1;
+  const rung1DeviceIds: string[] = [];
+
+  // OL aux NC contact (linked to F1)
+  const ol = placeLinkedDevice(cd, 'F1', 'iec-normally-closed-contact', 0, 0, sheetId);
+  cd = ol.circuit;
+  rung1DeviceIds.push(ol.deviceId);
+
+  // E-Stop (NC)
+  let eStopDeviceId: string | undefined;
+  if (hasEStop) {
+    const estop = placeDevice(cd, 'iec-emergency-stop', 0, 0, sheetId, 'ES1');
+    cd = estop.circuit;
+    eStopDeviceId = estop.deviceId;
+    rung1DeviceIds.push(estop.deviceId);
+  }
+
+  // Stop pushbutton (NC)
+  const stop = placeDevice(cd, 'iec-normally-closed-contact', 0, 0, sheetId, 'S2');
+  cd = stop.circuit;
+  rung1DeviceIds.push(stop.deviceId);
+
+  // Start pushbutton (NO)
+  const start = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, 'S1');
+  cd = start.circuit;
+  rung1DeviceIds.push(start.deviceId);
+
+  // Junction (T-branch point)
+  const junction = placeDevice(cd, 'junction', 0, 0, sheetId, 'J1');
+  cd = junction.circuit;
+  rung1DeviceIds.push(junction.deviceId);
+
+  // K1 coil (linked to K1 contactor)
+  const coil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, sheetId);
+  cd = coil.circuit;
+  rung1DeviceIds.push(coil.deviceId);
+
+  const rung1 = {
+    id: require_generateId(),
+    type: 'rung' as const,
+    number: rungNumber,
+    sheetId,
+    blockId: controlBlockId,
+    deviceIds: rung1DeviceIds,
+    description: 'Motor starter control',
+    createdAt: Date.now(),
+    modifiedAt: Date.now(),
+  };
+  cd = { ...cd, rungs: [...(cd.rungs || []), rung1] };
+
+  // -- Rung 2: Seal-in (branch of rung 1) --
+  rungNumber++;
+  const sealin = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, sheetId);
+  cd = sealin.circuit;
+
+  const rung2 = {
+    id: require_generateId(),
+    type: 'rung' as const,
+    number: rungNumber,
+    sheetId,
+    blockId: controlBlockId,
+    deviceIds: [sealin.deviceId],
+    description: 'Seal-in circuit',
+    branchOf: 1,
+    createdAt: Date.now(),
+    modifiedAt: Date.now(),
+  };
+  cd = { ...cd, rungs: [...(cd.rungs || []), rung2] };
+
+  // -- Rung 3 (if HOA): HOA-Hand → K1 Coil (manual override) --
+  let hoaHandDeviceId: string | undefined;
+  let hoaHandCoilId: string | undefined;
+  if (hasHOA) {
+    rungNumber++;
+    const hoaHand = placeDevice(cd, 'iec-selector-switch', 0, 0, sheetId, 'HOA-H');
+    cd = hoaHand.circuit;
+    hoaHandDeviceId = hoaHand.deviceId;
+
+    const hoaCoil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, sheetId);
+    cd = hoaCoil.circuit;
+    hoaHandCoilId = hoaCoil.deviceId;
+
+    const rungHOA = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: rungNumber,
+      sheetId,
+      blockId: controlBlockId,
+      deviceIds: [hoaHand.deviceId, hoaCoil.deviceId],
+      description: 'HOA - Hand (manual override)',
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rungHOA] };
+  }
+
+  // -- Rung 4 (if HOA+PLC): HOA-Auto → PLC contact → K1 Coil --
+  let hoaAutoDeviceId: string | undefined;
+  let plcDeviceId: string | undefined;
+  let plcCoilId: string | undefined;
+  if (hasHOA && hasPLC) {
+    rungNumber++;
+    const hoaAuto = placeDevice(cd, 'iec-selector-switch', 0, 0, sheetId, 'HOA-A');
+    cd = hoaAuto.circuit;
+    hoaAutoDeviceId = hoaAuto.deviceId;
+
+    const plcContact = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, 'PLC1');
+    cd = plcContact.circuit;
+    plcDeviceId = plcContact.deviceId;
+
+    const plcAutoCoil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, sheetId);
+    cd = plcAutoCoil.circuit;
+    plcCoilId = plcAutoCoil.deviceId;
+
+    const rungAuto = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: rungNumber,
+      sheetId,
+      blockId: controlBlockId,
+      deviceIds: [hoaAuto.deviceId, plcContact.deviceId, plcAutoCoil.deviceId],
+      description: 'HOA - Auto (PLC remote)',
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rungAuto] };
+  } else if (hasPLC && !hasHOA) {
+    // PLC contact without HOA — add standalone PLC rung
+    rungNumber++;
+    const plcContact = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, 'PLC1');
+    cd = plcContact.circuit;
+    plcDeviceId = plcContact.deviceId;
+
+    const plcCoil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, sheetId);
+    cd = plcCoil.circuit;
+    plcCoilId = plcCoil.deviceId;
+
+    const rungPLC = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: rungNumber,
+      sheetId,
+      blockId: controlBlockId,
+      deviceIds: [plcContact.deviceId, plcCoil.deviceId],
+      description: 'PLC remote start',
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rungPLC] };
+  }
+
+  // -- Pilot light rung: K1(Aux NO) → PL1 --
+  let pilotDeviceId: string | undefined;
+  let k1AuxDeviceId: string | undefined;
+  if (hasPilot) {
+    rungNumber++;
+    const k1aux = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, sheetId);
+    cd = k1aux.circuit;
+    k1AuxDeviceId = k1aux.deviceId;
+
+    const pilot = placeDevice(cd, 'iec-pilot-light', 0, 0, sheetId, 'PL1');
+    cd = pilot.circuit;
+    pilotDeviceId = pilot.deviceId;
+
+    const rungPilot = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: rungNumber,
+      sheetId,
+      blockId: controlBlockId,
+      deviceIds: [k1aux.deviceId, pilot.deviceId],
+      description: 'Running indicator',
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rungPilot] };
+  }
+
+  // Auto-layout control section
+  const layout = autoLayoutLadder(cd, sheetId, controlBlockId);
+  cd = layout.circuit;
+
+  // ================================================================
+  //  Wire control rungs
+  // ================================================================
+
+  // Rung 1: chain devices — each device's pin "2" → next device's pin "1"
+  for (let i = 0; i < rung1DeviceIds.length - 1; i++) {
+    const fromId = rung1DeviceIds[i];
+    const toId = rung1DeviceIds[i + 1];
+    const fromDev = cd.devices.find(d => d.id === fromId)!;
+    const toDev = cd.devices.find(d => d.id === toId)!;
+    // Junction uses pin "1" for both connections
+    const fromPin = fromDev.tag.startsWith('J') ? '1' : '2';
+    const toPin = toDev.tag.startsWith('J') ? '1' : '1';
+    cd = createWire(cd, fromDev.tag, fromPin, toDev.tag, toPin, fromId, toId);
+  }
+
+  // Rung 2: Seal-in → Junction
+  cd = createWire(cd, 'K1', '2', 'J1', '1', sealin.deviceId, junction.deviceId);
+
+  // Rung 3 (HOA Hand): wire HOA-H.2 → K1 coil.1
+  if (hasHOA && hoaHandDeviceId && hoaHandCoilId) {
+    cd = createWire(cd, 'HOA-H', '2', 'K1', '1', hoaHandDeviceId, hoaHandCoilId);
+  }
+
+  // Rung 4 (HOA Auto + PLC): HOA-A.2 → PLC1.1, PLC1.2 → K1 coil.1
+  if (hasHOA && hasPLC && hoaAutoDeviceId && plcDeviceId && plcCoilId) {
+    cd = createWire(cd, 'HOA-A', '2', 'PLC1', '1', hoaAutoDeviceId, plcDeviceId);
+    cd = createWire(cd, 'PLC1', '2', 'K1', '1', plcDeviceId, plcCoilId);
+  } else if (hasPLC && !hasHOA && plcDeviceId && plcCoilId) {
+    cd = createWire(cd, 'PLC1', '2', 'K1', '1', plcDeviceId, plcCoilId);
+  }
+
+  // Pilot light rung: K1 aux.2 → PL1.1
+  if (hasPilot && k1AuxDeviceId && pilotDeviceId) {
+    cd = createWire(cd, 'K1', '2', 'PL1', '1', k1AuxDeviceId, pilotDeviceId);
+  }
+
+  // Create L1/L2 rail junctions and wires
+  cd = createLadderRails(cd, sheetId, controlBlockId);
+
+  // ================================================================
+  //  Assign real parts (if motor data provided)
+  // ================================================================
+  if (motorData) {
+    const { components } = motorData;
+    cd = assignPart(cd, 'CB1', components.circuitBreaker.manufacturer,
+      components.circuitBreaker.partNumber, components.circuitBreaker.description,
+      components.circuitBreaker.category);
+    cd = assignPart(cd, 'K1', components.contactor.manufacturer,
+      components.contactor.partNumber, components.contactor.description,
+      components.contactor.category);
+    cd = assignPart(cd, 'F1', components.overloadRelay.manufacturer,
+      components.overloadRelay.partNumber, components.overloadRelay.description,
+      components.overloadRelay.category);
+    cd = assignPart(cd, 'M1', 'Generic',
+      `MOTOR-${motorData.spec.hp}HP-${motorData.spec.voltage}`,
+      `${motorData.spec.hp} HP ${motorData.spec.voltage} ${motorData.spec.phase === 'three' ? '3-Phase' : '1-Phase'} Motor`,
+      'motor');
+  }
+
+  // ================================================================
+  //  Panel layout sheet (if requested)
+  // ================================================================
+  if (options.panelLayout) {
+    cd = addPanelLayoutSheet(cd, options, motorData);
+  }
+
+  // ================================================================
+  //  Summary
+  // ================================================================
+  const rungDescriptions: string[] = [];
+  rungDescriptions.push('Rung 1: F1(OL NC)' +
+    (hasEStop ? ' → ES1(E-Stop NC)' : '') +
+    ' → S2(Stop NC) → S1(Start NO) → J1 → K1(Coil)');
+  rungDescriptions.push('Rung 2: K1(Seal-in NO) → J1 [branch]');
+  if (hasHOA) rungDescriptions.push(`Rung 3: HOA-H(Hand) → K1(Coil)`);
+  if (hasHOA && hasPLC) rungDescriptions.push(`Rung 4: HOA-A(Auto) → PLC1 → K1(Coil)`);
+  else if (hasPLC) rungDescriptions.push(`Rung ${hasHOA ? 4 : 3}: PLC1 → K1(Coil)`);
+  if (hasPilot) rungDescriptions.push(`Rung ${rungNumber}: K1(Aux NO) → PL1(Running Light)`);
+
+  const summary = [
+    `Motor starter panel generated (${options.hp} HP @ ${options.voltage}):`,
+    '',
+    '  Power: CB1 → K1(Contactor 3P) → F1(Overload 3P) → M1(Motor)',
+    `  Control (${controlVoltage}):`,
+    ...rungDescriptions.map(r => `    ${r}`),
+    `  Options: E-Stop=${hasEStop}, HOA=${hasHOA}, PLC=${hasPLC}, Pilot=${hasPilot}`,
+    `  Devices: ${cd.devices.length}, Wires: ${cd.connections.length}`,
+    ...(motorData ? [`  Parts: Schneider Electric (${motorData.motorFLA}A FLA, ${motorData.wireSize} AWG)`] : []),
+    ...(options.panelLayout ? ['  Panel layout: Sheet 2'] : []),
+  ].join('\n');
+
+  return { circuit: cd, summary };
+}
+
+/**
+ * Add a panel layout sheet with enclosure, DIN rails, and component footprints.
+ */
+function addPanelLayoutSheet(
+  circuit: CircuitData,
+  options: { hp: string; voltage: string },
+  _motorData?: MotorStarterResult,
+): CircuitData {
+  let cd = circuit;
+
+  const sheet = addSheet(cd, 'Panel Layout');
+  cd = sheet.circuit;
+  const layoutSheetId = sheet.sheetId;
+
+  // Choose enclosure size based on HP
+  const hp = parseFloat(options.hp) || 5;
+  let enclosureSymbol = 'panel-enclosure-20x16';
+  let subpanelSymbol = 'panel-subpanel-20x16';
+  if (hp > 10) {
+    enclosureSymbol = 'panel-enclosure-24x20';
+    subpanelSymbol = 'panel-subpanel-24x20';
+  }
+  if (hp > 30) {
+    enclosureSymbol = 'panel-enclosure-30x24';
+    subpanelSymbol = 'panel-subpanel-30x24';
+  }
+
+  // Place enclosure
+  const encl = placeDevice(cd, enclosureSymbol, 60, 60, layoutSheetId, 'PNL1');
+  cd = encl.circuit;
+
+  // Place subpanel inside enclosure
+  const sub = placeDevice(cd, subpanelSymbol, 70, 70, layoutSheetId, 'SP1');
+  cd = sub.circuit;
+
+  // Place component footprints on DIN rails using annotations
+  const annotations = [
+    { x: 100, y: 135, text: 'CB1' },
+    { x: 180, y: 135, text: 'K1' },
+    { x: 280, y: 135, text: 'F1' },
+    { x: 100, y: 225, text: 'Terminal Block' },
+  ];
+  for (const a of annotations) {
+    const ann = addAnnotation(cd, layoutSheetId, a.x, a.y, a.text);
+    cd = ann.circuit;
+  }
+
+  return cd;
 }
 
 // Import generateId — need to use the same ID generator

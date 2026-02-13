@@ -2,7 +2,7 @@
  * Canvas component - canvas element, resize, render trigger, context menu overlay
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { renderCircuit, type CircuitData } from '../renderer/circuit-renderer';
 import type { Viewport, Point, DeviceTransform } from '../renderer/types';
 import { snapToGrid, type InteractionMode, type SymbolCategory, type PinHit } from '../types';
@@ -64,21 +64,35 @@ export function Canvas({
   clipboard,
   selectedAnnotationId,
 }: CanvasProps) {
+  const rafIdRef = useRef(0);
+  const canvasSizeRef = useRef({ w: 0, h: 0 });
+
+  // Render via RAF — cancel previous frame on each update to coalesce rapid changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !circuit) return;
+    if (!circuit) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      // Only reset canvas buffer when container size actually changes
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        canvasSizeRef.current = { w, h };
+      } else {
+        ctx.clearRect(0, 0, w, h);
+      }
+
       renderCircuit(ctx, circuit, viewport, debugMode, devicePositions, {
         selectedDevices,
         selectedWireIndex,
         wireStart,
-        // Show wire preview line from start pin to mouse cursor
         wirePreviewMouse: interactionMode === 'wire' && wireStart && mouseWorldPos
           ? mouseWorldPos
           : null,
@@ -94,15 +108,29 @@ export function Canvas({
         showGrid: true,
         selectedAnnotationId,
       });
-    };
+    });
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas);
-    };
+    return () => cancelAnimationFrame(rafIdRef.current);
   }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
+
+  // Re-render on window resize (container size changed)
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas || !circuit) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      renderCircuit(ctx, circuit, viewport, debugMode, devicePositions, {
+        selectedDevices, selectedWireIndex, wireStart,
+        wirePreviewMouse: null, ghostSymbol: null, draggingEndpoint: null,
+        activeSheetId, deviceTransforms, marquee, showGrid: true, selectedAnnotationId,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
 
   return (
     <main className="canvas-container">

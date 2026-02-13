@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Device, Net, Part } from '@fusion-cad/core-model';
+import { migrateToBlocks } from '@fusion-cad/core-model';
 import { createGoldenCircuitMotorStarter } from '@fusion-cad/project-io';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { ProjectSummary } from '../api/projects';
@@ -36,6 +37,28 @@ function migratePositions(
     }
   }
   return migrated;
+}
+
+/**
+ * Build a CircuitData from raw project data, applying block migration.
+ * This ensures legacy projects with sheet-level diagramType get blocks created.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildCircuitData(raw: any): CircuitData {
+  const base: CircuitData = {
+    devices: raw.devices || [],
+    nets: raw.nets || [],
+    parts: raw.parts || [],
+    connections: raw.connections || [],
+    ...(raw.sheets ? { sheets: raw.sheets } : {}),
+    ...(raw.annotations ? { annotations: raw.annotations } : {}),
+    ...(raw.terminals ? { terminals: raw.terminals } : {}),
+    ...(raw.rungs ? { rungs: raw.rungs } : {}),
+    ...(raw.transforms ? { transforms: raw.transforms } : {}),
+    ...(raw.blocks ? { blocks: raw.blocks } : {}),
+  };
+  // Auto-migrate sheet-level ladder config → blocks
+  return migrateToBlocks(base);
 }
 
 function useDebouncedCallback<T extends (...args: unknown[]) => void>(
@@ -76,6 +99,7 @@ export interface UseProjectPersistenceReturn {
   deleteCurrentProject: () => Promise<void>;
   renameProject: () => Promise<void>;
   refreshProjectsList: () => Promise<void>;
+  reloadProject: () => Promise<void>;
 }
 
 export function useProjectPersistence(storage: StorageProvider): UseProjectPersistenceReturn {
@@ -115,17 +139,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
       }
       setDevicePositions(positionsMap);
 
-      setCircuit({
-        devices,
-        nets: project.circuitData.nets as Net[],
-        parts: project.circuitData.parts as Part[],
-        connections: project.circuitData.connections as Connection[],
-        ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
-        ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
-        ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
-        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
-        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
-      });
+      setCircuit(buildCircuitData(project.circuitData));
 
       window.history.replaceState({}, '', `?project=${project.id}`);
       setSaveStatus('saved');
@@ -230,6 +244,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
           ...(circuit.terminals ? { terminals: circuit.terminals } : {}),
           ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
           ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
+          ...(circuit.blocks ? { blocks: circuit.blocks } : {}),
         },
       });
       setSaveStatus('saved');
@@ -273,17 +288,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
           }
           setDevicePositions(positionsMap);
 
-          setCircuit({
-            devices,
-            nets: project.circuitData.nets as Net[],
-            parts: project.circuitData.parts as Part[],
-            connections: project.circuitData.connections as Connection[],
-            ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
-            ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
-            ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
-        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
-        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
-          });
+          setCircuit(buildCircuitData(project.circuitData));
         } else {
           const projects = await storage.listProjects();
 
@@ -302,17 +307,7 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
             }
             setDevicePositions(positionsMap);
 
-            setCircuit({
-              devices: loadedDevices,
-              nets: project.circuitData.nets as Net[],
-              parts: project.circuitData.parts as Part[],
-              connections: project.circuitData.connections as Connection[],
-              ...(project.circuitData.sheets ? { sheets: project.circuitData.sheets as CircuitData['sheets'] } : {}),
-              ...(project.circuitData.annotations ? { annotations: project.circuitData.annotations as CircuitData['annotations'] } : {}),
-              ...(project.circuitData.terminals ? { terminals: project.circuitData.terminals as CircuitData['terminals'] } : {}),
-        ...(project.circuitData.rungs ? { rungs: project.circuitData.rungs as CircuitData['rungs'] } : {}),
-        ...(project.circuitData.transforms ? { transforms: project.circuitData.transforms as CircuitData['transforms'] } : {}),
-            });
+            setCircuit(buildCircuitData(project.circuitData));
 
             window.history.replaceState({}, '', `?project=${project.id}`);
           } else {
@@ -362,6 +357,12 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
     refreshProjectsList();
   }, [storage, refreshProjectsList]);
 
+  const reloadProject = useCallback(async () => {
+    if (projectId) {
+      await switchProject(projectId);
+    }
+  }, [projectId, switchProject]);
+
   return {
     projectId,
     projectName,
@@ -379,5 +380,6 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
     deleteCurrentProject,
     renameProject,
     refreshProjectsList,
+    reloadProject,
   };
 }

@@ -4,12 +4,14 @@
  * Renders the golden circuit on canvas
  */
 
-import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung } from '@fusion-cad/core-model';
+import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBlock, LadderBlock } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
-import { routeWires, type Obstacle, type RouteRequest } from '@fusion-cad/core-engine';
+import { routeWires, type Obstacle, type RouteRequest, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
+import { renderTitleBlock } from './title-block';
+import { getTheme } from './theme';
 
 /**
  * Resolve device for a connection endpoint.
@@ -52,6 +54,7 @@ export interface CircuitData {
   terminals?: Terminal[];
   rungs?: Rung[];
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>;
+  blocks?: AnyDiagramBlock[];
 }
 
 /**
@@ -583,9 +586,11 @@ export function renderCircuit(
   // Layout devices (use devicePositions for dynamically placed devices)
   const positions = layoutDevices(devices, parts, devicePositions);
 
+  const t = getTheme();
+
   // Clear canvas
   ctx.save();
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = t.canvasBg;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
   // Apply viewport transform
@@ -601,7 +606,7 @@ export function renderCircuit(
     const endX = startX + (ctx.canvas.width * invScale) + gridSize;
     const endY = startY + (ctx.canvas.height * invScale) + gridSize;
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fillStyle = t.gridDotColor;
     for (let gx = startX; gx < endX; gx += gridSize) {
       for (let gy = startY; gy < endY; gy += gridSize) {
         ctx.fillRect(gx - 0.5, gy - 0.5, 1, 1);
@@ -613,11 +618,28 @@ export function renderCircuit(
   const deviceTransforms = options?.deviceTransforms;
   const persistedTransforms = circuit.transforms;
 
-  // Render ladder overlay (rails, rung numbers, rail stubs) if active sheet is a ladder diagram
+  // Render ladder overlays from blocks on this sheet
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
-  if (activeSheet?.diagramType === 'ladder') {
+  const sheetBlocks = (circuit.blocks || []).filter(b => b.sheetId === activeSheetId);
+
+  for (const block of sheetBlocks) {
+    if (block.blockType === 'ladder') {
+      const ladderBlock = block as LadderBlock;
+      const blockRungs = (circuit.rungs || []).filter(r => r.blockId === block.id);
+      renderLadderOverlay(ctx, ladderBlock.ladderConfig, blockRungs, block.position, !!options?.wireStart);
+    }
+  }
+
+  // Fallback for un-migrated data: sheet-level ladder config
+  if (sheetBlocks.length === 0 && activeSheet?.diagramType === 'ladder') {
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
-    renderLadderOverlay(ctx, activeSheet, sheetRungs, devices, parts, positions, persistedTransforms, !!options?.wireStart);
+    const fallbackConfig = activeSheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+    renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart);
+  }
+
+  // Render title block (sheet border + title block in bottom-right)
+  if (activeSheet) {
+    renderTitleBlock(ctx, activeSheet);
   }
 
   /** Resolve the effective transform for a device (runtime overrides persisted) */
@@ -709,22 +731,10 @@ export function renderCircuit(
   const routeResults = routeWires(routeRequests, obstacles, 5, 8); // 5px padding, 8px spacing
 
   // SECOND: Render connections (wires) ON TOP - use visibility graph routing with nudging
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.wireWidth;
 
-  // Color palette for wires (11 distinct colors)
-  const wireColors = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Cyan
-    '#45B7D1', // Blue
-    '#FFA07A', // Light Salmon
-    '#98D8C8', // Mint
-    '#FFD93D', // Yellow
-    '#6BCF7F', // Green
-    '#C77DFF', // Purple
-    '#FF9ECD', // Pink
-    '#74C0FC', // Sky Blue
-    '#FFA94D', // Orange
-  ];
+  // Color palette for wires
+  const wireColors = t.wireColors;
 
   for (let i = 0; i < routeResults.length; i++) {
     const routeResult = routeResults[i];
@@ -734,7 +744,7 @@ export function renderCircuit(
     // Set unique color for this wire (brighter if selected)
     const baseColor = wireColors[i % wireColors.length];
     ctx.strokeStyle = isSelected ? '#ffffff' : baseColor;
-    ctx.lineWidth = isSelected ? 3 : 2;
+    ctx.lineWidth = isSelected ? t.wireWidthSelected : t.wireWidth;
 
     // Build path points for rendering
     let pathPoints: Point[] = [];
@@ -772,44 +782,44 @@ export function renderCircuit(
 
     // Draw waypoint handles if wire is selected and has manual waypoints
     if (isSelected && metadata.conn.waypoints && metadata.conn.waypoints.length > 0) {
-      ctx.fillStyle = '#ff6600'; // Orange for waypoint handles
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.fillStyle = t.waypointFill;
+      ctx.strokeStyle = t.waypointStroke;
+      ctx.lineWidth = 1.5;
 
       for (const wp of metadata.conn.waypoints) {
         ctx.beginPath();
-        ctx.arc(wp.x, wp.y, 6, 0, Math.PI * 2);
+        ctx.arc(wp.x, wp.y, t.waypointRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       }
     }
 
     // Reset line width
-    ctx.lineWidth = 2;
+    ctx.lineWidth = t.wireWidth;
 
     // Draw connection points (circles at wire endpoints)
-    // When wire is selected, show larger draggable handles (green)
+    // When wire is selected, show larger draggable handles
     if (isSelected) {
-      ctx.fillStyle = '#00ff00'; // Green for endpoint handles (draggable)
+      ctx.fillStyle = t.wireEndpointSelectedColor;
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       // From endpoint
       ctx.beginPath();
-      ctx.arc(metadata.fromX, metadata.fromY, 8, 0, Math.PI * 2);
+      ctx.arc(metadata.fromX, metadata.fromY, t.wireEndpointSelectedRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       // To endpoint
       ctx.beginPath();
-      ctx.arc(metadata.toX, metadata.toY, 8, 0, Math.PI * 2);
+      ctx.arc(metadata.toX, metadata.toY, t.wireEndpointSelectedRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     } else {
-      ctx.fillStyle = '#00ffff'; // Cyan for connection points (not draggable)
+      ctx.fillStyle = t.wireEndpointColor;
       ctx.beginPath();
-      ctx.arc(metadata.fromX, metadata.fromY, 4, 0, Math.PI * 2);
+      ctx.arc(metadata.fromX, metadata.fromY, t.wireEndpointRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(metadata.toX, metadata.toY, 4, 0, Math.PI * 2);
+      ctx.arc(metadata.toX, metadata.toY, t.wireEndpointRadius, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -843,7 +853,7 @@ export function renderCircuit(
 
       ctx.save();
       const labelColor = wireColors[metadata.index % wireColors.length];
-      ctx.font = 'bold 10px monospace';
+      ctx.font = t.wireLabelFont;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
@@ -851,7 +861,7 @@ export function renderCircuit(
       const padding = 3;
 
       // Background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillStyle = t.wireLabelBg;
       ctx.fillRect(
         labelX - metrics.width / 2 - padding,
         labelY - 7,
@@ -925,9 +935,9 @@ export function renderCircuit(
 
   // Draw selection highlights for all selected devices (selectedDevices contains device IDs)
   if (options?.selectedDevices && options.selectedDevices.length > 0) {
-    ctx.strokeStyle = '#00bfff'; // Cyan highlight
-    ctx.lineWidth = 3;
-    ctx.setLineDash([6, 3]);
+    ctx.strokeStyle = t.selectionColor;
+    ctx.lineWidth = t.selectionWidth;
+    ctx.setLineDash(t.selectionDash);
 
     for (const selectedId of options.selectedDevices) {
       const device = devices.find(d => d.id === selectedId);
@@ -980,31 +990,37 @@ export function renderCircuit(
           const pinY = position.y + pinOffsetY;
 
           // Draw pulsing highlight circle around the pin
-          ctx.strokeStyle = '#ff6600'; // Orange for wire start
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = t.wireStartHighlight;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
           ctx.stroke();
 
           // Draw filled inner circle
-          ctx.fillStyle = 'rgba(255, 102, 0, 0.3)';
+          ctx.fillStyle = t.wireStartFill;
           ctx.beginPath();
           ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
           ctx.fill();
 
-          // Draw preview line from start pin to mouse cursor
+          // Draw preview line from start pin to mouse cursor (orthogonal L-shape)
           if (options.wirePreviewMouse) {
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 4]); // Dashed line for preview
+            const previewPath = toOrthogonalPath([
+              { x: pinX, y: pinY },
+              { x: options.wirePreviewMouse.x, y: options.wirePreviewMouse.y },
+            ]);
+            ctx.strokeStyle = t.wirePreviewColor;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 4]);
             ctx.beginPath();
-            ctx.moveTo(pinX, pinY);
-            ctx.lineTo(options.wirePreviewMouse.x, options.wirePreviewMouse.y);
+            ctx.moveTo(previewPath[0].x, previewPath[0].y);
+            for (let i = 1; i < previewPath.length; i++) {
+              ctx.lineTo(previewPath[i].x, previewPath[i].y);
+            }
             ctx.stroke();
             ctx.setLineDash([]);
 
             // Draw small circle at mouse position
-            ctx.strokeStyle = '#00ff00';
+            ctx.strokeStyle = t.wirePreviewColor;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(options.wirePreviewMouse.x, options.wirePreviewMouse.y, 5, 0, Math.PI * 2);
@@ -1042,8 +1058,8 @@ export function renderCircuit(
           const fixedY = fixedPos.y + (fixedPin?.position.y ?? fixedGeometry.height / 2);
 
           // Draw preview line from fixed endpoint to mouse
-          ctx.strokeStyle = '#00ff00';
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = t.dragEndpointColor;
+          ctx.lineWidth = 1.5;
           ctx.setLineDash([5, 5]);
           ctx.beginPath();
           ctx.moveTo(fixedX, fixedY);
@@ -1052,9 +1068,9 @@ export function renderCircuit(
           ctx.setLineDash([]);
 
           // Draw circle at mouse position
-          ctx.fillStyle = '#00ff00';
+          ctx.fillStyle = t.dragEndpointColor;
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(options.draggingEndpoint.mousePos.x, options.draggingEndpoint.mousePos.y, 8, 0, Math.PI * 2);
           ctx.fill();
@@ -1075,7 +1091,7 @@ export function renderCircuit(
       const fontSize = annotation.style?.fontSize || 14;
       const fontWeight = annotation.style?.fontWeight || 'normal';
 
-      ctx.fillStyle = '#e0e0e0';
+      ctx.fillStyle = t.annotationColor;
       ctx.font = `${fontWeight} ${fontSize}px monospace`;
       ctx.textAlign = (annotation.style?.textAlign as CanvasTextAlign) || 'left';
       ctx.textBaseline = 'top';
@@ -1085,8 +1101,8 @@ export function renderCircuit(
       if (options?.selectedAnnotationId === annotation.id) {
         const textWidth = annotation.content.length * fontSize * 0.6;
         const textHeight = fontSize * 1.2;
-        ctx.strokeStyle = '#00bfff';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = t.annotationSelectionColor;
+        ctx.lineWidth = t.selectionWidth;
         ctx.setLineDash([6, 3]);
         ctx.strokeRect(
           annotation.position.x - 3,
@@ -1107,17 +1123,17 @@ export function renderCircuit(
     const w = Math.abs(endX - startX);
     const h = Math.abs(endY - startY);
 
-    ctx.strokeStyle = mode === 'window' ? '#00bfff' : '#00ff88';
+    ctx.strokeStyle = mode === 'window' ? t.marqueeWindowColor : t.marqueeCrossingColor;
     ctx.lineWidth = 1 / viewport.scale;
 
     if (mode === 'window') {
       // Window select: solid border, light fill
       ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(0, 191, 255, 0.1)';
+      ctx.fillStyle = t.marqueeWindowFill;
     } else {
       // Crossing select: dashed border, light fill
       ctx.setLineDash([6 / viewport.scale, 3 / viewport.scale]);
-      ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+      ctx.fillStyle = t.marqueeCrossingFill;
     }
 
     ctx.fillRect(x, y, w, h);

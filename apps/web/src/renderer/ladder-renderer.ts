@@ -11,28 +11,30 @@
  * entities created by createLadderRails() in circuit-helpers.ts.
  */
 
-import type { Sheet, Rung } from '@fusion-cad/core-model';
+import type { LadderConfig, Rung } from '@fusion-cad/core-model';
 import { DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
+import { getTheme } from './theme';
 
 /**
  * Render the ladder diagram overlay (labels, rung numbers, guide lines).
  * Called after grid but before devices in the render pipeline.
+ *
+ * `blockPosition` offsets all visual chrome (rails, labels) when the ladder
+ * lives inside a DiagramBlock. Defaults to (0,0) for backward compat.
  */
 export function renderLadderOverlay(
   ctx: CanvasRenderingContext2D,
-  sheet: Sheet,
+  config: LadderConfig,
   rungs: Rung[],
-  _devices?: unknown,
-  _parts?: unknown,
-  _positions?: unknown,
-  _transforms?: unknown,
+  blockPosition?: { x: number; y: number },
   hideRungGuides?: boolean,
 ): void {
-  const config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
-  const { railL1X, railL2X, firstRungY, rungSpacing } = config;
-  const labelL1 = config.railLabelL1 ?? 'L1';
-  const labelL2 = config.railLabelL2 ?? 'L2';
-  const voltage = config.voltage;
+  const cfg = config ?? DEFAULT_LADDER_CONFIG;
+  const t = getTheme();
+  const { railL1X, railL2X, firstRungY, rungSpacing } = cfg;
+  const labelL1 = cfg.railLabelL1 ?? 'L1';
+  const labelL2 = cfg.railLabelL2 ?? 'L2';
+  const voltage = cfg.voltage;
 
   // Sort rungs by number
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
@@ -42,11 +44,18 @@ export function renderLadderOverlay(
 
   ctx.save();
 
+  // Apply block offset for visual chrome
+  const ox = blockPosition?.x ?? 0;
+  const oy = blockPosition?.y ?? 0;
+  if (ox !== 0 || oy !== 0) {
+    ctx.translate(ox, oy);
+  }
+
   // ---- Rail labels ----
   ctx.font = 'bold 16px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = t.ladderRailLabelColor;
   ctx.fillText(labelL1, railL1X, railTopY - 8);
   ctx.fillText(labelL2, railL2X, railTopY - 8);
 
@@ -55,7 +64,7 @@ export function renderLadderOverlay(
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillStyle = '#ffd700'; // Gold for voltage
+    ctx.fillStyle = t.ladderVoltageColor;
     const centerX = (railL1X + railL2X) / 2;
     ctx.fillText(voltage, centerX, railTopY - 8);
   }
@@ -66,7 +75,7 @@ export function renderLadderOverlay(
 
     // Horizontal rung guide line (very subtle dots, hidden during wire mode)
     if (!hideRungGuides) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.strokeStyle = t.ladderRungGuideColor;
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.beginPath();
@@ -80,7 +89,7 @@ export function renderLadderOverlay(
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#aaaaaa';
+    ctx.fillStyle = t.ladderRungNumberColor;
     ctx.fillText(String(rung.number), railL1X - 16, rungY);
 
     // Rung description (right margin)
@@ -88,7 +97,7 @@ export function renderLadderOverlay(
       ctx.font = '12px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#888888';
+      ctx.fillStyle = t.ladderRungDescColor;
       ctx.fillText(rung.description, railL2X + 16, rungY);
     }
   }

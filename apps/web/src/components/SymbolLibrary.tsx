@@ -15,6 +15,7 @@ import {
   SYMBOL_CATEGORY_GROUPS,
 } from '@fusion-cad/core-model';
 import { SymbolEditor } from './SymbolEditor';
+import { getTheme } from '../renderer/theme';
 
 interface SymbolLibraryProps {
   onClose: () => void;
@@ -239,7 +240,8 @@ function renderSymbolPreview(
     }
   } else {
     // Fallback: draw bounding rectangle
-    ctx.strokeStyle = '#00ff00';
+    const t = getTheme();
+    ctx.strokeStyle = t.symbolStroke;
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, def.geometry.width, def.geometry.height);
   }
@@ -261,14 +263,15 @@ function renderSymbolPaths(
   x: number,
   y: number
 ): void {
+  const t = getTheme();
   for (const path of paths) {
     const commands = parseSVGPath(path.d);
     const shouldStroke = path.stroke !== false;
     const shouldFill = path.fill === true;
     const strokeWidth = path.strokeWidth ?? 2;
 
-    ctx.strokeStyle = '#00ff00';
-    ctx.fillStyle = '#00ff00';
+    ctx.strokeStyle = t.symbolStroke;
+    ctx.fillStyle = t.symbolStroke;
     ctx.lineWidth = strokeWidth;
 
     renderPathCommands(ctx, commands, x, y);
@@ -284,10 +287,11 @@ function renderSymbolTexts(
   x: number,
   y: number
 ): void {
+  const t = getTheme();
   for (const text of texts) {
     const fontSize = text.fontSize ?? 20;
     const fontWeight = text.fontWeight ?? 'bold';
-    ctx.fillStyle = '#00ff00';
+    ctx.fillStyle = t.symbolStroke;
     ctx.font = `${fontWeight} ${fontSize}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -305,13 +309,14 @@ function renderPrimitivesToCanvas(
   x: number,
   y: number,
 ): void {
+  const t = getTheme();
   for (const p of primitives) {
-    const strokeColor = ('stroke' in p && p.stroke) || '#00ff00';
+    const strokeColor = ('stroke' in p && p.stroke) || t.symbolStroke;
     const fillColor = ('fill' in p && p.fill) || 'none';
     const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 2;
 
     ctx.strokeStyle = strokeColor;
-    ctx.fillStyle = fillColor !== 'none' ? fillColor : '#00ff00';
+    ctx.fillStyle = fillColor !== 'none' ? fillColor : t.symbolStroke;
     ctx.lineWidth = lineWidth;
 
     switch (p.type) {
@@ -364,7 +369,7 @@ function renderPrimitivesToCanvas(
       case 'text': {
         const fontSize = p.fontSize ?? 20;
         const fontWeight = p.fontWeight ?? 'bold';
-        ctx.fillStyle = '#00ff00';
+        ctx.fillStyle = t.symbolStroke;
         ctx.font = `${fontWeight} ${fontSize}px monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -375,8 +380,8 @@ function renderPrimitivesToCanvas(
         const commands = parseSVGPath(p.d);
         const shouldStroke = p.stroke !== 'none';
         const shouldFill = p.fill != null && p.fill !== 'none';
-        ctx.strokeStyle = '#00ff00';
-        ctx.fillStyle = '#00ff00';
+        ctx.strokeStyle = t.symbolStroke;
+        ctx.fillStyle = t.symbolStroke;
         ctx.lineWidth = p.strokeWidth ?? 2;
         renderPathCommands(ctx, commands, x, y);
         if (shouldFill) ctx.fill();

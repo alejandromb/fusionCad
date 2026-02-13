@@ -4,12 +4,14 @@
  */
 
 import type { SymbolDefinition, SymbolPrimitive } from '@fusion-cad/core-model';
+import { getTheme } from '../renderer/theme';
 
 /**
  * Render a single SymbolPrimitive to an SVG JSX element.
  */
 export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element | null {
-  const stroke = ('stroke' in p && p.stroke) || '#00ff00';
+  const themeStroke = getTheme().symbolStroke;
+  const stroke = ('stroke' in p && p.stroke) || themeStroke;
   const fill = ('fill' in p && p.fill) || 'none';
   const sw = ('strokeWidth' in p && p.strokeWidth) || 2;
 
@@ -38,7 +40,7 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
       return <polyline key={i} points={pts} fill={fill} stroke={stroke} strokeWidth={sw} />;
     }
     case 'text':
-      return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize ?? 20} fontWeight={p.fontWeight ?? 'bold'} fill="#00ff00" textAnchor={(p.textAnchor || 'middle') as 'start' | 'middle' | 'end'} dominantBaseline="central">{p.content}</text>;
+      return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize ?? 20} fontWeight={p.fontWeight ?? 'bold'} fill={themeStroke} textAnchor={(p.textAnchor || 'middle') as 'start' | 'middle' | 'end'} dominantBaseline="central">{p.content}</text>;
     case 'path':
       return <path key={i} d={p.d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />;
     default:
@@ -49,7 +51,8 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
 /**
  * Mini SVG preview of a symbol
  */
-export function SymbolPreview({ symbol }: { symbol: SymbolDefinition }) {
+export function SymbolPreview({ symbol, strokeColor }: { symbol: SymbolDefinition; strokeColor?: string }) {
+  const symStroke = strokeColor || getTheme().symbolStroke;
   const { width, height } = symbol.geometry;
   const primitives = symbol.primitives;
   const paths = symbol.paths || [];
@@ -70,8 +73,8 @@ export function SymbolPreview({ symbol }: { symbol: SymbolDefinition }) {
           <path
             key={i}
             d={path.d}
-            fill={path.fill ? '#00ff00' : 'none'}
-            stroke="#00ff00"
+            fill={path.fill ? symStroke : 'none'}
+            stroke={symStroke}
             strokeWidth={path.strokeWidth || 2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -84,7 +87,7 @@ export function SymbolPreview({ symbol }: { symbol: SymbolDefinition }) {
           cx={pin.position.x}
           cy={pin.position.y}
           r={2}
-          fill="#00ff00"
+          fill={symStroke}
         />
       ))}
     </svg>

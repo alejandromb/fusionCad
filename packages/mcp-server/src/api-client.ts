@@ -6,7 +6,7 @@
  * only loads and saves the full circuitData blob.
  */
 
-import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung } from '@fusion-cad/core-model';
+import { migrateToBlocks, type Device, type Net, type Part, type Sheet, type Annotation, type Terminal, type Rung, type AnyDiagramBlock } from '@fusion-cad/core-model';
 
 /** Connection stored in circuitData (matches frontend & API entity) */
 export interface Connection {
@@ -34,6 +34,7 @@ export interface CircuitData {
   terminals?: Terminal[];
   rungs?: Rung[];
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>;
+  blocks?: AnyDiagramBlock[];
 }
 
 /** Project shape returned by the API */
@@ -72,7 +73,10 @@ export class ApiClient {
       if (res.status === 404) throw new Error(`Project not found: ${id}`);
       throw new Error(`Failed to get project: ${res.status}`);
     }
-    return res.json() as Promise<ProjectRecord>;
+    const project = await res.json() as ProjectRecord;
+    // Auto-migrate legacy sheet-level ladder config to blocks
+    project.circuitData = migrateToBlocks(project.circuitData);
+    return project;
   }
 
   async createProject(name: string, description?: string): Promise<ProjectRecord> {

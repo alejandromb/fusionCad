@@ -12,3 +12,6 @@ export { loadSymbolsFromJson, loadSingleSymbol, convertSymbol } from './symbols/
 export { SYMBOL_CATEGORY_GROUPS, HIDDEN_SYMBOL_CATEGORIES, getAllSymbolCategories, findCategoryDef } from './symbols/symbol-categories.js';
 export type { SymbolCategoryDef, SymbolCategoryGroup } from './symbols/symbol-categories.js';
 export * from './parts/index.js';
+export * from './motor-data/index.js';
+export { migrateToBlocks } from './migrations/migrate-blocks.js';
+export type { MigratableCircuit } from './migrations/migrate-blocks.js';

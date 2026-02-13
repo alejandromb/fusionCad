@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-12 (Wire Segment Dragging)
+**Last Updated**: 2026-02-13 (Visibility Bug Fix + Canvas Panning)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -96,14 +96,14 @@ This file tracks where we are in development. **Always read this file at the sta
   - 35 E2E tests passing
 
 ### What We're Working On
-- Wire interaction improvements — just completed wire segment dragging
-- Symbol quality tuning (now possible via Symbol Editor)
+- ✅ ~~VISIBILITY BUG~~ — Fixed! RAF coalescing `needsRenderRef` was stuck at `true`
+- ✅ Canvas panning — click+drag on empty space, Space+drag, middle-click
 - Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
 ### Next Immediate Steps
-1. Test linked device workflow end-to-end (place K1 contactor + K1 coil + K1 aux)
-2. Implement IndexedDB storage for free tier (local-only)
-3. Fine-tune symbol paths using Symbol Editor
+1. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
+2. Wire preview improvement: Replace straight dashed line with orthogonal L-shaped preview
+3. Implement IndexedDB storage for free tier (local-only)
 4. Import symbols from external SVG libraries
 
 ---
@@ -809,6 +809,111 @@ This file tracks where we are in development. **Always read this file at the sta
 - `apps/web/src/hooks/useCircuitState.ts` — added `replaceWaypoints()`
 - `apps/web/src/hooks/useCanvasInteraction.ts` — segment drag state, mousedown/mousemove/mouseup handlers, helper functions
 - `apps/web/src/App.tsx` — wired `replaceWaypoints` to interaction deps
+
+### Checkpoint: 2026-02-13 - Motor Starter Auto-Generation with Real Parts
+
+**Changes Made**:
+- Built motor data module in core-model: lookup engine queries 216 Schneider Electric motor starter configurations
+- Created expanded Schneider parts catalog: 289 parts with datasheet URLs
+- Enhanced `generateMotorStarter()` to auto-assign real catalog parts when motor data provided
+- Added 2 new MCP tools: `lookup_motor_starter` (read-only) and `generate_motor_starter_from_spec` (write)
+
+**Architecture**:
+- `packages/core-model/src/motor-data/` — types, lookup engine, motor-database.json, wire-data.json
+- `packages/core-model/src/parts/schneider-motor-catalog.ts` — 289 parts extracted from motor data
+- Lookup: `{ hp, voltage, country?, phase?, starterType? }` → `{ motorFLA, wireSize, components: { circuitBreaker, contactor, overloadRelay, ... } }`
+- Supports: USA/Canada, single/three-phase, 6 voltages, 4 starter types (iec-open/enclosed, nema-open/enclosed)
+- LR9 electronic overload fallback for large motors where LRD is unavailable (>100 HP)
+- All parts have `datasheetUrl` pointing to `https://www.se.com/us/en/product/{partNumber}/`
+
+**Completed**:
+- [x] Motor data types (MotorSpec, MotorStarterResult, ComponentSelection)
+- [x] Motor database JSON (216 configs: 12 regions × 12-21 HP ratings)
+- [x] Lookup engine with HP normalization (handles fractions like "1/2" ↔ "0.5")
+- [x] 289-part Schneider motor catalog (breakers, contactors, overloads, switches, starters, thermal units)
+- [x] Part catalog integrated into ALL_MANUFACTURER_PARTS
+- [x] generateMotorStarter enhanced with optional motorData param for real part assignment
+- [x] MCP tool: lookup_motor_starter (read-only lookup)
+- [x] MCP tool: generate_motor_starter_from_spec (full generation with parts)
+- [x] TypeScript clean (core-model + mcp-server compile)
+- [x] 35 E2E tests passing (no regressions)
+- [x] Verified: 20HP 208V → HDL36100 + LC1D65A + LRD365
+
+**Files Created**:
+- `packages/core-model/src/motor-data/types.ts`
+- `packages/core-model/src/motor-data/lookup.ts`
+- `packages/core-model/src/motor-data/index.ts`
+- `packages/core-model/src/motor-data/motor-database.json`
+- `packages/core-model/src/motor-data/wire-data.json`
+- `packages/core-model/src/parts/schneider-motor-catalog.ts`
+
+**Files Modified**:
+- `packages/core-model/src/index.ts` — added motor-data exports
+- `packages/core-model/src/parts/index.ts` — merged schneiderMotorCatalogParts
+- `packages/mcp-server/src/circuit-templates.ts` — motorData param + assignPart calls
+- `packages/mcp-server/src/server.ts` — 2 new MCP tools (26 total now)
+
+### Checkpoint: 2026-02-13 - AI-Driven Motor Starter Panel Generation
+
+**Changes Made**:
+- Implemented full AI panel generation pipeline (5 phases):
+  1. 12 panel symbols in builtin-symbols.json (enclosures, subpanels, DIN rails, door cutouts)
+  2. `generateMotorStarterPanel()` template with HOA/pilot light/PLC/E-stop options
+  3. `AIPromptDialog.tsx` modal with Claude API NLP → circuit generation
+  4. `apps/api/src/ai-generate.ts` backend with Anthropic SDK
+  5. Panel layout sheet generation with enclosure + component labels
+- Multi-theme system: 5 presets + custom theme (theme.ts, ThemePicker.tsx, useTheme.ts)
+- Performance fixes: Symbol geometry cache in symbols.ts + RAF render coalescing in Canvas.tsx
+
+**Files Created**:
+- `apps/web/src/components/AIPromptDialog.tsx` — AI prompt modal
+- `apps/web/src/components/ThemePicker.tsx` — Theme selector UI
+- `apps/web/src/hooks/useTheme.ts` — Theme hook
+- `apps/web/src/renderer/theme.ts` — 5 preset themes + custom derivation + CSS vars
+- `apps/api/src/ai-generate.ts` — Claude API backend for NLP circuit generation
+
+**Files Modified**:
+- `packages/core-model/src/symbols/builtin-symbols.json` — 12 new panel symbols
+- `packages/mcp-server/src/circuit-templates.ts` — generateMotorStarterPanel()
+- `packages/mcp-server/src/server.ts` — generate_motor_starter_panel tool (30 total)
+- `apps/api/src/index.ts` — POST /api/projects/:id/ai-generate route
+- `apps/api/package.json` — @anthropic-ai/sdk dependency
+- `apps/web/src/App.tsx` — AI prompt dialog + theme integration
+- `apps/web/src/App.css` — AI dialog + theme styles
+- `apps/web/src/components/Header.tsx` — AI Generate button
+- `apps/web/src/hooks/useProjectPersistence.ts` — reloadProject()
+- `apps/web/src/renderer/symbols.ts` — geometry cache for performance
+- `apps/web/src/components/Canvas.tsx` — RAF render coalescing
+
+**Known Issue**:
+- ~~🔴 VISIBILITY BUG~~ → **FIXED** in next checkpoint
+
+### Checkpoint: 2026-02-13 - Visibility Bug Fix + Canvas Panning
+
+**Changes Made**:
+- Fixed visibility bug: RAF coalescing in Canvas.tsx had `needsRenderRef` boolean stuck at `true`
+  - Root cause: `cancelAnimationFrame` in effect cleanup cancelled pending RAF before it could reset the flag
+  - Fix: Replaced with cancel-and-reschedule pattern — each effect run cancels pending RAF and schedules new one
+  - Bonus: Canvas buffer only resets on actual container resize (uses `clearRect` otherwise)
+- Implemented canvas panning:
+  - Click+drag on empty space = pan (was always marquee, making pan impossible)
+  - Space+drag = pan from anywhere (even over devices)
+  - Middle-mouse-button drag = pan from anywhere
+  - Shift+drag on empty space = marquee selection (was the old default)
+- Removed dead pan code that was unreachable (line 628-661 in old useCanvasInteraction.ts)
+
+**Files Modified**:
+- `apps/web/src/components/Canvas.tsx` — Fixed RAF rendering, buffer optimization
+- `apps/web/src/hooks/useCanvasInteraction.ts` — Added panning (3 methods), changed marquee to Shift+drag
+- `e2e/helpers/canvas-helpers.ts` — Updated dragMarquee to hold Shift automatically
+
+**Debugging Process** (documented for future reference):
+1. Browser screenshot showed empty canvas despite "19 devices · 24 wires" in header
+2. JS eval showed canvas buffer stuck at 300x150 (HTML default) while CSS stretched to 1270x682
+3. Manual `fillRect` test proved canvas element worked — rendering code never executed
+4. React fiber inspection found `needsRenderRef.current === true` (stuck!)
+5. Traced to `cancelAnimationFrame` in cleanup cancelling the RAF that would have reset the flag
+6. Reverted to direct render approach, then re-added RAF with safe cancel-and-reschedule pattern
 
 ---
 

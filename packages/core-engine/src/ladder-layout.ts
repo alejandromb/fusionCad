@@ -48,9 +48,14 @@ export function layoutLadder(
   rungs: Rung[],
   devices: Device[],
   config: LadderConfig,
+  blockOffset?: { x: number; y: number },
 ): LadderLayoutResult {
   const positions: Record<string, { x: number; y: number }> = {};
   const railConnections: RailConnection[] = [];
+
+  // Block offset for absolute world-coordinate positioning
+  const ox = blockOffset?.x ?? 0;
+  const oy = blockOffset?.y ?? 0;
 
   // Build device lookup by ID
   const deviceMap = new Map(devices.map(d => [d.id, d]));
@@ -59,7 +64,7 @@ export function layoutLadder(
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
 
   for (const rung of sortedRungs) {
-    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing;
+    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing + oy;
 
     // Filter to devices that actually exist
     const rungDeviceIds = rung.deviceIds.filter(id => deviceMap.has(id));
@@ -73,7 +78,7 @@ export function layoutLadder(
 
     for (let i = 0; i < deviceCount; i++) {
       const deviceId = rungDeviceIds[i];
-      const x = config.railL1X + spacing * (i + 1);
+      const x = config.railL1X + spacing * (i + 1) + ox;
       positions[deviceId] = { x: Math.round(x / 20) * 20, y: rungY };
     }
 
@@ -86,7 +91,7 @@ export function layoutLadder(
       deviceId: leftmostId,
       pin: 'pin-left',
       rail: 'L1',
-      point: { x: config.railL1X, y: rungY },
+      point: { x: config.railL1X + ox, y: rungY },
     });
 
     // Right device's right pin → L2
@@ -94,7 +99,7 @@ export function layoutLadder(
       deviceId: rightmostId,
       pin: 'pin-right',
       rail: 'L2',
-      point: { x: config.railL2X, y: rungY },
+      point: { x: config.railL2X + ox, y: rungY },
     });
   }
 

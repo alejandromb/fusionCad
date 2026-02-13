@@ -5,7 +5,7 @@
  * that operate on CircuitData without React dependencies.
  */
 
-import { generateId, getSymbolById, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
 import { layoutLadder, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from './api-client.js';
 
@@ -606,7 +606,58 @@ export function setSheetType(
 }
 
 /**
- * Add a rung to a ladder diagram sheet.
+ * Create a LadderBlock on a sheet.
+ * Replaces the need to call setSheetType() for new designs.
+ * Position defaults to (0, 0) if not specified.
+ */
+export function createLadderBlock(
+  circuit: CircuitData,
+  sheetId: string,
+  ladderConfig?: Partial<LadderConfig>,
+  position?: { x: number; y: number },
+  name?: string,
+): { circuit: CircuitData; blockId: string } {
+  const sheets = circuit.sheets || [];
+  const sheet = sheets.find(s => s.id === sheetId);
+  if (!sheet && sheetId !== WEB_APP_DEFAULT_SHEET_ID) {
+    throw new Error(`Sheet "${sheetId}" not found`);
+  }
+
+  const now = Date.now();
+  const blockId = generateId();
+  const fullConfig: LadderConfig = { ...DEFAULT_LADDER_CONFIG, ...ladderConfig };
+
+  const block: LadderBlock = {
+    id: blockId,
+    type: 'block',
+    blockType: 'ladder',
+    sheetId,
+    name: name || `${sheet?.name ?? 'Sheet 1'} Ladder`,
+    position: position ?? { x: 0, y: 0 },
+    ladderConfig: fullConfig,
+    createdAt: now,
+    modifiedAt: now,
+  };
+
+  const blocks: AnyDiagramBlock[] = [...(circuit.blocks || []), block];
+  return { circuit: { ...circuit, blocks }, blockId };
+}
+
+/**
+ * Delete a block and its associated rungs.
+ */
+export function deleteBlock(
+  circuit: CircuitData,
+  blockId: string,
+): CircuitData {
+  const blocks = (circuit.blocks || []).filter(b => b.id !== blockId);
+  const rungs = (circuit.rungs || []).filter(r => r.blockId !== blockId);
+  return { ...circuit, blocks, rungs };
+}
+
+/**
+ * Add a rung to a ladder diagram.
+ * Accepts blockId (preferred) or sheetId (deprecated fallback).
  * Resolves device tags to device IDs for the rung's deviceIds array.
  */
 export function addRung(
@@ -615,6 +666,7 @@ export function addRung(
   rungNumber: number,
   deviceTags: string[],
   description?: string,
+  blockId?: string,
 ): { circuit: CircuitData; rungId: string } {
   // Resolve tags to device IDs — for each tag, find device on the given sheet
   const deviceIds: string[] = [];
@@ -635,6 +687,7 @@ export function addRung(
     type: 'rung',
     number: rungNumber,
     sheetId,
+    ...(blockId ? { blockId } : {}),
     deviceIds,
     description,
     createdAt: now,
@@ -650,27 +703,48 @@ export function addRung(
 }
 
 /**
- * Auto-layout all devices on a ladder sheet according to rung definitions.
+ * Auto-layout all devices on a ladder according to rung definitions.
+ * Accepts blockId (preferred) or sheetId (deprecated fallback).
  * Returns updated circuit with new positions + a summary.
  */
 export function autoLayoutLadder(
   circuit: CircuitData,
   sheetId: string,
+  blockId?: string,
 ): { circuit: CircuitData; layoutSummary: { rungCount: number; deviceCount: number } } {
-  const sheets = circuit.sheets || [];
-  const sheet = sheets.find(s => s.id === sheetId);
-  if (!sheet) {
-    throw new Error(`Sheet "${sheetId}" not found`);
-  }
-  if (sheet.diagramType !== 'ladder') {
-    throw new Error(`Sheet "${sheet.name}" is not a ladder diagram (type: ${sheet.diagramType || 'schematic'})`);
+  let config: LadderConfig;
+  let rungs: Rung[];
+  let blockOffset: { x: number; y: number } | undefined;
+
+  if (blockId) {
+    // Block-based: resolve config from the block
+    const block = (circuit.blocks || []).find(b => b.id === blockId);
+    if (!block) {
+      throw new Error(`Block "${blockId}" not found`);
+    }
+    if (block.blockType !== 'ladder') {
+      throw new Error(`Block "${block.name}" is not a ladder block (type: ${block.blockType})`);
+    }
+    config = (block as LadderBlock).ladderConfig;
+    rungs = (circuit.rungs || []).filter(r => r.blockId === blockId);
+    blockOffset = block.position;
+  } else {
+    // Legacy: resolve from sheet
+    const sheets = circuit.sheets || [];
+    const sheet = sheets.find(s => s.id === sheetId);
+    if (!sheet) {
+      throw new Error(`Sheet "${sheetId}" not found`);
+    }
+    if (sheet.diagramType !== 'ladder') {
+      throw new Error(`Sheet "${sheet.name}" is not a ladder diagram (type: ${sheet.diagramType || 'schematic'})`);
+    }
+    config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+    rungs = (circuit.rungs || []).filter(r => r.sheetId === sheetId);
   }
 
-  const config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
-  const rungs = (circuit.rungs || []).filter(r => r.sheetId === sheetId);
   const devices = circuit.devices.filter(d => d.sheetId === sheetId);
 
-  const result = layoutLadder(rungs, devices, config);
+  const result = layoutLadder(rungs, devices, config, blockOffset);
 
   // Merge positions (overwrite for devices on rungs, keep others)
   const updatedPositions = { ...circuit.positions };
@@ -706,20 +780,33 @@ export function autoLayoutLadder(
  * Places junction devices at each rail intercept and wires them
  * vertically (forming the rails) and horizontally (forming stubs to rung devices).
  * Should be called AFTER auto-layout so rung positions are established.
+ * Accepts blockId (preferred) or sheetId (deprecated fallback).
  */
 export function createLadderRails(
   circuit: CircuitData,
   sheetId: string,
+  blockId?: string,
 ): CircuitData {
   let cd = circuit;
+  let config: LadderConfig;
+  let rungs: Rung[];
+  let blockOffset: { x: number; y: number } = { x: 0, y: 0 };
 
-  const sheets = cd.sheets || [];
-  const sheet = sheets.find(s => s.id === sheetId);
-  if (!sheet || sheet.diagramType !== 'ladder') return cd;
-
-  const config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
-  const rungs = (cd.rungs || []).filter(r => r.sheetId === sheetId)
-    .sort((a, b) => a.number - b.number);
+  if (blockId) {
+    const block = (cd.blocks || []).find(b => b.id === blockId);
+    if (!block || block.blockType !== 'ladder') return cd;
+    config = (block as LadderBlock).ladderConfig;
+    rungs = (cd.rungs || []).filter(r => r.blockId === blockId)
+      .sort((a, b) => a.number - b.number);
+    blockOffset = block.position;
+  } else {
+    const sheets = cd.sheets || [];
+    const sheet = sheets.find(s => s.id === sheetId);
+    if (!sheet || sheet.diagramType !== 'ladder') return cd;
+    config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+    rungs = (cd.rungs || []).filter(r => r.sheetId === sheetId)
+      .sort((a, b) => a.number - b.number);
+  }
 
   if (rungs.length === 0) return cd;
 
@@ -731,8 +818,11 @@ export function createLadderRails(
   const l2Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];
 
   // Place junction devices at each rung intercept
+  const ox = blockOffset.x;
+  const oy = blockOffset.y;
+
   for (const rung of rungs) {
-    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing;
+    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing + oy;
 
     // L1 junction for every rung
     const l1Tag = `JL${rung.number}`;
@@ -743,7 +833,7 @@ export function createLadderRails(
       ...cd,
       positions: {
         ...cd.positions,
-        [l1.deviceId]: { x: config.railL1X - PIN_OFFSET, y: rungY - PIN_OFFSET },
+        [l1.deviceId]: { x: config.railL1X - PIN_OFFSET + ox, y: rungY - PIN_OFFSET },
       },
     };
     l1Junctions.push({ deviceId: l1.deviceId, tag: l1Tag, rungNumber: rung.number });
@@ -757,7 +847,7 @@ export function createLadderRails(
         ...cd,
         positions: {
           ...cd.positions,
-          [l2.deviceId]: { x: config.railL2X - PIN_OFFSET, y: rungY - PIN_OFFSET },
+          [l2.deviceId]: { x: config.railL2X - PIN_OFFSET + ox, y: rungY - PIN_OFFSET },
         },
       };
       l2Junctions.push({ deviceId: l2.deviceId, tag: l2Tag, rungNumber: rung.number });
