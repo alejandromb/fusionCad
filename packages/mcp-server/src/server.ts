@@ -517,23 +517,21 @@ export function createServer(apiBase: string) {
     'Generate a complete 3-wire motor starter ladder diagram in one call. Creates all devices, rungs, wires, and auto-layouts.',
     {
       projectId: z.string().describe('Project UUID'),
-      sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
       controlVoltage: z.enum(['24VDC', '120VAC']).optional().describe('Control circuit voltage (default: "120VAC")'),
       motorTag: z.string().optional().describe('Motor tag prefix (default: "M1")'),
     },
-    async ({ projectId, sheetId: sheetIdParam, controlVoltage, motorTag }) => {
+    async ({ projectId, controlVoltage, motorTag }) => {
       const { generateMotorStarter } = await import('./circuit-templates.js');
       const project = await api.getProject(projectId);
-      let circuit = project.circuitData;
-      const targetSheet = sheetIdParam || getDefaultSheetId(circuit);
       const voltage = controlVoltage || '120VAC';
       const tag = motorTag || 'M1';
 
-      const result = generateMotorStarter(circuit, targetSheet, voltage, tag);
+      const result = generateMotorStarter(project.circuitData, voltage, tag);
       await api.updateCircuitData(projectId, result.circuit);
       return textResult({
         generated: true,
-        sheetId: targetSheet,
+        powerSheetId: result.powerSheetId,
+        controlSheetId: result.controlSheetId,
         controlVoltage: voltage,
         motorTag: tag,
         summary: result.summary,

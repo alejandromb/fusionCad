@@ -11,6 +11,8 @@
  * - OL relay: pin "1" (top) → pin "2" (bottom)
  * - Pilot light: pin "1" (top) → pin "2" (bottom)
  * - Timers: pin "1" (A1/top) → pin "2" (A2/bottom)
+ * - 3P power devices (CB, contactor, OL): L1/T1, L2/T2, L3/T3
+ * - Motor 3-phase: pins "1"(U1), "2"(V1), "3"(W1)
  *
  * In ladder diagrams, current flows left→right through each rung.
  * Pin "1" is the input side (connected toward L1), pin "2" is output (toward L2).
@@ -23,79 +25,143 @@ import {
   placeLinkedDevice,
   createWire,
   setSheetType,
+  addSheet,
   addRung,
   autoLayoutLadder,
+  createLadderRails,
 } from './circuit-helpers.js';
 
 /**
- * Generate a complete 3-wire motor starter ladder diagram.
+ * Generate a complete 3-wire motor starter with power + control sections.
  *
- * Standard rungs:
- * - Rung 1: OL(NC) → Stop(NC) → Start(NO) → K1 Coil
- * - Rung 2: OL(NC) → K1 Seal-in(NO) → K1 Coil (parallel to start)
- * - Rung 3: K1 aux(NO) → Pilot Light "Running"
+ * Creates two sheets:
+ *   Sheet 1 "Power" (schematic): CB1 → K1 → F1 → M1 with 9 phase wires
+ *   Sheet 2 "Control" (ladder):  3 rungs with linked K1/F1 devices
+ *
+ * See docs/circuit-specs/motor-starter-3wire.md for full spec.
  */
 export function generateMotorStarter(
   circuit: CircuitData,
-  sheetId: string,
   controlVoltage: '24VDC' | '120VAC',
-  motorTag: string,
-): { circuit: CircuitData; summary: string } {
+  _motorTag: string,
+): { circuit: CircuitData; summary: string; powerSheetId: string; controlSheetId: string } {
   let cd = circuit;
 
-  // 1. Set sheet to ladder type
-  cd = setSheetType(cd, sheetId, 'ladder', {
+  // ================================================================
+  //  Create sheets
+  // ================================================================
+  const powerSheet = addSheet(cd, 'Power');
+  cd = powerSheet.circuit;
+  const powerSheetId = powerSheet.sheetId;
+
+  const controlSheet = addSheet(cd, 'Control');
+  cd = controlSheet.circuit;
+  const controlSheetId = controlSheet.sheetId;
+
+  // Set sheet types
+  cd = setSheetType(cd, powerSheetId, 'schematic');
+  cd = setSheetType(cd, controlSheetId, 'ladder', {
     voltage: controlVoltage,
     railLabelL1: controlVoltage === '24VDC' ? '+24V' : 'L1',
     railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
   });
 
-  // 2. Place devices
-  // OL aux NC contact (overload relay auxiliary contact)
-  const ol = placeDevice(cd, 'iec-normally-closed-contact', 0, 0, sheetId, 'OL');
+  // ================================================================
+  //  SHEET 1 — Power Section (schematic, top-to-bottom)
+  // ================================================================
+
+  // Place 3-phase power devices vertically
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 60, powerSheetId, 'CB1');
+  cd = cb1.circuit;
+
+  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 180, powerSheetId, 'K1');
+  cd = k1power.circuit;
+
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 300, powerSheetId, 'F1');
+  cd = f1power.circuit;
+
+  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 420, powerSheetId, 'M1');
+  cd = m1.circuit;
+
+  // Wire 9 phase connections (3 phases × 3 hops)
+  // Phase L1
+  cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T1', 'M1', '1', f1power.deviceId, m1.deviceId);
+  // Phase L2
+  cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T2', 'M1', '2', f1power.deviceId, m1.deviceId);
+  // Phase L3
+  cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
+  cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
+  cd = createWire(cd, 'F1', 'T3', 'M1', '3', f1power.deviceId, m1.deviceId);
+
+  // ================================================================
+  //  SHEET 2 — Control Section (ladder diagram)
+  // ================================================================
+
+  // OL aux NC contact — linked to F1 overload relay on power sheet
+  const ol = placeLinkedDevice(cd, 'F1', 'iec-normally-closed-contact', 0, 0, controlSheetId);
   cd = ol.circuit;
 
   // Stop pushbutton (NC)
-  const stop = placeDevice(cd, 'iec-normally-closed-contact', 0, 0, sheetId, 'S2');
+  const stop = placeDevice(cd, 'iec-normally-closed-contact', 0, 0, controlSheetId, 'S2');
   cd = stop.circuit;
 
   // Start pushbutton (NO)
-  const start = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, 'S1');
+  const start = placeDevice(cd, 'iec-normally-open-contact', 0, 0, controlSheetId, 'S1');
   cd = start.circuit;
 
-  // Contactor coil
-  const coil = placeDevice(cd, 'iec-coil', 0, 0, sheetId, 'K1');
+  // Junction node (T-branch point between S1 and K1)
+  const junction = placeDevice(cd, 'junction', 0, 0, controlSheetId, 'J1');
+  cd = junction.circuit;
+
+  // Contactor coil — linked to K1 contactor on power sheet
+  const coil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, controlSheetId);
   cd = coil.circuit;
 
-  // Seal-in contact (K1 NO — linked to coil)
-  const sealin = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, sheetId);
+  // Seal-in contact (K1 NO — linked to K1)
+  const sealin = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, controlSheetId);
   cd = sealin.circuit;
 
-  // OL aux (rung 2 — linked to OL)
-  const ol2 = placeLinkedDevice(cd, 'OL', 'iec-normally-closed-contact', 0, 0, sheetId);
+  // OL aux (rung 2 — linked to F1)
+  const ol2 = placeLinkedDevice(cd, 'F1', 'iec-normally-closed-contact', 0, 0, controlSheetId);
   cd = ol2.circuit;
 
   // K1 aux NO contact for pilot light (linked to K1)
-  const k1aux = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, sheetId);
+  const k1aux = placeLinkedDevice(cd, 'K1', 'iec-normally-open-contact', 0, 0, controlSheetId);
   cd = k1aux.circuit;
 
   // Pilot light
-  const pilot = placeDevice(cd, 'iec-pilot-light', 0, 0, sheetId, 'PL1');
+  const pilot = placeDevice(cd, 'iec-pilot-light', 0, 0, controlSheetId, 'PL1');
   cd = pilot.circuit;
 
-  // 3. Define rungs
-  // Rung 1: OL → Stop → Start → K1 coil
-  const rung1 = addRung(cd, sheetId, 1, ['OL', 'S2', 'S1', 'K1'], 'Motor starter control');
-  cd = rung1.circuit;
+  // Define rungs
+  // Rung 1: F1(OL) → Stop → Start → J1 (junction) → K1 coil
+  // Use addRung for rung 1 (it resolves tags to device IDs by sheet)
+  // But F1 and K1 have multiple devices — addRung finds by sheet, so control sheet devices match.
+  // We need to build rung 1 manually with explicit device IDs.
+  const rung1Ids = [ol.deviceId, stop.deviceId, start.deviceId, junction.deviceId, coil.deviceId];
+  const rung1Rung = {
+    id: require_generateId(),
+    type: 'rung' as const,
+    number: 1,
+    sheetId: controlSheetId,
+    deviceIds: rung1Ids,
+    description: 'Motor starter control',
+    createdAt: Date.now(),
+    modifiedAt: Date.now(),
+  };
+  cd = { ...cd, rungs: [...(cd.rungs || []), rung1Rung] };
 
-  // Rung 2: OL2 → K1 seal-in (branch of rung 1 — coil is on rung 1)
-  // The seal-in contact output wires UP to K1 coil on rung 1.
+  // Rung 2: OL2 → K1 seal-in (branch of rung 1)
   const rung2Ids = [ol2.deviceId, sealin.deviceId];
   const rung2Rung = {
     id: require_generateId(),
     type: 'rung' as const,
     number: 2,
-    sheetId,
+    sheetId: controlSheetId,
     deviceIds: rung2Ids,
     description: 'Seal-in circuit',
     branchOf: 1,
@@ -110,7 +176,7 @@ export function generateMotorStarter(
     id: require_generateId(),
     type: 'rung' as const,
     number: 3,
-    sheetId,
+    sheetId: controlSheetId,
     deviceIds: rung3Ids,
     description: 'Running indicator',
     createdAt: Date.now(),
@@ -118,31 +184,44 @@ export function generateMotorStarter(
   };
   cd = { ...cd, rungs: [...(cd.rungs || []), rung3Rung] };
 
-  // 4. Auto-layout
-  const layout = autoLayoutLadder(cd, sheetId);
+  // Auto-layout control sheet
+  const layout = autoLayoutLadder(cd, controlSheetId);
   cd = layout.circuit;
 
-  // 5. Wire rung 1: OL.2→S2.1, S2.2→S1.1, S1.2→K1.1
-  cd = createWire(cd, 'OL', '2', 'S2', '1', ol.deviceId, stop.deviceId);
+  // Wire rung 1: F1.2→S2.1, S2.2→S1.1, S1.2→J1.1, J1.1→K1.1
+  cd = createWire(cd, 'F1', '2', 'S2', '1', ol.deviceId, stop.deviceId);
   cd = createWire(cd, 'S2', '2', 'S1', '1', stop.deviceId, start.deviceId);
-  cd = createWire(cd, 'S1', '2', 'K1', '1', start.deviceId, coil.deviceId);
+  cd = createWire(cd, 'S1', '2', 'J1', '1', start.deviceId, junction.deviceId);
+  cd = createWire(cd, 'J1', '1', 'K1', '1', junction.deviceId, coil.deviceId);
 
-  // 6. Wire rung 2: OL2.2→K1-sealin.1, K1-sealin.2→K1-coil.1
-  cd = createWire(cd, 'OL', '2', 'K1', '1', ol2.deviceId, sealin.deviceId);
-  cd = createWire(cd, 'K1', '2', 'K1', '1', sealin.deviceId, coil.deviceId);
+  // Wire rung 2: OL2.2→K1-sealin.1, K1-sealin.2→J1.1
+  cd = createWire(cd, 'F1', '2', 'K1', '1', ol2.deviceId, sealin.deviceId);
+  cd = createWire(cd, 'K1', '2', 'J1', '1', sealin.deviceId, junction.deviceId);
 
-  // 7. Wire rung 3: K1aux.2→PL1.1
+  // Wire rung 3: K1aux.2→PL1.1
   cd = createWire(cd, 'K1', '2', 'PL1', '1', k1aux.deviceId, pilot.deviceId);
 
+  // Create L1/L2 rail junctions and wires
+  cd = createLadderRails(cd, controlSheetId);
+
   const summary = [
-    'Motor starter ladder diagram generated:',
-    `  Rung 1: OL(NC) → S2(Stop NC) → S1(Start NO) → K1(Coil) — ${controlVoltage}`,
-    '  Rung 2: OL(NC) → K1(Seal-in NO) → K1(Coil)',
-    '  Rung 3: K1(Aux NO) → PL1(Running Light)',
-    `  8 devices, 3 rungs, 6 wires`,
+    'Complete 3-wire motor starter generated (2 sheets):',
+    '',
+    '  Sheet 1 "Power" (schematic):',
+    '    CB1(Circuit Breaker 3P) → K1(Contactor 3P) → F1(Overload 3P) → M1(Motor 3Ph)',
+    '    9 phase wires (3 phases × 3 hops)',
+    '',
+    `  Sheet 2 "Control" (ladder, ${controlVoltage}):`,
+    '    Rung 1: F1(OL NC) → S2(Stop NC) → S1(Start NO) → J1(Junction) → K1(Coil)',
+    '    Rung 2: F1(OL NC) → K1(Seal-in NO) → J1(Junction) [branch]',
+    '    Rung 3: K1(Aux NO) → PL1(Running Light)',
+    '    7 rung wires + 8 rail wires',
+    '',
+    '  Linked devices: K1 (power ↔ coil + seal-in + aux), F1 (power ↔ OL contacts)',
+    '  Totals: 18 devices (4 power + 9 control + 5 rail), 24 wires',
   ].join('\n');
 
-  return { circuit: cd, summary };
+  return { circuit: cd, summary, powerSheetId, controlSheetId };
 }
 
 /**

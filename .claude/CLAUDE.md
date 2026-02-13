@@ -32,9 +32,10 @@ Before doing ANYTHING else:
 
 ## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-12)
 
-**Current task:** Ladder Diagram Layout System — testing MCP generation workflow
+**Current task:** Wire interaction improvements
 
 **Status:**
+- ✅ **Wire segment dragging**: Click-drag segments perpendicular to direction (H→up/down, V→left/right)
 - ✅ **Ladder Layout System**: DiagramType, LadderConfig, Rung types, layout engine, renderer
 - ✅ **24 MCP tools** (9 read, 15 write) incl. ladder tools + motor starter generator
 - ✅ **Transform-aware interaction**: Rotated devices fully selectable/editable

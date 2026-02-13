@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-12 (Linked Device Representations — ID-Keyed Architecture)
+**Last Updated**: 2026-02-12 (Wire Segment Dragging)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -50,6 +50,10 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Wire bend points**: Select wire, click to add waypoints, drag to adjust, double-click to delete
   - Orthogonal-only routing enforced (no diagonal wires)
   - Hit detection uses auto-routing for accurate clicks
+- ✅ **Wire segment dragging**: Click-drag wire segments perpendicular to their direction
+  - Horizontal segments drag up/down, vertical segments drag left/right
+  - First/last segments auto-insert jog waypoints from pins
+  - Collinear waypoints simplified on mouseup
 - ✅ **Wire reconnection**: Drag wire endpoints to reconnect to different pins
   - Green handles show at endpoints when wire selected
   - Drag endpoint to new pin to reconnect
@@ -92,7 +96,7 @@ This file tracks where we are in development. **Always read this file at the sta
   - 35 E2E tests passing
 
 ### What We're Working On
-- Linked Device Representations — just completed ID-keyed architecture migration
+- Wire interaction improvements — just completed wire segment dragging
 - Symbol quality tuning (now possible via Symbol Editor)
 - Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
@@ -782,6 +786,29 @@ This file tracks where we are in development. **Always read this file at the sta
 - `packages/mcp-server/src/server.ts` — place_linked_device tool
 - `packages/core-engine/src/erc.ts` — deviceGroupId-aware duplicate check
 - `packages/reports/src/bom.ts` — linked device group = 1 BOM item
+
+### Checkpoint: 2026-02-12 - Wire Segment Dragging
+
+**Changes Made**:
+- Implemented wire segment dragging: click-drag segments on selected wires to move them perpendicular to their direction
+- Exported `resolveDevice`, `getPinWorldPosition`, `toOrthogonalPath` from `circuit-renderer.ts`
+- Added `replaceWaypoints()` to `useCircuitState.ts` (bulk waypoint replacement without history push)
+- Added `computeWirePinPositions()` and `simplifyWaypoints()` helpers to `useCanvasInteraction.ts`
+
+**Completed**:
+- [x] Segment detection on mousedown (reuses existing `getWireSegmentAtPoint`)
+- [x] Path materialization (orthogonal path → waypoints on drag start)
+- [x] Perpendicular drag with grid snapping
+- [x] Jog insertion for first/last segments (maintains orthogonal routing from pins)
+- [x] Collinear waypoint simplification on mouseup
+- [x] Undo/redo support (history pushed on first move)
+- [x] 35 E2E tests passing
+
+**Files Modified**:
+- `apps/web/src/renderer/circuit-renderer.ts` — exported 3 helper functions
+- `apps/web/src/hooks/useCircuitState.ts` — added `replaceWaypoints()`
+- `apps/web/src/hooks/useCanvasInteraction.ts` — segment drag state, mousedown/mousemove/mouseup handlers, helper functions
+- `apps/web/src/App.tsx` — wired `replaceWaypoints` to interaction deps
 
 ---
 

@@ -375,6 +375,16 @@ Each step is a composable **skill** that an orchestrating agent calls:
 
 ---
 
+## Future: Circuit Template CRUD System
+
+- Database-backed circuit templates (not just code)
+- API endpoints for CRUD operations on templates
+- Template gallery UI for browsing/customizing
+- Seed from `docs/circuit-specs/*.md`
+- User-created custom templates (Pro feature)
+
+---
+
 ## Next Actions
 
 1. **Immediate**: Continue symbol quality improvements

@@ -702,6 +702,114 @@ export function autoLayoutLadder(
 }
 
 /**
+ * Create L1/L2 rail junctions and wires for a ladder diagram.
+ * Places junction devices at each rail intercept and wires them
+ * vertically (forming the rails) and horizontally (forming stubs to rung devices).
+ * Should be called AFTER auto-layout so rung positions are established.
+ */
+export function createLadderRails(
+  circuit: CircuitData,
+  sheetId: string,
+): CircuitData {
+  let cd = circuit;
+
+  const sheets = cd.sheets || [];
+  const sheet = sheets.find(s => s.id === sheetId);
+  if (!sheet || sheet.diagramType !== 'ladder') return cd;
+
+  const config = sheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+  const rungs = (cd.rungs || []).filter(r => r.sheetId === sheetId)
+    .sort((a, b) => a.number - b.number);
+
+  if (rungs.length === 0) return cd;
+
+  // Junction is 12x12 with pin at center (6,6).
+  // To place pin center at (railX, rungY), device position = (railX - 6, rungY - 6).
+  const PIN_OFFSET = 6;
+
+  const l1Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];
+  const l2Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];
+
+  // Place junction devices at each rung intercept
+  for (const rung of rungs) {
+    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing;
+
+    // L1 junction for every rung
+    const l1Tag = `JL${rung.number}`;
+    const l1 = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);
+    cd = l1.circuit;
+    // Override position for precise rail alignment (bypass grid snapping)
+    cd = {
+      ...cd,
+      positions: {
+        ...cd.positions,
+        [l1.deviceId]: { x: config.railL1X - PIN_OFFSET, y: rungY - PIN_OFFSET },
+      },
+    };
+    l1Junctions.push({ deviceId: l1.deviceId, tag: l1Tag, rungNumber: rung.number });
+
+    // L2 junction only for non-branch rungs
+    if (!rung.branchOf) {
+      const l2Tag = `JR${rung.number}`;
+      const l2 = placeDevice(cd, 'junction', 0, 0, sheetId, l2Tag);
+      cd = l2.circuit;
+      cd = {
+        ...cd,
+        positions: {
+          ...cd.positions,
+          [l2.deviceId]: { x: config.railL2X - PIN_OFFSET, y: rungY - PIN_OFFSET },
+        },
+      };
+      l2Junctions.push({ deviceId: l2.deviceId, tag: l2Tag, rungNumber: rung.number });
+    }
+  }
+
+  // Wire L1 junctions vertically (forming L1 rail)
+  for (let i = 0; i < l1Junctions.length - 1; i++) {
+    const from = l1Junctions[i];
+    const to = l1Junctions[i + 1];
+    cd = createWire(cd, from.tag, '1', to.tag, '1', from.deviceId, to.deviceId);
+  }
+
+  // Wire L2 junctions vertically (forming L2 rail)
+  for (let i = 0; i < l2Junctions.length - 1; i++) {
+    const from = l2Junctions[i];
+    const to = l2Junctions[i + 1];
+    cd = createWire(cd, from.tag, '1', to.tag, '1', from.deviceId, to.deviceId);
+  }
+
+  // Wire L1 junctions horizontally to first device on each rung
+  for (const rung of rungs) {
+    if (rung.deviceIds.length === 0) continue;
+    const firstDeviceId = rung.deviceIds[0];
+    const firstDevice = cd.devices.find(d => d.id === firstDeviceId);
+    if (!firstDevice) continue;
+
+    const l1J = l1Junctions.find(j => j.rungNumber === rung.number);
+    if (!l1J) continue;
+
+    cd = createWire(cd, l1J.tag, '1', firstDevice.tag, '1', l1J.deviceId, firstDeviceId);
+  }
+
+  // Wire last device on each non-branch rung to L2 junction
+  for (const rung of rungs) {
+    if (rung.branchOf) continue;
+    if (rung.deviceIds.length === 0) continue;
+
+    const lastDeviceId = rung.deviceIds[rung.deviceIds.length - 1];
+    const lastDevice = cd.devices.find(d => d.id === lastDeviceId);
+    if (!lastDevice) continue;
+
+    const l2J = l2Junctions.find(j => j.rungNumber === rung.number);
+    if (!l2J) continue;
+
+    cd = createWire(cd, lastDevice.tag, '2', l2J.tag, '1', lastDeviceId, l2J.deviceId);
+  }
+
+  return cd;
+}
+
+/**
  * Default sheet ID must match the web app's DEFAULT_SHEET_ID ('sheet-1').
  * The web app creates a virtual sheet with this ID when circuit.sheets is empty.
  */
