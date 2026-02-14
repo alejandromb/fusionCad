@@ -152,6 +152,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
     devicePositions: project.devicePositions,
     setDevicePositions: project.setDevicePositions,
     rotateDevice: circuitState.rotateDevice,
+    rotateSelectedDevices: circuitState.rotateSelectedDevices,
     mirrorDevice: circuitState.mirrorDevice,
     deviceTransforms: circuitState.deviceTransforms,
     selectAnnotation: circuitState.selectAnnotation,
@@ -231,6 +232,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
         interactionMode={interaction.interactionMode}
         setInteractionMode={interaction.setInteractionMode}
         rotateDevice={circuitState.rotateDevice}
+        rotateSelectedDevices={circuitState.rotateSelectedDevices}
         mirrorDevice={circuitState.mirrorDevice}
         deleteDevices={circuitState.deleteDevices}
         deleteWire={circuitState.deleteWire}

@@ -22,6 +22,7 @@ interface ToolbarProps {
 
   // Transform operations
   rotateDevice: (tag: string, direction: 'cw' | 'ccw') => void;
+  rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (tag: string) => void;
 
   // Edit operations
@@ -50,6 +51,7 @@ export function Toolbar({
   interactionMode,
   setInteractionMode,
   rotateDevice,
+  rotateSelectedDevices,
   mirrorDevice,
   deleteDevices,
   deleteWire,
@@ -71,14 +73,14 @@ export function Toolbar({
   const hasSingleSelection = selectedDevices.length === 1;
 
   const handleRotateCW = () => {
-    if (hasSingleSelection) {
-      rotateDevice(selectedDevices[0], 'cw');
+    if (hasDeviceSelection) {
+      rotateSelectedDevices('cw');
     }
   };
 
   const handleRotateCCW = () => {
-    if (hasSingleSelection) {
-      rotateDevice(selectedDevices[0], 'ccw');
+    if (hasDeviceSelection) {
+      rotateSelectedDevices('ccw');
     }
   };
 
@@ -107,6 +109,15 @@ export function Toolbar({
         >
           <svg viewBox="0 0 24 24" width="18" height="18">
             <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button
+          className={`toolbar-btn ${interactionMode === 'pan' ? 'active' : ''}`}
+          onClick={() => setInteractionMode('pan')}
+          title="Hand / Pan (H)"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M18 11V6a2 2 0 00-4 0v4M14 10V4a2 2 0 00-4 0v7M10 10.5V6a2 2 0 00-4 0v8M20 11a2 2 0 00-2-2h-1l0 0v-1M6 14v0a6 6 0 006 6h4a4 4 0 004-4v-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
         <button
@@ -200,7 +211,7 @@ export function Toolbar({
         <button
           className="toolbar-btn"
           onClick={handleRotateCCW}
-          disabled={!hasSingleSelection}
+          disabled={!hasDeviceSelection}
           title="Rotate CCW (Shift+R)"
         >
           <svg viewBox="0 0 24 24" width="18" height="18">
@@ -210,7 +221,7 @@ export function Toolbar({
         <button
           className="toolbar-btn"
           onClick={handleRotateCW}
-          disabled={!hasSingleSelection}
+          disabled={!hasDeviceSelection}
           title="Rotate CW (R)"
         >
           <svg viewBox="0 0 24 24" width="18" height="18">

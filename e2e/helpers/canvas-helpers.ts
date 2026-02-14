@@ -156,6 +156,7 @@ export async function selectMode(page: Page): Promise<void> {
 
 /**
  * Drag a marquee selection rectangle from one world position to another.
+ * In select mode, plain drag on empty space = marquee (no modifier needed).
  * Uses steps: 5 to ensure the 3px drag threshold is crossed.
  */
 export async function dragMarquee(
@@ -166,9 +167,7 @@ export async function dragMarquee(
 ): Promise<void> {
   const from = await worldToScreen(page, fromWx, fromWy);
   const to = await worldToScreen(page, toWx, toWy);
-  // Marquee requires Shift (plain drag = pan). Merge with any extra modifiers.
-  const mods = new Set(options?.modifiers || []);
-  mods.add('Shift');
+  const mods = options?.modifiers || [];
 
   for (const mod of mods) await page.keyboard.down(mod);
   await page.mouse.move(from.x, from.y);
