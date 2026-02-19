@@ -75,38 +75,53 @@ Status: Active Development
 
 ---
 
-## Phase 8: Storage Architecture (Current Priority)
+## Phase 8: Storage Architecture & Multi-Tenancy (Current Priority)
 
-**Goal**: Improve persistence for larger projects and better querying.
+**Goal**: Dual storage (IndexedDB free / Postgres paid) with organization isolation.
 
-### Current Limitations
-- Single JSON blob per project (entire circuit saved on every change)
-- Full payload on every auto-save
-- No partial updates
-- Can't query across projects
-- Memory pressure on large circuits (~1000+ devices)
+### 8.1 IndexedDB Storage (Free Tier) ⬜
+- [ ] Implement `IndexedDBStorageProvider` conforming to `StorageProvider` interface
+- [ ] Store projects as JSON in IndexedDB (same `CircuitData` format)
+- [ ] Store custom symbols in IndexedDB
+- [ ] Auto-detect storage: if API unreachable, use IndexedDB
+- [ ] No server, no account, no login required
 
-### Planned Improvements
+### 8.2 Multi-Tenancy (Paid Tier) ⬜
+- [ ] Add `organizations` table (`id`, `name`, `plan`, timestamps)
+- [ ] Add `users` table (`id`, `email`, `org_id` FK, `role`, timestamps)
+- [ ] Add `org_id` column to `projects` and `symbols` tables
+- [ ] Enforce `org_id` filtering on all API queries
+- [ ] Built-in symbols: `org_id = NULL` (shared across all orgs)
+- [ ] Custom symbols: `org_id` scoped to organization
+- [ ] User registration + login (email/password initially)
 
-#### 8.1 Delta Saves
+### 8.3 Stripe Payments ⬜
+- [ ] Add `stripe_customer_id` and `stripe_subscription_id` to `organizations` table
+- [ ] Stripe Checkout integration (redirect-based, no custom payment UI)
+- [ ] Stripe Webhooks endpoint (`/api/webhooks/stripe`) to sync `plan` field
+- [ ] Stripe Customer Portal link for self-service plan management
+- [ ] Plan-gated feature checks in API middleware
+- [ ] "Upgrade" CTA in free tier UI
+
+### 8.4 Delta Saves (Performance) ⬜
 - [ ] Track changed entities since last save
 - [ ] Send only modified devices/wires/nets
 - [ ] Reduce auto-save payload size by 90%+
 
-#### 8.2 Normalized Schema (Optional)
-- [ ] Separate tables: `devices`, `wires`, `nets`, `parts`, `terminals`
-- [ ] Foreign key relationships
-- [ ] Enables SQL queries across projects
-
-#### 8.3 Hybrid Approach (Recommended)
-- [ ] Keep JSON blob for fast full-project loads
-- [ ] Index key fields (device tags, part numbers) for search
-- [ ] Delta saves for incremental changes
-
-#### 8.4 Performance Targets
+### 8.5 Performance Targets
 - Save latency < 100ms for incremental changes
 - Support 5000+ device projects
-- Cross-project search (e.g., "find all uses of part 1769-IQ16")
+- Cross-project search within organization (e.g., "find all uses of part 1769-IQ16")
+
+### Infrastructure Cost Estimate (Pre-Revenue)
+| Item | Monthly | Notes |
+|------|---------|-------|
+| Postgres | $0–25 | Free tier covers early users |
+| API hosting | $5–20 | Single instance |
+| Web hosting | $0 | Vercel/Cloudflare free tier |
+| Claude API | $50–300 | AI features, per-request |
+| Stripe | $0 | 2.9% + $0.30 per txn only |
+| **Total** | **$56–346** | **1-2 Pro users covers this** |
 
 ---
 
@@ -286,7 +301,8 @@ The `Part.layoutSymbolId` field is already in the type system (added 2026-02-11)
 **Goal**: Public alpha with real users.
 
 ### 13.1 Deployment
-- [ ] Deploy web app (Vercel/Cloudflare)
+- [ ] Deploy web app (Vercel/Cloudflare) — free tier (IndexedDB)
+- [ ] Deploy API + Postgres — paid tier (cloud sync)
 - [ ] PWA manifest (offline capable)
 - [ ] Error reporting (Sentry)
 
@@ -337,12 +353,12 @@ Each step is a composable **skill** that an orchestrating agent calls:
 - Reports generation ✅
 - **Dual symbols per part** (schematic + layout) ✅ (type ready, layout symbols Phase 12)
 - AI datasheet-to-part importer (Phase 10)
-- Programmatic circuit manipulation API (needed — not just UI events)
+- Programmatic circuit manipulation API ✅ (MCP server with 30 tools)
 - Template circuits for common patterns (motor starters, VFD, PLC racks)
 
 ### Implementation Path
-1. **Programmatic API** for circuit CRUD (server-side, not canvas mouse events)
-2. **Template circuits** for common patterns (DOL starter, star-delta, VFD, etc.)
+1. **Programmatic API** for circuit CRUD ✅ (MCP server operational)
+2. **Template circuits** for common patterns ✅ (motor starter generator with real Schneider parts)
 3. **Agent framework** — composable skills with tool-calling LLM orchestrator
 4. **Requirement parser** — NL → structured spec with validation
 5. **Iterative generation** — generate → validate → fix → re-validate loop
@@ -357,7 +373,9 @@ Each step is a composable **skill** that an orchestrating agent calls:
 3. **Real parts**: Use actual manufacturer part numbers, not generic placeholders
 4. **IEC compliance**: Symbols must look professional and standard-compliant
 5. **Performance**: Must handle real-world project sizes (1000+ devices)
-6. **Local-first**: Core workflows work offline
+6. **Free tier is the real product**: Full functionality without server, account, or payment
+7. **Paid tier adds workflow**: Cloud sync, collaboration, AI features — not gated core features
+8. **Shared-table multi-tenancy**: `org_id` column on all tenant-scoped tables
 
 ---
 

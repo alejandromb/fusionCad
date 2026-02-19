@@ -30,21 +30,22 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-13)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-19)
 
-**Current task:** Visibility Bug Fix + Canvas Navigation
+**Current task:** Documentation cleanup & multi-tenancy architecture
 
 **Status:**
-- ✅ **VISIBILITY BUG FIXED**: Root cause was RAF coalescing in Canvas.tsx — `needsRenderRef` boolean got stuck at `true` when `cancelAnimationFrame` in effect cleanup cancelled the pending RAF before it could reset the flag. Fixed with simpler cancel-and-reschedule pattern (no boolean guard).
-- ✅ **Canvas panning implemented**: Click+drag on empty space = pan, Space+drag = pan anywhere, middle-click = pan. Shift+drag = marquee selection.
-- ✅ **Canvas buffer optimization**: Only resets `canvas.width`/`.height` on actual container resize, uses `clearRect` otherwise.
-- ✅ **35 E2E tests passing** (updated dragMarquee helper to use Shift)
+- ✅ **Docs updated**: ARCHITECTURE_v0.6.md (multi-tenancy), README.md (current state), ROADMAP.md (dual storage)
+- ✅ **Deleted redundant files**: MVP_v0.2.md, README_v0.2.md, RESEARCH_SYMBOL_LIBRARIES.md, motorData/
+- ✅ **Multi-tenancy decided**: Shared tables + org_id column approach
+
+**Branch:** `fix/selection-and-group-rotation` (pushed to remote, pending merge to main)
 
 **Next steps:**
-1. Add E2E visibility test (user requested: "we need to add a visibility test!!!!!!")
-2. Wire preview improvement: orthogonal L-shaped preview
-3. Implement IndexedDB storage for free tier
-4. Further zoom performance optimization if needed
+1. Merge `fix/selection-and-group-rotation` to main after user testing
+2. Implement IndexedDB storage for free tier (Phase 8.1)
+3. Add org_id multi-tenancy to Postgres schema (Phase 8.2)
+4. Add E2E visibility test
 
 ---
 
@@ -99,9 +100,8 @@ The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for 
 ## 📚 KEY DOCUMENTS (Always Read STATUS.md First!)
 
 - **STATUS.md** - Current state, progress, session logs (READ THIS!)
-- **ROADMAP.md** - 8-phase plan
-- **ARCHITECTURE_v0.5.md** - Design principles
-- **MVP_v0.2.md** - MVP scope
+- **ROADMAP.md** - Development phases and priorities
+- **ARCHITECTURE_v0.6.md** - System architecture, multi-tenancy, design principles
 
 ---
 

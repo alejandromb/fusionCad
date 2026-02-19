@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-13 (Visibility Bug Fix + Canvas Panning)
+**Last Updated**: 2026-02-14 (Hand Tool + Selection UX Fix + Group Rotation)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -97,14 +97,16 @@ This file tracks where we are in development. **Always read this file at the sta
 
 ### What We're Working On
 - ✅ ~~VISIBILITY BUG~~ — Fixed! RAF coalescing `needsRenderRef` was stuck at `true`
-- ✅ Canvas panning — click+drag on empty space, Space+drag, middle-click
+- ✅ Canvas panning — Hand tool (H), Space+drag, middle-click
+- ✅ Selection UX — Marquee on click+drag (no Shift), group rotation (R key)
 - Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
 ### Next Immediate Steps
-1. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
-2. Wire preview improvement: Replace straight dashed line with orthogonal L-shaped preview
-3. Implement IndexedDB storage for free tier (local-only)
-4. Import symbols from external SVG libraries
+1. Merge `fix/selection-and-group-rotation` branch to main after testing
+2. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
+3. Wire preview improvement: Replace straight dashed line with orthogonal L-shaped preview
+4. Implement IndexedDB storage for free tier (local-only)
+5. Import symbols from external SVG libraries
 
 ---
 
@@ -983,9 +985,8 @@ These are our end-to-end test cases. Each must always validate and export correc
 
 - `ROADMAP.md` - Detailed phase breakdown (master plan)
 - `STATUS.md` - This file - current state (read every session)
-- `ARCHITECTURE_v0.5.md` - System architecture and design principles
-- `MVP_v0.2.md` - MVP scope and success criteria
-- `README.md` - Project overview and north star
+- `ARCHITECTURE_v0.6.md` - System architecture, multi-tenancy, design principles
+- `README.md` - Project overview and getting started
 
 ---
 

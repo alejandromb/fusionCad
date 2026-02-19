@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Electrical CAD (Controls-first) — canonical model, layers, and boundaries
-Version: 0.5  |  Status: Draft (intended to be the shared contract for all contributors and AI agents)
+Version: 0.6  |  Status: Draft (intended to be the shared contract for all contributors and AI agents)
 
 # Purpose
 
@@ -13,15 +13,16 @@ This document defines the system architecture for a controls-first electrical CA
 - Generate production-usable deliverables: BOM, wire list, terminal plan, PLC I/O list, label exports.
 - Provide fast, explainable rule checks (connectivity, tagging, potential shorts, completeness).
 - Support practical file exchange: DXF import/export first; DWG via conversion later.
-- Stay local-first (SQLite project file), portable, and simple to version control.
+- Stay local-first for the free tier (IndexedDB), portable, and simple to version control.
 - Run as a web app first (PWA-capable) with zero required server dependency for the free tier.
+- Support dual storage: IndexedDB (free tier, browser-local) and Postgres (paid tier, cloud sync + multi-tenancy).
 
 # Non-Goals (MVP)
 
 - Full DWG round-trip editing.
 - 3D cabinet routing, thermal analysis, or manufacturing tooling integration.
 - PCB layout (separate product line later).
-- Enterprise collaboration features (SSO, permissions, audit trails) beyond basic project versioning.
+- Enterprise collaboration features (SSO, permissions, audit trails) beyond basic organization isolation.
 
 # Core Principle: Canonical Model First
 
@@ -46,39 +47,39 @@ The model is device-centric and graph-based.
 - Terminal: specialized device + index (X1:1, X1:2) mapping to nets.
 - Cable: optional grouping of conductors/cores tied to nets.
 
-# Project File Format
+# Project Data Format
 
-- Project is stored as a single portable file with extension .vcad.
-- .vcad is a zip container with: project data (SQLite or JSON/object-store), symbol/library assets, and optional cached renders.
-- The local persistence layer is authoritative for canonical model state (not DXF).
-- All objects have stable IDs suitable for diffing, merging, and reference integrity.
+- Projects are stored as a JSONB blob (`circuit_data` column in Postgres, or serialized JSON in IndexedDB).
+- The `CircuitData` object is the canonical representation: devices, connections, parts, sheets, blocks, transforms, rungs.
+- Export bundle format (`.vcad`) is a zip container with `project.json` + assets for portability.
+- All objects have stable IDs (ULID) suitable for diffing, merging, and reference integrity.
 
 
 # Deployment Targets
 
 The MVP is designed to run **in the web browser first** (inspired by tools like EasyEDA), while keeping a clean path to desktop and team collaboration later.
 
-## Web App (MVP / Free Tier)
+## Web App — Free Tier (IndexedDB)
 
-- Primary target: **browser-based editor** with offline-first storage.
-- Optional: **PWA** (installable) so users can work offline and on low-connectivity shop floors.
-- No required backend for core workflows: editing, validation, and report export run locally.
+- Primary target: **browser-based editor** with local-only storage.
+- All data in IndexedDB — no server, no account required.
+- Full editor functionality: schematic editing, validation, reports, export.
+- Optional: **PWA** (installable) so users can work offline.
 
-## Desktop (Optional)
+## Web App — Paid Tier (Postgres)
 
-- A desktop wrapper (Tauri/Electron) may be added later for:
+- Same editor UI, backed by Postgres via REST API.
+- User accounts + organization isolation (`org_id`).
+- Adds: cloud sync, collaboration, cross-device access, AI features.
+- Auto-detected at startup — if API is reachable, uses Postgres; otherwise falls back to IndexedDB.
+
+## Desktop (Optional, Future)
+
+- A desktop wrapper (Tauri) may be added later for:
   - File system integration (open/save without browser sandbox friction)
   - Large-project performance
   - Native printing/label integrations
-- Desktop should reuse the same core engine and persistence adapters.
-
-## Server (Optional / Paid Tier)
-
-- Backend is optional and introduced primarily for:
-  - Cloud sync and sharing
-  - Team collaboration features
-  - Project history / approvals / audit trail
-- Server must **not** be a hard dependency for basic single-user use.
+- Desktop reuses the same core engine and `StorageProvider` interface.
 
 # Technology Stack (MVP)
 
@@ -127,8 +128,8 @@ We target the browser first, but structure the codebase so a desktop wrapper is 
 ## Web Shell (MVP)
 
 - SPA + optional **PWA** install mode.
-- Local-first persistence (IndexedDB/OPFS or SQLite WASM).
-- Exports (DXF/CSV/PDF) run locally.
+- Dual persistence: IndexedDB (free) or Postgres via API (paid).
+- Exports (DXF/CSV/PDF) run locally in both tiers.
 
 ## Desktop Shell (Later)
 
@@ -197,61 +198,145 @@ This keeps the core deterministic and testable while the UI is evolving.
 
 # Persistence Strategy
 
-**Canonical model objects** are the source of truth. Persistence is implemented via pluggable adapters so we can start lightweight and evolve without rewriting the engine.
+**Canonical model objects** are the source of truth. Persistence is implemented via a `StorageProvider` interface so the same application code works with different backends.
 
-## Persistence Adapter Contract
+## StorageProvider Interface
 
-All storage implementations must support:
+All storage implementations conform to the `StorageProvider` interface:
 
-- CRUD for core entities (devices, symbol instances, pins, nets, nodes, wire segments, terminals, parts, etc.)
-- Stable ID preservation (no re-ID on save/load)
-- Schema versioning + migrations
-- Atomic commits (or best-effort transactional semantics) so partial writes do not corrupt projects
-- Deterministic export/import (bundle is lossless)
+- `listProjects()` / `loadProject(id)` / `saveProject(id, data)` / `deleteProject(id)`
+- `createProject(name)` / `renameProject(id, name)`
+- `listCustomSymbols()` / `saveCustomSymbol(symbol)` / `deleteCustomSymbol(id)`
 
-Suggested interface shape (conceptual):
+The app detects the available backend at startup (`detectStorageProvider()`) and selects the appropriate implementation.
 
-- `beginTransaction()` / `commit()` / `rollback()` (or equivalent)
-- `getEntity(type, id)` / `putEntity(type, entity)` / `deleteEntity(type, id)`
-- `queryIndex(indexName, key)` (optional, implementation-specific)
-- `exportBundle()` / `importBundle()`
+## Dual Storage Architecture
 
-## MVP Recommendation: Local-first, Web-native
+fusionCad supports two storage backends, selected at runtime:
 
-Start with **Local-first storage in the browser**, and ship a portable project bundle for sharing/backups.
+### Free Tier: IndexedDB (Browser-Local)
 
-### Option A: IndexedDB / OPFS Object Store (NoSQL-like)
+- All data stored in browser IndexedDB — no server required.
+- Projects are private to the browser/device.
+- No user accounts, no organization concept, no login.
+- Full editor functionality: schematic editing, validation, reports, export.
+- Limitations: no cloud sync, no collaboration, no cross-device access.
 
-- Store each entity as an individual record keyed by stable ID (e.g., `devices:{id}`).
-- Maintain a small set of secondary indexes (by tag, by net, by strip, by page) as needed for performance.
-- Export/import as a single `.vcad` bundle or `.vcad.json` for portability.
+### Paid Tier: Postgres via REST API
 
-**Pros:** minimal complexity, no SQL, web-native, zero server.  
-**Cons:** you implement migrations and indexes yourself.
+- Data stored in a Postgres database, accessed through an Express REST API.
+- Multi-tenant with **shared tables + `org_id` column** for organization isolation.
+- User accounts with organization membership.
+- Adds: cloud sync, team collaboration, cross-device access, AI features.
+- Same `StorageProvider` interface — the app doesn't know which backend it's using.
 
-### Option B: SQLite in the Browser (WASM)
+## Multi-Tenancy Model (Paid Tier)
 
-- Store the canonical model in SQLite running locally via WASM.
-- Persist the database file using OPFS/IndexedDB.
-- Reports become straightforward, fast queries; integrity constraints and migrations become easier.
+The paid tier uses a **shared-table multi-tenancy** approach:
 
-**Pros:** strong integrity, fast queries, robust migrations, single-file portability.  
-**Cons:** slightly more setup; you still keep “canonical model” above the DB.
+### Database Schema
 
-> **Important:** SQLite does not imply server dependence. It can run entirely client-side.
+```
+organizations
+  id          UUID PK
+  name        TEXT
+  plan        TEXT (free|pro|enterprise)
+  created_at  TIMESTAMP
 
-### Option C: Desktop SQLite (Later)
+users
+  id          UUID PK
+  email       TEXT UNIQUE
+  org_id      UUID FK → organizations
+  role        TEXT (admin|member|viewer)
+  created_at  TIMESTAMP
 
-- Same schema as browser SQLite (if used), stored as a local file.
-- Enables large project handling, native file IO, and enterprise IT-friendly deployment.
+projects
+  id          UUID PK
+  org_id      UUID FK → organizations    -- tenant isolation
+  name        TEXT
+  circuit_data JSONB
+  created_at  TIMESTAMP
+  updated_at  TIMESTAMP
+
+symbols
+  id          UUID PK
+  org_id      UUID FK → organizations    -- NULL = built-in symbol
+  name        TEXT
+  category    TEXT
+  data        JSONB
+  created_at  TIMESTAMP
+```
+
+### Isolation Rules
+
+- Every query includes `WHERE org_id = :currentOrgId` (enforced at API layer).
+- Built-in symbols have `org_id = NULL` and are shared across all organizations.
+- Custom symbols have `org_id` set and are visible only within that organization.
+- Row-Level Security (RLS) in Postgres can enforce this at the database level as an extra safety layer.
+
+### Why Shared Tables (Not Separate Schemas/Databases)
+
+- Simplest to implement and maintain.
+- Easy cross-tenant admin queries (usage analytics, debugging).
+- Standard approach used by most SaaS products.
+- Scales well to thousands of organizations.
+- Can add RLS for additional security.
+
+## Payments (Stripe)
+
+Stripe handles all billing for the paid tier.
+
+### Integration Pattern
+
+- **Stripe Checkout** for subscription sign-up (hosted by Stripe — no custom payment UI).
+- **Stripe Customer Portal** for plan changes, invoice history, cancellation.
+- **Stripe Webhooks** to sync subscription state back to our database.
+- The `organizations.plan` field is updated via webhook events (`customer.subscription.created`, `updated`, `deleted`).
+
+### Database Additions
+
+```
+organizations
+  ...
+  stripe_customer_id    TEXT          -- Stripe customer ID
+  stripe_subscription_id TEXT        -- Active subscription ID
+  plan                  TEXT          -- free | pro | enterprise (synced from Stripe)
+  plan_expires_at       TIMESTAMP    -- NULL for active subscriptions
+```
+
+### Flow
+
+1. User signs up → creates organization with `plan = 'free'` (IndexedDB-equivalent feature set via API).
+2. User clicks "Upgrade" → redirect to Stripe Checkout with `org_id` in metadata.
+3. Stripe webhook fires → API updates `organizations.plan` to `'pro'`.
+4. App reads `plan` from API → unlocks paid features (AI generation, collaboration, etc.).
+5. Cancellation → Stripe webhook → `plan` reverts to `'free'` at period end.
+
+### Pricing Model (Target)
+
+| Plan | Price | Includes |
+|------|-------|----------|
+| Free | $0 | Full editor (IndexedDB), validation, reports, export |
+| Pro | ~$29/mo | Cloud sync, org accounts, AI features, collaboration |
+| Enterprise | Custom | SSO, audit trail, priority support |
+
+### Infrastructure Cost Estimate (Pre-Revenue)
+
+| Item | Monthly Cost | Notes |
+|------|-------------|-------|
+| Postgres (Supabase/Neon) | $0–25 | Free tier covers early users |
+| API hosting (Railway/Fly.io) | $5–20 | Single instance early |
+| Web hosting (Vercel/Cloudflare) | $0 | Free tier |
+| Claude API (AI features) | $50–300 | Biggest variable, per-request |
+| Stripe | $0 | 2.9% + $0.30 per transaction only |
+| Domain + DNS | ~$1 | ~$12/year |
+| **Total pre-revenue** | **$56–346** | **1-2 Pro users covers this** |
 
 ## Canonical Bundle Format
 
-Regardless of the persistence backend, support a portable export:
+Support a portable export regardless of storage backend:
 
-- `.vcad` (zip container) containing either:
-  - `project.sqlite` (SQLite-backed projects), or
-  - `project.json` + `entities/` (object-store projects), plus assets.
+- `.vcad` (zip container) containing `project.json` + assets.
 - Bundles must be **lossless** and include:
   - project settings + schema version
   - all entities + assets needed to render and regenerate deliverables
@@ -259,37 +344,35 @@ Regardless of the persistence backend, support a portable export:
 
 # Cloud Sync and Collaboration Roadmap
 
-Cloud is introduced when it provides clear user value (sharing, teamwork), not as a requirement.
+Cloud features are part of the paid tier and provide clear user value (sharing, teamwork, cross-device access).
 
-## Phase 1: Share/Backup
+## Current State: Postgres + REST API
 
-- Optional sign-in for backups and device-to-device sync
-- Keep the canonical model unchanged
-- Sync is “single-writer” initially (no concurrent edits)
+- Express API server with TypeORM + Postgres.
+- Projects and symbols persisted with auto-save.
+- Single-user per organization currently.
+- `org_id` column will isolate tenant data.
 
-## Phase 2: Team Collaboration (Paid)
+## Phase 1: Organization Accounts
 
-- Project history (diffs, approvals)
-- Roles/permissions
-- Comments/reviews
+- User registration + login (email/password, then SSO).
+- Organization creation with `org_id` on all data.
+- Invite members to organization.
+- Role-based access (admin, member, viewer).
+
+## Phase 2: Team Collaboration
+
+- Project sharing within organization.
+- Project history (diffs, approvals).
+- Comments/reviews on schematics.
 
 ## Phase 3: True Concurrent Editing (Future)
 
-- Consider an event log (command stream) as the sync primitive
+- Consider an event log (command stream) as the sync primitive.
 - Conflict detection/resolution strategies:
   - conservative locking per page/diagram region, or
-  - CRDT/OT approaches (only if required)
-- Regardless of approach: invariants and deterministic rules remain authoritative
-
-## Backend Fit (Future)
-
-If/when cloud sync is added, a DynamoDB-style document model can work well:
-
-- Entities stored by ID
-- Secondary indexes for tags and project membership
-- Version stamps for optimistic concurrency
-
-This is compatible with the “object store” approach and can be layered without changing the core engine.
+  - CRDT/OT approaches (only if required).
+- Regardless of approach: invariants and deterministic rules remain authoritative.
 
 
 
@@ -332,6 +415,17 @@ Reports are first-class outputs derived from the canonical model.
 - Property-based tests for graph invariants (no duplicate IDs, valid pin references, etc.).
 - Snapshot tests for exports (CSV) with deterministic ordering.
 - UI tests only for critical editor interactions (wire snapping, selection, property edit).
+
+# MCP Server (AI Integration)
+
+The MCP (Model Context Protocol) server in `packages/mcp-server/` exposes circuit operations as tools for AI agents (Claude Code, etc.).
+
+- 30 tools covering: project CRUD, device placement, wiring, part assignment, ladder diagrams, motor starter generation, reports.
+- Pattern: Load project from API → mutate `CircuitData` in memory → save back via API.
+- Pure mutation functions in `circuit-helpers.ts` (extracted from React hooks, no UI dependencies).
+- Requires the API server to be running.
+
+This is the foundation for AI-assisted drawing generation — the core differentiator of fusionCad.
 
 # Security and Privacy
 
@@ -478,13 +572,16 @@ To avoid scope creep, the MVP explicitly excludes:
 - Permissions, approvals, audit trail
 - Optional SSO for enterprise
 
-## Data Model Implications (Future-Friendly)
+## Data Model (Current)
 
-When cloud is added, a DynamoDB-style entity store can work well:
+The current Postgres schema:
 
-- Partition by `projectId`
-- Entities keyed by `entityType#entityId`
-- Secondary indexes for: device tags, parts, terminal strips, releases
-- Optimistic concurrency via version numbers on entities
+- `projects` table: `id`, `name`, `circuit_data` (JSONB blob), timestamps.
+- `symbols` table: `id`, `name`, `category`, `data` (JSONB), timestamps.
 
-This aligns naturally with an object-store approach and preserves the canonical model.
+Planned additions for multi-tenancy:
+
+- `organizations` table: `id`, `name`, `plan`, timestamps.
+- `users` table: `id`, `email`, `org_id` (FK), `role`, timestamps.
+- `org_id` column added to `projects` and `symbols` tables.
+- Built-in symbols: `org_id = NULL` (shared). Custom symbols: `org_id = <org>` (tenant-scoped).
