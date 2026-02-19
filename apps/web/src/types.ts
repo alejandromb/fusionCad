@@ -9,7 +9,7 @@ import { getSymbolGeometry } from './renderer/symbols';
 import type { Point } from './renderer/types';
 
 export type SymbolCategory = string;
-export type InteractionMode = 'select' | 'place' | 'wire' | 'text';
+export type InteractionMode = 'select' | 'place' | 'wire' | 'text' | 'pan';
 
 // Dynamic categories from the core-model registry
 export const SYMBOL_CATEGORIES = getAllSymbolCategories();

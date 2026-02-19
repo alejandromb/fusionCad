@@ -83,6 +83,7 @@ interface UseCanvasInteractionDeps {
   devicePositions: Map<string, Point>;
   setDevicePositions: React.Dispatch<React.SetStateAction<Map<string, Point>>>;
   rotateDevice: (deviceId: string, direction: 'cw' | 'ccw') => void;
+  rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceId: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
   selectAnnotation: (id: string | null) => void;
@@ -183,6 +184,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     redoRef,
     setDevicePositions,
     rotateDevice,
+    rotateSelectedDevices,
     mirrorDevice,
     deviceTransforms,
     selectAnnotation,
@@ -293,12 +295,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
     const getCursor = (): string => {
       if (draggingDevice) return 'move';
+      if (spaceHeldRef.current) return isPanningRef.current ? 'grabbing' : 'grab';
       switch (interactionMode) {
         case 'wire': return 'crosshair';
         case 'place': return 'crosshair';
         case 'text': return 'text';
+        case 'pan': return isPanningRef.current ? 'grabbing' : 'grab';
         case 'select':
-        default: return isDraggingRef.current ? 'grabbing' : 'grab';
+        default: return 'default';
       }
     };
 
@@ -469,20 +473,21 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
-      // If no hit in select mode:
-      // - Shift+drag = marquee selection
-      // - Plain drag = pan canvas
+      // Hand/Pan mode: always pan on drag
+      if (interactionMode === 'pan') {
+        isPanningRef.current = true;
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      // Select mode on empty space: start marquee selection
+      // Shift preserves existing selection; plain click deselects first
       if (interactionMode === 'select') {
-        if (e.shiftKey) {
-          marqueeStartRef.current = world;
-        } else {
-          // Deselect everything and start panning
+        if (!e.shiftKey) {
           setSelectedDevices([]);
           setSelectedWireIndex(null);
-          isPanningRef.current = true;
-          canvas.style.cursor = 'grabbing';
-          return;
         }
+        marqueeStartRef.current = world;
       }
 
       canvas.style.cursor = getCursor();
@@ -750,10 +755,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
           const geom = getSymbolGeometry(part?.category || 'unknown');
 
-          const devMinX = pos.x;
-          const devMinY = pos.y;
-          const devMaxX = pos.x + geom.width;
-          const devMaxY = pos.y + geom.height;
+          // Account for rotation when computing bounding box
+          const transform = circuit.transforms?.[device.id];
+          const rotation = transform?.rotation || 0;
+          const effectiveWidth = (rotation % 180 !== 0) ? geom.height : geom.width;
+          const effectiveHeight = (rotation % 180 !== 0) ? geom.width : geom.height;
+          const cx = pos.x + geom.width / 2;
+          const cy = pos.y + geom.height / 2;
+          const devMinX = cx - effectiveWidth / 2;
+          const devMinY = cy - effectiveHeight / 2;
+          const devMaxX = cx + effectiveWidth / 2;
+          const devMaxY = cy + effectiveHeight / 2;
 
           if (marquee.mode === 'window') {
             // Window select: fully enclosed
@@ -927,6 +939,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
+      // H = hand/pan mode
+      if (e.key === 'h' || e.key === 'H') {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setInteractionMode('pan');
+          setPlacementCategory(null);
+          setWireStart(null);
+          setSelectedDevices([]);
+        }
+      }
+
       // W = wire mode
       if (e.key === 'w' || e.key === 'W') {
         if (!e.ctrlKey && !e.metaKey) {
@@ -993,7 +1016,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       if (e.key === 'Escape') {
         if (wireStart) {
           setWireStart(null);
-        } else if (interactionMode === 'place' || interactionMode === 'text') {
+        } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan') {
           setInteractionMode('select');
           setPlacementCategory(null);
         } else if (selectedWireIndex !== null) {
@@ -1019,9 +1042,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         if (selectedDevices.length > 0 && !e.ctrlKey && !e.metaKey) {
           e.preventDefault();
           const direction = e.shiftKey ? 'ccw' : 'cw';
-          for (const tag of selectedDevices) {
-            rotateDevice(tag, direction);
-          }
+          rotateSelectedDevices(direction);
         }
       }
 
@@ -1150,7 +1171,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
+  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, rotateSelectedDevices, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
 
   return {
     canvasRef,

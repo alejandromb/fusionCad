@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { generateId, getSymbolById, type Device, type Sheet, type Annotation, type Part } from '@fusion-cad/core-model';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
+import { getSymbolGeometry } from '../renderer/symbols';
 import {
   SYMBOL_CATEGORIES,
   MAX_HISTORY_SIZE,
@@ -62,6 +63,7 @@ export interface UseCircuitStateReturn {
   deviceTransforms: Map<string, DeviceTransform>;
   setDeviceTransforms: React.Dispatch<React.SetStateAction<Map<string, DeviceTransform>>>;
   rotateDevice: (deviceId: string, direction: 'cw' | 'ccw') => void;
+  rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceId: string) => void;
 
   // Annotations
@@ -787,6 +789,97 @@ export function useCircuitState(
     });
   }, [pushToHistory, setCircuit]);
 
+  // Rotate selected devices as a group around their shared center
+  const rotateSelectedDevices = useCallback((direction: 'cw' | 'ccw') => {
+    if (selectedDevices.length === 0 || !circuit) return;
+
+    pushToHistory();
+
+    // Single device: just rotate in place (no position change needed)
+    if (selectedDevices.length === 1) {
+      const deviceId = selectedDevices[0];
+      setCircuit(prev => {
+        if (!prev) return prev;
+        const transforms = { ...(prev.transforms || {}) };
+        const current = transforms[deviceId] || { rotation: 0 };
+        const delta = direction === 'cw' ? 90 : -90;
+        const newRotation = ((current.rotation + delta) % 360 + 360) % 360;
+        transforms[deviceId] = { ...current, rotation: newRotation };
+        return { ...prev, transforms };
+      });
+      return;
+    }
+
+    // Multi-device: rotate positions around group center AND rotate each transform
+    const allPositions = getAllPositions();
+    const partMap = new Map<string, Part>();
+    for (const part of circuit.parts) partMap.set(part.id, part);
+
+    // Compute group center (centroid of device centers)
+    let sumX = 0, sumY = 0, count = 0;
+    for (const deviceId of selectedDevices) {
+      const pos = allPositions.get(deviceId);
+      if (!pos) continue;
+      const device = circuit.devices.find(d => d.id === deviceId);
+      const part = device?.partId ? partMap.get(device.partId) : null;
+      const geom = getSymbolGeometry(part?.category || 'unknown');
+      // Device center is always at pos + half of unrotated geometry
+      // (renderer rotates around this center)
+      sumX += pos.x + geom.width / 2;
+      sumY += pos.y + geom.height / 2;
+      count++;
+    }
+    if (count === 0) return;
+    const cx = sumX / count;
+    const cy = sumY / count;
+
+    // Update positions: rotate each device center around group center
+    setDevicePositions(prev => {
+      const next = new Map(prev);
+      for (const deviceId of selectedDevices) {
+        const pos = prev.get(deviceId);
+        if (!pos) continue;
+        const device = circuit.devices.find(d => d.id === deviceId);
+        const part = device?.partId ? partMap.get(device.partId) : null;
+        const geom = getSymbolGeometry(part?.category || 'unknown');
+
+        const dcx = pos.x + geom.width / 2;
+        const dcy = pos.y + geom.height / 2;
+
+        // Rotate center around group center
+        // Screen coords: CW = (dx,dy) → (-dy, dx), CCW = (dx,dy) → (dy, -dx)
+        let newDcx: number, newDcy: number;
+        if (direction === 'cw') {
+          newDcx = cx - (dcy - cy);
+          newDcy = cy + (dcx - cx);
+        } else {
+          newDcx = cx + (dcy - cy);
+          newDcy = cy - (dcx - cx);
+        }
+
+        // Position = rotated center - half of unrotated geometry
+        next.set(deviceId, {
+          x: snapToGrid(newDcx - geom.width / 2),
+          y: snapToGrid(newDcy - geom.height / 2),
+        });
+      }
+      return next;
+    });
+
+    // Rotate individual transforms
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const transforms = { ...(prev.transforms || {}) };
+      const delta = direction === 'cw' ? 90 : -90;
+      for (const deviceId of selectedDevices) {
+        const current = transforms[deviceId] || { rotation: 0 };
+        const newRotation = ((current.rotation + delta) % 360 + 360) % 360;
+        transforms[deviceId] = { ...current, rotation: newRotation };
+      }
+      return { ...prev, transforms };
+    });
+  }, [selectedDevices, circuit, getAllPositions, pushToHistory, setDevicePositions, setCircuit]);
+
   const deleteAnnotation = useCallback((annotationId: string) => {
     if (!circuit) return;
 
@@ -1012,6 +1105,7 @@ export function useCircuitState(
     deviceTransforms,
     setDeviceTransforms,
     rotateDevice,
+    rotateSelectedDevices,
     mirrorDevice,
     addAnnotation,
     updateAnnotation,
