@@ -52,6 +52,9 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  userId?: string | null;
+
   @Column({ type: 'jsonb', default: {} })
   circuitData!: CircuitData;
 

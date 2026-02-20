@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { Project } from './entities/Project.js';
 import { Symbol } from './entities/Symbol.js';
+import { User } from './entities/User.js';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,7 +13,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'fusion_cad',
   synchronize: true, // Auto-create tables (disable in production)
   logging: process.env.NODE_ENV === 'development',
-  entities: [Project, Symbol],
+  entities: [Project, Symbol, User],
   migrations: [],
   subscribers: [],
 });

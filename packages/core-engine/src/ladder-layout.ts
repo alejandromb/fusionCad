@@ -76,10 +76,15 @@ export function layoutLadder(
     const availableWidth = config.railL2X - config.railL1X;
     const spacing = availableWidth / (deviceCount + 1);
 
+    // Device symbols are 40x60. When rotated -90° for ladder layout,
+    // pins end up at devicePos.y + 30 (half the original height).
+    // Offset Y by -30 so pin centers align with rungY.
+    const PIN_CENTER_OFFSET = 30;
+
     for (let i = 0; i < deviceCount; i++) {
       const deviceId = rungDeviceIds[i];
       const x = config.railL1X + spacing * (i + 1) + ox;
-      positions[deviceId] = { x: Math.round(x / 20) * 20, y: rungY };
+      positions[deviceId] = { x: Math.round(x / 20) * 20, y: rungY - PIN_CENTER_OFFSET };
     }
 
     // Rail connections: leftmost device connects to L1, rightmost to L2

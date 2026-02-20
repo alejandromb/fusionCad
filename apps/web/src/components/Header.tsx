@@ -1,9 +1,10 @@
 /**
- * Header component - project name, save status, project menu
+ * Header component - project name, save status, project menu, auth
  */
 
 import type { ProjectSummary } from '../api/projects';
 import type { CircuitData } from '../renderer/circuit-renderer';
+import type { StorageType } from '../storage';
 
 interface HeaderProps {
   projectId: string | null;
@@ -23,6 +24,13 @@ interface HeaderProps {
   onOpenParts?: () => void;
   onOpenERC?: () => void;
   onOpenAIPrompt?: () => void;
+  // Auth props
+  isAuthenticated?: boolean;
+  userEmail?: string;
+  plan?: string;
+  onSignIn?: () => void;
+  onSignOut?: () => void;
+  storageType?: StorageType | 'detecting';
 }
 
 export function Header({
@@ -43,11 +51,25 @@ export function Header({
   onOpenParts,
   onOpenERC,
   onOpenAIPrompt,
+  isAuthenticated,
+  userEmail,
+  plan,
+  onSignIn,
+  onSignOut,
+  storageType,
 }: HeaderProps) {
   return (
     <header className="header">
       <div className="header-left">
         <h1>fusionCad</h1>
+        {storageType && (
+          <span className={`storage-badge ${storageType === 'rest' ? 'cloud' : 'local'}`}>
+            {storageType === 'rest'
+              ? (plan ? `Cloud (${plan})` : 'Cloud')
+              : 'Local'
+            }
+          </span>
+        )}
       </div>
 
       <div className="header-center">
@@ -130,6 +152,25 @@ export function Header({
           <span className="circuit-stats">
             {circuit.devices.length} devices &middot; {circuit.connections.length} wires
           </span>
+        )}
+
+        {/* Auth section */}
+        {isAuthenticated && userEmail ? (
+          <div className="user-menu">
+            <span className="user-email">{userEmail}</span>
+            {plan && <span className="plan-badge">{plan}</span>}
+            {onSignOut && (
+              <button className="auth-header-btn" onClick={onSignOut}>
+                Sign Out
+              </button>
+            )}
+          </div>
+        ) : (
+          onSignIn && (
+            <button className="auth-header-btn signin-btn" onClick={onSignIn}>
+              Sign In
+            </button>
+          )
         )}
       </div>
     </header>

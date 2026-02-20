@@ -1,11 +1,15 @@
+import 'dotenv/config';
 import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
 import { AppDataSource } from './data-source.js';
 import { Project } from './entities/Project.js';
+import { User } from './entities/User.js';
 import { Symbol } from './entities/Symbol.js';
 import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
 import { aiGenerate } from './ai-generate.js';
+import { requireAuth, optionalAuth } from './middleware/auth.js';
+import { checkAiRateLimit } from './middleware/ai-rate-limit.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,14 +23,66 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ============ USER ROUTES ============
+
+// Get current user profile + project count + plan info
+app.get('/api/me', requireAuth, async (req, res) => {
+  try {
+    const userRepo = AppDataSource.getRepository(User);
+    const projectRepo = AppDataSource.getRepository(Project);
+
+    let user = await userRepo.findOneBy({ id: req.userId! });
+
+    // Auto-provision user if not found (e.g. bypass mode)
+    if (!user) {
+      user = userRepo.create({
+        id: req.userId!,
+        email: req.userEmail || 'unknown',
+        plan: 'free',
+        maxCloudProjects: 1,
+        maxAiGenerationsPerDay: 10,
+      });
+      await userRepo.save(user);
+    }
+
+    const projectCount = await projectRepo.count({ where: { userId: req.userId } });
+
+    // Reset AI counter if new day
+    const now = new Date();
+    const todayMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    let aiUsedToday = user.aiGenerationsToday;
+    if (!user.aiGenerationsResetAt || user.aiGenerationsResetAt < todayMidnight) {
+      aiUsedToday = 0;
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      plan: user.plan,
+      maxCloudProjects: user.maxCloudProjects,
+      projectCount,
+      aiQuota: {
+        used: aiUsedToday,
+        limit: user.maxAiGenerationsPerDay,
+        remaining: user.maxAiGenerationsPerDay < 0 ? -1 : user.maxAiGenerationsPerDay - aiUsedToday,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
+  }
+});
+
 // ============ PROJECT ROUTES ============
 
-// List all projects
-app.get('/api/projects', async (_req, res) => {
+// List all projects (filtered by userId)
+app.get('/api/projects', requireAuth, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
     const projects = await projectRepo.find({
       select: ['id', 'name', 'description', 'createdAt', 'updatedAt'],
+      where: { userId: req.userId },
       order: { updatedAt: 'DESC' },
     });
     res.json(projects);
@@ -37,13 +93,18 @@ app.get('/api/projects', async (_req, res) => {
 });
 
 // Get single project with full circuit data
-app.get('/api/projects/:id', async (req, res) => {
+app.get('/api/projects/:id', requireAuth, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
     const project = await projectRepo.findOneBy({ id: req.params.id });
 
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     res.json(project);
@@ -53,19 +114,35 @@ app.get('/api/projects/:id', async (req, res) => {
   }
 });
 
-// Create new project
-app.post('/api/projects', async (req, res) => {
+// Create new project (with project limit enforcement)
+app.post('/api/projects', requireAuth, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
+    const userRepo = AppDataSource.getRepository(User);
     const { name, description, circuitData } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Project name is required' });
     }
 
+    // Enforce project limit
+    const user = await userRepo.findOneBy({ id: req.userId! });
+    if (user && user.maxCloudProjects > 0) {
+      const currentCount = await projectRepo.count({ where: { userId: req.userId } });
+      if (currentCount >= user.maxCloudProjects) {
+        return res.status(403).json({
+          error: 'project_limit_reached',
+          message: `Free plan allows ${user.maxCloudProjects} cloud project(s). Upgrade for unlimited.`,
+          currentCount,
+          maxAllowed: user.maxCloudProjects,
+        });
+      }
+    }
+
     const project = projectRepo.create({
       name,
       description,
+      userId: req.userId,
       circuitData: circuitData || {
         devices: [],
         nets: [],
@@ -84,13 +161,18 @@ app.post('/api/projects', async (req, res) => {
 });
 
 // Update project (full replace)
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/projects/:id', requireAuth, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
     const project = await projectRepo.findOneBy({ id: req.params.id });
 
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const { name, description, circuitData } = req.body;
@@ -108,19 +190,48 @@ app.put('/api/projects/:id', async (req, res) => {
 });
 
 // Delete project
-app.delete('/api/projects/:id', async (req, res) => {
+app.delete('/api/projects/:id', requireAuth, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
-    const result = await projectRepo.delete(req.params.id);
+    const project = await projectRepo.findOneBy({ id: req.params.id });
 
-    if (result.affected === 0) {
+    if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
+    // Verify ownership
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await projectRepo.delete(req.params.id);
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting project:', error);
     res.status(500).json({ error: 'Failed to delete project' });
+  }
+});
+
+// Claim an orphaned project (userId=null)
+app.post('/api/projects/:id/claim', requireAuth, async (req, res) => {
+  try {
+    const projectRepo = AppDataSource.getRepository(Project);
+    const project = await projectRepo.findOneBy({ id: req.params.id });
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (project.userId) {
+      return res.status(400).json({ error: 'Project already claimed' });
+    }
+
+    project.userId = req.userId!;
+    await projectRepo.save(project);
+    res.json(project);
+  } catch (error) {
+    console.error('Error claiming project:', error);
+    res.status(500).json({ error: 'Failed to claim project' });
   }
 });
 
@@ -242,13 +353,18 @@ async function seedBuiltinSymbols(): Promise<{ seeded: number; skipped: number }
 // ============ AI GENERATION ROUTES ============
 
 // AI-powered circuit generation from natural language
-app.post('/api/projects/:id/ai-generate', async (req, res) => {
+app.post('/api/projects/:id/ai-generate', optionalAuth, checkAiRateLimit, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
     const project = await projectRepo.findOneBy({ id: req.params.id });
 
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const { prompt } = req.body;
@@ -272,6 +388,7 @@ app.post('/api/projects/:id/ai-generate', async (req, res) => {
       success: true,
       summary: result.summary,
       parsedOptions: result.parsedOptions,
+      aiQuota: (req as any).aiQuota || null,
     });
   } catch (error: any) {
     console.error('Error in AI generation:', error);

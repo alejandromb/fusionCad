@@ -2979,3 +2979,245 @@
   white-space: pre-wrap;
   color: var(--fc-text-secondary);
 }
+
+.ai-quota-bar {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  background: var(--fc-surface-alt, #2a2a3a);
+  color: var(--fc-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.ai-quota-exhausted {
+  background: rgba(220, 50, 50, 0.15);
+  color: #e55;
+  border: 1px solid rgba(220, 50, 50, 0.3);
+}
+
+/* ============================================
+   Auth Modal
+   ============================================ */
+.auth-dialog {
+  max-width: 400px;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fc-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-tab:hover {
+  color: var(--fc-text-secondary);
+}
+
+.auth-tab.active {
+  color: var(--fc-accent);
+  border-bottom-color: var(--fc-accent);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.auth-field label {
+  font-size: 0.8rem;
+  color: var(--fc-text-muted);
+  font-weight: 500;
+}
+
+.auth-field input {
+  padding: 0.6rem 0.75rem;
+  background: var(--fc-bg-app);
+  border: 1px solid var(--fc-border-strong);
+  border-radius: 6px;
+  color: var(--fc-text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.auth-field input:focus {
+  border-color: var(--fc-accent);
+}
+
+.auth-field input::placeholder {
+  color: var(--fc-text-dim);
+}
+
+.auth-error {
+  padding: 0.5rem 0.75rem;
+  background: rgba(244, 67, 54, 0.12);
+  border: 1px solid rgba(244, 67, 54, 0.25);
+  border-radius: 6px;
+  color: #e88;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.auth-description {
+  color: var(--fc-text-secondary);
+  font-size: 0.85rem;
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.auth-benefits {
+  margin: 0.5rem 0 1rem 1.5rem;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--fc-text-primary);
+  line-height: 1.8;
+}
+
+.auth-fine-print {
+  margin: 1rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--fc-text-dim);
+  text-align: center;
+}
+
+/* ============================================
+   Upgrade CTA Dialog
+   ============================================ */
+.upgrade-dialog {
+  max-width: 440px;
+}
+
+.upgrade-message {
+  color: var(--fc-text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 1.25rem 0;
+  line-height: 1.5;
+}
+
+.upgrade-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upgrade-btn {
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.upgrade-note {
+  margin: 1rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--fc-text-dim);
+  line-height: 1.4;
+}
+
+/* ============================================
+   User Menu (Header)
+   ============================================ */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.75rem;
+}
+
+.user-email {
+  font-size: 0.8rem;
+  color: var(--fc-text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-badge {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  background: var(--fc-accent-bg);
+  border: 1px solid var(--fc-accent-border);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--fc-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.auth-header-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--fc-border-strong);
+  border-radius: 5px;
+  color: var(--fc-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-header-btn:hover {
+  background: var(--fc-border);
+  color: #fff;
+}
+
+.auth-header-btn.signin-btn {
+  background: var(--fc-bg-accent-tint);
+  border-color: var(--fc-accent);
+  color: var(--fc-accent);
+  margin-left: 0.75rem;
+}
+
+.auth-header-btn.signin-btn:hover {
+  background: var(--fc-bg-accent-hover);
+}
+
+/* Storage badge in header */
+.storage-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.storage-badge.cloud {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.storage-badge.local {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}

@@ -9,6 +9,7 @@ import { createGoldenCircuitMotorStarter } from '@fusion-cad/project-io';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { ProjectSummary } from '../api/projects';
 import type { StorageProvider } from '../storage/storage-provider';
+import { ProjectLimitError } from '../storage/project-limit-error';
 import type { Point } from '../renderer/types';
 import { AUTO_SAVE_DELAY } from '../types';
 
@@ -102,7 +103,10 @@ export interface UseProjectPersistenceReturn {
   reloadProject: () => Promise<void>;
 }
 
-export function useProjectPersistence(storage: StorageProvider): UseProjectPersistenceReturn {
+export function useProjectPersistence(
+  storage: StorageProvider,
+  onProjectLimitReached?: () => void,
+): UseProjectPersistenceReturn {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string>('Untitled Project');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
@@ -179,11 +183,15 @@ export function useProjectPersistence(storage: StorageProvider): UseProjectPersi
       setSaveStatus('saved');
       await refreshProjectsList();
     } catch (error) {
-      console.error('Failed to create project:', error);
+      if (error instanceof ProjectLimitError) {
+        onProjectLimitReached?.();
+      } else {
+        console.error('Failed to create project:', error);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [storage, refreshProjectsList]);
+  }, [storage, refreshProjectsList, onProjectLimitReached]);
 
   const deleteCurrentProject = useCallback(async () => {
     if (!projectId) return;

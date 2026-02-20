@@ -1,8 +1,9 @@
 /**
- * Detect which storage provider to use based on API availability.
+ * Detect which storage provider to use based on auth state and API availability.
  */
 import type { StorageProvider } from './storage-provider';
 import { RestStorageProvider } from './rest-storage-provider';
+import { AuthenticatedRestStorageProvider } from './authenticated-rest-storage-provider';
 import { IndexedDBStorageProvider } from './indexeddb-storage-provider';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -15,7 +16,20 @@ export interface DetectionResult {
   type: StorageType;
 }
 
-export async function detectStorageProvider(): Promise<DetectionResult> {
+/**
+ * Detect storage provider.
+ * - If getAccessToken is provided (user is authenticated) → AuthenticatedRestStorageProvider
+ * - Otherwise → try API health check, fall back to IndexedDB
+ */
+export async function detectStorageProvider(
+  getAccessToken?: () => Promise<string | null>,
+): Promise<DetectionResult> {
+  // Authenticated user → always use authenticated REST provider
+  if (getAccessToken) {
+    return { provider: new AuthenticatedRestStorageProvider(getAccessToken), type: 'rest' };
+  }
+
+  // Anonymous user → check if API is reachable for unauthenticated REST
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);

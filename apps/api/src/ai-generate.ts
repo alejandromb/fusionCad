@@ -618,18 +618,30 @@ function generateMotorStarterPanel(
 
 const SYSTEM_PROMPT = `You are an electrical engineering assistant that interprets natural language motor starter panel requirements and outputs structured JSON.
 
+IMPORTANT: Use smart engineering defaults for standard parameters that have obvious industry-standard values (voltage, phase, country, control voltage). Only ask for clarification when the request is genuinely ambiguous or contradictory (e.g., user mentions both single-phase and three-phase, or specifies an unusual combination).
+
+For most requests, you should be able to fill in ALL fields using your engineering knowledge and common US industrial practice. If you need clarification, set the "needsClarification" field to true and include a "clarificationQuestion" field with a brief, specific question.
+
 Given a user's description of a motor control panel, extract these parameters:
 - hp: Motor horsepower (string, e.g., "30", "0.5", "1/2")
-- voltage: Supply voltage (string, e.g., "208V", "480V", "240V")
-- phase: "single" or "three" (default: "three")
+- voltage: Supply voltage (string, e.g., "208V", "480V", "240V") — USE SMART DEFAULTS (see below)
+- phase: "single" or "three" (default: "three" for >= 1 HP, "single" for fractional HP)
 - controlVoltage: "24VDC" or "120VAC" (default: "120VAC")
 - country: "USA" or "Canada" (default: "USA")
 - starterType: "iec-open", "iec-enclosed", "nema-open", or "nema-enclosed" (default: "iec-open")
 - hoaSwitch: boolean — true if user mentions HOA, Hand-Off-Auto, selector switch, or mode selection
 - pilotLight: boolean — true if user mentions pilot light, indicator, running light (default: true)
-- plcRemote: boolean — true if user mentions PLC, remote, automation, auto contact
+- plcRemote: boolean — true if user mentions PLC, remote, automation, auto contact, remote control
 - eStop: boolean — true if user mentions emergency stop, E-stop (default: true)
 - panelLayout: boolean — true if user mentions panel layout, enclosure layout, physical layout
+
+Smart voltage defaults (when not specified by user):
+- Three-phase motors >= 5 HP in the US: 480V (most common industrial voltage)
+- Three-phase motors < 5 HP: 208V
+- Single-phase motors: 240V
+- If user says "low voltage" or "208": 208V
+- If user says "medium voltage" or "480": 480V
+- If user says "600V" or mentions Canada: 600V
 
 Standard North American voltages:
 - Single phase: 120V, 208V, 240V
@@ -637,12 +649,16 @@ Standard North American voltages:
 
 Common patterns:
 - "HOA switch" → hoaSwitch: true
-- "PLC remote contact" → plcRemote: true, usually with hoaSwitch: true
-- "manual start stop" → basic 3-wire control (always included)
-- "control light" or "pilot light" → pilotLight: true
+- "PLC remote contact" or "remote control" → plcRemote: true
+- "remote control" with HOA context → hoaSwitch: true, plcRemote: true
+- "manual start stop" or "manual only" → basic 3-wire control, no HOA, no PLC
+- "control light" or "pilot light" or "running indicator" → pilotLight: true
 
 Respond with ONLY a JSON object, no markdown, no explanation:
-{"hp":"...","voltage":"...","phase":"...","controlVoltage":"...","country":"...","starterType":"...","hoaSwitch":...,"pilotLight":...,"plcRemote":...,"eStop":...,"panelLayout":...}`;
+{"hp":"...","voltage":"...","phase":"...","controlVoltage":"...","country":"...","starterType":"...","hoaSwitch":...,"pilotLight":...,"plcRemote":...,"eStop":...,"panelLayout":...}
+
+If the request is genuinely ambiguous, respond with:
+{"needsClarification":true,"clarificationQuestion":"Your specific question here"}`;
 
 export interface AIGenerateResult {
   success: boolean;
@@ -684,7 +700,17 @@ export async function aiGenerate(
       jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     }
 
-    parsedOptions = JSON.parse(jsonStr) as PanelOptions;
+    const parsed = JSON.parse(jsonStr);
+
+    // Handle clarification requests from the AI
+    if (parsed.needsClarification) {
+      return {
+        success: false,
+        error: parsed.clarificationQuestion || 'Could you provide more details about your requirements?',
+      };
+    }
+
+    parsedOptions = parsed as PanelOptions;
   } catch (err: any) {
     return { success: false, error: `Failed to parse requirements: ${err.message}` };
   }

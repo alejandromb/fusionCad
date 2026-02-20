@@ -3,11 +3,12 @@ import './App.css';
 import { registerBuiltinSymbols, registerSymbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
-import { detectStorageProvider, type StorageProvider, type StorageType } from './storage';
+import { detectStorageProvider, IndexedDBStorageProvider, type StorageProvider, type StorageType } from './storage';
 import { useCircuitState } from './hooks/useCircuitState';
 import { useClipboard } from './hooks/useClipboard';
 import { useTheme } from './hooks/useTheme';
 import { useCanvasInteraction, type ManufacturerPart } from './hooks/useCanvasInteraction';
+import { configureAmplify, useAuth } from './auth';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
@@ -23,23 +24,32 @@ import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
 import { AIPromptDialog } from './components/AIPromptDialog';
+import { AuthModal } from './components/AuthModal';
+import { UpgradeCTA } from './components/UpgradeCTA';
 import { fetchAllSymbols } from './api/symbols';
 
 // Register draw functions synchronously (canvas renderers, not symbol data)
 registerBuiltinDrawFunctions();
 
+// Configure Amplify (returns false if env vars missing)
+const authEnabled = configureAmplify();
+
 export function App() {
+  const auth = useAuth(authEnabled);
   const [storageProvider, setStorageProvider] = useState<StorageProvider | null>(null);
   const [storageType, setStorageType] = useState<StorageType | 'detecting'>('detecting');
   const [symbolsLoaded, setSymbolsLoaded] = useState(false);
 
-  // Detect storage provider on mount
+  // Re-detect storage when auth state changes (after initial load)
   useEffect(() => {
-    detectStorageProvider().then(result => {
+    if (auth.isLoading) return;
+
+    const getToken = auth.isAuthenticated ? auth.getAccessToken : undefined;
+    detectStorageProvider(getToken).then(result => {
       setStorageProvider(result.provider);
       setStorageType(result.type);
     });
-  }, []);
+  }, [auth.isAuthenticated, auth.isLoading, auth.getAccessToken]);
 
   // Load symbols after storage detection
   useEffect(() => {
@@ -67,20 +77,40 @@ export function App() {
     loadSymbols();
   }, [storageProvider, storageType, symbolsLoaded]);
 
-  if (!storageProvider || !symbolsLoaded) {
+  if (auth.isLoading || !storageProvider || !symbolsLoaded) {
     return (
       <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <span style={{ color: '#ccc', fontSize: '14px' }}>
-          {!storageProvider ? 'Detecting storage...' : 'Loading symbols...'}
+          {auth.isLoading ? 'Checking authentication...' : !storageProvider ? 'Detecting storage...' : 'Loading symbols...'}
         </span>
       </div>
     );
   }
 
-  return <AppInner storageProvider={storageProvider} storageType={storageType as StorageType} />;
+  return (
+    <AppInner
+      storageProvider={storageProvider}
+      storageType={storageType as StorageType}
+      auth={auth}
+      setStorageProvider={setStorageProvider}
+      setStorageType={setStorageType}
+    />
+  );
 }
 
-function AppInner({ storageProvider, storageType }: { storageProvider: StorageProvider; storageType: StorageType }) {
+function AppInner({
+  storageProvider,
+  storageType,
+  auth,
+  setStorageProvider,
+  setStorageType,
+}: {
+  storageProvider: StorageProvider;
+  storageType: StorageType;
+  auth: ReturnType<typeof useAuth>;
+  setStorageProvider: (p: StorageProvider) => void;
+  setStorageType: (t: StorageType) => void;
+}) {
   const theme = useTheme();
   const [showReports, setShowReports] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -89,11 +119,29 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
 
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
   }, []);
+
+  const handleProjectLimitReached = useCallback(() => {
+    setShowUpgradeCTA(true);
+  }, []);
+
+  const handleContinueLocally = useCallback(() => {
+    setShowUpgradeCTA(false);
+    // Switch to IndexedDB storage
+    setStorageProvider(new IndexedDBStorageProvider());
+    setStorageType('indexeddb');
+  }, [setStorageProvider, setStorageType]);
+
+  const handleSignOut = useCallback(async () => {
+    await auth.logout();
+    // Will trigger re-detect via useEffect in parent
+  }, [auth]);
 
   // Load custom symbols from storage on mount
   useEffect(() => {
@@ -106,7 +154,7 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
     }
   }, [storageProvider]);
 
-  const project = useProjectPersistence(storageProvider);
+  const project = useProjectPersistence(storageProvider, handleProjectLimitReached);
   const circuitState = useCircuitState(
     project.circuit,
     project.setCircuit,
@@ -219,6 +267,12 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
         onOpenParts={() => setShowPartsCatalog(true)}
         onOpenERC={() => setShowERC(true)}
         onOpenAIPrompt={() => setShowAIPrompt(true)}
+        isAuthenticated={auth.isAuthenticated}
+        userEmail={auth.user?.email}
+        plan={auth.user?.plan}
+        onSignIn={() => setShowAuthModal(true)}
+        onSignOut={auth.isAuthenticated ? handleSignOut : undefined}
+        storageType={storageType}
       />
 
       {/* Click outside to close menu */}
@@ -407,6 +461,22 @@ function AppInner({ storageProvider, storageType }: { storageProvider: StoragePr
           projectId={project.projectId}
           onClose={() => setShowAIPrompt(false)}
           onGenerated={() => project.reloadProject()}
+          getAccessToken={auth.isAuthenticated ? auth.getAccessToken : undefined}
+          initialQuota={(auth.user as any)?.aiQuota ?? null}
+        />
+      )}
+
+      {showAuthModal && (
+        <AuthModal
+          auth={auth}
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
+
+      {showUpgradeCTA && (
+        <UpgradeCTA
+          onClose={() => setShowUpgradeCTA(false)}
+          onContinueLocally={handleContinueLocally}
         />
       )}
     </div>

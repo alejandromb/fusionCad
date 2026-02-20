@@ -16,6 +16,7 @@
     "@fusion-cad/project-io": "*",
     "@fusion-cad/reports": "*",
     "@fusion-cad/rules": "*",
+    "aws-amplify": "^6.16.2",
     "idb": "^8.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

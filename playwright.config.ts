@@ -26,7 +26,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   webServer: [
     {
-      command: 'DB_NAME=fusion_cad_test PORT=3003 npm run dev:api',
+      command: 'DB_NAME=fusion_cad_test PORT=3003 BYPASS_AUTH=true npm run dev:api',
       url: 'http://localhost:3003/health',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,

@@ -403,6 +403,59 @@ Each step is a composable **skill** that an orchestrating agent calls:
 
 ---
 
+## Post-MVP: Desktop App (Tauri/Electron)
+
+**Goal**: Downloadable native desktop app for users who need maximum performance.
+
+**Priority**: Only pursue if customer demand warrants it. The web app is the primary product.
+
+**Why consider it**:
+- Competitors like Zoo.dev offer downloadable desktop apps
+- Native apps can access GPU acceleration, local file system, and OS-level integrations
+- Eliminates browser overhead for large projects (5000+ devices)
+- Offline-first with no browser dependency
+
+**Approach**:
+- **Tauri** (preferred) — Rust-based, smaller binary, lower memory footprint
+- **Electron** (fallback) — if Tauri ecosystem gaps block shipping
+- Wrap the existing web app with minimal native shell
+- Local IndexedDB → SQLite migration for native storage
+- Auto-update mechanism (Tauri's built-in updater or Electron's)
+- Code-sign for macOS/Windows distribution
+
+**Not before MVP** — this is a growth-stage investment, not a launch requirement.
+
+---
+
+## Production Requirements Checklist
+
+Items that **must** be completed before production deployment:
+
+### Authentication
+- [ ] Obtain AWS Cognito User Pool ID and Client ID from user
+- [ ] Set `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID` env vars
+- [ ] Set `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID` on API server
+- [ ] Test full sign-up/sign-in/sign-out flow end-to-end
+- [ ] Remove "coming soon" fallback in AuthModal (replace with real Cognito form)
+- [ ] Set `ANTHROPIC_API_KEY` in production API environment
+
+### Print / Export to Drawing Formats
+- [ ] Print dialog with paper size selection (A0, A1, A2, A3, A4, Letter, ANSI-D)
+- [ ] Page scaling (fit-to-page, 1:1, custom scale)
+- [ ] Print preview with title block and border
+- [ ] Multi-page print for projects with multiple sheets
+- [ ] PDF export at print quality (vector, not rasterized)
+- [ ] Browser `window.print()` integration with CSS `@media print`
+
+### Symbol Editor: Grid Snap for Connection Points
+- [ ] Snap connection pin positions to the 20px grid during symbol creation/editing
+- [ ] Snap toggle (on/off) for freeform drawing vs precision placement
+- [ ] Connection points should always snap by default (even when general snap is off)
+- [ ] Visual grid overlay in symbol editor canvas
+- [ ] This ensures all symbols align correctly when placed on the schematic
+
+---
+
 ## Next Actions
 
 1. **Immediate**: Continue symbol quality improvements
