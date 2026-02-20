@@ -597,9 +597,15 @@ export function renderCircuit(
   ctx.translate(viewport.offsetX, viewport.offsetY);
   ctx.scale(viewport.scale, viewport.scale);
 
-  // Render visible grid
+  // Render visible grid with adaptive density
   if (options?.showGrid !== false) {
-    const gridSize = options?.gridSize || 20;
+    const baseGridSize = options?.gridSize || 20;
+    // Adaptive grid: coarsen when dots would be < 8px apart on screen
+    let gridSize = baseGridSize;
+    while (gridSize * viewport.scale < 8) {
+      gridSize *= 5;
+    }
+
     const invScale = 1 / viewport.scale;
     const startX = Math.floor((-viewport.offsetX * invScale) / gridSize) * gridSize;
     const startY = Math.floor((-viewport.offsetY * invScale) / gridSize) * gridSize;

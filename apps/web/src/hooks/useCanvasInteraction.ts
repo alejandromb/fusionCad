@@ -235,6 +235,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const isPanningRef = useRef(false);
   const spaceHeldRef = useRef(false);
 
+
   // Marquee selection state
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const marqueeStartRef = useRef<Point | null>(null);
@@ -312,7 +313,15 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      // Normalize deltaY across input devices (trackpad vs mouse wheel)
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 40;   // lines → pixels
+      if (e.deltaMode === 2) dy *= 800;  // pages → pixels
+
+      // Proportional zoom: trackpad pinch sends small deltas (smooth),
+      // mouse wheel sends ~100 (feels like ~10% per click)
+      const zoomIntensity = 0.002;
+      const zoomFactor = Math.exp(-dy * zoomIntensity);
       const newScale = viewport.scale * zoomFactor;
       const clampedScale = Math.min(Math.max(newScale, 0.1), 5);
       const scaleRatio = clampedScale / viewport.scale;
@@ -1150,7 +1159,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
     };
 
-    canvas.addEventListener('wheel', handleWheel);
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('dblclick', handleDoubleClick);
     canvas.addEventListener('contextmenu', handleContextMenu);
