@@ -51,6 +51,8 @@ export interface UseCanvasInteractionReturn {
   contextMenu: { x: number; y: number; worldX: number; worldY: number; target: 'device' | 'wire' | 'canvas'; deviceTag?: string; wireIndex?: number } | null;
   setContextMenu: React.Dispatch<React.SetStateAction<UseCanvasInteractionReturn['contextMenu']>>;
   zoomToFit: () => void;
+  /** Ref for Canvas imperative render handle (zoom bypass) */
+  renderHandleRef: React.MutableRefObject<import('../components/Canvas').CanvasRenderHandle | null>;
 }
 
 interface UseCanvasInteractionDeps {
@@ -192,11 +194,20 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   } = deps;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderHandleRef = useRef<import('../components/Canvas').CanvasRenderHandle | null>(null);
   const [viewport, setViewport] = useState<Viewport>({
     offsetX: 0,
     offsetY: 0,
     scale: 1,
   });
+
+  // Ref-based viewport for smooth zoom (bypasses React during wheel gestures)
+  const viewportRef = useRef<Viewport>({ offsetX: 0, offsetY: 0, scale: 1 });
+  const zoomSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep ref in sync with React state
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
 
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('select');
   const [placementCategory, setPlacementCategory] = useState<SymbolCategory | null>(null);
@@ -322,17 +333,28 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       // mouse wheel sends ~100 (feels like ~10% per click)
       const zoomIntensity = 0.002;
       const zoomFactor = Math.exp(-dy * zoomIntensity);
-      const newScale = viewport.scale * zoomFactor;
-      const clampedScale = Math.min(Math.max(newScale, 0.1), 5);
-      const scaleRatio = clampedScale / viewport.scale;
-      const newOffsetX = mouseX - (mouseX - viewport.offsetX) * scaleRatio;
-      const newOffsetY = mouseY - (mouseY - viewport.offsetY) * scaleRatio;
 
-      setViewport({
-        offsetX: newOffsetX,
-        offsetY: newOffsetY,
-        scale: clampedScale,
-      });
+      // Read from ref (always current, no stale closure)
+      const cur = viewportRef.current;
+      const newScale = Math.min(Math.max(cur.scale * zoomFactor, 0.1), 5);
+      const scaleRatio = newScale / cur.scale;
+      const newOffsetX = mouseX - (mouseX - cur.offsetX) * scaleRatio;
+      const newOffsetY = mouseY - (mouseY - cur.offsetY) * scaleRatio;
+
+      const newViewport = { offsetX: newOffsetX, offsetY: newOffsetY, scale: newScale };
+      viewportRef.current = newViewport;
+
+      // Render directly — bypass React entirely for instant response
+      if (renderHandleRef.current) {
+        renderHandleRef.current.renderWithViewport(newViewport);
+      }
+
+      // Debounce: sync back to React state when zoom gesture settles
+      if (zoomSettleTimerRef.current) clearTimeout(zoomSettleTimerRef.current);
+      zoomSettleTimerRef.current = setTimeout(() => {
+        setViewport(viewportRef.current);
+        zoomSettleTimerRef.current = null;
+      }, 150);
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -1199,5 +1221,6 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     contextMenu,
     setContextMenu,
     zoomToFit,
+    renderHandleRef,
   };
 }

@@ -17,7 +17,7 @@ test.describe('Zoom and pan', () => {
     await page.mouse.wheel(0, -300);
 
     // Wait for debounced viewport update
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
     const after = await page.evaluate(() => (window as any).__fusionCadState?.viewport);
     expect(after.scale).toBeGreaterThan(before.scale);
@@ -35,7 +35,7 @@ test.describe('Zoom and pan', () => {
 
     // Zoom out (positive deltaY = zoom out)
     await page.mouse.wheel(0, 300);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
     const after = await page.evaluate(() => (window as any).__fusionCadState?.viewport);
     expect(after.scale).toBeLessThan(before.scale);
@@ -48,7 +48,7 @@ test.describe('Zoom and pan', () => {
 
     // Zoom in
     await page.mouse.wheel(0, -200);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
     // Device should still exist in state
     const state = await canvasHelpers.getState(page);
@@ -80,7 +80,7 @@ test.describe('Zoom and pan', () => {
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, 500);
     }
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(400);
     const zoomedOut = await page.evaluate(() => (window as any).__fusionCadState?.viewport);
     expect(zoomedOut.scale).toBeGreaterThanOrEqual(0.1);
 
@@ -88,7 +88,7 @@ test.describe('Zoom and pan', () => {
     for (let i = 0; i < 60; i++) {
       await page.mouse.wheel(0, -500);
     }
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(400);
     const zoomedIn = await page.evaluate(() => (window as any).__fusionCadState?.viewport);
     expect(zoomedIn.scale).toBeLessThanOrEqual(5);
   });

@@ -365,6 +365,7 @@ function AppInner({
             pasteDevice={clipboardState.pasteDevice}
             clipboard={clipboardState.clipboard}
             selectedAnnotationId={circuitState.selectedAnnotationId}
+            renderHandleRef={interaction.renderHandleRef}
           />
 
           <ZoomControls

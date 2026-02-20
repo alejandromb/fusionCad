@@ -8,6 +8,12 @@ import type { Viewport, Point, DeviceTransform } from '../renderer/types';
 import { snapToGrid, type InteractionMode, type SymbolCategory, type PinHit } from '../types';
 import type { DraggingEndpointState, MarqueeRect, UseCanvasInteractionReturn } from '../hooks/useCanvasInteraction';
 
+/** Imperative handle for direct rendering (bypasses React for zoom performance) */
+export interface CanvasRenderHandle {
+  /** Render immediately with a viewport override (no React re-render) */
+  renderWithViewport: (vp: Viewport) => void;
+}
+
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   circuit: CircuitData | null;
@@ -35,6 +41,8 @@ interface CanvasProps {
   pasteDevice?: (worldX: number, worldY: number) => void;
   clipboard?: unknown;
   selectedAnnotationId?: string | null;
+  /** Ref to expose imperative render handle for zoom bypass */
+  renderHandleRef?: React.MutableRefObject<CanvasRenderHandle | null>;
 }
 
 export function Canvas({
@@ -63,52 +71,106 @@ export function Canvas({
   pasteDevice,
   clipboard,
   selectedAnnotationId,
+  renderHandleRef,
 }: CanvasProps) {
   const rafIdRef = useRef(0);
   const canvasSizeRef = useRef({ w: 0, h: 0 });
+
+  // Bitmap cache for smooth zoom — snapshot of last full render
+  const snapshotRef = useRef<ImageBitmap | null>(null);
+  const snapshotViewportRef = useRef<Viewport>({ offsetX: 0, offsetY: 0, scale: 1 });
+
+  // Build render options (shared between full render and resize)
+  const getRenderOptions = () => ({
+    selectedDevices,
+    selectedWireIndex,
+    wireStart,
+    wirePreviewMouse: interactionMode === 'wire' && wireStart && mouseWorldPos
+      ? mouseWorldPos
+      : null,
+    ghostSymbol: interactionMode === 'place' && placementCategory && mouseWorldPos
+      ? { category: placementCategory, x: snapToGrid(mouseWorldPos.x), y: snapToGrid(mouseWorldPos.y) }
+      : null,
+    draggingEndpoint: draggingEndpoint && mouseWorldPos
+      ? { connectionIndex: draggingEndpoint.connectionIndex, endpoint: draggingEndpoint.endpoint, mousePos: mouseWorldPos }
+      : null,
+    activeSheetId,
+    deviceTransforms,
+    marquee,
+    showGrid: true,
+    selectedAnnotationId,
+  });
+
+  // Full render + snapshot capture
+  const doFullRender = (vp: Viewport) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !circuit) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      canvasSizeRef.current = { w, h };
+    } else {
+      ctx.clearRect(0, 0, w, h);
+    }
+
+    renderCircuit(ctx, circuit, vp, debugMode, devicePositions, getRenderOptions());
+
+    // Capture snapshot for zoom bitmap scaling
+    snapshotViewportRef.current = { ...vp };
+    createImageBitmap(canvas).then(bmp => {
+      snapshotRef.current?.close();
+      snapshotRef.current = bmp;
+    }).catch(() => {});
+  };
+
+  // Fast zoom render — scale cached bitmap instead of full redraw
+  const doZoomRender = (newVp: Viewport) => {
+    const canvas = canvasRef.current;
+    const snapshot = snapshotRef.current;
+    if (!canvas || !snapshot) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Compute how the new viewport differs from the snapshot viewport
+    const sv = snapshotViewportRef.current;
+    const relativeScale = newVp.scale / sv.scale;
+    const dx = newVp.offsetX - sv.offsetX * relativeScale;
+    const dy = newVp.offsetY - sv.offsetY * relativeScale;
+
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.scale(relativeScale, relativeScale);
+    ctx.drawImage(snapshot, 0, 0);
+    ctx.restore();
+  };
+
+  // Expose imperative render handle for zoom bypass
+  useEffect(() => {
+    if (renderHandleRef) {
+      renderHandleRef.current = {
+        renderWithViewport: (vp: Viewport) => {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = requestAnimationFrame(() => doZoomRender(vp));
+        },
+      };
+    }
+  });
 
   // Render via RAF — cancel previous frame on each update to coalesce rapid changes
   useEffect(() => {
     if (!circuit) return;
 
     cancelAnimationFrame(rafIdRef.current);
-    rafIdRef.current = requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Only reset canvas buffer when container size actually changes
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-        canvasSizeRef.current = { w, h };
-      } else {
-        ctx.clearRect(0, 0, w, h);
-      }
-
-      renderCircuit(ctx, circuit, viewport, debugMode, devicePositions, {
-        selectedDevices,
-        selectedWireIndex,
-        wireStart,
-        wirePreviewMouse: interactionMode === 'wire' && wireStart && mouseWorldPos
-          ? mouseWorldPos
-          : null,
-        ghostSymbol: interactionMode === 'place' && placementCategory && mouseWorldPos
-          ? { category: placementCategory, x: snapToGrid(mouseWorldPos.x), y: snapToGrid(mouseWorldPos.y) }
-          : null,
-        draggingEndpoint: draggingEndpoint && mouseWorldPos
-          ? { connectionIndex: draggingEndpoint.connectionIndex, endpoint: draggingEndpoint.endpoint, mousePos: mouseWorldPos }
-          : null,
-        activeSheetId,
-        deviceTransforms,
-        marquee,
-        showGrid: true,
-        selectedAnnotationId,
-      });
-    });
+    rafIdRef.current = requestAnimationFrame(() => doFullRender(viewport));
 
     return () => cancelAnimationFrame(rafIdRef.current);
   }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
@@ -116,17 +178,8 @@ export function Canvas({
   // Re-render on window resize (container size changed)
   useEffect(() => {
     const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas || !circuit) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      renderCircuit(ctx, circuit, viewport, debugMode, devicePositions, {
-        selectedDevices, selectedWireIndex, wireStart,
-        wirePreviewMouse: null, ghostSymbol: null, draggingEndpoint: null,
-        activeSheetId, deviceTransforms, marquee, showGrid: true, selectedAnnotationId,
-      });
+      if (!circuit) return;
+      doFullRender(viewport);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
