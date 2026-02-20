@@ -20,8 +20,15 @@ export interface BomRow {
   deviceTags: string[];
 }
 
+export interface BomWarning {
+  deviceTag: string;
+  deviceFunction: string;
+  reason: 'unassigned' | 'placeholder';
+}
+
 export interface BomReport {
   rows: BomRow[];
+  warnings: BomWarning[];
   totalItems: number;
   generatedAt: number;
 }
@@ -40,6 +47,33 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     partMap.set(part.id, part);
   }
 
+  const warnings: BomWarning[] = [];
+
+  // Collect warnings for devices without real parts assigned
+  // Track seen tags to avoid duplicate warnings for linked devices
+  const warnedTags = new Set<string>();
+  for (const device of devices) {
+    if (device.terminalId) continue;
+    if (warnedTags.has(device.tag)) continue;
+    // Skip junction devices
+    if (/^J[LR]\d+$/.test(device.tag)) continue;
+    if (device.partId) {
+      const part = partMap.get(device.partId);
+      if (part && part.category.toLowerCase() === 'junction') continue;
+    }
+
+    if (!device.partId) {
+      warnings.push({ deviceTag: device.tag, deviceFunction: device.function, reason: 'unassigned' });
+      warnedTags.add(device.tag);
+    } else {
+      const part = partMap.get(device.partId);
+      if (part && isPlaceholderPart(part)) {
+        warnings.push({ deviceTag: device.tag, deviceFunction: device.function, reason: 'placeholder' });
+        warnedTags.add(device.tag);
+      }
+    }
+  }
+
   // Separate devices into linked groups (by deviceGroupId) and standalone
   // Linked devices share a deviceGroupId → count as 1 physical item in BOM
   const linkedGroups = new Map<string, Device[]>();
@@ -50,9 +84,12 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     if (device.terminalId) continue;
     if (!device.partId) continue;
 
-    // Skip junction devices
+    // Skip junction devices (internal wiring nodes, not physical parts)
     const part = partMap.get(device.partId);
-    if (part && part.category === 'Junction') continue;
+    if (part && part.category.toLowerCase() === 'junction') continue;
+
+    // Skip placeholder parts — they go in warnings only
+    if (part && isPlaceholderPart(part)) continue;
 
     if (device.deviceGroupId) {
       const group = linkedGroups.get(device.deviceGroupId) || [];
@@ -144,9 +181,17 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
 
   return {
     rows,
+    warnings,
     totalItems: rows.reduce((sum, row) => sum + row.quantity, 0),
     generatedAt: Date.now(),
   };
+}
+
+/**
+ * Check if a part is a placeholder (auto-created by placeDevice, not a real catalog part).
+ */
+function isPlaceholderPart(part: Part): boolean {
+  return part.partNumber === 'TBD' || part.manufacturer === 'Unassigned';
 }
 
 /**

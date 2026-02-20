@@ -191,9 +191,24 @@ function checkUnconnectedPins(circuit: ERCCircuitData, addViolation: AddViolatio
 /**
  * Rule: Missing Part Assignment (warning)
  * Devices without a partId assigned.
+ * Skips junction devices (internal wiring nodes, not physical parts).
  */
 function checkMissingParts(circuit: ERCCircuitData, addViolation: AddViolationFn): void {
+  // Build part map for junction detection
+  const partMap = new Map<string, Part>();
+  for (const part of circuit.parts) {
+    partMap.set(part.id, part);
+  }
+
   for (const device of circuit.devices) {
+    // Skip junction devices — they're internal wiring nodes
+    if (device.partId) {
+      const part = partMap.get(device.partId);
+      if (part && part.category.toLowerCase() === 'junction') continue;
+    }
+    // Skip devices whose tag starts with J followed by L or R (ladder junctions: JL1, JR1)
+    if (/^J[LR]\d+$/.test(device.tag)) continue;
+
     if (!device.partId) {
       addViolation(
         'warning',

@@ -732,6 +732,74 @@
   color: #fff;
 }
 
+/* BOM Preview / Warnings */
+.bom-preview-dialog {
+  max-width: 480px;
+}
+
+.bom-warnings {
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.bom-warnings-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffaa00;
+  margin-bottom: 0.5rem;
+}
+
+.bom-warnings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.bom-warnings-list li {
+  font-size: 0.8rem;
+  color: var(--fc-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bom-warning-badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(255, 170, 0, 0.15);
+  color: #ffaa00;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.bom-preview-summary {
+  font-size: 0.8rem;
+  color: var(--fc-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.bom-preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bom-download-btn {
+  background: var(--fc-accent) !important;
+  border-color: var(--fc-accent) !important;
+  color: #fff !important;
+  text-align: center !important;
+  align-items: center !important;
+  font-weight: 600;
+}
+
 /* ============================================
    Context Menu
    ============================================ */

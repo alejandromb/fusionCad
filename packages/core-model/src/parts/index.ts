@@ -3,11 +3,13 @@ import { phoenixContactParts } from './phoenix-contact.js';
 import { allenBradleyParts } from './allen-bradley.js';
 import { schneiderElectricParts } from './schneider-electric.js';
 import { schneiderMotorCatalogParts } from './schneider-motor-catalog.js';
+import { schneiderPushbuttonParts } from './schneider-pushbuttons.js';
 
 export { phoenixContactParts } from './phoenix-contact.js';
 export { allenBradleyParts } from './allen-bradley.js';
 export { schneiderElectricParts } from './schneider-electric.js';
 export { schneiderMotorCatalogParts } from './schneider-motor-catalog.js';
+export { schneiderPushbuttonParts } from './schneider-pushbuttons.js';
 
 /** All manufacturer parts combined */
 export const ALL_MANUFACTURER_PARTS: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>[] = [
@@ -15,6 +17,7 @@ export const ALL_MANUFACTURER_PARTS: Omit<Part, 'id' | 'createdAt' | 'modifiedAt
   ...allenBradleyParts,
   ...schneiderElectricParts,
   ...schneiderMotorCatalogParts,
+  ...schneiderPushbuttonParts,
 ];
 
 /** Get parts filtered by manufacturer */

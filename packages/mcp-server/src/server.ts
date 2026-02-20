@@ -224,7 +224,16 @@ export function createServer(apiBase: string) {
       const project = await api.getProject(projectId);
       const cd = project.circuitData;
       const bom = generateBom(cd.parts, cd.devices, cd.terminals);
-      return textResult(bom);
+      const result: Record<string, unknown> = {
+        rows: bom.rows,
+        totalItems: bom.totalItems,
+        generatedAt: bom.generatedAt,
+      };
+      if (bom.warnings.length > 0) {
+        result.warnings = bom.warnings;
+        result.warningsSummary = `${bom.warnings.length} device(s) have no real part assigned: ${bom.warnings.map(w => `${w.deviceTag} (${w.deviceFunction})`).join(', ')}`;
+      }
+      return textResult(result);
     },
   );
 
