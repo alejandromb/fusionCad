@@ -7,6 +7,7 @@
  */
 
 import type { SymbolDefinition, SymbolPrimitive, SymbolPath, SymbolText, SymbolVariant } from './types.js';
+import { tryGeneratePLCSymbol, generateSmartFallback } from './symbols/symbol-generators.js';
 
 // Primary registry: ID -> SymbolDefinition
 const symbolById: Map<string, SymbolDefinition> = new Map();
@@ -89,6 +90,40 @@ export function registerCategoryAlias(alias: string, symbolId: string): void {
   const sym = symbolById.get(symbolId);
   if (!sym) return;
   symbolByCategory.set(alias, sym);
+}
+
+/**
+ * Resolve a symbol by trying all tiers in order:
+ *   1. Exact ID match
+ *   2. Category alias match
+ *   3. Parametric generation (e.g., plc-di-16 → generate 16-ch DI symbol)
+ *   4. Smart generic fallback (labeled placeholder with pins)
+ *
+ * Generated symbols are cached so they're only created once.
+ * Never returns undefined — Tier 4 always produces a result.
+ */
+export function resolveSymbol(idOrCategory: string): SymbolDefinition {
+  // Tier 1: exact ID match
+  const byId = symbolById.get(idOrCategory);
+  if (byId) return byId;
+
+  // Tier 2: category alias match
+  const byCat = symbolByCategory.get(idOrCategory);
+  if (byCat) return byCat;
+
+  // Tier 3: parametric generation for parseable categories
+  const generated = tryGeneratePLCSymbol(idOrCategory);
+  if (generated) {
+    registerSymbol(generated); // cache for next lookup
+    registerCategoryAlias(idOrCategory, generated.id);
+    return generated;
+  }
+
+  // Tier 4: smart generic fallback
+  const fallback = generateSmartFallback(idOrCategory);
+  registerSymbol(fallback); // cache
+  registerCategoryAlias(idOrCategory, fallback.id);
+  return fallback;
 }
 
 /**

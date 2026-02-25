@@ -16,21 +16,22 @@
  */
 
 import type { SymbolDefinition, SymbolPath, SymbolText, SymbolPrimitive } from '@fusion-cad/core-model';
-import { getSymbolDefinition, getSymbolById } from '@fusion-cad/core-model';
+import { resolveSymbol } from '@fusion-cad/core-model';
 import type { SymbolGeometry, DeviceTransform } from './types';
 import { transformPinPosition } from './types';
 import { getTheme } from './theme';
 
 /**
- * Look up a symbol by ID first, then fall back to category lookup.
- * This allows using symbol IDs (e.g., 'iec-power-supply') directly.
+ * Resolve a symbol through the full 4-tier pipeline:
+ *   1. Exact ID match
+ *   2. Category alias match
+ *   3. Parametric generation (e.g., plc-di-16 → auto-generate)
+ *   4. Smart generic fallback (labeled placeholder with pins)
+ *
+ * Always returns a valid SymbolDefinition — never undefined.
  */
-function lookupSymbol(idOrCategory: string): SymbolDefinition | undefined {
-  // Try by ID first (new behavior)
-  const byId = getSymbolById(idOrCategory);
-  if (byId) return byId;
-  // Fall back to category lookup (backward compat)
-  return getSymbolDefinition(idOrCategory);
+function lookupSymbol(idOrCategory: string): SymbolDefinition {
+  return resolveSymbol(idOrCategory);
 }
 
 // ---------------------------------------------------------------------------
@@ -534,16 +535,12 @@ export function registerDrawFunction(
  * Results are cached since symbol definitions don't change at runtime.
  */
 const geometryCache = new Map<string, SymbolGeometry>();
-const UNKNOWN_GEOMETRY: SymbolGeometry = { width: 40, height: 40, pins: [] };
 
 export function getSymbolGeometry(idOrCategory: string): SymbolGeometry {
   const cached = geometryCache.get(idOrCategory);
   if (cached) return cached;
 
   const def = lookupSymbol(idOrCategory);
-  if (!def) {
-    return UNKNOWN_GEOMETRY;
-  }
   const geometry: SymbolGeometry = {
     width: def.geometry.width,
     height: def.geometry.height,
@@ -677,23 +674,8 @@ export function drawSymbol(
   transform?: DeviceTransform
 ): void {
   const def = lookupSymbol(idOrCategory);
-  const t = getTheme();
 
   ctx.save();
-
-  if (!def) {
-    // No definition at all -- draw a placeholder rectangle
-    ctx.strokeStyle = t.symbolStroke;
-    ctx.lineWidth = t.symbolStrokeWidth;
-    ctx.strokeRect(x, y, 40, 40);
-    ctx.fillStyle = t.tagColor;
-    ctx.font = t.tagFont;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(tag, x + 2, y + 2);
-    ctx.restore();
-    return;
-  }
 
   const { width, height } = def.geometry;
   const rotation = transform?.rotation || 0;

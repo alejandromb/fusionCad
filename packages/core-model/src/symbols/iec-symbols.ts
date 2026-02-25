@@ -55,15 +55,12 @@ export function registerBuiltinSymbols(): void {
     ['pilot-light', 'iec-pilot-light'],
     ['e-stop', 'iec-emergency-stop'],
     ['selector-switch', 'iec-selector-switch'],
-    // PLC modules (Allen-Bradley etc.)
+    // PLC modules — only alias exact matches; parametric generator handles other counts
     ['plc-cpu', 'iec-plc-cpu'],
     ['plc-ps', 'iec-power-supply-ac-dc'],
     ['plc-di-8', 'iec-plc-di-8'],
-    ['plc-di-16', 'iec-plc-di-8'],   // closest match until 16-ch symbol exists
     ['plc-do-8', 'iec-plc-do-8'],
-    ['plc-do-16', 'iec-plc-do-8'],   // closest match until 16-ch symbol exists
     ['plc-ai-4', 'iec-plc-ai-4'],
-    ['plc-ai-8', 'iec-plc-ai-4'],   // closest match until 8-ch symbol exists
     ['plc-ao-4', 'iec-plc-ao-4'],
     // Starter kits / assemblies (use contactor as primary symbol)
     ['manual-starter', 'iec-manual-switch'],
