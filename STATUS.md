@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-21 (HOA Linked Device Refactor + Symbol Fix)
+**Last Updated**: 2026-02-25 (Symbol Resolution Pipeline + Parametric Generators)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -890,6 +890,33 @@ This file tracks where we are in development. **Always read this file at the sta
 **Known Issue**:
 - ~~🔴 VISIBILITY BUG~~ → **FIXED** in next checkpoint
 
+### Session - 2026-02-25 (Symbol Resolution Pipeline + Parametric Generators)
+
+**Problem**: Parts like Allen-Bradley 1769-PA4 rendered as blank 40x40 boxes because part categories (`plc-ps`, `contactor`) didn't match any symbol ID or display category (`PLC`, `Power`, `Control`).
+
+**Completed**:
+- ✅ **Category alias bridge** — 27 aliases mapping part-catalog categories to symbol IDs (e.g., `contactor` → `iec-contactor-3p`, `plc-ps` → `iec-power-supply-ac-dc`)
+- ✅ **`registerCategoryAlias()`** in symbol-library.ts — bridges part categories to symbols
+- ✅ **`symbolCategory` preference** — All symbol/geometry lookups now try `part.symbolCategory` before `part.category` (fixed in circuit-renderer, useCanvasInteraction, useCircuitState, types.ts)
+- ✅ **Parametric symbol generators** — `generatePLCDigitalSymbol(type, channels)` and `generatePLCAnalogSymbol(type, channels)` auto-generate PLC I/O symbols with correct pin counts
+- ✅ **4-tier `resolveSymbol()` pipeline** — Exact ID → Category alias → Parametric generation → Smart fallback. Never returns undefined.
+- ✅ **Smart generic fallback** — Dashed-border placeholder with category label and 4 generic pins (replaces blank box)
+- ✅ **Auto-caching** — Generated symbols register themselves on first use
+- ✅ 122 E2E tests passing
+
+**Key results**:
+- `plc-di-16` → 17-pin symbol (COM + DI0-DI15) — all channels wirable
+- `plc-do-32` → auto-generates 33-pin symbol on the fly
+- Unknown categories get labeled placeholders instead of blank boxes
+- Allen-Bradley 1769-PA4 now renders as power supply symbol (50x60, 4 pins)
+
+**Files Created**: `packages/core-model/src/symbols/symbol-generators.ts`
+**Files Modified**: `symbol-library.ts`, `iec-symbols.ts`, `circuit-renderer.ts`, `symbols.ts`, `useCanvasInteraction.ts`, `useCircuitState.ts`, `types.ts`, `index.ts`
+
+**Next priority**: ERC hot-to-neutral short circuit detection (added to High Priority features)
+
+---
+
 ### Checkpoint: 2026-02-13 - Visibility Bug Fix + Canvas Panning
 
 **Changes Made**:
@@ -1009,6 +1036,20 @@ These are our end-to-end test cases. Each must always validate and export correc
 ## 💡 Ideas / Future Considerations
 
 ### High Priority Automation Features
+
+**ERC: Hot-to-Neutral Short Circuit Detection** ⭐⭐ (NEXT PRIORITY)
+- Fundamental electrical safety rule: never connect hot to neutral/return without a load
+- L1 → N = short circuit (ERROR)
+- L1 → breaker → N = still a short (breaker is protection, not a load) (ERROR)
+- L1 → breaker → motor → N = valid (motor is a load) (OK)
+- **Implementation plan:**
+  1. Build net reachability graph (BFS/Union-Find through connections)
+  2. Classify device categories: `load` (motor, coil, heater, resistor, light), `protection` (breaker, fuse, disconnect), `switching` (contact, relay)
+  3. New ERC rule: if two power rails of different potential are connected through a path with no load device → error
+- **Infrastructure needed:** Multi-device path tracing (current ERC only checks single devices)
+- **Data available:** Pin types (power, input, output), net types (power, signal, ground), ladder rail labels (L1/L2), part categories
+- **Key files:** `packages/core-engine/src/erc.ts`, `packages/core-model/src/types.ts`
+- User priority: CRITICAL — this is the most basic electrician rule
 
 **Automatic Terminal Block Calculation** ⭐ (Phase 3-4)
 - When you specify terminals in your design (e.g., 20 terminals on a PLC breakout)

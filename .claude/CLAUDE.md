@@ -30,22 +30,23 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-21)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-25)
 
-**Current task:** HOA Selector Switch Refactor — Linked Device Model
+**Current task:** Symbol Resolution Pipeline + ERC Rules
 
 **Status:**
-- ✅ **HOA refactored**: HOA-H/HOA-A → SS1 with placeLinkedDevice (shared deviceGroupId)
-- ✅ **Bug fixed**: ai-generate.ts used iec-selector-switch (2-pos) → iec-selector-switch-3pos (3-pos)
-- ✅ **Symbol fix**: Removed hardcoded `stroke: "#000"` (invisible on dark theme)
-- ✅ **Dev convenience**: Project limit bypassed when NODE_ENV=development
-- ✅ **Verified**: ERC passes, BOM counts SS1 once, MCP tools work
+- ✅ **Symbol resolution fixed**: Parts no longer render as blank boxes
+- ✅ **4-tier `resolveSymbol()` pipeline**: Exact ID → Category alias → Parametric generation → Smart fallback
+- ✅ **Parametric PLC symbol generators**: Auto-generate DI/DO/AI/AO symbols for any channel count
+- ✅ **27 category aliases**: Bridge part-catalog categories to symbol IDs
+- ✅ **Smart generic fallback**: Dashed placeholder with label + pins (replaces blank box)
+- ✅ 122 E2E tests passing
 
 **Branch:** `main`
 
-**Next steps:**
-1. Improve selector switch symbol visuals (cam operator readability)
-2. Add E2E visibility test
+**Next steps (priority order):**
+1. **ERC: Hot-to-neutral short circuit detection** — Build net reachability graph, classify devices as load/protection/switching, flag paths between power rails with no load (CRITICAL)
+2. Improve selector switch symbol visuals (cam operator readability)
 3. Implement IndexedDB storage for free tier (Phase 8.1)
 4. Add org_id multi-tenancy to Postgres schema (Phase 8.2)
 
