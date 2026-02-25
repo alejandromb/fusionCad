@@ -82,7 +82,7 @@ export function getPinAtPoint(
     if (!pos) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.category || 'unknown');
+    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
     const transform = transforms?.[device.id];
 
     for (const pin of geometry.pins) {
@@ -121,7 +121,7 @@ export function getSymbolAtPoint(
     if (!pos) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.category || 'unknown');
+    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
     const transform = transforms?.[device.id];
     const rotation = transform?.rotation || 0;
 

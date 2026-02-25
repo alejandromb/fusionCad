@@ -209,8 +209,8 @@ export function getWireAtPoint(
     const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
     const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
 
-    const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
-    const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
+    const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
+    const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
 
     const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
     const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
@@ -316,7 +316,7 @@ function createObstaclesForHitTest(
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.category || 'unknown');
+    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
     obstacles.push({
       id: device.id,
@@ -392,8 +392,8 @@ export function getWireEndpointAtPoint(
   const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
   const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
 
-  const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
-  const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
+  const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
+  const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
 
   const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
   const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
@@ -532,7 +532,7 @@ function createObstacles(
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.category || 'unknown');
+    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
     obstacles.push({
       id: device.id,
@@ -664,10 +664,10 @@ export function renderCircuit(
     if (!position) continue;
 
     const part = device.partId ? partMap.get(device.partId) : null;
-    const category = part?.category || 'unknown';
+    const symbolKey = part?.symbolCategory || part?.category || 'unknown';
     const transform = getTransform(device.id);
 
-    drawSymbol(ctx, category, position.x, position.y, device.tag, transform);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform);
   }
 
   // Create obstacles from devices for routing
@@ -697,8 +697,8 @@ export function renderCircuit(
     const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
     const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
 
-    const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
-    const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
+    const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
+    const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
 
     // Find pin positions (accounting for device rotation)
     const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
@@ -951,7 +951,7 @@ export function renderCircuit(
         const position = positions.get(device.id);
         if (position) {
           const part = device.partId ? partMap.get(device.partId) : null;
-          const geometry = getSymbolGeometry(part?.category || 'unknown');
+          const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
           ctx.strokeRect(
             position.x - 5,
@@ -974,7 +974,7 @@ export function renderCircuit(
       const position = positions.get(device.id);
       if (position) {
         const part = device.partId ? partMap.get(device.partId) : null;
-        const geometry = getSymbolGeometry(part?.category || 'unknown');
+        const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
         const transform = options.deviceTransforms?.get(device.id);
         const pin = geometry.pins.find(p => p.id === options.wireStart!.pin);
 
@@ -1057,7 +1057,7 @@ export function renderCircuit(
         const fixedPos = positions.get(fixedDeviceObj.id);
         if (fixedPos) {
           const fixedPart = fixedDeviceObj.partId ? partMap.get(fixedDeviceObj.partId) : null;
-          const fixedGeometry = getSymbolGeometry(fixedPart?.category || 'unknown');
+          const fixedGeometry = getSymbolGeometry(fixedPart?.symbolCategory || fixedPart?.category || 'unknown');
           const fixedPin = fixedGeometry.pins.find(p => p.id === fixedPinId);
 
           const fixedX = fixedPos.x + (fixedPin?.position.x ?? fixedGeometry.width / 2);

@@ -80,6 +80,18 @@ export function getAllSymbols(): SymbolDefinition[] {
 }
 
 /**
+ * Register a category alias that maps to an existing symbol by ID.
+ * This bridges part-catalog categories (e.g., 'contactor') to symbol IDs (e.g., 'iec-contactor-3p').
+ * Only registers if the alias doesn't already exist and the target symbol is found.
+ */
+export function registerCategoryAlias(alias: string, symbolId: string): void {
+  if (symbolByCategory.has(alias)) return; // Don't override existing category
+  const sym = symbolById.get(symbolId);
+  if (!sym) return;
+  symbolByCategory.set(alias, sym);
+}
+
+/**
  * Clear all registered symbols (useful for testing).
  */
 export function clearSymbolRegistry(): void {

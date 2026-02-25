@@ -8,7 +8,7 @@
  */
 
 import type { SymbolDefinition } from '../types.js';
-import { registerSymbol } from '../symbol-library.js';
+import { registerSymbol, registerCategoryAlias } from '../symbol-library.js';
 import { loadSymbolsFromJson } from './symbol-loader.js';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - JSON import handled by bundler
@@ -32,7 +32,52 @@ export function registerBuiltinSymbols(): void {
   // Register the generic component symbol (used when a part has no symbol assigned)
   registerSymbol(genericComponentSymbol);
 
-  console.log(`Loaded ${builtinSymbolsJson.symbols.length + 1} built-in symbols`);
+  // Register category aliases that bridge part-catalog categories to symbol IDs.
+  // Without these, parts render as 40x40 placeholder boxes because their category
+  // (e.g., 'contactor') doesn't match any symbol ID or registered display category.
+  const aliases: [string, string][] = [
+    // Schneider motor catalog / electrical parts
+    ['contactor', 'iec-contactor-3p'],
+    ['circuit-breaker', 'iec-circuit-breaker-thermal-magnetic'],
+    ['disconnect-switch', 'iec-disconnector-3p'],
+    ['overload', 'iec-thermal-overload-relay-3p'],
+    ['thermal-unit', 'iec-thermal-overload-relay'],
+    // Terminals (Phoenix Contact etc.)
+    ['dual-terminal', 'iec-terminal-dual'],
+    ['single-terminal', 'iec-terminal-single'],
+    ['ground-terminal', 'iec-terminal-ground'],
+    ['fuse-terminal', 'iec-terminal-fuse'],
+    // Control devices (Schneider pushbuttons etc.)
+    ['iec-no-contact', 'iec-normally-open-contact'],
+    ['iec-nc-contact', 'iec-normally-closed-contact'],
+    ['iec-indicator-light', 'iec-pilot-light'],
+    ['pushbutton', 'iec-normally-open-contact'],
+    ['pilot-light', 'iec-pilot-light'],
+    ['e-stop', 'iec-emergency-stop'],
+    ['selector-switch', 'iec-selector-switch'],
+    // PLC modules (Allen-Bradley etc.)
+    ['plc-cpu', 'iec-plc-cpu'],
+    ['plc-ps', 'iec-power-supply-ac-dc'],
+    ['plc-di-8', 'iec-plc-di-8'],
+    ['plc-di-16', 'iec-plc-di-8'],   // closest match until 16-ch symbol exists
+    ['plc-do-8', 'iec-plc-do-8'],
+    ['plc-do-16', 'iec-plc-do-8'],   // closest match until 16-ch symbol exists
+    ['plc-ai-4', 'iec-plc-ai-4'],
+    ['plc-ai-8', 'iec-plc-ai-4'],   // closest match until 8-ch symbol exists
+    ['plc-ao-4', 'iec-plc-ao-4'],
+    // Starter kits / assemblies (use contactor as primary symbol)
+    ['manual-starter', 'iec-manual-switch'],
+    ['nema-starter', 'iec-contactor-3p'],
+    ['starter-kit', 'iec-contactor-3p'],
+    // Generic fallback
+    ['accessory', 'builtin-generic-component'],
+    ['unknown', 'builtin-generic-component'],
+  ];
+  for (const [alias, symbolId] of aliases) {
+    registerCategoryAlias(alias, symbolId);
+  }
+
+  console.log(`Loaded ${builtinSymbolsJson.symbols.length + 1} built-in symbols + ${aliases.length} category aliases`);
 }
 
 /**

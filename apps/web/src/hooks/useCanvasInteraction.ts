@@ -118,8 +118,8 @@ function computeWirePinPositions(
   const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
   const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
 
-  const fromGeometry = getSymbolGeometry(fromPart?.category || 'unknown');
-  const toGeometry = getSymbolGeometry(toPart?.category || 'unknown');
+  const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
+  const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
 
   const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
   const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
@@ -266,7 +266,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const pos = allPositions.get(device.id);
       if (!pos) continue;
       const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
-      const geom = getSymbolGeometry(part?.category || 'unknown');
+      const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
       minX = Math.min(minX, pos.x);
       minY = Math.min(minY, pos.y);
       maxX = Math.max(maxX, pos.x + geom.width);
@@ -784,7 +784,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           const pos = allPositions.get(device.id);
           if (!pos) continue;
           const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
-          const geom = getSymbolGeometry(part?.category || 'unknown');
+          const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
           // Account for rotation when computing bounding box
           const transform = circuit.transforms?.[device.id];

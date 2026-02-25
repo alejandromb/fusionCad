@@ -822,7 +822,7 @@ export function useCircuitState(
       if (!pos) continue;
       const device = circuit.devices.find(d => d.id === deviceId);
       const part = device?.partId ? partMap.get(device.partId) : null;
-      const geom = getSymbolGeometry(part?.category || 'unknown');
+      const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
       // Device center is always at pos + half of unrotated geometry
       // (renderer rotates around this center)
       sumX += pos.x + geom.width / 2;
@@ -841,7 +841,7 @@ export function useCircuitState(
         if (!pos) continue;
         const device = circuit.devices.find(d => d.id === deviceId);
         const part = device?.partId ? partMap.get(device.partId) : null;
-        const geom = getSymbolGeometry(part?.category || 'unknown');
+        const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
         const dcx = pos.x + geom.width / 2;
         const dcy = pos.y + geom.height / 2;
