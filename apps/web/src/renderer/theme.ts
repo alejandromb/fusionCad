@@ -29,6 +29,10 @@ export interface ThemeData {
   tagColor: string;
   tagFont: string;
 
+  // Part labels (part number, description — shown below tag)
+  partLabelColor: string;
+  partLabelFont: string;
+
   // Wires
   wireWidth: number;
   wireWidthSelected: number;
@@ -218,6 +222,8 @@ const PROFESSIONAL: ThemeData = {
   pinLabelColor: '#999999',
   tagColor: '#e0e0e0',
   tagFont: 'bold 12px monospace',
+  partLabelColor: '#999999',
+  partLabelFont: '10px monospace',
   wireWidth: 1.5,
   wireWidthSelected: 2,
   wireColors: ['#6B8EA0', '#7A9A6D', '#B07850', '#C4A24D', '#8B7EB8', '#5A9E9E', '#B06880', '#7AA3C8', '#9E8A6E', '#6EA87A', '#A8856E'],
@@ -269,6 +275,8 @@ const HIGH_CONTRAST: ThemeData = {
   pinLabelColor: '#dddddd',
   tagColor: '#ffffff',
   tagFont: 'bold 13px monospace',
+  partLabelColor: '#bbbbbb',
+  partLabelFont: '11px monospace',
   wireWidth: 2,
   wireWidthSelected: 3,
   wireColors: ['#4FC3F7', '#81C784', '#FFB74D', '#FFD54F', '#CE93D8', '#4DD0E1', '#F48FB1', '#64B5F6', '#FFE082', '#A5D6A7', '#FFAB91'],
@@ -320,6 +328,8 @@ const BLUEPRINT: ThemeData = {
   pinLabelColor: '#A09580',
   tagColor: '#E0D5C0',
   tagFont: 'bold 12px monospace',
+  partLabelColor: '#A09580',
+  partLabelFont: '10px monospace',
   wireWidth: 1.5,
   wireWidthSelected: 2,
   wireColors: ['#7AA3C8', '#8FB88A', '#C49A6C', '#D4B84D', '#9B8EC8', '#6BB8B8', '#C07890', '#5A93B8', '#B09A7E', '#7EB88A', '#B8957E'],
@@ -371,6 +381,8 @@ const CLASSIC: ThemeData = {
   pinLabelColor: '#00aa00',
   tagColor: '#00ff00',
   tagFont: 'bold 12px monospace',
+  partLabelColor: '#00aa00',
+  partLabelFont: '10px monospace',
   wireWidth: 1.5,
   wireWidthSelected: 2,
   wireColors: ['#00BFFF', '#00FF80', '#FF8000', '#FFFF00', '#FF00FF', '#00FFFF', '#FF4080', '#4080FF', '#80FF00', '#FF8080', '#80FFFF'],
@@ -422,6 +434,8 @@ const LIGHT: ThemeData = {
   pinLabelColor: '#888888',
   tagColor: '#222222',
   tagFont: 'bold 12px monospace',
+  partLabelColor: '#666666',
+  partLabelFont: '10px monospace',
   wireWidth: 1.5,
   wireWidthSelected: 2,
   wireColors: ['#2070B0', '#3A8A3A', '#B06030', '#A08020', '#7060A0', '#207878', '#A04060', '#4080B0', '#806040', '#408050', '#905040'],
@@ -516,6 +530,8 @@ export function deriveFullTheme(input: CustomThemeInput): { theme: ThemeData; cs
     pinLabelColor: adjustBrightness(input.symbolColor, 0.7),
     tagColor: input.textColor,
     tagFont: 'bold 12px monospace',
+    partLabelColor: adjustBrightness(input.textColor, 0.7),
+    partLabelFont: '10px monospace',
     wireWidth: 1.5,
     wireWidthSelected: 2,
     wireColors: generateWireColors(input.wireBaseColor),

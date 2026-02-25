@@ -637,22 +637,39 @@ function drawTag(
   y: number,
   def: SymbolDefinition,
   tag: string,
-  category: string
+  category: string,
+  partLabel?: string
 ): void {
   const t = getTheme();
+  const { width, height } = def.geometry;
+
   if (category === 'motor') {
     // Motor shows tag below the symbol
     ctx.fillStyle = t.tagColor;
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + def.geometry.width / 2, y + def.geometry.height + 15);
+    ctx.fillText(tag, x + width / 2, y + height + 15);
+    if (partLabel) {
+      ctx.fillStyle = t.partLabelColor;
+      ctx.font = t.partLabelFont;
+      ctx.fillText(partLabel, x + width / 2, y + height + 27);
+    }
   } else {
+    // Tag above the symbol
     ctx.fillStyle = t.tagColor;
     ctx.font = t.tagFont;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(tag, x + 2, y + 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(tag, x + width / 2, y - 3);
+    // Part label below the symbol
+    if (partLabel) {
+      ctx.fillStyle = t.partLabelColor;
+      ctx.font = t.partLabelFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(partLabel, x + width / 2, y + height + 3);
+    }
   }
 }
 
@@ -671,7 +688,8 @@ export function drawSymbol(
   x: number,
   y: number,
   tag: string,
-  transform?: DeviceTransform
+  transform?: DeviceTransform,
+  partLabel?: string
 ): void {
   const def = lookupSymbol(idOrCategory);
 
@@ -723,8 +741,8 @@ export function drawSymbol(
     return;
   }
 
-  // Draw tag label (outside rotation transform so text stays readable)
-  drawTag(ctx, x, y, def, tag, idOrCategory);
+  // Draw tag label and part number (outside rotation transform so text stays readable)
+  drawTag(ctx, x, y, def, tag, idOrCategory, partLabel);
 
   // Draw pins at their transformed positions
   if (rotation !== 0 || mirrorH) {

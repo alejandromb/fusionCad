@@ -666,8 +666,9 @@ export function renderCircuit(
     const part = device.partId ? partMap.get(device.partId) : null;
     const symbolKey = part?.symbolCategory || part?.category || 'unknown';
     const transform = getTransform(device.id);
+    const partLabel = part ? part.partNumber : undefined;
 
-    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel);
   }
 
   // Create obstacles from devices for routing
