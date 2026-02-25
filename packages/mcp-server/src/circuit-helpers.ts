@@ -744,7 +744,21 @@ export function autoLayoutLadder(
 
   const devices = circuit.devices.filter(d => d.sheetId === sheetId);
 
-  const result = layoutLadder(rungs, devices, config, blockOffset);
+  // Build symbolHeights map: for each device, look up its symbol's height
+  // This allows layoutLadder to use dynamic PIN_CENTER_OFFSET per device
+  // (e.g., junction is 12px tall, standard contacts are 60px)
+  const symbolHeights: Record<string, number> = {};
+  for (const device of devices) {
+    const part = circuit.parts.find(p => p.id === device.partId);
+    if (part) {
+      const symbolDef = getSymbolById(part.category);
+      if (symbolDef) {
+        symbolHeights[device.id] = symbolDef.geometry.height;
+      }
+    }
+  }
+
+  const result = layoutLadder(rungs, devices, config, blockOffset, symbolHeights);
 
   // Merge positions (overwrite for devices on rungs, keep others)
   const updatedPositions = { ...circuit.positions };

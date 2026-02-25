@@ -397,17 +397,28 @@ function renderPrimitives(
   ctx: CanvasRenderingContext2D,
   primitives: SymbolPrimitive[],
   x: number,
-  y: number
+  y: number,
+  deviceDashed?: boolean,
 ): void {
   const t = getTheme();
   for (const p of primitives) {
     const strokeColor = ('stroke' in p && p.stroke) || t.symbolStroke;
-    const fillColor = ('fill' in p && p.fill) || 'none';
+    const rawFill = ('fill' in p && p.fill) || 'none';
+    // "stroke" is a special fill value meaning "use the current theme stroke color"
+    const fillColor = rawFill === 'stroke' ? t.symbolStroke : rawFill;
     const lineWidth = ('strokeWidth' in p && p.strokeWidth) || t.symbolStrokeWidth;
 
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor !== 'none' ? fillColor : t.symbolStroke;
     ctx.lineWidth = lineWidth;
+
+    // Apply dash pattern: per-primitive strokeDash takes priority, then device-level dashed
+    const dashPattern = ('strokeDash' in p && p.strokeDash) || (deviceDashed ? [4, 3] : undefined);
+    if (dashPattern) {
+      ctx.setLineDash(dashPattern);
+    } else {
+      ctx.setLineDash([]);
+    }
 
     switch (p.type) {
       case 'rect': {
@@ -485,6 +496,8 @@ function renderPrimitives(
       }
     }
   }
+  // Reset dash pattern after rendering all primitives
+  ctx.setLineDash([]);
 }
 
 // ---------------------------------------------------------------------------
@@ -594,24 +607,25 @@ function drawPins(
     ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
+    const pinLabel = pin.name || pin.id;
     switch (pin.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pin.id, pinX - 8, pinY);
+        ctx.fillText(pinLabel, pinX - 8, pinY);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pin.id, pinX + 8, pinY);
+        ctx.fillText(pinLabel, pinX + 8, pinY);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pin.id, pinX, pinY - 8);
+        ctx.fillText(pinLabel, pinX, pinY - 8);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pin.id, pinX, pinY + 8);
+        ctx.fillText(pinLabel, pinX, pinY + 8);
         break;
     }
 
@@ -700,9 +714,10 @@ export function drawSymbol(
   }
 
   // Priority: 1. primitives, 2. paths array, 3. custom draw function, 4. generic fallback
+  const deviceDashed = transform?.dashed || false;
   if (def.primitives && def.primitives.length > 0) {
     // Use typed primitive rendering (preferred)
-    renderPrimitives(ctx, def.primitives, x, y);
+    renderPrimitives(ctx, def.primitives, x, y, deviceDashed);
   } else if (def.paths && def.paths.length > 0) {
     // Use SVG path-based rendering (legacy)
     renderPaths(ctx, def.paths, x, y);

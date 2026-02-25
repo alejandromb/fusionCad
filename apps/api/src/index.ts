@@ -125,9 +125,9 @@ app.post('/api/projects', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Project name is required' });
     }
 
-    // Enforce project limit
+    // Enforce project limit (skip in dev mode for testing convenience)
     const user = await userRepo.findOneBy({ id: req.userId! });
-    if (user && user.maxCloudProjects > 0) {
+    if (process.env.NODE_ENV !== 'development' && user && user.maxCloudProjects > 0) {
       const currentCount = await projectRepo.count({ where: { userId: req.userId } });
       if (currentCount >= user.maxCloudProjects) {
         return res.status(403).json({

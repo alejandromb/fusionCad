@@ -30,22 +30,24 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-19)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-21)
 
-**Current task:** Documentation cleanup & multi-tenancy architecture
+**Current task:** HOA Selector Switch Refactor — Linked Device Model
 
 **Status:**
-- ✅ **Docs updated**: ARCHITECTURE_v0.6.md (multi-tenancy), README.md (current state), ROADMAP.md (dual storage)
-- ✅ **Deleted redundant files**: MVP_v0.2.md, README_v0.2.md, RESEARCH_SYMBOL_LIBRARIES.md, motorData/
-- ✅ **Multi-tenancy decided**: Shared tables + org_id column approach
+- ✅ **HOA refactored**: HOA-H/HOA-A → SS1 with placeLinkedDevice (shared deviceGroupId)
+- ✅ **Bug fixed**: ai-generate.ts used iec-selector-switch (2-pos) → iec-selector-switch-3pos (3-pos)
+- ✅ **Symbol fix**: Removed hardcoded `stroke: "#000"` (invisible on dark theme)
+- ✅ **Dev convenience**: Project limit bypassed when NODE_ENV=development
+- ✅ **Verified**: ERC passes, BOM counts SS1 once, MCP tools work
 
-**Branch:** `fix/selection-and-group-rotation` (pushed to remote, pending merge to main)
+**Branch:** `main`
 
 **Next steps:**
-1. Merge `fix/selection-and-group-rotation` to main after user testing
-2. Implement IndexedDB storage for free tier (Phase 8.1)
-3. Add org_id multi-tenancy to Postgres schema (Phase 8.2)
-4. Add E2E visibility test
+1. Improve selector switch symbol visuals (cam operator readability)
+2. Add E2E visibility test
+3. Implement IndexedDB storage for free tier (Phase 8.1)
+4. Add org_id multi-tenancy to Postgres schema (Phase 8.2)
 
 ---
 

@@ -26,6 +26,7 @@ export interface PinGeometry {
 export interface DeviceTransform {
   rotation: number; // degrees: 0, 90, 180, 270
   mirrorH: boolean; // horizontal mirror
+  dashed?: boolean; // render all strokes with dash pattern (IEC: remote/external device)
 }
 
 export interface RenderableSymbol {

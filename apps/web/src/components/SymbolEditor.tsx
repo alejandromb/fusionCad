@@ -21,7 +21,7 @@ import type { StorageProvider } from '../storage/storage-provider';
 import { saveSymbol as saveSymbolApi } from '../api/symbols';
 import { getTheme } from '../renderer/theme';
 
-type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin';
+type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin' | 'text';
 
 interface Point {
   x: number;
@@ -30,13 +30,20 @@ interface Point {
 
 interface EditorPath {
   id: string;
-  type: 'line' | 'rect' | 'circle' | 'polyline' | 'arc';
+  type: 'line' | 'rect' | 'circle' | 'polyline' | 'arc' | 'text';
   points: Point[];
   // For circle/arc: points[0] = center, radius stored separately
   radius?: number;
   // For arc: start and end angles in radians
   startAngle?: number;
   endAngle?: number;
+  // Dashed line style
+  dashed?: boolean;
+  // For text
+  content?: string;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold';
+  textAnchor?: 'start' | 'center' | 'end';
 }
 
 interface EditorPin {
@@ -129,6 +136,23 @@ function hitTestPath(path: EditorPath, point: Point, radius: number): boolean {
     if (nStart <= nEnd) return nAngle >= nStart && nAngle <= nEnd;
     return nAngle >= nStart || nAngle <= nEnd;
   }
+  if (path.type === 'text' && path.points.length >= 1) {
+    const text = path.content || '';
+    const fontSize = path.fontSize ?? 12;
+    // Approximate text bounding box
+    const charWidth = fontSize * 0.6;
+    const textWidth = text.length * charWidth;
+    const textHeight = fontSize;
+    const anchor = path.textAnchor || 'center';
+    let left = path.points[0].x;
+    if (anchor === 'center') left -= textWidth / 2;
+    else if (anchor === 'end') left -= textWidth;
+    const top = path.points[0].y - textHeight / 2;
+    return (
+      point.x >= left - radius && point.x <= left + textWidth + radius &&
+      point.y >= top - radius && point.y <= top + textHeight + radius
+    );
+  }
   return false;
 }
 
@@ -146,7 +170,7 @@ function primitivesToEditorPaths(primitives: SymbolPrimitive[]): EditorPath[] {
     const id = `path-${result.length}`;
     switch (prim.type) {
       case 'line':
-        result.push({ id, type: 'line', points: [{ x: prim.x1, y: prim.y1 }, { x: prim.x2, y: prim.y2 }] });
+        result.push({ id, type: 'line', points: [{ x: prim.x1, y: prim.y1 }, { x: prim.x2, y: prim.y2 }], dashed: !!(prim as any).strokeDash });
         break;
       case 'rect':
         result.push({ id, type: 'rect', points: [{ x: prim.x, y: prim.y }, { x: prim.x + prim.width, y: prim.y + prim.height }] });
@@ -155,10 +179,20 @@ function primitivesToEditorPaths(primitives: SymbolPrimitive[]): EditorPath[] {
         result.push({ id, type: 'circle', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r });
         break;
       case 'polyline':
-        result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })) });
+        result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })), dashed: !!(prim as any).strokeDash });
         break;
       case 'arc':
         result.push({ id, type: 'arc', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r, startAngle: prim.startAngle, endAngle: prim.endAngle });
+        break;
+      case 'text':
+        result.push({
+          id, type: 'text',
+          points: [{ x: prim.x, y: prim.y }],
+          content: prim.content,
+          fontSize: prim.fontSize,
+          fontWeight: (prim.fontWeight as 'normal' | 'bold') ?? 'bold',
+          textAnchor: (prim.textAnchor as 'start' | 'center' | 'end') ?? 'center',
+        });
         break;
       default:
         console.warn(`SymbolEditor: skipping unsupported primitive type '${(prim as any).type}'`);
@@ -190,6 +224,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   // Drag state for moving selected path
   const [isDraggingPath, setIsDraggingPath] = useState(false);
+  const [isDraggingPin, setIsDraggingPin] = useState(false);
   const dragStartRef = useRef<Point | null>(null);
 
   // Viewport state (Task 3)
@@ -497,11 +532,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     for (const path of editorPaths) {
       if (path.type === 'line' && path.points.length >= 2) {
-        result.push({
+        const prim: any = {
           type: 'line',
           x1: path.points[0].x, y1: path.points[0].y,
           x2: path.points[1].x, y2: path.points[1].y,
-        });
+        };
+        if (path.dashed) prim.strokeDash = [2, 2];
+        result.push(prim);
       } else if (path.type === 'rect' && path.points.length >= 2) {
         const [p1, p2] = path.points;
         result.push({
@@ -519,10 +556,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           r: path.radius,
         });
       } else if (path.type === 'polyline' && path.points.length >= 2) {
-        result.push({
+        const prim: any = {
           type: 'polyline',
           points: path.points.map(p => ({ x: p.x, y: p.y })),
-        });
+        };
+        if (path.dashed) prim.strokeDash = [2, 2];
+        result.push(prim);
       } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
         result.push({
           type: 'arc',
@@ -531,6 +570,16 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           r: path.radius,
           startAngle: path.startAngle ?? 0,
           endAngle: path.endAngle ?? Math.PI * 2,
+        });
+      } else if (path.type === 'text' && path.points.length >= 1) {
+        result.push({
+          type: 'text',
+          x: path.points[0].x,
+          y: path.points[0].y,
+          content: path.content || '',
+          fontSize: path.fontSize,
+          fontWeight: path.fontWeight,
+          textAnchor: path.textAnchor,
         });
       }
     }
@@ -597,6 +646,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     for (const path of paths) {
       const isSelected = path.id === selectedPathId;
       ctx.strokeStyle = isSelected ? '#ffff00' : getTheme().symbolStroke;
+      ctx.setLineDash(path.dashed ? [3 / scale, 3 / scale] : []);
 
       if (path.type === 'line' && path.points.length >= 2) {
         ctx.beginPath();
@@ -625,8 +675,17 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         ctx.beginPath();
         ctx.arc(path.points[0].x, path.points[0].y, path.radius, path.startAngle ?? 0, path.endAngle ?? Math.PI * 2);
         ctx.stroke();
+      } else if (path.type === 'text' && path.points.length >= 1) {
+        const fontSize = path.fontSize ?? 12;
+        const fontWeight = path.fontWeight ?? 'bold';
+        ctx.fillStyle = isSelected ? '#ffff00' : getTheme().symbolStroke;
+        ctx.font = `${fontWeight} ${fontSize}px monospace`;
+        ctx.textAlign = (path.textAnchor as CanvasTextAlign) || 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(path.content || '', path.points[0].x, path.points[0].y);
       }
     }
+    ctx.setLineDash([]);
 
     // Draw current path being drawn
     if (currentPath && currentPath.points.length > 0) {
@@ -772,6 +831,14 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         ctx.beginPath();
         ctx.arc(path.points[0].x, path.points[0].y, path.radius, path.startAngle ?? 0, path.endAngle ?? Math.PI * 2);
         ctx.stroke();
+      } else if (path.type === 'text' && path.points.length >= 1) {
+        const fontSize = path.fontSize ?? 12;
+        const fontWeight = path.fontWeight ?? 'bold';
+        ctx.fillStyle = getTheme().symbolStroke;
+        ctx.font = `${fontWeight} ${fontSize}px monospace`;
+        ctx.textAlign = (path.textAnchor as CanvasTextAlign) || 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(path.content || '', path.points[0].x, path.points[0].y);
       }
     }
 
@@ -849,6 +916,9 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       if (clickedPin) {
         setSelectedPinId(clickedPin.id);
         setSelectedPathId(null);
+        // Start pin drag
+        setIsDraggingPin(true);
+        dragStartRef.current = pos;
         return;
       }
 
@@ -880,6 +950,23 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       };
       setPins([...pins, newPin]);
       setSelectedPinId(newPin.id);
+      return;
+    }
+
+    if (selectedTool === 'text') {
+      pushEditorHistory();
+      const newText: EditorPath = {
+        id: `path-${Date.now()}`,
+        type: 'text',
+        points: [pos],
+        content: 'Text',
+        fontSize: 12,
+        fontWeight: 'bold',
+        textAnchor: 'center',
+      };
+      setPaths([...paths, newText]);
+      setSelectedPathId(newText.id);
+      setSelectedPinId(null);
       return;
     }
 
@@ -933,6 +1020,16 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       return;
     }
 
+    // Drag selected pin
+    if (isDraggingPin && selectedPinId && dragStartRef.current) {
+      setPins(prev => prev.map(p => {
+        if (p.id !== selectedPinId) return p;
+        return { ...p, position: { x: pos.x, y: pos.y } };
+      }));
+      dragStartRef.current = pos;
+      return;
+    }
+
     if (!isDrawing || !currentPath || !startPoint) return;
 
     if (currentPath.type === 'line' || currentPath.type === 'rect') {
@@ -971,6 +1068,14 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     // End path drag
     if (isDraggingPath) {
       setIsDraggingPath(false);
+      dragStartRef.current = null;
+      return;
+    }
+
+    // End pin drag
+    if (isDraggingPin) {
+      pushEditorHistory();
+      setIsDraggingPin(false);
       dragStartRef.current = null;
       return;
     }
@@ -1160,7 +1265,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         height: symbolHeight,
       },
       pins: pins.map(p => ({
-        id: p.id,
+        id: p.name || p.id,
         name: p.name,
         position: { x: p.position.x, y: p.position.y },
         direction: p.direction,
@@ -1256,6 +1361,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 Polyline
               </button>
               <button
+                className={`tool-btn ${selectedTool === 'text' ? 'active' : ''}`}
+                onClick={() => setSelectedTool('text')}
+                title="Text (T)"
+              >
+                Text
+              </button>
+              <button
                 className={`tool-btn ${selectedTool === 'pin' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('pin')}
                 title="Add Pin (N)"
@@ -1336,6 +1448,14 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                   <label>
                     Type: <span style={{ color: getTheme().symbolStroke }}>{selectedPath.type}</span>
                   </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!selectedPath.dashed}
+                      onChange={e => updateSelectedPath({ dashed: e.target.checked })}
+                    />
+                    Dashed
+                  </label>
                   {(selectedPath.type === 'arc' || selectedPath.type === 'circle') && (
                     <label>
                       Radius:
@@ -1372,6 +1492,50 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                       </label>
                     </>
                   )}
+                  {selectedPath.type === 'text' && (
+                    <>
+                      <label>
+                        Content:
+                        <input
+                          type="text"
+                          value={selectedPath.content ?? ''}
+                          onChange={e => updateSelectedPath({ content: e.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Font Size:
+                        <input
+                          type="number"
+                          value={selectedPath.fontSize ?? 12}
+                          onChange={e => updateSelectedPath({ fontSize: Number(e.target.value) })}
+                          min={4}
+                          max={48}
+                          step={1}
+                        />
+                      </label>
+                      <label>
+                        Weight:
+                        <select
+                          value={selectedPath.fontWeight ?? 'bold'}
+                          onChange={e => updateSelectedPath({ fontWeight: e.target.value as 'normal' | 'bold' })}
+                        >
+                          <option value="bold">Bold</option>
+                          <option value="normal">Normal</option>
+                        </select>
+                      </label>
+                      <label>
+                        Align:
+                        <select
+                          value={selectedPath.textAnchor ?? 'center'}
+                          onChange={e => updateSelectedPath({ textAnchor: e.target.value as 'start' | 'center' | 'end' })}
+                        >
+                          <option value="start">Left</option>
+                          <option value="center">Center</option>
+                          <option value="end">Right</option>
+                        </select>
+                      </label>
+                    </>
+                  )}
                 </div>
               );
             })()}
@@ -1402,6 +1566,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
             <div className="canvas-hint">
               {selectedTool === 'polyline' ? 'Click to add points, double-click to finish. Backspace removes last point, Escape cancels.' :
                selectedTool === 'pin' ? 'Click to place pin' :
+               selectedTool === 'text' ? 'Click to place text, then edit in properties panel' :
                selectedTool === 'select' ? 'Click to select, drag to move, Delete to remove' :
                'Click and drag to draw'}
               {' \u00b7 Scroll to zoom, Shift+drag to pan'}

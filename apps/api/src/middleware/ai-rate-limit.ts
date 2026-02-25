@@ -46,7 +46,8 @@ export async function checkAiRateLimit(req: Request, res: Response, next: NextFu
   }
 
   // Unlimited plan — skip counting
-  if (user.maxAiGenerationsPerDay < 0) {
+  // In development mode, always skip rate limiting for convenience
+  if (user.maxAiGenerationsPerDay < 0 || process.env.NODE_ENV === 'development') {
     res.setHeader('X-AI-Generations-Remaining', '-1');
     res.setHeader('X-AI-Generations-Limit', '-1');
     return next();

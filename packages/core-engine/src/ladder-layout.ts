@@ -49,6 +49,7 @@ export function layoutLadder(
   devices: Device[],
   config: LadderConfig,
   blockOffset?: { x: number; y: number },
+  symbolHeights?: Record<string, number>,
 ): LadderLayoutResult {
   const positions: Record<string, { x: number; y: number }> = {};
   const railConnections: RailConnection[] = [];
@@ -76,15 +77,16 @@ export function layoutLadder(
     const availableWidth = config.railL2X - config.railL1X;
     const spacing = availableWidth / (deviceCount + 1);
 
-    // Device symbols are 40x60. When rotated -90° for ladder layout,
-    // pins end up at devicePos.y + 30 (half the original height).
-    // Offset Y by -30 so pin centers align with rungY.
-    const PIN_CENTER_OFFSET = 30;
+    // Device symbols have varying heights. When rotated -90° for ladder layout,
+    // pins end up at devicePos.y + height/2. Offset Y by -height/2 so pin
+    // centers align with rungY. Default height = 60 (standard 40x60 symbols).
+    const DEFAULT_SYMBOL_HEIGHT = 60;
 
     for (let i = 0; i < deviceCount; i++) {
       const deviceId = rungDeviceIds[i];
+      const pinCenterOffset = (symbolHeights?.[deviceId] ?? DEFAULT_SYMBOL_HEIGHT) / 2;
       const x = config.railL1X + spacing * (i + 1) + ox;
-      positions[deviceId] = { x: Math.round(x / 20) * 20, y: rungY - PIN_CENTER_OFFSET };
+      positions[deviceId] = { x: Math.round(x / 20) * 20, y: rungY - pinCenterOffset };
     }
 
     // Rail connections: leftmost device connects to L1, rightmost to L2

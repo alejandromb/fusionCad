@@ -275,6 +275,12 @@ function autoLayoutLadder(
   return { circuit: { ...circuit, positions: updatedPositions, transforms: updatedTransforms } };
 }
 
+function updateDeviceFunction(circuit: CircuitData, deviceId: string, fn: string): CircuitData {
+  return { ...circuit, devices: circuit.devices.map(d =>
+    d.id === deviceId ? { ...d, function: fn, modifiedAt: Date.now() } : d
+  )};
+}
+
 function createLadderRails(circuit: CircuitData, sheetId: string, blockId?: string): CircuitData {
   let cd = circuit;
   let config: LadderConfig;
@@ -453,13 +459,14 @@ function generateMotorStarterPanel(
     description: 'Seal-in circuit', branchOf: 1, createdAt: Date.now(), modifiedAt: Date.now(),
   }] };
 
-  // HOA Hand rung
+  // HOA Hand rung (SS1 = selector switch, hand contact)
   let hoaHandDeviceId: string | undefined;
   let hoaHandCoilId: string | undefined;
   if (hasHOA) {
     rungNumber++;
-    const hoaHand = placeDevice(cd, 'iec-selector-switch', 0, 0, sheetId, 'HOA-H');
+    const hoaHand = placeDevice(cd, 'iec-selector-switch-3pos', 0, 0, sheetId, 'SS1');
     cd = hoaHand.circuit;
+    cd = updateDeviceFunction(cd, hoaHand.deviceId, 'Selector Switch - Hand Contact');
     hoaHandDeviceId = hoaHand.deviceId;
     const hoaCoil = placeLinkedDevice(cd, 'K1', 'iec-coil', 0, 0, sheetId);
     cd = hoaCoil.circuit;
@@ -477,8 +484,9 @@ function generateMotorStarterPanel(
   let hoaAutoDeviceId: string | undefined;
   if (hasHOA && hasPLC) {
     rungNumber++;
-    const hoaAuto = placeDevice(cd, 'iec-selector-switch', 0, 0, sheetId, 'HOA-A');
+    const hoaAuto = placeLinkedDevice(cd, 'SS1', 'iec-selector-switch-3pos', 0, 0, sheetId);
     cd = hoaAuto.circuit;
+    cd = updateDeviceFunction(cd, hoaAuto.deviceId, 'Selector Switch - Auto Contact');
     hoaAutoDeviceId = hoaAuto.deviceId;
     const plcContact = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, 'PLC1');
     cd = plcContact.circuit;
@@ -543,11 +551,11 @@ function generateMotorStarterPanel(
 
   // Wire HOA Hand
   if (hasHOA && hoaHandDeviceId && hoaHandCoilId) {
-    cd = createWire(cd, 'HOA-H', '2', 'K1', '1', hoaHandDeviceId, hoaHandCoilId);
+    cd = createWire(cd, 'SS1', '2', 'K1', '1', hoaHandDeviceId, hoaHandCoilId);
   }
   // Wire HOA Auto + PLC
   if (hasHOA && hasPLC && hoaAutoDeviceId && plcDeviceId && plcCoilId) {
-    cd = createWire(cd, 'HOA-A', '2', 'PLC1', '1', hoaAutoDeviceId, plcDeviceId);
+    cd = createWire(cd, 'SS1', '2', 'PLC1', '1', hoaAutoDeviceId, plcDeviceId);
     cd = createWire(cd, 'PLC1', '2', 'K1', '1', plcDeviceId, plcCoilId);
   } else if (hasPLC && !hasHOA && plcDeviceId && plcCoilId) {
     cd = createWire(cd, 'PLC1', '2', 'K1', '1', plcDeviceId, plcCoilId);

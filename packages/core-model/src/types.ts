@@ -112,14 +112,14 @@ export interface SymbolPath {
  * and ODB++ typed feature records.
  */
 export type SymbolPrimitive =
-  | { type: 'line'; x1: number; y1: number; x2: number; y2: number; stroke?: string; strokeWidth?: number }
-  | { type: 'rect'; x: number; y: number; width: number; height: number; stroke?: string; fill?: string; strokeWidth?: number; rx?: number }
-  | { type: 'circle'; cx: number; cy: number; r: number; stroke?: string; fill?: string; strokeWidth?: number }
-  | { type: 'arc'; cx: number; cy: number; r: number; startAngle: number; endAngle: number; stroke?: string; strokeWidth?: number }
-  | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number; stroke?: string; fill?: string; strokeWidth?: number }
-  | { type: 'polyline'; points: Array<{ x: number; y: number }>; closed?: boolean; stroke?: string; fill?: string; strokeWidth?: number }
+  | { type: 'line'; x1: number; y1: number; x2: number; y2: number; stroke?: string; strokeWidth?: number; strokeDash?: number[] }
+  | { type: 'rect'; x: number; y: number; width: number; height: number; stroke?: string; fill?: string; strokeWidth?: number; rx?: number; strokeDash?: number[] }
+  | { type: 'circle'; cx: number; cy: number; r: number; stroke?: string; fill?: string; strokeWidth?: number; strokeDash?: number[] }
+  | { type: 'arc'; cx: number; cy: number; r: number; startAngle: number; endAngle: number; stroke?: string; strokeWidth?: number; strokeDash?: number[] }
+  | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number; stroke?: string; fill?: string; strokeWidth?: number; strokeDash?: number[] }
+  | { type: 'polyline'; points: Array<{ x: number; y: number }>; closed?: boolean; stroke?: string; fill?: string; strokeWidth?: number; strokeDash?: number[] }
   | { type: 'text'; x: number; y: number; content: string; fontSize?: number; fontWeight?: string; textAnchor?: string }
-  | { type: 'path'; d: string; stroke?: string; fill?: string; strokeWidth?: number };
+  | { type: 'path'; d: string; stroke?: string; fill?: string; strokeWidth?: number; strokeDash?: number[] };
 
 /**
  * Text element for symbol rendering

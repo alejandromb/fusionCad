@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-14 (Hand Tool + Selection UX Fix + Group Rotation)
+**Last Updated**: 2026-02-21 (HOA Linked Device Refactor + Symbol Fix)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -99,14 +99,14 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ ~~VISIBILITY BUG~~ — Fixed! RAF coalescing `needsRenderRef` was stuck at `true`
 - ✅ Canvas panning — Hand tool (H), Space+drag, middle-click
 - ✅ Selection UX — Marquee on click+drag (no Shift), group rotation (R key)
+- ✅ HOA Linked Device Refactor — SS1 replaces HOA-H/HOA-A, uses placeLinkedDevice pattern
 - Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
 
 ### Next Immediate Steps
-1. Merge `fix/selection-and-group-rotation` branch to main after testing
-2. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
-3. Wire preview improvement: Replace straight dashed line with orthogonal L-shaped preview
-4. Implement IndexedDB storage for free tier (local-only)
-5. Import symbols from external SVG libraries
+1. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
+2. Implement IndexedDB storage for free tier (local-only)
+3. Import symbols from external SVG libraries
+4. Improve selector switch 3-pos symbol visuals (cam operator rendering at small sizes)
 
 ---
 

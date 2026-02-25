@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Symbol Preview — fusionCad</title>
+<style>
+  body { background: #1e1e2e; color: #cdd6f4; font-family: monospace; margin: 20px; }
+  h1 { color: #89b4fa; }
+  h2 { color: #a6e3a1; margin-top: 30px; }
+  .symbol-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .symbol-card {
+    background: #313244; border-radius: 8px; padding: 12px;
+    text-align: center; min-width: 150px;
+  }
+  .symbol-card h3 { color: #fab387; margin: 0 0 6px 0; font-size: 11px; }
+  .symbol-card .dims { color: #6c7086; font-size: 10px; }
+  svg { border: 1px dashed #45475a; }
+  .section { margin-bottom: 30px; }
+  .orientation-label { color: #f9e2af; font-size: 10px; margin-bottom: 3px; }
+  .winner { border: 2px solid #a6e3a1; }
+</style>
+</head>
+<body>
+<h1>fusionCad Symbol Preview — Selector Switches</h1>
+<p>Comparing IEC 60617 designs. Red dots = pin locations. Grid = 10-unit squares.</p>
+
+<div class="section">
+<h2>Current (Before)</h2>
+<div class="symbol-row" id="current"></div>
+</div>
+
+<div class="section">
+<h2>Design A — Arc + 3 Position Marks (IEC S00300 style)</h2>
+<p style="color:#6c7086">3-position shown as arc with 3 tick marks. Cleaner, no text to rotate badly.</p>
+<div class="symbol-row" id="designA"></div>
+</div>
+
+<div class="section">
+<h2>Design B — Circle + Radiating Lines (improved current)</h2>
+<p style="color:#6c7086">Same concept as current but bigger, clearer proportions, larger labels.</p>
+<div class="symbol-row" id="designB"></div>
+</div>
+
+<div class="section">
+<h2>Design C — Eaton Elementary Style</h2>
+<p style="color:#6c7086">Position dots arranged like the Eaton elementary diagram. Arrow from center to drawn position.</p>
+<div class="symbol-row" id="designC"></div>
+</div>
+
+<div class="section">
+<h2>Reference Contacts</h2>
+<div class="symbol-row" id="reference"></div>
+</div>
+
+<script>
+function primitivesToSVG(primitives, width, height, scale = 4, strokeColor = '#cdd6f4') {
+  const sw = width * scale;
+  const sh = height * scale;
+  let svg = `<svg width="${sw}" height="${sh}" viewBox="-5 -5 ${width+10} ${height+10}" xmlns="http://www.w3.org/2000/svg">`;
+  // Grid
+  for (let x = 0; x <= width; x += 10) {
+    svg += `<line x1="${x}" y1="-5" x2="${x}" y2="${height+5}" stroke="#45475a" stroke-width="0.2"/>`;
+  }
+  for (let y = 0; y <= height; y += 10) {
+    svg += `<line x1="-5" y1="${y}" x2="${width+5}" y2="${y}" stroke="#45475a" stroke-width="0.2"/>`;
+  }
+  // Pins
+  svg += `<circle cx="20" cy="0" r="1.5" fill="#f38ba8"/>`;
+  svg += `<circle cx="20" cy="${height}" r="1.5" fill="#f38ba8"/>`;
+  // Symbol bounds
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="#45475a" stroke-width="0.3" stroke-dasharray="2 2"/>`;
+
+  for (const p of primitives) {
+    const stroke = p.stroke || strokeColor;
+    const fill = p.fill || 'none';
+    const lw = p.strokeWidth || 1.5;
+    const dash = p.strokeDash ? `stroke-dasharray="${p.strokeDash.join(' ')}"` : '';
+
+    switch (p.type) {
+      case 'line':
+        svg += `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="${stroke}" stroke-width="${lw}" ${dash} stroke-linecap="round"/>`;
+        break;
+      case 'circle':
+        svg += `<circle cx="${p.cx}" cy="${p.cy}" r="${p.r}" fill="${fill}" stroke="${stroke}" stroke-width="${lw}"/>`;
+        break;
+      case 'arc': {
+        const x1 = p.cx + p.r * Math.cos(p.startAngle);
+        const y1 = p.cy + p.r * Math.sin(p.startAngle);
+        const x2 = p.cx + p.r * Math.cos(p.endAngle);
+        const y2 = p.cy + p.r * Math.sin(p.endAngle);
+        const sweep = p.endAngle - p.startAngle;
+        const largeArc = Math.abs(sweep) > Math.PI ? 1 : 0;
+        svg += `<path d="M ${x1} ${y1} A ${p.r} ${p.r} 0 ${largeArc} 1 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${lw}" stroke-linecap="round"/>`;
+        break;
+      }
+      case 'polyline': {
+        const pts = p.points.map(pt => `${pt.x},${pt.y}`).join(' ');
+        if (p.closed) {
+          svg += `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${lw}"/>`;
+        } else {
+          svg += `<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        }
+        break;
+      }
+      case 'text': {
+        const fs = p.fontSize || 20;
+        const fw = p.fontWeight || 'bold';
+        const anchor = p.textAnchor === 'center' ? 'middle' : (p.textAnchor || 'middle');
+        svg += `<text x="${p.x}" y="${p.y}" fill="${stroke}" font-size="${fs}" font-weight="${fw}" font-family="monospace" text-anchor="${anchor}" dominant-baseline="central">${p.content}</text>`;
+        break;
+      }
+      case 'rect':
+        svg += `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" fill="${fill}" stroke="${stroke}" stroke-width="${lw}" rx="${p.rx || 0}"/>`;
+        break;
+    }
+  }
+  svg += '</svg>';
+  return svg;
+}
+
+function renderSymbol(container, name, primitives, width, height, scale = 4, highlight = false) {
+  const card = document.createElement('div');
+  card.className = 'symbol-card' + (highlight ? ' winner' : '');
+  const padW = width + 10;
+  const padH = height + 10;
+  card.innerHTML = `
+    <h3>${name}</h3>
+    <div class="orientation-label">Vertical</div>
+    ${primitivesToSVG(primitives, width, height, scale)}
+    <div class="dims">${width}×${height}</div>
+    <div class="orientation-label" style="margin-top:8px">Ladder (rotated -90°)</div>
+    <svg width="${padH * scale}" height="${padW * scale}" viewBox="-5 -5 ${padH} ${padW}" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(${height/2}, ${width/2}) rotate(-90) translate(${-width/2}, ${-height/2})">
+        ${primitivesToSVG(primitives, width, height, 1).replace(/<\/?svg[^>]*>/g, '')}
+      </g>
+    </svg>
+    <div class="dims">${height}×${width} (rotated)</div>
+  `;
+  container.appendChild(card);
+}
+
+// ============ SHARED: NO Contact Base ============
+const noBase = [
+  { type: 'line', x1: 20, y1: 0, x2: 20, y2: 25 },
+  { type: 'line', x1: 10, y1: 25, x2: 30, y2: 25 },
+  { type: 'line', x1: 10, y1: 35, x2: 30, y2: 35 },
+  { type: 'line', x1: 20, y1: 35, x2: 20, y2: 60 },
+];
+
+// ============ CURRENT ============
+const currentSel2 = [
+  ...noBase,
+  { type: 'arc', cx: 20, cy: 18, r: 4, startAngle: 3.93, endAngle: 5.50 },
+];
+
+const currentSel3 = [
+  ...noBase,
+  { type: 'circle', cx: 20, cy: 14, r: 6, fill: 'none' },
+  { type: 'line', x1: 20, y1: 14, x2: 20, y2: 8 },
+  { type: 'line', x1: 20, y1: 14, x2: 14, y2: 18, strokeDash: [2, 2] },
+  { type: 'line', x1: 20, y1: 14, x2: 26, y2: 18, strokeDash: [2, 2] },
+  { type: 'text', x: 6, y: 19, content: 'H', fontSize: 8, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 20, y: 4, content: 'O', fontSize: 8, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 34, y: 19, content: 'A', fontSize: 8, fontWeight: 'bold', textAnchor: 'center' },
+];
+
+renderSymbol(document.getElementById('current'), '2-pos (current)', currentSel2, 40, 60);
+renderSymbol(document.getElementById('current'), '3-pos HOA (current)', currentSel3, 40, 60);
+
+// ============ DESIGN A — Arc + Position Marks ============
+// IEC S00300: rotary switch with n positions shown as tick marks along an arc
+
+const designA_2pos = [
+  ...noBase,
+  // Rotary arc (sweeps ~120°, from 210° to 330° = 3.665 to 5.760 rad)
+  { type: 'arc', cx: 20, cy: 14, r: 7, startAngle: 3.665, endAngle: 5.760 },
+  // Arrowhead at end of arc (clockwise direction)
+  { type: 'polyline', points: [{x: 25.5, y: 8}, {x: 26, y: 11}, {x: 23, y: 9.5}] },
+  // Position dots at arc ends
+  { type: 'circle', cx: 14, cy: 18, r: 1.2, fill: '#cdd6f4' },  // position 1
+  { type: 'circle', cx: 26, cy: 10, r: 1.2, fill: '#cdd6f4' },  // position 2
+];
+
+// 3-pos: wider arc with 3 tick marks
+const designA_3pos = [
+  ...noBase,
+  // Wider rotary arc (sweeps ~160°, from 200° to 340° = 3.49 to 5.93 rad)
+  { type: 'arc', cx: 20, cy: 14, r: 8, startAngle: 3.49, endAngle: 5.93 },
+  // Position marks as small perpendicular ticks on the arc
+  // Left position (Hand) — at ~200° on arc
+  { type: 'circle', cx: 12.5, cy: 17, r: 1.3, fill: '#cdd6f4' },
+  // Center position (Off) — at ~270° (top) — solid arrow points here
+  { type: 'circle', cx: 20, cy: 6, r: 1.3, fill: '#cdd6f4' },
+  // Pointer/arrow to center (drawn state)
+  { type: 'line', x1: 20, y1: 14, x2: 20, y2: 8 },
+  // Right position (Auto)
+  { type: 'circle', cx: 27.5, cy: 17, r: 1.3, fill: '#cdd6f4' },
+  // Labels outside arc
+  { type: 'text', x: 5, y: 18.5, content: 'H', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 20, y: 1.5, content: 'O', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 35, y: 18.5, content: 'A', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+];
+
+renderSymbol(document.getElementById('designA'), '2-pos', designA_2pos, 40, 60);
+renderSymbol(document.getElementById('designA'), '3-pos HOA', designA_3pos, 40, 60);
+
+// ============ DESIGN B — Improved Circle + Radiating Lines ============
+
+const designB_2pos = [
+  ...noBase,
+  // Bigger arc with clear arrowhead
+  { type: 'arc', cx: 20, cy: 14, r: 8, startAngle: 3.93, endAngle: 5.50 },
+  // Arrowhead
+  { type: 'polyline', points: [{x: 25, y: 7.5}, {x: 27, y: 11}, {x: 23.5, y: 9}] },
+];
+
+const designB_3pos = [
+  ...noBase,
+  // Larger circle for rotary cam (r=8)
+  { type: 'circle', cx: 20, cy: 12, r: 8, fill: 'none' },
+  // Center dot (shaft)
+  { type: 'circle', cx: 20, cy: 12, r: 1.5, fill: '#cdd6f4' },
+  // Solid line to Off position (north) — drawn state
+  { type: 'line', x1: 20, y1: 12, x2: 20, y2: 4, strokeWidth: 1.8 },
+  // Dashed line to Hand position (southwest, ~210°)
+  { type: 'line', x1: 20, y1: 12, x2: 13, y2: 18, strokeDash: [2, 2] },
+  // Dashed line to Auto position (southeast, ~330°)
+  { type: 'line', x1: 20, y1: 12, x2: 27, y2: 18, strokeDash: [2, 2] },
+  // Small position dots at ends
+  { type: 'circle', cx: 20, cy: 4, r: 1, fill: '#cdd6f4' },
+  { type: 'circle', cx: 13, cy: 18, r: 1, fill: '#cdd6f4' },
+  { type: 'circle', cx: 27, cy: 18, r: 1, fill: '#cdd6f4' },
+  // Labels further out, larger
+  { type: 'text', x: 5, y: 21, content: 'H', fontSize: 7, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 20, y: -1, content: 'O', fontSize: 7, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 35, y: 21, content: 'A', fontSize: 7, fontWeight: 'bold', textAnchor: 'center' },
+];
+
+renderSymbol(document.getElementById('designB'), '2-pos', designB_2pos, 40, 60);
+renderSymbol(document.getElementById('designB'), '3-pos HOA', designB_3pos, 40, 60);
+
+// ============ DESIGN C — Eaton Elementary Style ============
+// Inspired by the Eaton HOA elementary diagram with position dots in a Y pattern
+
+const designC_2pos = [
+  ...noBase,
+  // Rotary arc
+  { type: 'arc', cx: 20, cy: 13, r: 7, startAngle: 3.665, endAngle: 5.760 },
+  // Arrow
+  { type: 'polyline', points: [{x: 25.5, y: 7}, {x: 26, y: 10}, {x: 23, y: 8.5}] },
+];
+
+const designC_3pos = [
+  ...noBase,
+  // Shaft line from contact up to operator
+  { type: 'line', x1: 20, y1: 25, x2: 20, y2: 12 },
+  // Branch point at y=12 — three branches radiate outward
+  // Off position — straight up (drawn state, solid)
+  { type: 'line', x1: 20, y1: 12, x2: 20, y2: 3 },
+  { type: 'circle', cx: 20, cy: 2, r: 1.5, fill: 'none' },
+  // Hand position — branch to upper-left (dashed)
+  { type: 'line', x1: 20, y1: 12, x2: 10, y2: 4, strokeDash: [2, 2] },
+  { type: 'circle', cx: 9, cy: 3, r: 1.5, fill: 'none' },
+  // Auto position — branch to upper-right (dashed)
+  { type: 'line', x1: 20, y1: 12, x2: 30, y2: 4, strokeDash: [2, 2] },
+  { type: 'circle', cx: 31, cy: 3, r: 1.5, fill: 'none' },
+  // Labels
+  { type: 'text', x: 3, y: 3, content: 'H', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 20, y: -3, content: 'O', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+  { type: 'text', x: 37, y: 3, content: 'A', fontSize: 6, fontWeight: 'bold', textAnchor: 'center' },
+];
+
+renderSymbol(document.getElementById('designC'), '2-pos', designC_2pos, 40, 60);
+renderSymbol(document.getElementById('designC'), '3-pos HOA', designC_3pos, 40, 60);
+
+// ============ REFERENCE ============
+const ncContact = [
+  { type: 'line', x1: 20, y1: 0, x2: 20, y2: 25 },
+  { type: 'line', x1: 10, y1: 25, x2: 30, y2: 25 },
+  { type: 'line', x1: 30, y1: 25, x2: 10, y2: 35 },
+  { type: 'line', x1: 10, y1: 35, x2: 30, y2: 35 },
+  { type: 'line', x1: 20, y1: 35, x2: 20, y2: 60 },
+];
+
+renderSymbol(document.getElementById('reference'), 'NO Contact', noBase, 40, 60, 3);
+renderSymbol(document.getElementById('reference'), 'NC Contact', ncContact, 40, 60, 3);
+
+</script>
+</body>
+</html>
