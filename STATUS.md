@@ -909,9 +909,10 @@ This file tracks where we are in development. **Always read this file at the sta
 - `plc-do-32` → auto-generates 33-pin symbol on the fly
 - Unknown categories get labeled placeholders instead of blank boxes
 - Allen-Bradley 1769-PA4 now renders as power supply symbol (50x60, 4 pins)
+- ✅ **Part number labels on canvas** — Part number (e.g., "1769-IF8") renders below symbol, tag renders above. Theme-aware styling across all 6 presets. Only shown when part is assigned.
 
 **Files Created**: `packages/core-model/src/symbols/symbol-generators.ts`
-**Files Modified**: `symbol-library.ts`, `iec-symbols.ts`, `circuit-renderer.ts`, `symbols.ts`, `useCanvasInteraction.ts`, `useCircuitState.ts`, `types.ts`, `index.ts`
+**Files Modified**: `symbol-library.ts`, `iec-symbols.ts`, `circuit-renderer.ts`, `symbols.ts`, `useCanvasInteraction.ts`, `useCircuitState.ts`, `types.ts`, `index.ts`, `theme.ts`
 
 **Next priority**: ERC hot-to-neutral short circuit detection (added to High Priority features)
 
