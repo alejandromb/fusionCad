@@ -30,17 +30,17 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-27)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-28)
 
-**Current task:** Cloud Deploy + ERC Short Circuit + OAuth — ALL COMPLETE
+**Current task:** Cloud Deploy + ERC Short Circuit + OAuth — ALL COMPLETE, committed & pushed
 
 **What was implemented:**
-- **Cloud Deployment:** Dockerfile (multi-stage), initial DB migration, Railway config, production-safe data-source.ts (DATABASE_URL, SSL, synchronize:false), CORS restrictions, DB-verifying /health endpoint
-- **ERC Hot-to-Neutral Short Circuit:** Device classifier (load/protection/switching/passive/source/unknown), circuit graph builder, BFS path analysis between power rails, flags paths with no load AND no protection
-- **Google/GitHub OAuth:** Amplify config reads VITE_COGNITO_OAUTH_DOMAIN, useAuth exposes loginWithGoogle/loginWithGitHub, AuthModal shows OAuth buttons when enabled
-- **Tests:** 125 E2E tests + 45 core-engine unit tests all passing
+- **Cloud Deployment:** Dockerfile, initial migration, Railway config, production data-source.ts, CORS, /health
+- **ERC Hot-to-Neutral Short Circuit:** Device classifier + circuit graph + BFS path analysis (45 unit tests)
+- **Google/GitHub OAuth:** Amplify federated identity, AuthModal buttons (dormant until VITE_COGNITO_OAUTH_DOMAIN set)
+- **Tests:** 125 E2E + 45 unit tests all passing
 
-**Branch:** `main`
+**Branch:** `main` (pushed to origin)
 
 **Next steps (priority order):**
 1. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars

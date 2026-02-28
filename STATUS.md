@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-27 (Cloud Deploy + ERC Short Circuit + OAuth)
+**Last Updated**: 2026-02-28 (Cloud Deploy + ERC Short Circuit + OAuth)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -942,10 +942,10 @@ This file tracks where we are in development. **Always read this file at the sta
 
 **Next priority**: ERC hot-to-neutral short circuit detection (added to High Priority features)
 
-### Checkpoint: 2026-02-27 - Cloud Deployment + ERC Short Circuit + Google/GitHub OAuth
-
-**Changes Made**:
-- Implemented all 3 planned items from storage architecture rethink session:
+### Session 11 - 2026-02-28 (Cloud Deployment + ERC Short Circuit + Google/GitHub OAuth)
+**Duration**: ~3 hours (planning + implementation across 2 context windows)
+**Completed**:
+- Implemented all 3 planned items from storage architecture rethink:
   1. **Cloud Deployment** — Production-safe data-source.ts, Dockerfile, initial DB migration, Railway config
   2. **ERC Hot-to-Neutral Short Circuit** — Device classifier, circuit graph builder, BFS path analysis
   3. **Google/GitHub OAuth** — Amplify config, useAuth methods, AuthModal buttons
@@ -990,6 +990,21 @@ This file tracks where we are in development. **Always read this file at the sta
 **Test Results**:
 - 125 E2E tests passing (2 new auth + 1 health + existing 122)
 - 45 core-engine unit tests passing (32 device-classifier + 7 circuit-graph + 6 ERC integration)
+
+**Blockers/Questions**: None
+
+**Next Session**:
+1. Deploy API to cloud (Railway/Fly.io + managed Postgres)
+2. Configure Cognito OAuth providers in AWS Console
+3. Gate AI features behind auth
+4. Improve selector switch symbol visuals
+
+**Session End Notes**:
+- All code is committed and pushed to origin/main
+- Dockerfile builds but hasn't been deployed yet — needs cloud provider setup
+- OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
+- ERC short circuit detection is conservative: unknown device roles don't trigger false positives
+- Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
 
 ---
 
