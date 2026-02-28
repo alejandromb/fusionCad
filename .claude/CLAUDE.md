@@ -30,31 +30,30 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-25)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-27)
 
-**Current task:** Symbol Resolution Pipeline + ERC Rules
+**Current task:** Cloud Deploy + ERC Short Circuit + OAuth — ALL COMPLETE
 
-**Status:**
-- ✅ **Symbol resolution fixed**: Parts no longer render as blank boxes
-- ✅ **4-tier `resolveSymbol()` pipeline**: Exact ID → Category alias → Parametric generation → Smart fallback
-- ✅ **Parametric PLC symbol generators**: Auto-generate DI/DO/AI/AO symbols for any channel count
-- ✅ **27 category aliases**: Bridge part-catalog categories to symbol IDs
-- ✅ **Smart generic fallback**: Dashed placeholder with label + pins (replaces blank box)
-- ✅ 122 E2E tests passing
+**What was implemented:**
+- **Cloud Deployment:** Dockerfile (multi-stage), initial DB migration, Railway config, production-safe data-source.ts (DATABASE_URL, SSL, synchronize:false), CORS restrictions, DB-verifying /health endpoint
+- **ERC Hot-to-Neutral Short Circuit:** Device classifier (load/protection/switching/passive/source/unknown), circuit graph builder, BFS path analysis between power rails, flags paths with no load AND no protection
+- **Google/GitHub OAuth:** Amplify config reads VITE_COGNITO_OAUTH_DOMAIN, useAuth exposes loginWithGoogle/loginWithGitHub, AuthModal shows OAuth buttons when enabled
+- **Tests:** 125 E2E tests + 45 core-engine unit tests all passing
 
 **Branch:** `main`
 
 **Next steps (priority order):**
-1. **ERC: Hot-to-neutral short circuit detection** — Build net reachability graph, classify devices as load/protection/switching, flag paths between power rails with no load (CRITICAL)
-2. Improve selector switch symbol visuals (cam operator readability)
-3. Implement IndexedDB storage for free tier (Phase 8.1)
-4. Add org_id multi-tenancy to Postgres schema (Phase 8.2)
+1. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
+2. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+3. **Gate AI features behind auth** — Unsigned users can draw but not generate
+4. Improve selector switch symbol visuals (cam operator readability)
+5. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
 
 ---
 
 ## 🎯 PROJECT CONTEXT
 
-**Phase:** Phase 2 - Minimal Editor (98% complete)
+**Phase:** Phase 2 - Minimal Editor (99% complete)
 
 **Recent achievements:**
 - ✅ **Visibility Bug Fixed** - RAF coalescing broke rendering; fixed with cancel-and-reschedule pattern
@@ -69,14 +68,18 @@ Before doing ANYTHING else:
 - ✅ **Symbol Editor** - Visual tool to create/edit symbols without code
 - ✅ **JSON Symbol Library** - 55 IEC symbols loaded from `builtin-symbols.json`
 - ✅ **Insert Symbol Dialog** - Searchable modal with category filtering
+- ✅ **Cloud Deployment Ready** - Dockerfile, initial migration, Railway config, production data-source, CORS, /health
+- ✅ **ERC Hot-to-Neutral Short Circuit** - Device classifier + circuit graph + BFS path analysis between power rails
+- ✅ **Google/GitHub OAuth** - Amplify federated identity, OAuth buttons in AuthModal (activates when VITE_COGNITO_OAUTH_DOMAIN set)
+- ✅ **4-tier Symbol Resolution** - Exact ID → Category alias → Parametric generation → Smart fallback
 - ✅ Persistence with Postgres + TypeORM (auto-save, project management)
-- ✅ Playwright E2E tests - 35 tests, state bridge, isolated test DB
+- ✅ Playwright E2E tests - 125 tests + 45 unit tests, state bridge, isolated test DB
 - Professional wire routing (visibility graph + A* + nudging)
 
 **High priority features documented:**
 - ⭐ Automatic terminal block calculation (Phase 3-4)
 - ⭐ Panel layout editor (Phase 6-7)
-- ⭐ Dual storage: IndexedDB (free) + Postgres (paid)
+- ⭐ Cloud deployment (Dockerfile ready, needs Railway/Fly.io + managed Postgres)
 
 ---
 
@@ -122,7 +125,7 @@ Use these to improve workflow:
 
 ## 🧪 E2E TESTING (Playwright)
 
-35 tests covering all Phase 2 features. Uses separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
+125 E2E tests + 45 unit tests covering all Phase 2 features. Uses separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
 
 ```bash
 npm run db:up              # ensure Docker Postgres is running

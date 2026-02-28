@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-02-25 (Symbol Resolution Pipeline + Parametric Generators)
+**Last Updated**: 2026-02-27 (Cloud Deploy + ERC Short Circuit + OAuth)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -100,13 +100,39 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ Canvas panning — Hand tool (H), Space+drag, middle-click
 - ✅ Selection UX — Marquee on click+drag (no Shift), group rotation (R key)
 - ✅ HOA Linked Device Refactor — SS1 replaces HOA-H/HOA-A, uses placeLinkedDevice pattern
-- Dual storage architecture planning (IndexedDB for free tier, Postgres for paid)
+- ✅ **Storage architecture decided** — Free cloud tier for everyone (see below)
+- ✅ **Cloud deployment ready** — Dockerfile, migrations, Railway config, CORS, health check
+- ✅ **ERC hot-to-neutral short circuit** — Device classifier + circuit graph + BFS path analysis
+- ✅ **Google/GitHub OAuth** — Amplify federated identity, OAuth buttons in AuthModal
+
+### ✅ DECIDED: Free-Tier Storage Architecture (2026-02-27)
+
+**Problem:** IndexedDB as primary storage for free-tier users has unacceptable failure modes:
+- Clear browser data → projects gone
+- Switch PC → projects not there
+- Browser auto-cleanup (storage pressure) → could silently wipe data
+
+**Decision: Option B — Free cloud tier for everyone.**
+
+**Architecture:**
+- **Unsigned users (sandbox mode):** Full editor works — draw, wire, place symbols, export. Data lives in IndexedDB as throwaway trial storage. No AI features. No persistence guarantee.
+- **Signed-up users (free tier):** Cloud persistence via Postgres, auto-save, AI generation. Data survives across devices and browser clears.
+- **Auth:** Keep existing Cognito + Amplify. Add Google/GitHub OAuth as federated identity providers for easy signup. Keep email/password as fallback.
+- **IndexedDB migration:** Not needed — no real users have valuable local projects.
+- **Free tier limits:** TBD (likely 3 projects, capped AI generations)
+
+**Implementation phases:**
+1. Add Google/GitHub OAuth to Cognito User Pool + UI buttons
+2. Deploy cloud Postgres (Supabase/Neon free tier) + API (Railway/Fly.io)
+3. Gate AI features behind auth (unsigned users can draw but not generate)
+4. Later: org_id multi-tenancy, Stripe payments, team features
 
 ### Next Immediate Steps
-1. **Add E2E visibility test** — verify that placed devices are actually visible on canvas
-2. Implement IndexedDB storage for free tier (local-only)
-3. Import symbols from external SVG libraries
+1. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
+2. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+3. **Gate AI features behind auth** — Unsigned users can draw but not generate
 4. Improve selector switch 3-pos symbol visuals (cam operator rendering at small sizes)
+5. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
 
 ---
 
@@ -915,6 +941,55 @@ This file tracks where we are in development. **Always read this file at the sta
 **Files Modified**: `symbol-library.ts`, `iec-symbols.ts`, `circuit-renderer.ts`, `symbols.ts`, `useCanvasInteraction.ts`, `useCircuitState.ts`, `types.ts`, `index.ts`, `theme.ts`
 
 **Next priority**: ERC hot-to-neutral short circuit detection (added to High Priority features)
+
+### Checkpoint: 2026-02-27 - Cloud Deployment + ERC Short Circuit + Google/GitHub OAuth
+
+**Changes Made**:
+- Implemented all 3 planned items from storage architecture rethink session:
+  1. **Cloud Deployment** — Production-safe data-source.ts, Dockerfile, initial DB migration, Railway config
+  2. **ERC Hot-to-Neutral Short Circuit** — Device classifier, circuit graph builder, BFS path analysis
+  3. **Google/GitHub OAuth** — Amplify config, useAuth methods, AuthModal buttons
+
+**Architecture Updates**:
+- `apps/api/src/data-source.ts` — Supports `DATABASE_URL` env var, disables `synchronize` in production, adds SSL for managed Postgres
+- `apps/api/src/index.ts` — CORS restricted via `CORS_ORIGINS` env var, `/health` verifies DB connection
+- `packages/core-engine/src/device-classifier.ts` (new) — Classifies devices as load/protection/switching/passive/source/unknown by symbol keyword, part category, or tag prefix
+- `packages/core-engine/src/circuit-graph.ts` (new) — Builds adjacency map from connections, BFS path finder between power rails
+- `packages/core-engine/src/erc.ts` — New `checkHotToNeutralShort()` rule: identifies hot/neutral nets, finds paths, flags paths with no load AND no protection
+- `apps/web/src/auth/amplify-config.ts` — Reads `VITE_COGNITO_OAUTH_DOMAIN`, adds OAuth config to Amplify when present
+- `apps/web/src/auth/useAuth.ts` — `loginWithGoogle`/`loginWithGitHub` via `signInWithRedirect`, Hub listener for OAuth callbacks
+- `apps/web/src/components/AuthModal.tsx` — OAuth buttons (Google/GitHub) with SVG icons, only shown when `oauthEnabled`
+
+**Files Created**:
+- `Dockerfile` — Multi-stage build (builder + node:20-alpine runtime)
+- `.dockerignore` — Excludes node_modules, .git, e2e, .claude
+- `.env.example` — Documents all env vars (DB, CORS, Auth, AI, OAuth)
+- `apps/api/src/migrations/1709000000000-InitialSchema.ts` — Baseline migration
+- `railway.json` — Railway deployment config
+- `e2e/tests/health.spec.ts` — Health endpoint E2E test
+- `e2e/tests/auth.spec.ts` — OAuth button visibility + modal open/close E2E tests
+- `packages/core-engine/src/device-classifier.ts` — Device role classification
+- `packages/core-engine/src/circuit-graph.ts` — Circuit graph building + path analysis
+- `packages/core-engine/src/device-classifier.test.ts` — 32 unit tests
+- `packages/core-engine/src/circuit-graph.test.ts` — 7 unit tests
+- `packages/core-engine/src/erc-short-circuit.test.ts` — 6 integration tests
+- `packages/core-engine/vitest.config.ts` — Vitest config for core-engine
+
+**Files Modified**:
+- `apps/api/src/data-source.ts` — DATABASE_URL, SSL, synchronize:false in prod
+- `apps/api/src/index.ts` — CORS_ORIGINS, enhanced /health
+- `apps/api/package.json` — Migration scripts
+- `packages/core-engine/src/erc.ts` — Added checkHotToNeutralShort rule
+- `packages/core-engine/src/index.ts` — Exported new modules
+- `packages/core-engine/package.json` — Added vitest + test scripts
+- `apps/web/src/auth/amplify-config.ts` — OAuth config + isOAuthEnabled()
+- `apps/web/src/auth/useAuth.ts` — OAuth methods + Hub listener
+- `apps/web/src/components/AuthModal.tsx` — OAuth buttons UI
+- `apps/web/src/App.css` — OAuth button styles
+
+**Test Results**:
+- 125 E2E tests passing (2 new auth + 1 health + existing 122)
+- 45 core-engine unit tests passing (32 device-classifier + 7 circuit-graph + 6 ERC integration)
 
 ---
 

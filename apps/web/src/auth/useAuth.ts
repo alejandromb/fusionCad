@@ -6,7 +6,10 @@ import {
   signOut,
   getCurrentUser,
   fetchAuthSession,
+  signInWithRedirect,
 } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { isOAuthEnabled } from './amplify-config.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -24,9 +27,12 @@ export interface UseAuthReturn {
   isLoading: boolean;
   user: AuthUser | null;
   authEnabled: boolean;
+  oauthEnabled: boolean;
   /** Call to get current access token (handles refresh). Returns null if not authenticated. */
   getAccessToken: () => Promise<string | null>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithGitHub: () => Promise<void>;
   register: (email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   confirmRegistration: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -39,6 +45,7 @@ export function useAuth(authEnabled: boolean): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const oauthEnabled = authEnabled && isOAuthEnabled();
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -92,6 +99,26 @@ export function useAuth(authEnabled: boolean): UseAuthReturn {
     checkSession();
   }, [authEnabled, getAccessToken, fetchProfile]);
 
+  // Listen for OAuth redirect completion
+  useEffect(() => {
+    if (!oauthEnabled) return;
+
+    const unsubscribe = Hub.listen('auth', async ({ payload }) => {
+      if (payload.event === 'signInWithRedirect') {
+        const token = await getAccessToken();
+        if (token) {
+          setIsAuthenticated(true);
+          await fetchProfile(token);
+        }
+      }
+      if (payload.event === 'signInWithRedirect_failure') {
+        setError('OAuth sign-in failed. Please try again.');
+      }
+    });
+
+    return unsubscribe;
+  }, [oauthEnabled, getAccessToken, fetchProfile]);
+
   const login = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
@@ -106,6 +133,26 @@ export function useAuth(authEnabled: boolean): UseAuthReturn {
       throw err;
     }
   }, [getAccessToken, fetchProfile]);
+
+  const loginWithGoogle = useCallback(async () => {
+    setError(null);
+    try {
+      await signInWithRedirect({ provider: 'Google' });
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed');
+      throw err;
+    }
+  }, []);
+
+  const loginWithGitHub = useCallback(async () => {
+    setError(null);
+    try {
+      await signInWithRedirect({ provider: { custom: 'GitHub' } });
+    } catch (err: any) {
+      setError(err.message || 'GitHub sign-in failed');
+      throw err;
+    }
+  }, []);
 
   const register = useCallback(async (email: string, password: string): Promise<{ needsConfirmation: boolean }> => {
     setError(null);
@@ -147,8 +194,11 @@ export function useAuth(authEnabled: boolean): UseAuthReturn {
     isLoading,
     user,
     authEnabled,
+    oauthEnabled,
     getAccessToken,
     login,
+    loginWithGoogle,
+    loginWithGitHub,
     register,
     confirmRegistration,
     logout,

@@ -17,6 +17,8 @@ export * from './cross-references.js';
 
 // Electrical Rules Check
 export * from './erc.js';
+export * from './device-classifier.js';
+export * from './circuit-graph.js';
 
 // Ladder diagram layout
 export * from './ladder-layout.js';

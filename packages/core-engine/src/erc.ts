@@ -7,13 +7,16 @@
  * - Missing part assignments
  * - Unconnected nets
  * - Power net validation
- * - Short circuit detection
+ * - Short circuit detection (device-level)
+ * - Hot-to-neutral short circuit detection (circuit-level path analysis)
  * - Orphan parts
  * - Wire without net
  */
 
 import type { Device, Part, Net, SymbolDefinition } from '@fusion-cad/core-model';
 import { getSymbolDefinition } from '@fusion-cad/core-model';
+import { classifyDevice } from './device-classifier.js';
+import { buildCircuitGraph, findPathsBetweenRails } from './circuit-graph.js';
 
 export type ERCSeverity = 'error' | 'warning' | 'info';
 
@@ -83,6 +86,7 @@ export function runERC(circuit: ERCCircuitData): ERCReport {
   checkUnconnectedNets(circuit, addViolation);
   checkPowerNetValidation(circuit, addViolation);
   checkShortCircuit(circuit, addViolation);
+  checkHotToNeutralShort(circuit, addViolation);
   checkOrphanParts(circuit, addViolation);
   checkWireWithoutNet(circuit, addViolation);
 
@@ -395,6 +399,73 @@ function checkShortCircuit(circuit: ERCCircuitData, addViolation: AddViolationFn
           pinIds,
           sheetId: device?.sheetId,
         }
+      );
+    }
+  }
+}
+
+/**
+ * Rule: Hot-to-Neutral Short Circuit (error)
+ *
+ * Traces paths from hot rail (L1) to neutral rail (L2/N) through the circuit graph.
+ * If any path has no load AND no protection device, it's a short circuit.
+ *
+ * Device roles:
+ * - load: dissipates power (motor, heater, light) — makes path legitimate
+ * - protection: interrupts fault current (breaker, fuse, overload) — makes path legitimate
+ * - switching: may be open/closed (contactor, relay, button) — transparent to analysis
+ * - passive: doesn't affect power flow (terminal, junction) — transparent to analysis
+ */
+function checkHotToNeutralShort(circuit: ERCCircuitData, addViolation: AddViolationFn): void {
+  // 1. Identify hot vs neutral power nets by name
+  const hotNetIds = new Set<string>();
+  const neutralNetIds = new Set<string>();
+
+  for (const net of circuit.nets) {
+    if (net.netType !== 'power') continue;
+    const name = (net.name || '').toUpperCase();
+    if (name.includes('L1') || name === 'HOT' || name === '+' || name === '+24V' || name === '+24VDC') {
+      hotNetIds.add(net.id);
+    } else if (name.includes('L2') || name === 'N' || name === 'NEUTRAL' || name === '-' || name === '0V' || name === 'COM') {
+      neutralNetIds.add(net.id);
+    }
+  }
+
+  // Can't run this check without identifying both rails
+  if (hotNetIds.size === 0 || neutralNetIds.size === 0) return;
+
+  // 2. Build circuit graph
+  const graph = buildCircuitGraph(circuit.connections);
+
+  // 3. Classify all devices
+  const deviceRoles = new Map<string, ReturnType<typeof classifyDevice>>();
+  for (const device of circuit.devices) {
+    deviceRoles.set(device.tag, classifyDevice(device, circuit.parts));
+  }
+
+  // 4. Find devices connected to each rail
+  const hotDevices = new Set<string>();
+  const neutralDevices = new Set<string>();
+
+  for (const netId of hotNetIds) {
+    const devices = graph.netDevices.get(netId);
+    if (devices) devices.forEach(d => hotDevices.add(d));
+  }
+  for (const netId of neutralNetIds) {
+    const devices = graph.netDevices.get(netId);
+    if (devices) devices.forEach(d => neutralDevices.add(d));
+  }
+
+  // 5. Find paths and flag those with no load or protection
+  const paths = findPathsBetweenRails(graph, hotDevices, neutralDevices, deviceRoles);
+
+  for (const result of paths) {
+    if (!result.hasLoad && !result.hasProtection) {
+      addViolation(
+        'error',
+        'hot-to-neutral-short',
+        `Potential short circuit: path from hot to neutral with no load or protection device: ${result.path.join(' \u2192 ')}`,
+        { deviceTags: result.path }
       );
     }
   }

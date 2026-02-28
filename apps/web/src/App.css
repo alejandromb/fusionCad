@@ -3103,6 +3103,59 @@
   text-align: center;
 }
 
+/* OAuth buttons */
+.auth-oauth-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.auth-oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--fc-border);
+  border-radius: 6px;
+  background: var(--fc-bg-secondary);
+  color: var(--fc-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.auth-oauth-btn:hover {
+  background: var(--fc-bg-hover);
+  border-color: var(--fc-text-dim);
+}
+
+.auth-oauth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 0.5rem 0;
+  color: var(--fc-text-dim);
+  font-size: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.auth-divider span {
+  padding: 0 0.75rem;
+}
+
 /* ============================================
    Upgrade CTA Dialog
    ============================================ */

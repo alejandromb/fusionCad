@@ -15,12 +15,24 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+  : undefined; // undefined = allow all origins (dev mode)
+
+app.use(cors({
+  origin: corsOrigins || true,
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' })); // Allow larger payloads for circuit data
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check — verifies DB connection
+app.get('/health', async (_req, res) => {
+  try {
+    await AppDataSource.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'degraded', db: 'disconnected', timestamp: new Date().toISOString() });
+  }
 });
 
 // ============ USER ROUTES ============
