@@ -784,5 +784,46 @@ export function createServer(apiBase: string) {
     },
   );
 
+  server.tool(
+    'generate_power_distribution',
+    'Generate a complete power distribution schematic page with main breaker, optional surge protection, optional control transformer, 24VDC power supplies, and branch circuits for outlet/light/fan.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      supplyVoltage: z.enum(['480VAC', '240VAC', '208VAC', '120VAC']).describe('Supply voltage'),
+      controlVoltage: z.enum(['120VAC', '24VDC']).optional().describe('Control circuit voltage (default: "120VAC")'),
+      transformer: z.boolean().optional().describe('Include 1:1 isolation/stepdown transformer (default: false)'),
+      powerSupplyCount: z.number().min(1).max(2).optional().describe('Number of 24VDC power supplies (default: 1)'),
+      convenienceOutlet: z.boolean().optional().describe('Include convenience outlet (default: true)'),
+      cabinetLight: z.boolean().optional().describe('Include cabinet light (default: true)'),
+      cabinetFan: z.boolean().optional().describe('Include cabinet fan (default: false)'),
+      surgeProtection: z.boolean().optional().describe('Include surge protection device (default: true)'),
+    },
+    async ({ projectId, supplyVoltage, controlVoltage, transformer, powerSupplyCount, convenienceOutlet, cabinetLight, cabinetFan, surgeProtection }) => {
+      const { generatePowerDistribution } = await import('./circuit-templates.js');
+
+      const project = await api.getProject(projectId);
+
+      const result = generatePowerDistribution(project.circuitData, {
+        supplyVoltage,
+        controlVoltage: controlVoltage || '120VAC',
+        transformer,
+        powerSupplyCount: (powerSupplyCount as 1 | 2) || 1,
+        convenienceOutlet,
+        cabinetLight,
+        cabinetFan,
+        surgeProtection,
+      });
+
+      await api.updateCircuitData(projectId, result.circuit);
+
+      return textResult({
+        generated: true,
+        deviceCount: result.circuit.devices.length,
+        wireCount: result.circuit.connections.length,
+        summary: result.summary,
+      });
+    },
+  );
+
   return server;
 }

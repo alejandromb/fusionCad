@@ -10,6 +10,7 @@
 import type { SymbolDefinition } from '../types.js';
 import { registerSymbol, registerCategoryAlias } from '../symbol-library.js';
 import { loadSymbolsFromJson } from './symbol-loader.js';
+import { generatePLCDigitalSymbol, generatePLCAnalogSymbol } from './symbol-generators.js';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - JSON import handled by bundler
 import builtinSymbolsJson from './builtin-symbols.json' with { type: 'json' };
@@ -55,13 +56,14 @@ export function registerBuiltinSymbols(): void {
     ['pilot-light', 'iec-pilot-light'],
     ['e-stop', 'iec-emergency-stop'],
     ['selector-switch', 'iec-selector-switch'],
-    // PLC modules — only alias exact matches; parametric generator handles other counts
+    // PLC modules — generator handles all I/O channel counts (DI, DO, AI, AO)
     ['plc-cpu', 'iec-plc-cpu'],
     ['plc-ps', 'iec-power-supply-ac-dc'],
-    ['plc-di-8', 'iec-plc-di-8'],
-    ['plc-do-8', 'iec-plc-do-8'],
-    ['plc-ai-4', 'iec-plc-ai-4'],
-    ['plc-ao-4', 'iec-plc-ao-4'],
+    // Power distribution
+    ['transformer', 'iec-transformer-1ph'],
+    ['surge-arrester', 'iec-surge-arrester'],
+    ['receptacle', 'iec-receptacle'],
+    ['circuit-breaker-2p', 'iec-circuit-breaker-2p'],
     // Starter kits / assemblies (use contactor as primary symbol)
     ['manual-starter', 'iec-manual-switch'],
     ['nema-starter', 'iec-contactor-3p'],
@@ -74,7 +76,23 @@ export function registerBuiltinSymbols(): void {
     registerCategoryAlias(alias, symbolId);
   }
 
-  console.log(`Loaded ${builtinSymbolsJson.symbols.length + 1} built-in symbols + ${aliases.length} category aliases`);
+  // Pre-generate common PLC I/O module symbols so they appear in the palette.
+  // The parametric generator handles any channel count, but these are the standard ones.
+  const plcDefaults = [
+    generatePLCDigitalSymbol('DI', 8),
+    generatePLCDigitalSymbol('DI', 16),
+    generatePLCDigitalSymbol('DO', 8),
+    generatePLCDigitalSymbol('DO', 16),
+    generatePLCAnalogSymbol('AI', 4),
+    generatePLCAnalogSymbol('AI', 8),
+    generatePLCAnalogSymbol('AO', 4),
+    generatePLCAnalogSymbol('AO', 8),
+  ];
+  for (const def of plcDefaults) {
+    registerSymbol(def);
+  }
+
+  console.log(`Loaded ${builtinSymbolsJson.symbols.length + 1} built-in symbols + ${plcDefaults.length} PLC generators + ${aliases.length} category aliases`);
 }
 
 /**

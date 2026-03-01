@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { generateId, getSymbolById, type Device, type Sheet, type Annotation, type Part } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, type Device, type Sheet, type Annotation, type Part } from '@fusion-cad/core-model';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
 import { getSymbolGeometry } from '../renderer/symbols';
@@ -299,7 +299,8 @@ export function useCircuitState(
   // The symbolIdOrCategory can be a symbol ID (e.g., 'iec-power-supply') or a legacy category ID
   const generateTag = useCallback((symbolIdOrCategory: SymbolCategory, existingDevices: Device[]): string => {
     // Try to get tag prefix from symbol definition first (new behavior)
-    const symbolDef = getSymbolById(symbolIdOrCategory);
+    // resolveSymbol handles parametric generation (e.g., iec-plc-di-16)
+    const symbolDef = resolveSymbol(symbolIdOrCategory);
     let prefix = symbolDef?.tagPrefix;
 
     // Fall back to SYMBOL_CATEGORIES lookup (legacy behavior)
@@ -469,7 +470,7 @@ export function useCircuitState(
 
     const tag = generateTag(category, circuit.devices);
     const now = Date.now();
-    const symbolDef = getSymbolById(category);
+    const symbolDef = resolveSymbol(category);
     const categoryInfo = SYMBOL_CATEGORIES.find(c => c.id === category);
     const displayName = symbolDef?.name || categoryInfo?.label || category;
     const newPartId = generateId();

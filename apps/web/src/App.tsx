@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import './App.css';
-import { registerBuiltinSymbols, registerSymbol } from '@fusion-cad/core-model';
+import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
 import { detectStorageProvider, IndexedDBStorageProvider, type StorageProvider, type StorageType } from './storage';
@@ -62,7 +62,17 @@ export function App() {
           for (const sym of symbols) {
             registerSymbol(sym);
           }
-          console.log(`Loaded ${symbols.length} symbols from API`);
+          // Also register parametrically-generated PLC I/O defaults
+          // (these aren't stored in the DB — they come from the generator)
+          for (const def of [
+            generatePLCDigitalSymbol('DI', 8), generatePLCDigitalSymbol('DI', 16),
+            generatePLCDigitalSymbol('DO', 8), generatePLCDigitalSymbol('DO', 16),
+            generatePLCAnalogSymbol('AI', 4), generatePLCAnalogSymbol('AI', 8),
+            generatePLCAnalogSymbol('AO', 4), generatePLCAnalogSymbol('AO', 8),
+          ]) {
+            registerSymbol(def);
+          }
+          console.log(`Loaded ${symbols.length} symbols from API + 8 PLC generators`);
           setSymbolsLoaded(true);
           return;
         } catch {

@@ -30,24 +30,24 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-02-28)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-01)
 
-**Current task:** Cloud Deploy + ERC Short Circuit + OAuth — ALL COMPLETE, committed & pushed
+**Current task:** Power Distribution Ladder Rewrite — COMPLETE, tested
 
 **What was implemented:**
-- **Cloud Deployment:** Dockerfile, initial migration, Railway config, production data-source.ts, CORS, /health
-- **ERC Hot-to-Neutral Short Circuit:** Device classifier + circuit graph + BFS path analysis (45 unit tests)
-- **Google/GitHub OAuth:** Amplify federated identity, AuthModal buttons (dormant until VITE_COGNITO_OAUTH_DOMAIN set)
-- **Tests:** 125 E2E + 45 unit tests all passing
+- **Power Distribution Ladder Rewrite:** Replaced vertical schematic with L1/N ladder-block layout (createLadderBlock → rungs → autoLayoutLadder → createLadderRails). Transformer handled separately (H1/H2 pins). PS output terminals below rung.
+- **Architecture Assessment:** 8.7/10 — Foundation is general-purpose. Motor starter logic properly isolated in templates, not in core abstractions.
+- **Tests:** 125 E2E + 45 unit tests all passing, TypeScript clean
 
-**Branch:** `main` (pushed to origin)
+**Branch:** `main` (uncommitted changes — new symbols + power dist rewrite)
 
 **Next steps (priority order):**
-1. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
-2. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-3. **Gate AI features behind auth** — Unsigned users can draw but not generate
-4. Improve selector switch symbol visuals (cam operator readability)
-5. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
+1. **Commit current changes** — Power distribution rewrite + new symbols
+2. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
+3. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+4. **Gate AI features behind auth** — Unsigned users can draw but not generate
+5. Improve selector switch symbol visuals (cam operator readability)
+6. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
 
 ---
 
@@ -56,6 +56,7 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (99% complete)
 
 **Recent achievements:**
+- ✅ **Power Distribution Ladder Layout** - L1/N rails, branch rungs, transformer/PS output terminals
 - ✅ **Visibility Bug Fixed** - RAF coalescing broke rendering; fixed with cancel-and-reschedule pattern
 - ✅ **Canvas Panning** - Click+drag pan, Space+drag, middle-click pan; Shift+drag for marquee
 - ✅ **AI Panel Generation** - Natural language → full motor starter design with Claude API backend

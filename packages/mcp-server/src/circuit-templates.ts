@@ -79,32 +79,58 @@ export function generateMotorStarter(
   //  SHEET 1 — Power Section (schematic, top-to-bottom)
   // ================================================================
 
+  // Supply terminals (strip X1) — panel boundary for incoming cables
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', 60, 40, powerSheetId, 'X1:1');
+  cd = x1_1.circuit;
+  const x1_2 = placeDevice(cd, 'iec-terminal-single', 100, 40, powerSheetId, 'X1:2');
+  cd = x1_2.circuit;
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', 140, 40, powerSheetId, 'X1:3');
+  cd = x1_3.circuit;
+
   // Place 3-phase power devices vertically
-  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 60, powerSheetId, 'CB1');
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 140, powerSheetId, 'CB1');
   cd = cb1.circuit;
 
-  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 180, powerSheetId, 'K1');
+  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 260, powerSheetId, 'K1');
   cd = k1power.circuit;
 
-  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 300, powerSheetId, 'F1');
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 380, powerSheetId, 'F1');
   cd = f1power.circuit;
 
-  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 420, powerSheetId, 'M1');
+  // Motor output terminals (strip X2) — panel boundary for motor leads
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', 60, 480, powerSheetId, 'X2:1');
+  cd = x2_1.circuit;
+  const x2_2 = placeDevice(cd, 'iec-terminal-single', 100, 480, powerSheetId, 'X2:2');
+  cd = x2_2.circuit;
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', 140, 480, powerSheetId, 'X2:3');
+  cd = x2_3.circuit;
+
+  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 580, powerSheetId, 'M1');
   cd = m1.circuit;
 
-  // Wire 9 phase connections (3 phases × 3 hops)
-  // Phase L1
+  // Ground terminal (PE)
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', 200, 580, powerSheetId, 'PE1');
+  cd = pe1.circuit;
+
+  // Wire 15 phase connections (3 phases × 5 hops through terminals)
+  // Phase L1: X1:1 → CB1 → K1 → F1 → X2:1 → M1
+  cd = createWire(cd, 'X1:1', '2', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T1', 'M1', '1', f1power.deviceId, m1.deviceId);
-  // Phase L2
+  cd = createWire(cd, 'F1', 'T1', 'X2:1', '1', f1power.deviceId, x2_1.deviceId);
+  cd = createWire(cd, 'X2:1', '2', 'M1', '1', x2_1.deviceId, m1.deviceId);
+  // Phase L2: X1:2 → CB1 → K1 → F1 → X2:2 → M1
+  cd = createWire(cd, 'X1:2', '2', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T2', 'M1', '2', f1power.deviceId, m1.deviceId);
-  // Phase L3
+  cd = createWire(cd, 'F1', 'T2', 'X2:2', '1', f1power.deviceId, x2_2.deviceId);
+  cd = createWire(cd, 'X2:2', '2', 'M1', '2', x2_2.deviceId, m1.deviceId);
+  // Phase L3: X1:3 → CB1 → K1 → F1 → X2:3 → M1
+  cd = createWire(cd, 'X1:3', '2', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T3', 'M1', '3', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'F1', 'T3', 'X2:3', '1', f1power.deviceId, x2_3.deviceId);
+  cd = createWire(cd, 'X2:3', '2', 'M1', '3', x2_3.deviceId, m1.deviceId);
 
   // ================================================================
   //  SHEET 2 — Control Section (ladder diagram)
@@ -257,8 +283,9 @@ export function generateMotorStarter(
     'Complete 3-wire motor starter generated (2 sheets):',
     '',
     '  Sheet 1 "Power" (schematic):',
-    '    CB1(Circuit Breaker 3P) → K1(Contactor 3P) → F1(Overload 3P) → M1(Motor 3Ph)',
-    '    9 phase wires (3 phases × 3 hops)',
+    '    X1:1-3(Supply Terminals) → CB1(Breaker 3P) → K1(Contactor 3P) → F1(Overload 3P) → X2:1-3(Motor Terminals) → M1(Motor 3Ph)',
+    '    PE1(Ground Terminal)',
+    '    15 phase wires (3 phases × 5 hops through terminals)',
     '',
     `  Sheet 2 "Control" (ladder, ${controlVoltage}):`,
     '    Rung 1: CB2(Breaker 1P) → F1(OL NC) → S2(Stop NC) → S1(Start NO) → J1(Junction) → K1(Coil)',
@@ -267,7 +294,7 @@ export function generateMotorStarter(
     '    8 rung wires + 8 rail wires',
     '',
     '  Linked devices: K1 (power ↔ coil + seal-in + aux), F1 (power ↔ OL contacts)',
-    '  Totals: 19 devices (4 power + 10 control + 5 rail), 25 wires',
+    '  Totals: 26 devices (11 power + 10 control + 5 rail), 31 wires',
     ...(motorData ? [
       '',
       `  Motor: ${motorData.spec.hp} HP @ ${motorData.spec.voltage}, FLA: ${motorData.motorFLA}A, Wire: ${motorData.wireSize} AWG`,
@@ -435,33 +462,63 @@ export function generateMotorStarterPanel(
   cd = setSheetType(cd, sheetId, 'schematic');
 
   // ================================================================
-  //  Power Section (top of sheet, y=60..420)
+  //  Power Section (top of sheet, y=40..580)
   // ================================================================
-  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 60, sheetId, 'CB1');
+
+  // Supply terminals (strip X1) — panel boundary for incoming cables
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', 60, 40, sheetId, 'X1:1');
+  cd = x1_1.circuit;
+  const x1_2 = placeDevice(cd, 'iec-terminal-single', 100, 40, sheetId, 'X1:2');
+  cd = x1_2.circuit;
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', 140, 40, sheetId, 'X1:3');
+  cd = x1_3.circuit;
+
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 140, sheetId, 'CB1');
   cd = cb1.circuit;
 
-  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 180, sheetId, 'K1');
+  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 260, sheetId, 'K1');
   cd = k1power.circuit;
 
-  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 300, sheetId, 'F1');
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 380, sheetId, 'F1');
   cd = f1power.circuit;
 
-  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 420, sheetId, 'M1');
+  // Motor output terminals (strip X2) — panel boundary for motor leads
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', 60, 480, sheetId, 'X2:1');
+  cd = x2_1.circuit;
+  const x2_2 = placeDevice(cd, 'iec-terminal-single', 100, 480, sheetId, 'X2:2');
+  cd = x2_2.circuit;
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', 140, 480, sheetId, 'X2:3');
+  cd = x2_3.circuit;
+
+  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 580, sheetId, 'M1');
   cd = m1.circuit;
 
-  // Wire 9 phase connections (3 phases × 3 hops)
+  // Ground terminal (PE)
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', 200, 580, sheetId, 'PE1');
+  cd = pe1.circuit;
+
+  // Wire 15 phase connections (3 phases × 5 hops through terminals)
+  // Phase L1: X1:1 → CB1 → K1 → F1 → X2:1 → M1
+  cd = createWire(cd, 'X1:1', '2', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T1', 'M1', '1', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'F1', 'T1', 'X2:1', '1', f1power.deviceId, x2_1.deviceId);
+  cd = createWire(cd, 'X2:1', '2', 'M1', '1', x2_1.deviceId, m1.deviceId);
+  // Phase L2: X1:2 → CB1 → K1 → F1 → X2:2 → M1
+  cd = createWire(cd, 'X1:2', '2', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T2', 'M1', '2', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'F1', 'T2', 'X2:2', '1', f1power.deviceId, x2_2.deviceId);
+  cd = createWire(cd, 'X2:2', '2', 'M1', '2', x2_2.deviceId, m1.deviceId);
+  // Phase L3: X1:3 → CB1 → K1 → F1 → X2:3 → M1
+  cd = createWire(cd, 'X1:3', '2', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
-  cd = createWire(cd, 'F1', 'T3', 'M1', '3', f1power.deviceId, m1.deviceId);
+  cd = createWire(cd, 'F1', 'T3', 'X2:3', '1', f1power.deviceId, x2_3.deviceId);
+  cd = createWire(cd, 'X2:3', '2', 'M1', '3', x2_3.deviceId, m1.deviceId);
 
   // ================================================================
-  //  Control Section (ladder block below power, starting at y=560)
+  //  Control Section (ladder block below power, starting at y=700)
   // ================================================================
   const ladderBlock = createLadderBlock(cd, sheetId, {
     voltage: controlVoltage,
@@ -469,7 +526,7 @@ export function generateMotorStarterPanel(
     railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
     firstRungY: 100,
     rungSpacing: 120,
-  }, { x: 0, y: 560 }, 'Motor Control');
+  }, { x: 0, y: 700 }, 'Motor Control');
   cd = ladderBlock.circuit;
   const controlBlockId = ladderBlock.blockId;
 
@@ -590,10 +647,10 @@ export function generateMotorStarterPanel(
     hoaAutoDeviceId = hoaAuto.deviceId;
 
     // Terminal blocks at panel boundary (local ↔ remote/PLC)
-    const termIn = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X1:1');
+    const termIn = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X3:1');
     cd = termIn.circuit;
     termInDeviceId = termIn.deviceId;
-    const termOut = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X1:2');
+    const termOut = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X3:2');
     cd = termOut.circuit;
     termOutDeviceId = termOut.deviceId;
 
@@ -629,10 +686,10 @@ export function generateMotorStarterPanel(
     rungNumber++;
 
     // Terminal blocks at panel boundary (local ↔ remote/PLC)
-    const termIn2 = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X1:1');
+    const termIn2 = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X3:1');
     cd = termIn2.circuit;
     termInDeviceId = termIn2.deviceId;
-    const termOut2 = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X1:2');
+    const termOut2 = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, 'X3:2');
     cd = termOut2.circuit;
     termOutDeviceId = termOut2.deviceId;
 
@@ -720,16 +777,16 @@ export function generateMotorStarterPanel(
     cd = createWire(cd, 'SS1', '2', 'K1', '1', hoaHandDeviceId, hoaHandCoilId);
   }
 
-  // Rung 4 (HOA Auto + PLC): SS1.2 → X1:1.1, X1:1.2 → PLC1.1, PLC1.2 → X1:2.1, X1:2.2 → K1 coil.1
+  // Rung 4 (HOA Auto + PLC): SS1.2 → X3:1.1, X3:1.2 → PLC1.1, PLC1.2 → X3:2.1, X3:2.2 → K1 coil.1
   if (hasHOA && hasPLC && hoaAutoDeviceId && plcDeviceId && plcCoilId && termInDeviceId && termOutDeviceId) {
-    cd = createWire(cd, 'SS1', '2', 'X1:1', '1', hoaAutoDeviceId, termInDeviceId);
-    cd = createWire(cd, 'X1:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
-    cd = createWire(cd, 'PLC1', '2', 'X1:2', '1', plcDeviceId, termOutDeviceId);
-    cd = createWire(cd, 'X1:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
+    cd = createWire(cd, 'SS1', '2', 'X3:1', '1', hoaAutoDeviceId, termInDeviceId);
+    cd = createWire(cd, 'X3:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
+    cd = createWire(cd, 'PLC1', '2', 'X3:2', '1', plcDeviceId, termOutDeviceId);
+    cd = createWire(cd, 'X3:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
   } else if (hasPLC && !hasHOA && plcDeviceId && plcCoilId && termInDeviceId && termOutDeviceId) {
-    cd = createWire(cd, 'X1:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
-    cd = createWire(cd, 'PLC1', '2', 'X1:2', '1', plcDeviceId, termOutDeviceId);
-    cd = createWire(cd, 'X1:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
+    cd = createWire(cd, 'X3:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
+    cd = createWire(cd, 'PLC1', '2', 'X3:2', '1', plcDeviceId, termOutDeviceId);
+    cd = createWire(cd, 'X3:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
   }
 
   // Pilot light rung: K1 aux.2 → PL1.1
@@ -777,14 +834,14 @@ export function generateMotorStarterPanel(
     ' → S2(Stop NC) → S1(Start NO) → J1 → K1(Coil)');
   rungDescriptions.push('Rung 2: K1(Seal-in NO) → J1 [branch]');
   if (hasHOA) rungDescriptions.push(`Rung 3: SS1(HOA Hand) → K1(Coil)`);
-  if (hasHOA && hasPLC) rungDescriptions.push(`Rung 4: SS1(HOA Auto) → X1:1 → PLC1(dashed) → X1:2 → K1(Coil)`);
-  else if (hasPLC) rungDescriptions.push(`Rung ${hasHOA ? 4 : 3}: X1:1 → PLC1(dashed) → X1:2 → K1(Coil)`);
+  if (hasHOA && hasPLC) rungDescriptions.push(`Rung 4: SS1(HOA Auto) → X3:1 → PLC1(dashed) → X3:2 → K1(Coil)`);
+  else if (hasPLC) rungDescriptions.push(`Rung ${hasHOA ? 4 : 3}: X3:1 → PLC1(dashed) → X3:2 → K1(Coil)`);
   if (hasPilot) rungDescriptions.push(`Rung ${rungNumber}: K1(Aux NO) → PL1(Running Light)`);
 
   const summary = [
     `Motor starter panel generated (${options.hp} HP @ ${options.voltage}):`,
     '',
-    '  Power: CB1 → K1(Contactor 3P) → F1(Overload 3P) → M1(Motor)',
+    '  Power: X1:1-3(Supply) → CB1 → K1(Contactor 3P) → F1(Overload 3P) → X2:1-3(Motor) → M1, PE1(Ground)',
     `  Control (${controlVoltage}):`,
     ...rungDescriptions.map(r => `    ${r}`),
     `  Options: E-Stop=${hasEStop}, HOA=${hasHOA}, PLC=${hasPLC}, Pilot=${hasPilot}`,
@@ -844,6 +901,339 @@ function addPanelLayoutSheet(
   }
 
   return cd;
+}
+
+/**
+ * Generate a power distribution page using ladder layout (L1/N rails).
+ *
+ * Creates a single sheet with a ladder block:
+ *   - L1 (hot) rail on the left, N (neutral) rail on the right
+ *   - Each branch circuit is a horizontal rung between the rails
+ *   - Dynamically enabled rungs based on options:
+ *       SPD, outlet, light, fan, PS1, PS2, transformer
+ *   - Multi-pin devices (power supply, transformer) get output terminals
+ *     placed below their rung position
+ *
+ * Uses the same ladder infrastructure as motor starter control diagrams:
+ *   createLadderBlock → rungs → autoLayoutLadder → createLadderRails
+ */
+export function generatePowerDistribution(
+  circuit: CircuitData,
+  options: {
+    supplyVoltage: string;
+    controlVoltage?: '120VAC' | '24VDC';
+    transformer?: boolean;
+    powerSupplyCount?: 1 | 2;
+    convenienceOutlet?: boolean;
+    cabinetLight?: boolean;
+    cabinetFan?: boolean;
+    surgeProtection?: boolean;
+  },
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const controlVoltage = options.controlVoltage || '120VAC';
+  const hasTransformer = options.transformer || false;
+  const hasSPD = options.surgeProtection !== false; // default true
+  const psCount = options.powerSupplyCount || 1;
+  const hasOutlet = options.convenienceOutlet !== false; // default true
+  const hasLight = options.cabinetLight !== false; // default true
+  const hasFan = options.cabinetFan || false;
+
+  // Ladder config constants
+  const RUNG_SPACING = 140;
+  const FIRST_RUNG_Y = 100;
+  const RAIL_L1X = 100;
+  const RAIL_L2X = 900;
+  const PIN_OFFSET = 6; // junction pin center offset
+
+  // ================================================================
+  //  Create sheet + ladder block
+  // ================================================================
+  const sheet = addSheet(cd, 'Power Distribution');
+  cd = sheet.circuit;
+  const sheetId = sheet.sheetId;
+
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    railLabelL1: 'L1',
+    railLabelL2: 'N',
+    voltage: options.supplyVoltage,
+    rungSpacing: RUNG_SPACING,
+    firstRungY: FIRST_RUNG_Y,
+    railL1X: RAIL_L1X,
+    railL2X: RAIL_L2X,
+  }, undefined, 'Power Distribution');
+  cd = ladderBlock.circuit;
+  const blockId = ladderBlock.blockId;
+
+  // ================================================================
+  //  Place devices at (0,0) and build rung definitions dynamically
+  // ================================================================
+  let cbNumber = 1;
+  let rungNum = 1;
+  const now = Date.now();
+
+  // Track rung definitions for wiring and summary
+  interface RungDef {
+    number: number;
+    deviceIds: string[];
+    description: string;
+  }
+  const rungDefs: RungDef[] = [];
+
+  // Track special device IDs for post-layout handling
+  let ps1DeviceId: string | undefined;
+  let ps2DeviceId: string | undefined;
+  const branchDescriptions: string[] = [];
+
+  // --- Surge Protection (SPD) ---
+  if (hasSPD) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'SPD Breaker');
+
+    const spd = placeDevice(cd, 'iec-surge-arrester', 0, 0, sheetId, 'F1');
+    cd = spd.circuit;
+    cd = updateDeviceFunction(cd, spd.deviceId, 'Surge Protection');
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, spd.deviceId], description: 'Surge protection' });
+    branchDescriptions.push(`${cbTag} → F1(Surge Arrester)`);
+  }
+
+  // --- Convenience Outlet ---
+  if (hasOutlet) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Outlet Breaker');
+
+    const outlet = placeDevice(cd, 'iec-receptacle', 0, 0, sheetId, 'XS1');
+    cd = outlet.circuit;
+    cd = updateDeviceFunction(cd, outlet.deviceId, 'Convenience Outlet');
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, outlet.deviceId], description: 'Convenience outlet' });
+    branchDescriptions.push(`${cbTag} → XS1(Outlet)`);
+  }
+
+  // --- Cabinet Light ---
+  if (hasLight) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Light Breaker');
+
+    const light = placeDevice(cd, 'iec-pilot-light', 0, 0, sheetId, 'LT1');
+    cd = light.circuit;
+    cd = updateDeviceFunction(cd, light.deviceId, 'Cabinet Light');
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, light.deviceId], description: 'Cabinet light' });
+    branchDescriptions.push(`${cbTag} → LT1(Cabinet Light)`);
+  }
+
+  // --- Cabinet Fan ---
+  if (hasFan) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Fan Breaker');
+
+    const fan = placeDevice(cd, 'iec-motor-1ph', 0, 0, sheetId, 'FAN1');
+    cd = fan.circuit;
+    cd = updateDeviceFunction(cd, fan.deviceId, 'Cabinet Fan');
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, fan.deviceId], description: 'Cabinet fan' });
+    branchDescriptions.push(`${cbTag} → FAN1(Cabinet Fan)`);
+  }
+
+  // --- 24VDC Power Supply 1 ---
+  {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'PS1 Breaker');
+
+    const ps1 = placeDevice(cd, 'iec-power-supply-ac-dc', 0, 0, sheetId, 'PS1');
+    cd = ps1.circuit;
+    cd = updateDeviceFunction(cd, ps1.deviceId, '24VDC Power Supply');
+    ps1DeviceId = ps1.deviceId;
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, ps1.deviceId], description: '24VDC Power Supply 1' });
+    branchDescriptions.push(`${cbTag} → PS1(24VDC Power Supply)`);
+  }
+
+  // --- 24VDC Power Supply 2 (if dual) ---
+  if (psCount >= 2) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'PS2 Breaker');
+
+    const ps2 = placeDevice(cd, 'iec-power-supply-ac-dc', 0, 0, sheetId, 'PS2');
+    cd = ps2.circuit;
+    cd = updateDeviceFunction(cd, ps2.deviceId, '24VDC Power Supply (Redundant)');
+    ps2DeviceId = ps2.deviceId;
+
+    rungDefs.push({ number: rungNum++, deviceIds: [cb.deviceId, ps2.deviceId], description: '24VDC Power Supply 2' });
+    branchDescriptions.push(`${cbTag} → PS2(24VDC Power Supply Redundant)`);
+  }
+
+  // ================================================================
+  //  Build rung objects (same pattern as generateMotorStarter)
+  // ================================================================
+  for (const def of rungDefs) {
+    const rung = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: def.number,
+      sheetId,
+      blockId,
+      deviceIds: def.deviceIds,
+      description: def.description,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rung] };
+  }
+
+  // ================================================================
+  //  Auto-layout (positions all rung devices)
+  // ================================================================
+  const layout = autoLayoutLadder(cd, sheetId, blockId);
+  cd = layout.circuit;
+
+  // ================================================================
+  //  Wire devices in series on each rung (CB.pin2 → load.pin1)
+  // ================================================================
+  for (const def of rungDefs) {
+    for (let i = 0; i < def.deviceIds.length - 1; i++) {
+      const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
+      const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id);
+    }
+  }
+
+  // ================================================================
+  //  Create L1/N rails (junctions + vertical rail wires + rung stubs)
+  // ================================================================
+  cd = createLadderRails(cd, sheetId, blockId);
+
+  // ================================================================
+  //  Transformer (if enabled) — handled separately (H1/H2 pins)
+  //  Placed after standard rungs, manually wired to rail extensions
+  // ================================================================
+  if (hasTransformer) {
+    const xfmrRungY = FIRST_RUNG_Y + (rungNum - 1) * RUNG_SPACING;
+    const centerX = (RAIL_L1X + RAIL_L2X) / 2;
+
+    // Place transformer
+    const xfmr = placeDevice(cd, 'iec-transformer-1ph', 0, 0, sheetId, 'T1');
+    cd = xfmr.circuit;
+    cd = updateDeviceFunction(cd, xfmr.deviceId,
+      `Control Transformer ${options.supplyVoltage}→${controlVoltage}`);
+
+    // Position centered on rung, rotated -90 for ladder orientation
+    cd = {
+      ...cd,
+      positions: { ...cd.positions, [xfmr.deviceId]: { x: centerX - 25, y: xfmrRungY - 35 } },
+      transforms: { ...(cd.transforms || {}), [xfmr.deviceId]: { rotation: -90 } },
+    };
+
+    // Create L1/L2 junctions for transformer rung
+    const l1Tag = `JL${rungNum}`;
+    const l1J = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);
+    cd = l1J.circuit;
+    cd = { ...cd, positions: { ...cd.positions,
+      [l1J.deviceId]: { x: RAIL_L1X - PIN_OFFSET, y: xfmrRungY - PIN_OFFSET },
+    }};
+
+    const l2Tag = `JR${rungNum}`;
+    const l2J = placeDevice(cd, 'junction', 0, 0, sheetId, l2Tag);
+    cd = l2J.circuit;
+    cd = { ...cd, positions: { ...cd.positions,
+      [l2J.deviceId]: { x: RAIL_L2X - PIN_OFFSET, y: xfmrRungY - PIN_OFFSET },
+    }};
+
+    // Connect transformer junctions to existing rails
+    const prevRung = rungNum - 1;
+    const prevL1 = cd.devices.find(d => d.tag === `JL${prevRung}` && d.sheetId === sheetId);
+    const prevL2 = cd.devices.find(d => d.tag === `JR${prevRung}` && d.sheetId === sheetId);
+    if (prevL1) {
+      cd = createWire(cd, prevL1.tag, '1', l1Tag, '1', prevL1.id, l1J.deviceId);
+    }
+    if (prevL2) {
+      cd = createWire(cd, prevL2.tag, '1', l2Tag, '1', prevL2.id, l2J.deviceId);
+    }
+
+    // Wire junctions to transformer pins
+    cd = createWire(cd, l1Tag, '1', 'T1', 'H1', l1J.deviceId, xfmr.deviceId);
+    cd = createWire(cd, 'T1', 'H2', l2Tag, '1', xfmr.deviceId, l2J.deviceId);
+
+    // Output terminals below transformer for secondary winding
+    const termY = xfmrRungY + 80;
+    const xt1 = placeDevice(cd, 'iec-terminal-single', centerX - 40, termY, sheetId, 'XT:1');
+    cd = xt1.circuit;
+    const xt2 = placeDevice(cd, 'iec-terminal-single', centerX + 10, termY, sheetId, 'XT:2');
+    cd = xt2.circuit;
+
+    cd = createWire(cd, 'T1', 'X1', 'XT:1', '1', xfmr.deviceId, xt1.deviceId);
+    cd = createWire(cd, 'T1', 'X2', 'XT:2', '1', xfmr.deviceId, xt2.deviceId);
+
+    // Annotation for secondary voltage
+    const xfmrAnn = addAnnotation(cd, sheetId, centerX - 60, termY + 40,
+      `Secondary: ${controlVoltage}`);
+    cd = xfmrAnn.circuit;
+
+    branchDescriptions.push(`T1(Transformer ${options.supplyVoltage}→${controlVoltage}) → XT:1/XT:2`);
+    rungNum++;
+  }
+
+  // ================================================================
+  //  Power supply output terminals (placed below PS devices)
+  // ================================================================
+  if (ps1DeviceId) {
+    const ps1Pos = cd.positions[ps1DeviceId];
+    if (ps1Pos) {
+      const termY = ps1Pos.y + 80;
+      const xPlus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x - 10, termY, sheetId, 'X2:+');
+      cd = xPlus.circuit;
+      const xMinus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x + 20, termY, sheetId, 'X2:-');
+      cd = xMinus.circuit;
+
+      cd = createWire(cd, 'PS1', '3', 'X2:+', '1', ps1DeviceId, xPlus.deviceId);
+      cd = createWire(cd, 'PS1', '4', 'X2:-', '1', ps1DeviceId, xMinus.deviceId);
+    }
+  }
+
+  if (ps2DeviceId) {
+    const ps2Pos = cd.positions[ps2DeviceId];
+    if (ps2Pos) {
+      const termY = ps2Pos.y + 80;
+      const xPlus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x - 10, termY, sheetId, 'X3:+');
+      cd = xPlus.circuit;
+      const xMinus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x + 20, termY, sheetId, 'X3:-');
+      cd = xMinus.circuit;
+
+      cd = createWire(cd, 'PS2', '3', 'X3:+', '1', ps2DeviceId, xPlus.deviceId);
+      cd = createWire(cd, 'PS2', '4', 'X3:-', '1', ps2DeviceId, xMinus.deviceId);
+    }
+  }
+
+  // ================================================================
+  //  Summary
+  // ================================================================
+  const summary = [
+    `Power distribution page generated (${options.supplyVoltage}, ladder layout L1/N):`,
+    '',
+    `  Ladder block: L1 (left rail) / N (right rail), ${rungDefs.length} rungs`,
+    '',
+    '  Branch circuits (each rung = breaker → load):',
+    ...branchDescriptions.map(d => `    ${d}`),
+    '',
+    `  Options: SPD=${hasSPD}, Transformer=${hasTransformer}, PSCount=${psCount}, Outlet=${hasOutlet}, Light=${hasLight}, Fan=${hasFan}`,
+    `  Devices: ${cd.devices.length}, Wires: ${cd.connections.length}`,
+  ].join('\n');
+
+  return { circuit: cd, summary };
 }
 
 // Import generateId — need to use the same ID generator

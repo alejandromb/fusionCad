@@ -5,11 +5,23 @@
  * that operate on CircuitData without React dependencies.
  */
 
-import { generateId, getSymbolById, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
 import { layoutLadder, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from './api-client.js';
 
 const GRID_SIZE = 20;
+
+/**
+ * Resolve a symbol by ID, using the full 4-tier resolution (exact → alias → generator → fallback).
+ * Throws if the symbol resolves to a generic fallback (truly unknown symbol).
+ */
+function resolveSymbolOrThrow(symbolId: string): ReturnType<typeof resolveSymbol> {
+  const sym = resolveSymbol(symbolId);
+  if (sym.source === 'generated-fallback') {
+    throw new Error(`Symbol not found: ${symbolId}. Use list_symbols to see available symbols.`);
+  }
+  return sym;
+}
 
 /** Snap a coordinate to the 20px grid (matches web app) */
 export function snapToGrid(value: number): number {
@@ -67,10 +79,7 @@ export function placeDevice(
   const snappedX = snapToGrid(x);
   const snappedY = snapToGrid(y);
 
-  const symbolDef = getSymbolById(symbolId);
-  if (!symbolDef) {
-    throw new Error(`Symbol not found: ${symbolId}. Use list_symbols to see available symbols.`);
-  }
+  const symbolDef = resolveSymbolOrThrow(symbolId);
 
   const deviceTag = tag || generateTag(symbolId, circuit.devices);
 
@@ -492,10 +501,7 @@ export function placeLinkedDevice(
   const snappedX = snapToGrid(x);
   const snappedY = snapToGrid(y);
 
-  const symbolDef = getSymbolById(symbolId);
-  if (!symbolDef) {
-    throw new Error(`Symbol not found: ${symbolId}. Use list_symbols to see available symbols.`);
-  }
+  const symbolDef = resolveSymbolOrThrow(symbolId);
 
   // Find existing device(s) with this tag
   const existingDevices = circuit.devices.filter(d => d.tag === existingTag);

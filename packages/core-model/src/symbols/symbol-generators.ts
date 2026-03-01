@@ -5,24 +5,27 @@
  * Used for families where pin count varies (PLC I/O modules, etc.)
  * so we don't need a hand-drawn symbol for every channel count.
  *
- * Generated symbols match the visual style of the hand-drawn builtins:
- * - Same 60px width, pin spacing, body inset, text placement
- * - Consistent pin naming (DI0, DI1, ..., AI0+, AI0-, ...)
- * - Proper pin directions (inputs left, outputs right)
+ * Industrial convention (IEC/NFPA):
+ * - Input modules: ALL pins on LEFT side
+ * - Output modules: ALL pins on RIGHT side
+ * - Tall symbols with generous spacing for wiring clarity
+ * - COM/GND pins interleaved after every 8 channels
+ * - Terminal numbers + channel labels inside the body
  */
 
 import type { SymbolDefinition, SymbolPin, SymbolPrimitive, PinType, PinDirection } from '../types.js';
 
 // ---------------------------------------------------------------------------
-// Constants matching the existing hand-drawn PLC symbol style
+// Constants for industrial-convention PLC symbols
 // ---------------------------------------------------------------------------
 
-const WIDTH = 60;
-const BODY_INSET = 10;       // body rect starts at x=10
-const BODY_WIDTH = 40;       // body rect width = 60 - 2*10
-const FIRST_PIN_Y = 15;      // y of first pin (COM/V+)
-const DIGITAL_SPACING = 13;  // px between digital pins
-const ANALOG_SPACING = 10;   // px between analog +/- pins
+const WIDTH = 100;
+const BODY_INSET = 15;           // body rect starts at x=15
+const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 70px
+const HEADER_HEIGHT = 50;        // space for module type text at top
+const FOOTER_HEIGHT = 20;        // bottom padding
+const DIGITAL_PIN_SPACING = 30;  // px between digital pins (generous for wiring)
+const ANALOG_PIN_SPACING = 20;   // px between analog pins
 
 // ---------------------------------------------------------------------------
 // PLC Digital I/O Generator (DI-N, DO-N)
@@ -33,84 +36,111 @@ export type PLCDigitalType = 'DI' | 'DO';
 /**
  * Generate a PLC digital I/O module symbol.
  *
- * Layout rules (matching hand-drawn builtins):
- * - DI: inputs on LEFT, COM on left at y=15
- * - DO: outputs on RIGHT, COM on right at y=15
- * - Channels split evenly: first half on primary side, second half on secondary
- * - Pin IDs: COM, DI0..DI(N-1) or DO0..DO(N-1)
+ * Industrial convention:
+ * - DI: ALL pins on LEFT side
+ * - DO: ALL pins on RIGHT side
+ * - COM pin after every 8 channels (COM for <=8ch, COM0/COM1/... for >8ch)
+ * - Terminal numbers + channel labels inside body
  */
 export function generatePLCDigitalSymbol(type: PLCDigitalType, channels: number): SymbolDefinition {
   const isInput = type === 'DI';
-  const primarySide: 'left' | 'right' = isInput ? 'left' : 'right';
-  const secondarySide: 'left' | 'right' = isInput ? 'right' : 'left';
+  const pinSide: 'left' | 'right' = isInput ? 'left' : 'right';
   const pinType: PinType = isInput ? 'input' : 'output';
+  const pinDirection: PinDirection = pinSide;
+  const pinX = isInput ? 0 : WIDTH;
 
-  // Split channels: first half + COM on primary, second half on secondary
-  const halfChannels = Math.ceil(channels / 2);
-  const primaryCount = halfChannels + 1; // +1 for COM
-  const secondaryCount = channels - halfChannels;
-
-  const maxPerSide = Math.max(primaryCount, secondaryCount);
-  const bodyHeight = FIRST_PIN_Y + (maxPerSide - 1) * DIGITAL_SPACING + FIRST_PIN_Y;
-  const height = bodyHeight + 10; // 5px padding top and bottom
-
+  // Build pin list with COM pins interleaved after every 8 channels
   const pins: SymbolPin[] = [];
+  const comCount = Math.ceil(channels / 8); // one COM per 8-channel group
+  let pinIndex = 0; // sequential position counter
+
+  for (let group = 0; group < comCount; group++) {
+    const startCh = group * 8;
+    const endCh = Math.min(startCh + 8, channels);
+
+    // Channel pins for this group
+    for (let ch = startCh; ch < endCh; ch++) {
+      const y = HEADER_HEIGHT + pinIndex * DIGITAL_PIN_SPACING;
+      pins.push({
+        id: `${type}${ch}`,
+        name: `${type}${ch}`,
+        position: { x: pinX, y },
+        direction: pinDirection,
+        pinType,
+      });
+      pinIndex++;
+    }
+
+    // COM pin after this group
+    const comId = comCount === 1 ? 'COM' : `COM${group}`;
+    const comName = comId;
+    const y = HEADER_HEIGHT + pinIndex * DIGITAL_PIN_SPACING;
+    pins.push({
+      id: comId,
+      name: comName,
+      position: { x: pinX, y },
+      direction: pinDirection,
+      pinType: 'power',
+    });
+    pinIndex++;
+  }
+
+  const totalPins = pins.length; // channels + comCount
+  const lastPinY = HEADER_HEIGHT + (totalPins - 1) * DIGITAL_PIN_SPACING;
+  const height = lastPinY + FOOTER_HEIGHT;
+
   const primitives: SymbolPrimitive[] = [];
 
-  const primaryX = isInput ? 0 : WIDTH;
-  const secondaryX = isInput ? WIDTH : 0;
-  const primaryDirection: PinDirection = primarySide;
-  const secondaryDirection: PinDirection = secondarySide;
-
-  // COM pin on primary side
-  pins.push({
-    id: 'COM', name: 'COM',
-    position: { x: primaryX, y: FIRST_PIN_Y },
-    direction: primaryDirection, pinType: 'power',
+  // Body rectangle
+  primitives.push({
+    type: 'rect',
+    x: BODY_INSET, y: 5,
+    width: BODY_WIDTH, height: height - 10,
   });
 
-  // First half of channels on primary side (after COM)
-  for (let i = 0; i < halfChannels; i++) {
-    const y = FIRST_PIN_Y + (i + 1) * DIGITAL_SPACING;
-    pins.push({
-      id: `${type}${i}`, name: `${type}${i}`,
-      position: { x: primaryX, y },
-      direction: primaryDirection, pinType,
-    });
-  }
-
-  // Second half of channels on secondary side
-  for (let i = 0; i < secondaryCount; i++) {
-    const y = FIRST_PIN_Y + i * DIGITAL_SPACING;
-    pins.push({
-      id: `${type}${halfChannels + i}`, name: `${type}${halfChannels + i}`,
-      position: { x: secondaryX, y },
-      direction: secondaryDirection, pinType,
-    });
-  }
-
-  // Body rectangle
-  primitives.push({ type: 'rect', x: BODY_INSET, y: 5, width: BODY_WIDTH, height: bodyHeight - 2 });
-
-  // Center labels
+  // Header labels (module type + channel count)
   const centerX = WIDTH / 2;
-  const centerY = bodyHeight / 2;
-  primitives.push({ type: 'text', x: centerX, y: centerY - 8, content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle' });
-  primitives.push({ type: 'text', x: centerX, y: centerY + 8, content: `${channels}-Ch`, fontSize: 9, fontWeight: 'normal', textAnchor: 'middle' });
+  primitives.push({
+    type: 'text', x: centerX, y: 20,
+    content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle',
+  });
+  primitives.push({
+    type: 'text', x: centerX, y: 36,
+    content: `${channels}-Ch`, fontSize: 10, fontWeight: 'normal', textAnchor: 'middle',
+  });
 
-  // Pin stub lines
-  for (const pin of pins) {
-    const px = pin.position.x;
+  // Pin stubs + terminal number + channel label inside body
+  for (let i = 0; i < pins.length; i++) {
+    const pin = pins[i];
     const py = pin.position.y;
-    if (px === 0) {
+    const termNum = i + 1;
+
+    // Pin stub line
+    if (isInput) {
       primitives.push({ type: 'line', x1: 0, y1: py, x2: BODY_INSET, y2: py });
     } else {
       primitives.push({ type: 'line', x1: WIDTH - BODY_INSET, y1: py, x2: WIDTH, y2: py });
     }
+
+    // Terminal number (near the pin side, inside body)
+    const termX = isInput ? BODY_INSET + 4 : WIDTH - BODY_INSET - 4;
+    const termAnchor = isInput ? 'start' : 'end';
+    primitives.push({
+      type: 'text', x: termX, y: py,
+      content: `${termNum}`, fontSize: 8, fontWeight: 'normal', textAnchor: termAnchor,
+    });
+
+    // Channel label (center-ish, inside body)
+    const labelX = isInput ? WIDTH - BODY_INSET - 4 : BODY_INSET + 4;
+    const labelAnchor = isInput ? 'end' : 'start';
+    primitives.push({
+      type: 'text', x: labelX, y: py,
+      content: pin.name, fontSize: 8, fontWeight: 'normal', textAnchor: labelAnchor,
+    });
   }
 
   return {
-    id: `generated-plc-${type.toLowerCase()}-${channels}`,
+    id: `iec-plc-${type.toLowerCase()}-${channels}`,
     type: 'symbol-definition',
     name: `PLC ${type} ${channels}-Ch`,
     category: 'PLC',
@@ -134,102 +164,101 @@ export type PLCAnalogType = 'AI' | 'AO';
 /**
  * Generate a PLC analog I/O module symbol.
  *
- * Layout rules:
- * - AI: inputs on LEFT, V+ on left at y=15
- * - AO: outputs on RIGHT, V+ on right at y=15
- * - Each channel has +/- differential pair
- * - Channels split: first half on primary, second half on secondary
- * - Pin IDs: V+, AI0+, AI0-, AI1+, AI1-, ... or AO0+, AO0-, ...
+ * Industrial convention:
+ * - AI: ALL pins on LEFT side
+ * - AO: ALL pins on RIGHT side
+ * - V+ power pin first, then CH0+/CH0-, CH1+/CH1-, etc.
  */
 export function generatePLCAnalogSymbol(type: PLCAnalogType, channels: number): SymbolDefinition {
   const isInput = type === 'AI';
-  const primarySide: 'left' | 'right' = isInput ? 'left' : 'right';
-  const secondarySide: 'left' | 'right' = isInput ? 'right' : 'left';
+  const pinSide: 'left' | 'right' = isInput ? 'left' : 'right';
   const pinType: PinType = isInput ? 'input' : 'output';
-
-  const halfChannels = Math.ceil(channels / 2);
-  const secondaryChannels = channels - halfChannels;
-
-  // Primary side: V+ pin + halfChannels * 2 signal pins (+/-)
-  const primaryPinCount = 1 + halfChannels * 2;
-  // Secondary side: secondaryChannels * 2 signal pins (+/-)
-  const secondaryPinCount = secondaryChannels * 2;
-
-  const maxPerSide = Math.max(primaryPinCount, secondaryPinCount);
-  const bodyHeight = FIRST_PIN_Y + (maxPerSide - 1) * ANALOG_SPACING + FIRST_PIN_Y;
-  const height = bodyHeight + 10;
+  const pinDirection: PinDirection = pinSide;
+  const pinX = isInput ? 0 : WIDTH;
 
   const pins: SymbolPin[] = [];
-  const primitives: SymbolPrimitive[] = [];
+  let pinIndex = 0;
 
-  const primaryX = isInput ? 0 : WIDTH;
-  const secondaryX = isInput ? WIDTH : 0;
-  const primaryDirection: PinDirection = primarySide;
-  const secondaryDirection: PinDirection = secondarySide;
-
-  // V+ power pin on primary side
+  // V+ power pin first
   pins.push({
     id: 'V+', name: 'V+',
-    position: { x: primaryX, y: FIRST_PIN_Y },
-    direction: primaryDirection, pinType: 'power',
+    position: { x: pinX, y: HEADER_HEIGHT + pinIndex * ANALOG_PIN_SPACING },
+    direction: pinDirection, pinType: 'power',
   });
+  pinIndex++;
 
-  // First half of channels on primary side (after V+)
-  let yOffset = FIRST_PIN_Y + ANALOG_SPACING;
-  for (let i = 0; i < halfChannels; i++) {
+  // Channel pairs: CH0+, CH0-, CH1+, CH1-, ...
+  for (let ch = 0; ch < channels; ch++) {
     pins.push({
-      id: `${type}${i}+`, name: `${type}${i}+`,
-      position: { x: primaryX, y: yOffset },
-      direction: primaryDirection, pinType,
+      id: `${type}${ch}+`, name: `${type}${ch}+`,
+      position: { x: pinX, y: HEADER_HEIGHT + pinIndex * ANALOG_PIN_SPACING },
+      direction: pinDirection, pinType,
     });
-    yOffset += ANALOG_SPACING;
+    pinIndex++;
     pins.push({
-      id: `${type}${i}-`, name: `${type}${i}-`,
-      position: { x: primaryX, y: yOffset },
-      direction: primaryDirection, pinType,
+      id: `${type}${ch}-`, name: `${type}${ch}-`,
+      position: { x: pinX, y: HEADER_HEIGHT + pinIndex * ANALOG_PIN_SPACING },
+      direction: pinDirection, pinType,
     });
-    yOffset += ANALOG_SPACING;
+    pinIndex++;
   }
 
-  // Second half of channels on secondary side
-  yOffset = FIRST_PIN_Y;
-  for (let i = halfChannels; i < channels; i++) {
-    pins.push({
-      id: `${type}${i}+`, name: `${type}${i}+`,
-      position: { x: secondaryX, y: yOffset },
-      direction: secondaryDirection, pinType,
-    });
-    yOffset += ANALOG_SPACING;
-    pins.push({
-      id: `${type}${i}-`, name: `${type}${i}-`,
-      position: { x: secondaryX, y: yOffset },
-      direction: secondaryDirection, pinType,
-    });
-    yOffset += ANALOG_SPACING;
-  }
+  const totalPins = pins.length; // 1 (V+) + channels * 2
+  const lastPinY = HEADER_HEIGHT + (totalPins - 1) * ANALOG_PIN_SPACING;
+  const height = lastPinY + FOOTER_HEIGHT;
+
+  const primitives: SymbolPrimitive[] = [];
 
   // Body rectangle
-  primitives.push({ type: 'rect', x: BODY_INSET, y: 5, width: BODY_WIDTH, height: bodyHeight - 2 });
+  primitives.push({
+    type: 'rect',
+    x: BODY_INSET, y: 5,
+    width: BODY_WIDTH, height: height - 10,
+  });
 
-  // Center labels
+  // Header labels
   const centerX = WIDTH / 2;
-  const centerY = bodyHeight / 2;
-  primitives.push({ type: 'text', x: centerX, y: centerY - 8, content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle' });
-  primitives.push({ type: 'text', x: centerX, y: centerY + 8, content: `${channels}-Ch`, fontSize: 9, fontWeight: 'normal', textAnchor: 'middle' });
+  primitives.push({
+    type: 'text', x: centerX, y: 20,
+    content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle',
+  });
+  primitives.push({
+    type: 'text', x: centerX, y: 36,
+    content: `${channels}-Ch`, fontSize: 10, fontWeight: 'normal', textAnchor: 'middle',
+  });
 
-  // Pin stub lines
-  for (const pin of pins) {
-    const px = pin.position.x;
+  // Pin stubs + terminal number + channel label inside body
+  for (let i = 0; i < pins.length; i++) {
+    const pin = pins[i];
     const py = pin.position.y;
-    if (px === 0) {
+    const termNum = i + 1;
+
+    // Pin stub line
+    if (isInput) {
       primitives.push({ type: 'line', x1: 0, y1: py, x2: BODY_INSET, y2: py });
     } else {
       primitives.push({ type: 'line', x1: WIDTH - BODY_INSET, y1: py, x2: WIDTH, y2: py });
     }
+
+    // Terminal number (near the pin side, inside body)
+    const termX = isInput ? BODY_INSET + 4 : WIDTH - BODY_INSET - 4;
+    const termAnchor = isInput ? 'start' : 'end';
+    primitives.push({
+      type: 'text', x: termX, y: py,
+      content: `${termNum}`, fontSize: 8, fontWeight: 'normal', textAnchor: termAnchor,
+    });
+
+    // Channel label (opposite side, inside body)
+    const labelX = isInput ? WIDTH - BODY_INSET - 4 : BODY_INSET + 4;
+    const labelAnchor = isInput ? 'end' : 'start';
+    primitives.push({
+      type: 'text', x: labelX, y: py,
+      content: pin.name, fontSize: 8, fontWeight: 'normal', textAnchor: labelAnchor,
+    });
   }
 
   return {
-    id: `generated-plc-${type.toLowerCase()}-${channels}`,
+    id: `iec-plc-${type.toLowerCase()}-${channels}`,
     type: 'symbol-definition',
     name: `PLC ${type} ${channels}-Ch`,
     category: 'PLC',
@@ -254,11 +283,11 @@ interface ParsedPLCCategory {
 }
 
 /**
- * Parse a PLC category string like 'plc-di-16' into type and channel count.
+ * Parse a PLC category string like 'plc-di-16' or 'iec-plc-di-16' into type and channel count.
  * Returns null if the string doesn't match the pattern.
  */
 export function parsePLCCategory(category: string): ParsedPLCCategory | null {
-  const match = category.match(/^plc-(di|do|ai|ao)-(\d+)$/i);
+  const match = category.match(/^(?:iec-)?plc-(di|do|ai|ao)-(\d+)$/i);
   if (!match) return null;
   return {
     type: match[1].toUpperCase() as ParsedPLCCategory['type'],
