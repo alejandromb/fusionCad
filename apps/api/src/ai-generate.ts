@@ -621,59 +621,262 @@ function generateMotorStarterPanel(
 }
 
 // ================================================================
+//  Power Distribution Generator
+// ================================================================
+
+interface PowerDistOptions {
+  supplyVoltage: string;
+  controlVoltage?: '120VAC' | '24VDC';
+  transformer?: boolean;
+  powerSupplyCount?: 1 | 2;
+  convenienceOutlet?: boolean;
+  cabinetLight?: boolean;
+  cabinetFan?: boolean;
+  surgeProtection?: boolean;
+}
+
+function generatePowerDistributionPanel(
+  circuit: CircuitData,
+  options: PowerDistOptions,
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const controlVoltage = options.controlVoltage || '120VAC';
+  const hasTransformer = options.transformer || false;
+  const hasSPD = options.surgeProtection !== false;
+  const psCount = options.powerSupplyCount || 1;
+  const hasOutlet = options.convenienceOutlet !== false;
+  const hasLight = options.cabinetLight !== false;
+  const hasFan = options.cabinetFan || false;
+
+  const sheet = addSheet(cd, 'Power Distribution');
+  cd = sheet.circuit;
+  const sheetId = sheet.sheetId;
+
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    railLabelL1: 'L1', railLabelL2: 'N',
+    voltage: options.supplyVoltage,
+    rungSpacing: 140, firstRungY: 100, railL1X: 100, railL2X: 900,
+  }, undefined, 'Power Distribution');
+  cd = ladderBlock.circuit;
+  const controlBlockId = ladderBlock.blockId;
+
+  let cbNumber = 1;
+  let rungNumber = 1;
+  const rungDefs: { number: number; deviceIds: string[]; description: string }[] = [];
+  const branchDescriptions: string[] = [];
+  let ps1DeviceId: string | undefined;
+  let ps2DeviceId: string | undefined;
+
+  // Surge protection
+  if (hasSPD) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'SPD Breaker');
+    const spd = placeDevice(cd, 'iec-surge-arrester', 0, 0, sheetId, 'F1');
+    cd = spd.circuit;
+    cd = updateDeviceFunction(cd, spd.deviceId, 'Surge Protection');
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, spd.deviceId], description: 'Surge protection' });
+    branchDescriptions.push(`${cbTag} → F1(Surge Arrester)`);
+  }
+
+  // Convenience outlet
+  if (hasOutlet) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Outlet Breaker');
+    const outlet = placeDevice(cd, 'iec-receptacle', 0, 0, sheetId, 'XS1');
+    cd = outlet.circuit;
+    cd = updateDeviceFunction(cd, outlet.deviceId, 'Convenience Outlet');
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, outlet.deviceId], description: 'Convenience outlet' });
+    branchDescriptions.push(`${cbTag} → XS1(Outlet)`);
+  }
+
+  // Cabinet light
+  if (hasLight) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Light Breaker');
+    const light = placeDevice(cd, 'iec-pilot-light', 0, 0, sheetId, 'LT1');
+    cd = light.circuit;
+    cd = updateDeviceFunction(cd, light.deviceId, 'Cabinet Light');
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, light.deviceId], description: 'Cabinet light' });
+    branchDescriptions.push(`${cbTag} → LT1(Cabinet Light)`);
+  }
+
+  // Cabinet fan
+  if (hasFan) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'Fan Breaker');
+    const fan = placeDevice(cd, 'iec-motor-1ph', 0, 0, sheetId, 'FAN1');
+    cd = fan.circuit;
+    cd = updateDeviceFunction(cd, fan.deviceId, 'Cabinet Fan');
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, fan.deviceId], description: 'Cabinet fan' });
+    branchDescriptions.push(`${cbTag} → FAN1(Cabinet Fan)`);
+  }
+
+  // 24VDC Power Supply 1
+  {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'PS1 Breaker');
+    const ps1 = placeDevice(cd, 'iec-power-supply-ac-dc', 0, 0, sheetId, 'PS1');
+    cd = ps1.circuit;
+    cd = updateDeviceFunction(cd, ps1.deviceId, '24VDC Power Supply');
+    ps1DeviceId = ps1.deviceId;
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, ps1.deviceId], description: '24VDC Power Supply 1' });
+    branchDescriptions.push(`${cbTag} → PS1(24VDC Power Supply)`);
+  }
+
+  // 24VDC Power Supply 2 (redundant)
+  if (psCount >= 2) {
+    const cbTag = `CB${cbNumber++}`;
+    const cb = placeDevice(cd, 'iec-circuit-breaker-1p', 0, 0, sheetId, cbTag);
+    cd = cb.circuit;
+    cd = updateDeviceFunction(cd, cb.deviceId, 'PS2 Breaker');
+    const ps2 = placeDevice(cd, 'iec-power-supply-ac-dc', 0, 0, sheetId, 'PS2');
+    cd = ps2.circuit;
+    cd = updateDeviceFunction(cd, ps2.deviceId, '24VDC Power Supply (Redundant)');
+    ps2DeviceId = ps2.deviceId;
+    rungDefs.push({ number: rungNumber++, deviceIds: [cb.deviceId, ps2.deviceId], description: '24VDC Power Supply 2' });
+    branchDescriptions.push(`${cbTag} → PS2(24VDC Power Supply Redundant)`);
+  }
+
+  // Build rungs
+  const now = Date.now();
+  for (const def of rungDefs) {
+    cd = { ...cd, rungs: [...(cd.rungs || []), {
+      id: generateId(), type: 'rung' as const, number: def.number, sheetId,
+      blockId: controlBlockId, deviceIds: def.deviceIds,
+      description: def.description, createdAt: now, modifiedAt: now,
+    }] };
+  }
+
+  // Auto-layout
+  const layout = autoLayoutLadder(cd, sheetId, controlBlockId);
+  cd = layout.circuit;
+
+  // Wire rung devices in series
+  for (const def of rungDefs) {
+    for (let i = 0; i < def.deviceIds.length - 1; i++) {
+      const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
+      const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id);
+    }
+  }
+
+  // L1/N rails
+  cd = createLadderRails(cd, sheetId, controlBlockId);
+
+  // PS output terminals
+  if (ps1DeviceId) {
+    const ps1Pos = cd.positions[ps1DeviceId];
+    if (ps1Pos) {
+      const termY = ps1Pos.y + 80;
+      const xPlus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x - 10, termY, sheetId, 'X2:+');
+      cd = xPlus.circuit;
+      const xMinus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x + 20, termY, sheetId, 'X2:-');
+      cd = xMinus.circuit;
+      cd = createWire(cd, 'PS1', '3', 'X2:+', '1', ps1DeviceId, xPlus.deviceId);
+      cd = createWire(cd, 'PS1', '4', 'X2:-', '1', ps1DeviceId, xMinus.deviceId);
+    }
+  }
+  if (ps2DeviceId) {
+    const ps2Pos = cd.positions[ps2DeviceId];
+    if (ps2Pos) {
+      const termY = ps2Pos.y + 80;
+      const xPlus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x - 10, termY, sheetId, 'X3:+');
+      cd = xPlus.circuit;
+      const xMinus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x + 20, termY, sheetId, 'X3:-');
+      cd = xMinus.circuit;
+      cd = createWire(cd, 'PS2', '3', 'X3:+', '1', ps2DeviceId, xPlus.deviceId);
+      cd = createWire(cd, 'PS2', '4', 'X3:-', '1', ps2DeviceId, xMinus.deviceId);
+    }
+  }
+
+  const summary = `Power distribution: ${options.supplyVoltage}, ` +
+    `${cd.devices.length} devices, ${cd.connections.length} wires. ` +
+    `Branches: ${branchDescriptions.join(', ')}` +
+    (hasTransformer ? `, transformer ${options.supplyVoltage}→${controlVoltage}` : '');
+
+  return { circuit: cd, summary };
+}
+
+// ================================================================
 //  Claude API Integration
 // ================================================================
 
-const SYSTEM_PROMPT = `You are an electrical engineering assistant that interprets natural language motor starter panel requirements and outputs structured JSON.
+const SYSTEM_PROMPT = `You are an electrical engineering assistant that interprets natural language requirements for electrical control and power circuits. You output structured JSON.
 
-IMPORTANT: Use smart engineering defaults for standard parameters that have obvious industry-standard values (voltage, phase, country, control voltage). Only ask for clarification when the request is genuinely ambiguous or contradictory (e.g., user mentions both single-phase and three-phase, or specifies an unusual combination).
+STEP 1: Classify the request type. The supported types are:
+- "motor-starter" — Motor starter panels, motor control circuits, VFD panels
+- "power-distribution" — Power distribution, PLC power supply circuits, panel power sections, 24VDC supplies, control power
+- "unsupported" — PCB design, Arduino, embedded systems, residential wiring, electronics hobby projects, anything NOT industrial electrical control or power
 
-For most requests, you should be able to fill in ALL fields using your engineering knowledge and common US industrial practice. If you need clarification, set the "needsClarification" field to true and include a "clarificationQuestion" field with a brief, specific question.
+STEP 2: Based on the type, extract the appropriate parameters.
 
-Given a user's description of a motor control panel, extract these parameters:
+=== TYPE: motor-starter ===
+Use smart engineering defaults. Only ask for clarification when genuinely ambiguous.
+Parameters:
 - hp: Motor horsepower (string, e.g., "30", "0.5", "1/2")
-- voltage: Supply voltage (string, e.g., "208V", "480V", "240V") — USE SMART DEFAULTS (see below)
+- voltage: Supply voltage (string, e.g., "208V", "480V", "240V")
 - phase: "single" or "three" (default: "three" for >= 1 HP, "single" for fractional HP)
 - controlVoltage: "24VDC" or "120VAC" (default: "120VAC")
 - country: "USA" or "Canada" (default: "USA")
 - starterType: "iec-open", "iec-enclosed", "nema-open", or "nema-enclosed" (default: "iec-open")
-- hoaSwitch: boolean — true if user mentions HOA, Hand-Off-Auto, selector switch, or mode selection
-- pilotLight: boolean — true if user mentions pilot light, indicator, running light (default: true)
-- plcRemote: boolean — true if user mentions PLC, remote, automation, auto contact, remote control
-- eStop: boolean — true if user mentions emergency stop, E-stop (default: true)
-- panelLayout: boolean — true if user mentions panel layout, enclosure layout, physical layout
+- hoaSwitch: boolean (true if HOA, Hand-Off-Auto, selector switch mentioned)
+- pilotLight: boolean (default: true)
+- plcRemote: boolean (true if PLC, remote, automation mentioned)
+- eStop: boolean (default: true)
+- panelLayout: boolean (true if physical layout mentioned)
 
-Smart voltage defaults (when not specified by user):
-- Three-phase motors >= 5 HP in the US: 480V (most common industrial voltage)
-- Three-phase motors < 5 HP: 208V
-- Single-phase motors: 240V
-- If user says "low voltage" or "208": 208V
-- If user says "medium voltage" or "480": 480V
-- If user says "600V" or mentions Canada: 600V
+Smart voltage defaults (when not specified):
+- Three-phase >= 5 HP in US: 480V
+- Three-phase < 5 HP: 208V
+- Single-phase: 240V
+- "600V" or Canada: 600V
 
-Standard North American voltages:
-- Single phase: 120V, 208V, 240V
-- Three phase: 208V, 240V, 480V, 600V
+Respond: {"type":"motor-starter","hp":"...","voltage":"...","phase":"...","controlVoltage":"...","country":"...","starterType":"...","hoaSwitch":...,"pilotLight":...,"plcRemote":...,"eStop":...,"panelLayout":...}
+
+=== TYPE: power-distribution ===
+Parameters:
+- supplyVoltage: "480VAC", "240VAC", "208VAC", or "120VAC" (default: "480VAC" for industrial, "208VAC" for commercial)
+- controlVoltage: "120VAC" or "24VDC" (default: "120VAC")
+- transformer: boolean — true if isolation/stepdown transformer mentioned (default: false; true if supply != control voltage)
+- powerSupplyCount: 1 or 2 — number of 24VDC power supplies (default: 1; 2 if redundancy mentioned)
+- convenienceOutlet: boolean (default: true)
+- cabinetLight: boolean (default: true)
+- cabinetFan: boolean (default: false, true if cooling/ventilation mentioned)
+- surgeProtection: boolean (default: true)
 
 Common patterns:
-- "HOA switch" → hoaSwitch: true
-- "PLC remote contact" or "remote control" → plcRemote: true
-- "remote control" with HOA context → hoaSwitch: true, plcRemote: true
-- "manual start stop" or "manual only" → basic 3-wire control, no HOA, no PLC
-- "control light" or "pilot light" or "running indicator" → pilotLight: true
+- "PLC power supply" or "CompactLogix power" → power-distribution with 24VDC supply
+- "control power" or "panel power section" → power-distribution
+- "24VDC supply" → power-distribution with powerSupplyCount: 1
+- "redundant power" → powerSupplyCount: 2
 
-Respond with ONLY a JSON object, no markdown, no explanation:
-{"hp":"...","voltage":"...","phase":"...","controlVoltage":"...","country":"...","starterType":"...","hoaSwitch":...,"pilotLight":...,"plcRemote":...,"eStop":...,"panelLayout":...}
+Respond: {"type":"power-distribution","supplyVoltage":"...","controlVoltage":"...","transformer":...,"powerSupplyCount":...,"convenienceOutlet":...,"cabinetLight":...,"cabinetFan":...,"surgeProtection":...}
 
-If the request is genuinely ambiguous, respond with:
-{"needsClarification":true,"clarificationQuestion":"Your specific question here"}`;
+=== TYPE: unsupported ===
+Respond: {"type":"unsupported","reason":"Brief explanation of why this is outside scope. Mention that fusionCad supports industrial electrical control and power circuits."}
+
+=== CLARIFICATION ===
+If genuinely ambiguous (not enough info to determine type or fill defaults), respond:
+{"needsClarification":true,"clarificationQuestion":"Your specific question"}
+
+Respond with ONLY a JSON object, no markdown, no explanation.`;
 
 export interface AIGenerateResult {
   success: boolean;
   summary?: string;
   circuitData?: CircuitData;
   error?: string;
-  parsedOptions?: PanelOptions;
+  parsedOptions?: Record<string, unknown>;
 }
 
 export async function aiGenerate(
@@ -687,8 +890,8 @@ export async function aiGenerate(
 
   const anthropic = new Anthropic({ apiKey });
 
-  // Step 1: Parse the prompt with Claude
-  let parsedOptions: PanelOptions;
+  // Step 1: Parse the prompt with Claude — classifies type and extracts params
+  let parsed: Record<string, any>;
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -702,46 +905,76 @@ export async function aiGenerate(
       return { success: false, error: 'No text response from Claude' };
     }
 
-    // Extract JSON from response (handle potential markdown wrapping)
     let jsonStr = textBlock.text.trim();
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     }
 
-    const parsed = JSON.parse(jsonStr);
+    parsed = JSON.parse(jsonStr);
 
-    // Handle clarification requests from the AI
     if (parsed.needsClarification) {
       return {
         success: false,
         error: parsed.clarificationQuestion || 'Could you provide more details about your requirements?',
       };
     }
-
-    parsedOptions = parsed as PanelOptions;
   } catch (err: any) {
     return { success: false, error: `Failed to parse requirements: ${err.message}` };
   }
 
-  // Step 2: Look up motor data
-  const motorData = lookupMotorStarter({
-    hp: parsedOptions.hp,
-    voltage: parsedOptions.voltage,
-    country: parsedOptions.country,
-    phase: parsedOptions.phase,
-    starterType: parsedOptions.starterType as any,
-  });
+  // Step 2: Route based on type
+  const requestType = parsed.type || 'motor-starter'; // fallback for backward compat
 
-  // Step 3: Generate the circuit
+  if (requestType === 'unsupported') {
+    return {
+      success: false,
+      error: parsed.reason || 'This type of circuit is not currently supported. fusionCad supports industrial electrical control and power circuits.',
+    };
+  }
+
+  if (requestType === 'power-distribution') {
+    try {
+      const options: PowerDistOptions = {
+        supplyVoltage: parsed.supplyVoltage || '480VAC',
+        controlVoltage: parsed.controlVoltage || '120VAC',
+        transformer: parsed.transformer,
+        powerSupplyCount: parsed.powerSupplyCount || 1,
+        convenienceOutlet: parsed.convenienceOutlet,
+        cabinetLight: parsed.cabinetLight,
+        cabinetFan: parsed.cabinetFan,
+        surgeProtection: parsed.surgeProtection,
+      };
+      const result = generatePowerDistributionPanel(existingCircuitData, options);
+      return {
+        success: true,
+        summary: result.summary,
+        circuitData: result.circuit,
+        parsedOptions: { type: 'power-distribution', ...options },
+      };
+    } catch (err: any) {
+      return { success: false, error: `Failed to generate power distribution: ${err.message}`, parsedOptions: parsed };
+    }
+  }
+
+  // Default: motor-starter
+  const motorOptions: PanelOptions = parsed as PanelOptions;
   try {
-    const result = generateMotorStarterPanel(existingCircuitData, parsedOptions, motorData || undefined);
+    const motorData = lookupMotorStarter({
+      hp: motorOptions.hp,
+      voltage: motorOptions.voltage,
+      country: motorOptions.country,
+      phase: motorOptions.phase,
+      starterType: motorOptions.starterType as any,
+    });
+
+    const result = generateMotorStarterPanel(existingCircuitData, motorOptions, motorData || undefined);
     return {
       success: true,
       summary: result.summary,
       circuitData: result.circuit,
-      parsedOptions,
+      parsedOptions: { type: 'motor-starter', ...motorOptions },
     };
   } catch (err: any) {
-    return { success: false, error: `Failed to generate circuit: ${err.message}`, parsedOptions };
+    return { success: false, error: `Failed to generate motor starter: ${err.message}`, parsedOptions: parsed };
   }
 }

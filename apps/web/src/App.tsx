@@ -19,6 +19,7 @@ import { ZoomControls } from './components/ZoomControls';
 import { ReportsDialog } from './components/ReportsDialog';
 import { ExportDialog } from './components/ExportDialog';
 import { SymbolLibrary } from './components/SymbolLibrary';
+import { SymbolEditor } from './components/SymbolEditor';
 import { ERCDialog } from './components/ERCDialog';
 import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
@@ -132,6 +133,7 @@ function AppInner({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
+  const [editSymbolId, setEditSymbolId] = useState<string | undefined>(undefined);
 
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
@@ -376,6 +378,7 @@ function AppInner({
             clipboard={clipboardState.clipboard}
             selectedAnnotationId={circuitState.selectedAnnotationId}
             renderHandleRef={interaction.renderHandleRef}
+            onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
           />
 
           <ZoomControls
@@ -440,6 +443,16 @@ function AppInner({
             interaction.setInteractionMode('place');
             interaction.setPlacementCategory(category);
           }}
+          storageProvider={storageProvider}
+        />
+      )}
+
+      {editSymbolId && (
+        <SymbolEditor
+          isOpen={true}
+          onClose={() => setEditSymbolId(undefined)}
+          onSave={() => {}}
+          editSymbolId={editSymbolId}
           storageProvider={storageProvider}
         />
       )}

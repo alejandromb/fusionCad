@@ -14,14 +14,15 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
   const stroke = ('stroke' in p && p.stroke) || themeStroke;
   const fill = ('fill' in p && p.fill) || 'none';
   const sw = ('strokeWidth' in p && p.strokeWidth) || 2;
+  const dash = ('strokeDash' in p && p.strokeDash) ? p.strokeDash.join(' ') : undefined;
 
   switch (p.type) {
     case 'rect':
-      return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} rx={p.rx} fill={fill} stroke={stroke} strokeWidth={sw} />;
+      return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} rx={p.rx} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     case 'circle':
-      return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={fill} stroke={stroke} strokeWidth={sw} />;
+      return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     case 'line':
-      return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={stroke} strokeWidth={sw} />;
+      return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     case 'arc': {
       const r = p.r;
       const x1 = p.cx + r * Math.cos(p.startAngle);
@@ -30,19 +31,19 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
       const y2 = p.cy + r * Math.sin(p.endAngle);
       const largeArc = Math.abs(p.endAngle - p.startAngle) > Math.PI ? 1 : 0;
       const sweep = p.endAngle > p.startAngle ? 1 : 0;
-      return <path key={i} d={`M${x1},${y1} A${r},${r} 0 ${largeArc},${sweep} ${x2},${y2}`} fill="none" stroke={stroke} strokeWidth={sw} />;
+      return <path key={i} d={`M${x1},${y1} A${r},${r} 0 ${largeArc},${sweep} ${x2},${y2}`} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     }
     case 'ellipse':
-      return <ellipse key={i} cx={p.cx} cy={p.cy} rx={p.rx} ry={p.ry} fill={fill} stroke={stroke} strokeWidth={sw} />;
+      return <ellipse key={i} cx={p.cx} cy={p.cy} rx={p.rx} ry={p.ry} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     case 'polyline': {
       const pts = p.points.map(pt => `${pt.x},${pt.y}`).join(' ');
-      if (p.closed) return <polygon key={i} points={pts} fill={fill} stroke={stroke} strokeWidth={sw} />;
-      return <polyline key={i} points={pts} fill={fill} stroke={stroke} strokeWidth={sw} />;
+      if (p.closed) return <polygon key={i} points={pts} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
+      return <polyline key={i} points={pts} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />;
     }
     case 'text':
       return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize ?? 20} fontWeight={p.fontWeight ?? 'bold'} fill={themeStroke} textAnchor={(p.textAnchor || 'middle') as 'start' | 'middle' | 'end'} dominantBaseline="central">{p.content}</text>;
     case 'path':
-      return <path key={i} d={p.d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />;
+      return <path key={i} d={p.d} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round" />;
     default:
       return null;
   }

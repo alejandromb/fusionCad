@@ -14,12 +14,14 @@
  * - Persistence via storage provider (custom symbols survive reload)
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { SymbolDefinition, SymbolPrimitive, PinDirection, PinType } from '@fusion-cad/core-model';
 import { generateId, registerSymbol, getSymbolById } from '@fusion-cad/core-model';
+import { validateSymbol, type SymbolValidationReport } from '@fusion-cad/core-engine';
 import type { StorageProvider } from '../storage/storage-provider';
 import { saveSymbol as saveSymbolApi } from '../api/symbols';
 import { getTheme } from '../renderer/theme';
+import { SymbolPreview } from './SymbolPreview';
 
 type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin' | 'text';
 
@@ -71,7 +73,8 @@ const GRID_SIZE = 5;
 const PREVIEW_SCALE = 0.8;
 const MAX_EDITOR_HISTORY = 50;
 
-function snapToGrid(value: number): number {
+function snapToGrid(value: number, enabled = true): number {
+  if (!enabled) return value;
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
@@ -156,6 +159,48 @@ function hitTestPath(path: EditorPath, point: Point, radius: number): boolean {
   return false;
 }
 
+/** Axis-aligned bounding box of an EditorPath (for marquee intersection). */
+function getPathBounds(path: EditorPath): { minX: number; minY: number; maxX: number; maxY: number } {
+  if (path.type === 'circle' && path.points.length >= 1 && path.radius) {
+    const c = path.points[0];
+    const r = path.radius;
+    return { minX: c.x - r, minY: c.y - r, maxX: c.x + r, maxY: c.y + r };
+  }
+  if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
+    const c = path.points[0];
+    const r = path.radius;
+    return { minX: c.x - r, minY: c.y - r, maxX: c.x + r, maxY: c.y + r };
+  }
+  if (path.type === 'text' && path.points.length >= 1) {
+    const fontSize = path.fontSize ?? 12;
+    const charWidth = fontSize * 0.6;
+    const text = path.content || '';
+    const textWidth = text.length * charWidth;
+    const anchor = path.textAnchor || 'center';
+    let left = path.points[0].x;
+    if (anchor === 'center') left -= textWidth / 2;
+    else if (anchor === 'end') left -= textWidth;
+    return { minX: left, minY: path.points[0].y - fontSize / 2, maxX: left + textWidth, maxY: path.points[0].y + fontSize / 2 };
+  }
+  // line, rect, polyline: just use all points
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const pt of path.points) {
+    if (pt.x < minX) minX = pt.x;
+    if (pt.y < minY) minY = pt.y;
+    if (pt.x > maxX) maxX = pt.x;
+    if (pt.y > maxY) maxY = pt.y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/** AABB intersection test */
+function rectsIntersect(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
 // ---------------------------------------------------------------------------
 // Primitive → EditorPath conversion (Task 1)
 // ---------------------------------------------------------------------------
@@ -214,8 +259,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   const [paths, setPaths] = useState<EditorPath[]>([]);
   const [pins, setPins] = useState<EditorPin[]>([]);
   const [selectedTool, setSelectedTool] = useState<EditorTool>('line');
-  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
+  const [selectedPathIds, setSelectedPathIds] = useState<Set<string>>(new Set());
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+
+  // Marquee selection state
+  const [marqueeStart, setMarqueeStart] = useState<Point | null>(null);
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  // Snap-to-grid toggle
+  const [snapEnabled, setSnapEnabled] = useState(true);
 
   // Drawing in progress
   const [isDrawing, setIsDrawing] = useState(false);
@@ -247,6 +299,25 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   // Canvas ref
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Build a temporary SymbolDefinition from current editor state for validation + preview
+  const tempSymbolDef = useMemo((): SymbolDefinition => ({
+    id: editSymbolId || 'editor-preview',
+    type: 'symbol-definition',
+    name: symbolName,
+    category: symbolCategory,
+    geometry: { width: symbolWidth, height: symbolHeight },
+    pins: pins.map(p => ({ id: p.id || p.name, name: p.name, position: { ...p.position }, direction: p.direction, pinType: p.pinType })),
+    primitives: editorPathsToPrimitives(paths),
+    createdAt: 0,
+    modifiedAt: 0,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [symbolName, symbolCategory, symbolWidth, symbolHeight, pins, paths, editSymbolId]);
+
+  // Real-time validation
+  const validationReport = useMemo((): SymbolValidationReport => {
+    return validateSymbol(tempSymbolDef);
+  }, [tempSymbolDef]);
 
   // Push current state onto the history stack (call BEFORE mutation)
   const pushEditorHistory = useCallback(() => {
@@ -280,7 +351,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setPaths(snapshot.paths.map(p => ({ ...p, points: [...p.points] })));
     setPins(snapshot.pins.map(p => ({ ...p, position: { ...p.position } })));
     setEditorHistoryIndex(editorHistoryIndex - 1);
-    setSelectedPathId(null);
+    setSelectedPathIds(new Set());
     setSelectedPinId(null);
     setTimeout(() => { isUndoRedoRef.current = false; }, 0);
   }, [editorHistory, editorHistoryIndex, paths, pins]);
@@ -294,7 +365,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setPaths(snapshot.paths.map(p => ({ ...p, points: [...p.points] })));
     setPins(snapshot.pins.map(p => ({ ...p, position: { ...p.position } })));
     setEditorHistoryIndex(editorHistoryIndex + 1);
-    setSelectedPathId(null);
+    setSelectedPathIds(new Set());
     setSelectedPinId(null);
     setTimeout(() => { isUndoRedoRef.current = false; }, 0);
   }, [editorHistory, editorHistoryIndex]);
@@ -321,7 +392,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       }
       // Delete selected
       if (e.key === 'Delete' || (e.key === 'Backspace' && !isDrawing)) {
-        if (selectedPathId || selectedPinId) {
+        if (selectedPathIds.size > 0 || selectedPinId) {
           e.preventDefault();
           handleDelete();
           return;
@@ -338,6 +409,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         }
         return;
       }
+      // Rotate selected paths: R key
+      if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+        if (selectedPathIds.size > 0) {
+          e.preventDefault();
+          rotatePaths(90);
+          return;
+        }
+      }
+
       // Escape: cancel in-progress polyline or deselect
       if (e.key === 'Escape') {
         if (isDrawing) {
@@ -346,7 +426,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           setCurrentPath(null);
           setStartPoint(null);
         } else {
-          setSelectedPathId(null);
+          setSelectedPathIds(new Set());
           setSelectedPinId(null);
         }
         return;
@@ -355,7 +435,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     // Capture phase to intercept before canvas handlers
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [isOpen, editorUndo, editorRedo, selectedPathId, selectedPinId, isDrawing, currentPath]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editorUndo, editorRedo, selectedPathIds, selectedPinId, isDrawing, currentPath]);
 
   // Load existing symbol for editing + auto-center (Task 1 + Task 3)
   useEffect(() => {
@@ -644,7 +725,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     ctx.lineJoin = 'round';
 
     for (const path of paths) {
-      const isSelected = path.id === selectedPathId;
+      const isSelected = selectedPathIds.has(path.id);
       ctx.strokeStyle = isSelected ? '#ffff00' : getTheme().symbolStroke;
       ctx.setLineDash(path.dashed ? [3 / scale, 3 / scale] : []);
 
@@ -770,8 +851,19 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       ctx.fillText(pin.name, pin.position.x, pin.position.y - 12 / scale);
     }
 
+    // Draw marquee selection rect
+    if (marqueeRect) {
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 1 / scale;
+      ctx.setLineDash([4 / scale, 4 / scale]);
+      ctx.fillStyle = 'rgba(74, 158, 255, 0.1)';
+      ctx.fillRect(marqueeRect.x, marqueeRect.y, marqueeRect.w, marqueeRect.h);
+      ctx.strokeRect(marqueeRect.x, marqueeRect.y, marqueeRect.w, marqueeRect.h);
+      ctx.setLineDash([]);
+    }
+
     ctx.restore();
-  }, [paths, pins, currentPath, selectedPathId, selectedPinId, symbolWidth, symbolHeight, viewport, canvasWidth, canvasHeight]);
+  }, [paths, pins, currentPath, selectedPathIds, selectedPinId, symbolWidth, symbolHeight, viewport, canvasWidth, canvasHeight, marqueeRect]);
 
   // Render preview
   const renderPreview = useCallback(() => {
@@ -864,8 +956,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale),
-      y: snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale),
+      x: snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale, snapEnabled),
+      y: snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale, snapEnabled),
     };
   };
 
@@ -908,6 +1000,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     if (selectedTool === 'select') {
       const worldPos = getWorldPos(e);
       const hitRadius = 6 / viewport.scale;
+      const isShift = e.shiftKey;
 
       // Check if clicking on a pin
       const clickedPin = pins.find(p =>
@@ -915,7 +1008,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       );
       if (clickedPin) {
         setSelectedPinId(clickedPin.id);
-        setSelectedPathId(null);
+        if (!isShift) setSelectedPathIds(new Set());
         // Start pin drag
         setIsDraggingPin(true);
         dragStartRef.current = pos;
@@ -925,7 +1018,18 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       // Check if clicking on a path (reverse z-order for top-most first)
       for (let i = paths.length - 1; i >= 0; i--) {
         if (hitTestPath(paths[i], worldPos, hitRadius)) {
-          setSelectedPathId(paths[i].id);
+          const pathId = paths[i].id;
+          if (isShift) {
+            // Toggle in/out of selection
+            setSelectedPathIds(prev => {
+              const next = new Set(prev);
+              if (next.has(pathId)) next.delete(pathId);
+              else next.add(pathId);
+              return next;
+            });
+          } else {
+            setSelectedPathIds(new Set([pathId]));
+          }
           setSelectedPinId(null);
           // Start drag
           setIsDraggingPath(true);
@@ -934,8 +1038,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         }
       }
 
-      setSelectedPathId(null);
-      setSelectedPinId(null);
+      // Empty space — start marquee selection
+      if (!isShift) {
+        setSelectedPathIds(new Set());
+        setSelectedPinId(null);
+      }
+      setMarqueeStart(worldPos);
+      setMarqueeRect(null);
       return;
     }
 
@@ -965,7 +1074,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         textAnchor: 'center',
       };
       setPaths([...paths, newText]);
-      setSelectedPathId(newText.id);
+      setSelectedPathIds(new Set([newText.id]));
       setSelectedPinId(null);
       return;
     }
@@ -1004,13 +1113,24 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     const pos = getMousePos(e);
 
-    // Drag selected path
-    if (isDraggingPath && selectedPathId && dragStartRef.current) {
+    // Marquee drag
+    if (marqueeStart) {
+      const worldPos = getWorldPos(e);
+      const x = Math.min(marqueeStart.x, worldPos.x);
+      const y = Math.min(marqueeStart.y, worldPos.y);
+      const w = Math.abs(worldPos.x - marqueeStart.x);
+      const h = Math.abs(worldPos.y - marqueeStart.y);
+      setMarqueeRect({ x, y, w, h });
+      return;
+    }
+
+    // Drag selected paths (all in selection)
+    if (isDraggingPath && selectedPathIds.size > 0 && dragStartRef.current) {
       const dx = pos.x - dragStartRef.current.x;
       const dy = pos.y - dragStartRef.current.y;
       if (dx === 0 && dy === 0) return;
       setPaths(prev => prev.map(p => {
-        if (p.id !== selectedPathId) return p;
+        if (!selectedPathIds.has(p.id)) return p;
         return {
           ...p,
           points: p.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy })),
@@ -1062,6 +1182,41 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     if (isPanning) {
       setIsPanning(false);
       panStartRef.current = null;
+      return;
+    }
+
+    // End marquee selection
+    if (marqueeStart) {
+      if (marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2) {
+        const hit = new Set<string>();
+        for (const path of paths) {
+          const b = getPathBounds(path);
+          const bw = b.maxX - b.minX;
+          const bh = b.maxY - b.minY;
+          if (rectsIntersect(marqueeRect.x, marqueeRect.y, marqueeRect.w, marqueeRect.h, b.minX, b.minY, bw, bh)) {
+            hit.add(path.id);
+          }
+        }
+        // Also select pins inside marquee
+        for (const pin of pins) {
+          if (pin.position.x >= marqueeRect.x && pin.position.x <= marqueeRect.x + marqueeRect.w &&
+              pin.position.y >= marqueeRect.y && pin.position.y <= marqueeRect.y + marqueeRect.h) {
+            // Pin selection stays single — select last pin found
+            setSelectedPinId(pin.id);
+          }
+        }
+        if (e.shiftKey) {
+          setSelectedPathIds(prev => {
+            const next = new Set(prev);
+            for (const id of hit) next.add(id);
+            return next;
+          });
+        } else {
+          setSelectedPathIds(hit);
+        }
+      }
+      setMarqueeStart(null);
+      setMarqueeRect(null);
       return;
     }
 
@@ -1129,17 +1284,18 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   // Delete selected element (with history)
   const handleDelete = useCallback(() => {
-    if (selectedPathId) {
+    if (selectedPathIds.size > 0 || selectedPinId) {
       pushEditorHistory();
-      setPaths(prev => prev.filter(p => p.id !== selectedPathId));
-      setSelectedPathId(null);
+    }
+    if (selectedPathIds.size > 0) {
+      setPaths(prev => prev.filter(p => !selectedPathIds.has(p.id)));
+      setSelectedPathIds(new Set());
     }
     if (selectedPinId) {
-      pushEditorHistory();
       setPins(prev => prev.filter(p => p.id !== selectedPinId));
       setSelectedPinId(null);
     }
-  }, [selectedPathId, selectedPinId, pushEditorHistory]);
+  }, [selectedPathIds, selectedPinId, pushEditorHistory]);
 
   // Update selected pin
   const updateSelectedPin = (updates: Partial<EditorPin>) => {
@@ -1147,16 +1303,16 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setPins(pins.map(p => p.id === selectedPinId ? { ...p, ...updates } : p));
   };
 
-  // Update selected path
+  // Update selected path(s)
   const updateSelectedPath = (updates: Partial<EditorPath>) => {
-    if (!selectedPathId) return;
-    setPaths(paths.map(p => p.id === selectedPathId ? { ...p, ...updates } : p));
+    if (selectedPathIds.size === 0) return;
+    setPaths(paths.map(p => selectedPathIds.has(p.id) ? { ...p, ...updates } : p));
   };
 
   // Flip selected path (or all paths if none selected)
   const flipPaths = useCallback((axis: 'horizontal' | 'vertical') => {
     pushEditorHistory();
-    const targetIds = selectedPathId ? [selectedPathId] : paths.map(p => p.id);
+    const targetIds = selectedPathIds.size > 0 ? [...selectedPathIds] : paths.map(p => p.id);
     setPaths(prev => prev.map(p => {
       if (!targetIds.includes(p.id)) return p;
       const flipped = { ...p, points: p.points.map(pt => ({ ...pt })) };
@@ -1184,7 +1340,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       return flipped;
     }));
     // Also flip pins if flipping all
-    if (!selectedPathId) {
+    if (selectedPathIds.size === 0) {
       setPins(prev => prev.map(pin => {
         const flipped = { ...pin, position: { ...pin.position } };
         if (axis === 'vertical') {
@@ -1199,7 +1355,46 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         return flipped;
       }));
     }
-  }, [selectedPathId, paths, symbolWidth, symbolHeight, pushEditorHistory]);
+  }, [selectedPathIds, paths, symbolWidth, symbolHeight, pushEditorHistory]);
+
+  // Rotate selected paths around their collective center
+  const rotatePaths = useCallback((angleDeg: number) => {
+    if (selectedPathIds.size === 0) return;
+    pushEditorHistory();
+    const angleRad = (angleDeg * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+
+    // Compute center of selected paths
+    let allPts: Point[] = [];
+    for (const p of paths) {
+      if (!selectedPathIds.has(p.id)) continue;
+      allPts = allPts.concat(p.points);
+    }
+    if (allPts.length === 0) return;
+    const cx = allPts.reduce((s, pt) => s + pt.x, 0) / allPts.length;
+    const cy = allPts.reduce((s, pt) => s + pt.y, 0) / allPts.length;
+
+    const rotatePoint = (pt: Point): Point => {
+      const dx = pt.x - cx;
+      const dy = pt.y - cy;
+      return {
+        x: snapToGrid(cx + dx * cos - dy * sin, snapEnabled),
+        y: snapToGrid(cy + dx * sin + dy * cos, snapEnabled),
+      };
+    };
+
+    setPaths(prev => prev.map(p => {
+      if (!selectedPathIds.has(p.id)) return p;
+      const rotated = { ...p, points: p.points.map(rotatePoint) };
+      // Rotate arc angles too
+      if (rotated.type === 'arc' && rotated.startAngle != null && rotated.endAngle != null) {
+        rotated.startAngle = rotated.startAngle + angleRad;
+        rotated.endAngle = rotated.endAngle + angleRad;
+      }
+      return rotated;
+    }));
+  }, [selectedPathIds, paths, pushEditorHistory, snapEnabled]);
 
   // Zoom controls (Task 5)
   const zoomToFit = useCallback(() => {
@@ -1299,12 +1494,47 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     onClose();
   };
 
+  // Export symbol in builtin-symbols.json flat format (browser download)
+  const handleExportToBuiltin = () => {
+    const primitivesList = editorPathsToPrimitives(paths);
+    const id = editSymbolId || `custom-${generateId()}`;
+
+    const builtinEntry: Record<string, unknown> = {
+      id,
+      name: symbolName,
+      category: symbolCategory,
+      width: symbolWidth,
+      height: symbolHeight,
+      svgPath: '',
+      primitives: primitivesList.length > 0 ? primitivesList : [],
+      pins: pins.map(p => ({
+        id: p.name || p.id,
+        name: p.name,
+        x: p.position.x,
+        y: p.position.y,
+        direction: p.direction,
+        pinType: p.pinType,
+      })),
+      tagPrefix,
+      standard: symbolStandard || undefined,
+    };
+
+    const json = JSON.stringify(builtinEntry, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Clear all (with history)
   const handleClear = () => {
     pushEditorHistory();
     setPaths([]);
     setPins([]);
-    setSelectedPathId(null);
+    setSelectedPathIds(new Set());
     setSelectedPinId(null);
   };
 
@@ -1377,8 +1607,11 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
             </div>
 
             <div className="tool-actions">
-              <button className="action-btn" onClick={handleDelete} disabled={!selectedPathId && !selectedPinId}>
+              <button className="action-btn" onClick={handleDelete} disabled={selectedPathIds.size === 0 && !selectedPinId}>
                 Delete
+              </button>
+              <button className="action-btn" onClick={() => rotatePaths(90)} disabled={selectedPathIds.size === 0} title="Rotate 90° CW (R)">
+                Rotate
               </button>
               <button className="action-btn" onClick={() => flipPaths('vertical')} title="Flip vertically (mirror top↔bottom)">
                 Flip V
@@ -1396,6 +1629,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 Clear All
               </button>
             </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '12px' }}>
+              <input
+                type="checkbox"
+                checked={snapEnabled}
+                onChange={e => setSnapEnabled(e.target.checked)}
+              />
+              Snap to Grid
+            </label>
 
             {/* Pin properties */}
             {selectedPin && (
@@ -1439,8 +1681,31 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
             )}
 
             {/* Path properties (arc angles, radius) */}
-            {selectedPathId && (() => {
-              const selectedPath = paths.find(p => p.id === selectedPathId);
+            {selectedPathIds.size > 0 && (() => {
+              if (selectedPathIds.size > 1) {
+                // Multi-select summary
+                const selectedPaths = paths.filter(p => selectedPathIds.has(p.id));
+                const allSameType = selectedPaths.every(p => p.type === selectedPaths[0]?.type);
+                return (
+                  <div className="pin-properties">
+                    <h4>{selectedPathIds.size} Items Selected</h4>
+                    {allSameType && selectedPaths[0] && (
+                      <label>
+                        Type: <span style={{ color: getTheme().symbolStroke }}>{selectedPaths[0].type}</span>
+                      </label>
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPaths.every(p => !!p.dashed)}
+                        onChange={e => updateSelectedPath({ dashed: e.target.checked })}
+                      />
+                      Dashed
+                    </label>
+                  </div>
+                );
+              }
+              const selectedPath = paths.find(p => selectedPathIds.has(p.id));
               if (!selectedPath) return null;
               return (
                 <div className="pin-properties">
@@ -1549,7 +1814,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 width={canvasWidth}
                 height={canvasHeight}
                 className="symbol-editor-canvas"
-                style={{ cursor: isPanning ? 'grabbing' : (selectedTool === 'select' ? 'default' : 'crosshair') }}
+                style={{ cursor: isPanning ? 'grabbing' : marqueeStart ? 'crosshair' : (selectedTool === 'select' ? 'default' : 'crosshair') }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1567,7 +1832,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               {selectedTool === 'polyline' ? 'Click to add points, double-click to finish. Backspace removes last point, Escape cancels.' :
                selectedTool === 'pin' ? 'Click to place pin' :
                selectedTool === 'text' ? 'Click to place text, then edit in properties panel' :
-               selectedTool === 'select' ? 'Click to select, drag to move, Delete to remove' :
+               selectedTool === 'select' ? 'Click to select, Shift+click to multi-select, drag empty space for marquee, R to rotate' :
                'Click and drag to draw'}
               {' \u00b7 Scroll to zoom, Shift+drag to pan'}
             </div>
@@ -1645,16 +1910,66 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
             <h4>Preview</h4>
             <canvas ref={previewCanvasRef} className="symbol-preview-canvas" />
 
+            {/* Multi-scale preview */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', margin: '8px 0' }}>
+              <div style={{ width: 40, height: 40, border: '1px solid #333', background: '#1a1a1a' }}>
+                <SymbolPreview symbol={tempSymbolDef} />
+              </div>
+              <div style={{ width: 80, height: 80, border: '1px solid #333', background: '#1a1a1a' }}>
+                <SymbolPreview symbol={tempSymbolDef} />
+              </div>
+              <div style={{ width: 160, height: 160, border: '1px solid #333', background: '#1a1a1a' }}>
+                <SymbolPreview symbol={tempSymbolDef} />
+              </div>
+            </div>
+
+            {/* Validation results */}
+            {validationReport.issues.length > 0 && (
+              <div className="symbol-validation-results" style={{ margin: '8px 0', fontSize: 12 }}>
+                {validationReport.issues.map(issue => (
+                  <div key={issue.id} style={{
+                    padding: '2px 6px',
+                    marginBottom: 2,
+                    borderLeft: `3px solid ${issue.severity === 'error' ? '#e74c3c' : issue.severity === 'warning' ? '#f39c12' : '#3498db'}`,
+                    background: issue.severity === 'error' ? 'rgba(231,76,60,0.1)' : issue.severity === 'warning' ? 'rgba(243,156,18,0.1)' : 'rgba(52,152,219,0.1)',
+                    color: '#ccc',
+                  }}>
+                    <span style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: 10, marginRight: 4,
+                      color: issue.severity === 'error' ? '#e74c3c' : issue.severity === 'warning' ? '#f39c12' : '#3498db'
+                    }}>
+                      {issue.severity}
+                    </span>
+                    {issue.message}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="symbol-stats">
               <span>{paths.length} path(s)</span>
               <span>{pins.length} pin(s)</span>
+              {validationReport.errorCount > 0 && (
+                <span style={{ color: '#e74c3c' }}>{validationReport.errorCount} error(s)</span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="dialog-footer">
           <button className="btn secondary" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleSave} disabled={pins.length === 0}>
+          <button
+            className="btn secondary"
+            onClick={handleExportToBuiltin}
+            title="Download symbol in builtin-symbols.json format"
+          >
+            Export to Builtin
+          </button>
+          <button
+            className="btn primary"
+            onClick={handleSave}
+            disabled={pins.length === 0 || validationReport.errorCount > 0}
+            title={validationReport.errorCount > 0 ? `Fix ${validationReport.errorCount} error(s) before saving` : undefined}
+          >
             {editSymbolId ? 'Save Changes' : 'Create Symbol'}
           </button>
         </div>

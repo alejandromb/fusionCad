@@ -35,7 +35,7 @@ interface AIPromptDialogProps {
 const EXAMPLE_PROMPTS = [
   'Motor starter for a 30 HP motor at 208V with HOA switch, pilot light, and PLC remote contact',
   '10 HP 480V motor starter with emergency stop and running indicator',
-  '5 HP single phase 240V motor, NEMA enclosed starter, manual start stop only',
+  'Power distribution for a CompactLogix PLC with 24VDC supply, surge protection, and cabinet light',
 ];
 
 export function AIPromptDialog({ projectId, onClose, onGenerated, getAccessToken, initialQuota }: AIPromptDialogProps) {
@@ -116,9 +116,9 @@ export function AIPromptDialog({ projectId, onClose, onGenerated, getAccessToken
 
         <div className="dialog-body">
           <p className="ai-prompt-description">
-            Describe your motor control panel requirements in plain English.
-            The AI will generate the complete schematic with power circuit,
-            control ladder, and real Schneider Electric parts.
+            Describe your electrical control or power circuit requirements in plain English.
+            The AI will generate the complete schematic with proper layout and wiring.
+            Supports motor starters, power distribution, PLC power supplies, and more.
           </p>
 
           {quota && quota.limit > 0 && (
@@ -133,7 +133,7 @@ export function AIPromptDialog({ projectId, onClose, onGenerated, getAccessToken
             className="ai-prompt-textarea"
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            placeholder="e.g., I need a motor starter panel for a 30 HP motor at 208V with an HOA switch, pilot light, and PLC remote contact..."
+            placeholder="e.g., 30 HP motor starter at 208V with HOA switch, or power distribution with 24VDC supply for a CompactLogix PLC..."
             rows={4}
             disabled={loading || !!isLimitReached}
             onKeyDown={e => {

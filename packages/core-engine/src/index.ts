@@ -22,3 +22,9 @@ export * from './circuit-graph.js';
 
 // Ladder diagram layout
 export * from './ladder-layout.js';
+
+// Symbol validation
+export * from './symbol-validator.js';
+
+// Terminal block calculation
+export * from './terminal-calculator.js';

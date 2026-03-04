@@ -30,24 +30,25 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-01)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-03)
 
-**Current task:** Power Distribution Ladder Rewrite — COMPLETE, tested
+**Current task:** SymbolEditor Multi-Select + Marquee + Rotate + Snap Toggle — COMPLETE
 
 **What was implemented:**
-- **Power Distribution Ladder Rewrite:** Replaced vertical schematic with L1/N ladder-block layout (createLadderBlock → rungs → autoLayoutLadder → createLadderRails). Transformer handled separately (H1/H2 pins). PS output terminals below rung.
-- **Architecture Assessment:** 8.7/10 — Foundation is general-purpose. Motor starter logic properly isolated in templates, not in core abstractions.
-- **Tests:** 125 E2E + 45 unit tests all passing, TypeScript clean
+- **Multi-select:** `selectedPathIds: Set<string>` replaces single selection. Shift+click toggles items. Marquee drag on empty space. All operations (drag, delete, flip, properties) work with multi-select.
+- **Rotate:** R key or toolbar button rotates selected paths 90° CW around collective center.
+- **Snap toggle:** Checkbox to disable snap-to-grid for freeform placement.
+- **Tests:** 125 E2E all passing, TypeScript clean
 
-**Branch:** `main` (uncommitted changes — new symbols + power dist rewrite)
+**Branch:** `main` (uncommitted changes)
 
 **Next steps (priority order):**
-1. **Commit current changes** — Power distribution rewrite + new symbols
-2. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
-3. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-4. **Gate AI features behind auth** — Unsigned users can draw but not generate
-5. Improve selector switch symbol visuals (cam operator readability)
-6. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
+1. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols (selector switch, etc.)
+2. **Automatic terminal block calculation** (Phase 3-4 feature)
+3. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
+4. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+5. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
+6. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
 
 ---
 
@@ -56,6 +57,7 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (99% complete)
 
 **Recent achievements:**
+- ✅ **SymbolEditor Multi-Select** - Marquee selection, Shift+click toggle, multi-drag/delete/flip, rotate (R key), snap toggle
 - ✅ **Power Distribution Ladder Layout** - L1/N rails, branch rungs, transformer/PS output terminals
 - ✅ **Visibility Bug Fixed** - RAF coalescing broke rendering; fixed with cancel-and-reschedule pattern
 - ✅ **Canvas Panning** - Click+drag pan, Space+drag, middle-click pan; Shift+drag for marquee
@@ -78,9 +80,10 @@ Before doing ANYTHING else:
 - Professional wire routing (visibility graph + A* + nudging)
 
 **High priority features documented:**
+- ⭐ Symbol creation/verification tool (reliable symbol building + validation)
 - ⭐ Automatic terminal block calculation (Phase 3-4)
 - ⭐ Panel layout editor (Phase 6-7)
-- ⭐ Cloud deployment (Dockerfile ready, needs Railway/Fly.io + managed Postgres)
+- ⭐ Cloud deployment (AWS Lambda + CDK, keep local until ready)
 
 ---
 

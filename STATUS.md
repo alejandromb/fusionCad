@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-01 (Power Distribution Ladder Rewrite + Architecture Assessment)
+**Last Updated**: 2026-03-03 (SymbolEditor Multi-Select + Marquee + Rotate + Snap Toggle)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -105,34 +105,32 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **ERC hot-to-neutral short circuit** — Device classifier + circuit graph + BFS path analysis
 - ✅ **Google/GitHub OAuth** — Amplify federated identity, OAuth buttons in AuthModal
 
-### ✅ DECIDED: Free-Tier Storage Architecture (2026-02-27)
+### ✅ DECIDED: Free-Tier Storage Architecture (2026-03-03, updated)
 
-**Problem:** IndexedDB as primary storage for free-tier users has unacceptable failure modes:
-- Clear browser data → projects gone
-- Switch PC → projects not there
-- Browser auto-cleanup (storage pressure) → could silently wipe data
+**Problem:** IndexedDB as primary storage is unacceptable — browser data clears, device switching, storage pressure all cause data loss.
 
-**Decision: Option B — Free cloud tier for everyone.**
+**Decision: Cloud persistence for everyone. No IndexedDB tier.**
 
 **Architecture:**
-- **Unsigned users (sandbox mode):** Full editor works — draw, wire, place symbols, export. Data lives in IndexedDB as throwaway trial storage. No AI features. No persistence guarantee.
-- **Signed-up users (free tier):** Cloud persistence via Postgres, auto-save, AI generation. Data survives across devices and browser clears.
-- **Auth:** Keep existing Cognito + Amplify. Add Google/GitHub OAuth as federated identity providers for easy signup. Keep email/password as fallback.
-- **IndexedDB migration:** Not needed — no real users have valuable local projects.
-- **Free tier limits:** TBD (likely 3 projects, capped AI generations)
+- **All users use cloud Postgres** — auto-save, cross-device access, reliable persistence.
+- **Free tier:** Up to 3 projects. Full editor works — draw, wire, place symbols, export. No AI features.
+- **Paid tier:** Unlimited projects, AI generation, advanced features.
+- **Auth:** Cognito + Amplify. Google/GitHub OAuth as federated identity providers. Email/password as fallback.
 
 **Implementation phases:**
-1. Add Google/GitHub OAuth to Cognito User Pool + UI buttons
-2. Deploy cloud Postgres (Supabase/Neon free tier) + API (Railway/Fly.io)
-3. Gate AI features behind auth (unsigned users can draw but not generate)
-4. Later: org_id multi-tenancy, Stripe payments, team features
+1. Build reliable symbol creation/verification tooling
+2. Add Google/GitHub OAuth to Cognito User Pool + UI buttons
+3. Deploy to AWS Lambda + CDK with managed Postgres
+4. Gate AI features behind auth (free users can draw but not generate)
+5. Later: org_id multi-tenancy, Stripe payments, team features
 
 ### Next Immediate Steps
-1. **Deploy API to cloud** — Push Dockerfile to Railway/Fly.io, connect managed Postgres, set env vars
-2. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-3. **Gate AI features behind auth** — Unsigned users can draw but not generate
-4. Improve selector switch 3-pos symbol visuals (cam operator rendering at small sizes)
-5. Implement IndexedDB sandbox for unsigned users (throwaway trial storage)
+1. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying symbols (selector switch and all symbols)
+2. **Automatic terminal block calculation** (Phase 3-4 feature)
+3. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
+4. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+5. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres, env vars
+6. **Gate AI features behind auth** — Free users can draw but not generate
 
 ---
 
@@ -1005,6 +1003,38 @@ This file tracks where we are in development. **Always read this file at the sta
 - OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
 - ERC short circuit detection is conservative: unknown device roles don't trigger false positives
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
+
+---
+
+### Session 13 - 2026-03-03 (SymbolEditor Multi-Select + Marquee + Rotate + Snap Toggle)
+**Duration**: ~30 minutes
+**Completed**:
+- **Multi-select in SymbolEditor** — Replaced `selectedPathId: string | null` with `selectedPathIds: Set<string>`. Updated all 20+ references: rendering highlights, drag, delete, flip, properties panel, undo/redo, keyboard shortcuts, clear.
+- **Marquee selection** — Drag on empty space in select mode draws a blue dashed rectangle with semi-transparent fill. On release, all paths whose AABB intersects the marquee are selected. Shift+drag adds to existing selection.
+- **`getPathBounds()` helper** — Computes axis-aligned bounding box for any path type (line, rect, circle, arc, text, polyline). Used for marquee intersection via `rectsIntersect()` AABB test.
+- **Shift+click toggle** — Shift+clicking a path toggles it in/out of the selection set without replacing existing selection.
+- **Multi-select operations** — Drag moves ALL selected paths. Delete removes ALL selected. Flip V/H applies to all selected. Properties panel shows "N items selected" summary with shared dashed toggle.
+- **Rotate** — New "Rotate" button in toolbar + R key shortcut. Rotates selected paths 90° CW around their collective center. Arc angles adjusted during rotation.
+- **Snap-to-grid toggle** — "Snap to Grid" checkbox below tool actions. When unchecked, positions are not snapped to grid, allowing freeform placement. Affects drawing, dragging, and rotation.
+
+**Files Modified**:
+- `apps/web/src/components/SymbolEditor.tsx` — All changes in this single file (~100 lines added/modified)
+
+**Test Results**:
+- 125 E2E tests passing (all green)
+- TypeScript clean (no new errors in SymbolEditor.tsx)
+
+**Blockers/Questions**: None
+
+**Next Session**:
+1. Symbol creation/verification tool — reliable tooling for building and validating symbols
+2. Automatic terminal block calculation (Phase 3-4)
+3. Cloud deployment (AWS Lambda + CDK)
+
+**Session End Notes**:
+- All changes are in one file (SymbolEditor.tsx) making review straightforward
+- The `getPathBounds` function uses conservative bounds (full circle for arcs) — good enough for marquee selection
+- Rotation rotates around the collective center of all selected paths' points, snapped to grid
 
 ---
 

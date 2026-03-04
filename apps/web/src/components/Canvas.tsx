@@ -43,6 +43,8 @@ interface CanvasProps {
   selectedAnnotationId?: string | null;
   /** Ref to expose imperative render handle for zoom bypass */
   renderHandleRef?: React.MutableRefObject<CanvasRenderHandle | null>;
+  /** Open Symbol Editor for a given symbolKey (dev-only context menu) */
+  onEditSymbol?: (symbolKey: string) => void;
 }
 
 export function Canvas({
@@ -72,6 +74,7 @@ export function Canvas({
   clipboard,
   selectedAnnotationId,
   renderHandleRef,
+  onEditSymbol,
 }: CanvasProps) {
   const rafIdRef = useRef(0);
   const canvasSizeRef = useRef({ w: 0, h: 0 });
@@ -218,6 +221,17 @@ export function Canvas({
                   if (mirrorDevice && contextMenu.deviceTag) mirrorDevice(contextMenu.deviceTag);
                   setContextMenu(null);
                 }}>Mirror (F)</button>
+                {import.meta.env.DEV && onEditSymbol && contextMenu.deviceTag && circuit && (() => {
+                  const device = circuit.devices.find(d => d.id === contextMenu.deviceTag);
+                  const part = device?.partId ? circuit.parts.find(p => p.id === device.partId) : null;
+                  const symbolKey = part?.symbolCategory || part?.category;
+                  return symbolKey ? (
+                    <button className="context-menu-item" onClick={() => {
+                      onEditSymbol(symbolKey);
+                      setContextMenu(null);
+                    }}>Edit Symbol</button>
+                  ) : null;
+                })()}
                 <div className="context-menu-separator" />
                 <button className="context-menu-item danger" onClick={() => {
                   if (deleteDevices) deleteDevices(selectedDevices.length > 0 ? selectedDevices : [contextMenu.deviceTag!]);

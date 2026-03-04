@@ -19,7 +19,7 @@ import {
   getPartsByManufacturer,
   getPartsByCategory,
 } from '@fusion-cad/core-model';
-import { runERC } from '@fusion-cad/core-engine';
+import { runERC, validateSymbol, validateAllSymbols, calculateTerminalBlocks } from '@fusion-cad/core-engine';
 import { generateBom } from '@fusion-cad/reports';
 import { ApiClient } from './api-client.js';
 import {
@@ -213,6 +213,34 @@ export function createServer(apiBase: string) {
         })),
       });
       return textResult(report);
+    },
+  );
+
+  server.tool(
+    'validate_symbols',
+    'Validate symbol definitions for structural issues. Can validate all builtin symbols or a specific symbol by ID.',
+    {
+      symbolId: z.string().optional().describe('Specific symbol ID to validate (validates all if omitted)'),
+    },
+    async ({ symbolId }) => {
+      if (symbolId) {
+        const symbol = getSymbolById(symbolId);
+        if (!symbol) {
+          return textResult({ error: `Symbol "${symbolId}" not found` });
+        }
+        return textResult(validateSymbol(symbol));
+      }
+      const allSymbols = getAllSymbols();
+      const reports = validateAllSymbols(allSymbols);
+      const withIssues = reports.filter(r => r.issues.length > 0);
+      return textResult({
+        totalSymbols: allSymbols.length,
+        symbolsWithIssues: withIssues.length,
+        totalErrors: reports.reduce((sum: number, r) => sum + r.errorCount, 0),
+        totalWarnings: reports.reduce((sum: number, r) => sum + r.warningCount, 0),
+        totalInfo: reports.reduce((sum: number, r) => sum + r.infoCount, 0),
+        reports: withIssues,
+      });
     },
   );
 
@@ -821,6 +849,54 @@ export function createServer(apiBase: string) {
         deviceCount: result.circuit.devices.length,
         wireCount: result.circuit.connections.length,
         summary: result.summary,
+      });
+    },
+  );
+
+  // ================================================================
+  //  TERMINAL BLOCK CALCULATION
+  // ================================================================
+
+  server.tool(
+    'calculate_terminal_blocks',
+    'Analyze a project\'s wiring to automatically calculate terminal blocks needed. Classifies panel vs field devices, finds boundary wires, selects Phoenix Contact parts (UT 4, UT 2.5, UTTB 2.5-PE), and generates Terminal entities for BOM/reports.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      sparePercent: z.number().min(0).max(50).optional().describe('Spare terminal percentage (default: 10)'),
+      stripNaming: z.enum(['functional', 'sequential']).optional().describe('Strip naming: "functional" (X1=power, X2=control, XPE=ground) or "sequential" (all on X1). Default: "functional"'),
+    },
+    async ({ projectId, sparePercent, stripNaming }) => {
+      const project = await api.getProject(projectId);
+      const cd = project.circuitData;
+
+      const result = calculateTerminalBlocks(
+        {
+          devices: cd.devices,
+          parts: cd.parts,
+          connections: cd.connections,
+          nets: cd.nets,
+        },
+        { sparePercent, stripNaming },
+      );
+
+      // Merge results into circuit data
+      cd.terminals = result.terminals;
+      // Add new parts (terminal parts + end covers)
+      cd.parts = [...cd.parts, ...result.parts];
+
+      await api.updateCircuitData(projectId, cd);
+
+      return textResult({
+        calculated: true,
+        summary: result.summary,
+        warnings: result.warnings,
+        boundaryConnections: result.boundaryConnections.map(bc => ({
+          from: `${bc.fromDevice}:${bc.fromPin} (${bc.fromLocation})`,
+          to: `${bc.toDevice}:${bc.toPin} (${bc.toLocation})`,
+          wireClass: bc.wireClass,
+          strip: bc.stripTag,
+          wireNumber: bc.wireNumber,
+        })),
       });
     },
   );
