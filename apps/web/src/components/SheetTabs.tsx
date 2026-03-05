@@ -78,7 +78,21 @@ export function SheetTabs({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              sheet.name
+              <>
+                {sheet.name}
+                {sheets.length > 1 && (
+                  <span
+                    className="sheet-tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(sheet.id);
+                    }}
+                    title="Delete sheet"
+                  >
+                    &times;
+                  </span>
+                )}
+              </>
             )}
           </button>
         ))}

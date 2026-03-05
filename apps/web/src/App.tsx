@@ -325,28 +325,20 @@ function AppInner({
 
       <div className="layout">
         <Sidebar
-          interactionMode={interaction.interactionMode}
-          placementCategory={interaction.placementCategory}
-          wireStart={interaction.wireStart}
-          selectedDevices={circuitState.selectedDevices}
-          selectedWireIndex={circuitState.selectedWireIndex}
-          circuit={project.circuit}
-          deleteDevices={circuitState.deleteDevices}
-          updateWireNumber={circuitState.updateWireNumber}
-          debugMode={circuitState.debugMode}
-          setDebugMode={circuitState.setDebugMode}
-          onAssignPart={circuitState.assignPart}
-          onUpdateDevice={circuitState.updateDevice}
-          selectedAnnotationId={circuitState.selectedAnnotationId}
-          onUpdateAnnotation={circuitState.updateAnnotation}
-          onDeleteAnnotation={circuitState.deleteAnnotation}
-          onSelectAnnotation={circuitState.selectAnnotation}
+          sheets={circuitState.sheets}
+          activeSheetId={circuitState.activeSheetId}
+          onSelectSheet={circuitState.setActiveSheetId}
+          onAddSheet={circuitState.addSheet}
+          onRenameSheet={circuitState.renameSheet}
+          onDeleteSheet={circuitState.deleteSheet}
           activeSheet={circuitState.sheets.find(s => s.id === circuitState.activeSheetId) || null}
           onUpdateSheet={circuitState.updateSheet}
           themeId={theme.themeId}
           setThemeId={theme.setThemeId}
           customColors={theme.customColors}
           setCustomColors={theme.setCustomColors}
+          debugMode={circuitState.debugMode}
+          setDebugMode={circuitState.setDebugMode}
         />
 
         <div className="canvas-area">
@@ -415,6 +407,18 @@ function AppInner({
           }}
           interactionMode={interaction.interactionMode}
           placementCategory={interaction.placementCategory}
+          wireStart={interaction.wireStart}
+          selectedDevices={circuitState.selectedDevices}
+          selectedWireIndex={circuitState.selectedWireIndex}
+          circuit={project.circuit}
+          deleteDevices={circuitState.deleteDevices}
+          updateWireNumber={circuitState.updateWireNumber}
+          onAssignPart={circuitState.assignPart}
+          onUpdateDevice={circuitState.updateDevice}
+          selectedAnnotationId={circuitState.selectedAnnotationId}
+          onUpdateAnnotation={circuitState.updateAnnotation}
+          onDeleteAnnotation={circuitState.deleteAnnotation}
+          onSelectAnnotation={circuitState.selectAnnotation}
         />
       </div>
 

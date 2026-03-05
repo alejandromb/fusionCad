@@ -41,6 +41,8 @@ interface EditorPath {
   endAngle?: number;
   // Dashed line style
   dashed?: boolean;
+  // For polyline: close the path (polygon)
+  closed?: boolean;
   // For text
   content?: string;
   fontSize?: number;
@@ -99,6 +101,12 @@ function hitTestPath(path: EditorPath, point: Point, radius: number): boolean {
   if (path.type === 'polyline' && path.points.length >= 2) {
     for (let i = 0; i < path.points.length - 1; i++) {
       if (pointToSegmentDist(point, path.points[i], path.points[i + 1]) <= radius) {
+        return true;
+      }
+    }
+    // Check closing segment for closed polylines (polygons)
+    if (path.closed && path.points.length >= 3) {
+      if (pointToSegmentDist(point, path.points[path.points.length - 1], path.points[0]) <= radius) {
         return true;
       }
     }
@@ -202,6 +210,90 @@ function rectsIntersect(
 }
 
 // ---------------------------------------------------------------------------
+// Handle positions for resize/vertex editing
+// ---------------------------------------------------------------------------
+
+function getRectHandles(path: EditorPath): { id: string; pos: Point; cursor: string }[] {
+  if (path.type !== 'rect' || path.points.length < 2) return [];
+  const [p1, p2] = path.points;
+  const x = Math.min(p1.x, p2.x);
+  const y = Math.min(p1.y, p2.y);
+  const w = Math.abs(p2.x - p1.x);
+  const h = Math.abs(p2.y - p1.y);
+  return [
+    { id: 'nw', pos: { x, y }, cursor: 'nw-resize' },
+    { id: 'n', pos: { x: x + w / 2, y }, cursor: 'n-resize' },
+    { id: 'ne', pos: { x: x + w, y }, cursor: 'ne-resize' },
+    { id: 'e', pos: { x: x + w, y: y + h / 2 }, cursor: 'e-resize' },
+    { id: 'se', pos: { x: x + w, y: y + h }, cursor: 'se-resize' },
+    { id: 's', pos: { x: x + w / 2, y: y + h }, cursor: 's-resize' },
+    { id: 'sw', pos: { x, y: y + h }, cursor: 'sw-resize' },
+    { id: 'w', pos: { x, y: y + h / 2 }, cursor: 'w-resize' },
+  ];
+}
+
+function getCircleHandles(path: EditorPath): { id: string; pos: Point; cursor: string }[] {
+  if (path.type !== 'circle' || !path.radius || path.points.length < 1) return [];
+  const c = path.points[0];
+  const r = path.radius;
+  return [
+    { id: 'n', pos: { x: c.x, y: c.y - r }, cursor: 'n-resize' },
+    { id: 'e', pos: { x: c.x + r, y: c.y }, cursor: 'e-resize' },
+    { id: 's', pos: { x: c.x, y: c.y + r }, cursor: 's-resize' },
+    { id: 'w', pos: { x: c.x - r, y: c.y }, cursor: 'w-resize' },
+  ];
+}
+
+function getVertexHandles(path: EditorPath): { id: string; pos: Point; cursor: string }[] {
+  if (path.type !== 'polyline' && path.type !== 'line') return [];
+  return path.points.map((pt, i) => ({
+    id: String(i),
+    pos: pt,
+    cursor: 'crosshair',
+  }));
+}
+
+type HandleInfo = {
+  type: 'resize' | 'vertex';
+  handleId: string;
+  pathId: string;
+  position: Point;
+  cursor: string;
+};
+
+function getHandleAtPoint(
+  worldPos: Point,
+  selPathIds: Set<string>,
+  allPaths: EditorPath[],
+  scale: number,
+): HandleInfo | null {
+  if (selPathIds.size !== 1) return null;
+  const pathId = [...selPathIds][0];
+  const path = allPaths.find(p => p.id === pathId);
+  if (!path) return null;
+
+  const hitRadius = 8 / scale;
+  let handles: { id: string; pos: Point; cursor: string }[] = [];
+  let handleType: 'resize' | 'vertex' = 'resize';
+
+  if (path.type === 'rect') {
+    handles = getRectHandles(path);
+  } else if (path.type === 'circle') {
+    handles = getCircleHandles(path);
+  } else if (path.type === 'polyline' || path.type === 'line') {
+    handles = getVertexHandles(path);
+    handleType = 'vertex';
+  }
+
+  for (const h of handles) {
+    if (Math.abs(worldPos.x - h.pos.x) < hitRadius && Math.abs(worldPos.y - h.pos.y) < hitRadius) {
+      return { type: handleType, handleId: h.id, pathId, position: h.pos, cursor: h.cursor };
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Primitive → EditorPath conversion (Task 1)
 // ---------------------------------------------------------------------------
 
@@ -224,7 +316,7 @@ function primitivesToEditorPaths(primitives: SymbolPrimitive[]): EditorPath[] {
         result.push({ id, type: 'circle', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r });
         break;
       case 'polyline':
-        result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })), dashed: !!(prim as any).strokeDash });
+        result.push({ id, type: 'polyline', points: prim.points.map(p => ({ x: p.x, y: p.y })), dashed: !!(prim as any).strokeDash, closed: !!(prim as any).closed });
         break;
       case 'arc':
         result.push({ id, type: 'arc', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r, startAngle: prim.startAngle, endAngle: prim.endAngle });
@@ -278,6 +370,10 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   const [isDraggingPath, setIsDraggingPath] = useState(false);
   const [isDraggingPin, setIsDraggingPin] = useState(false);
   const dragStartRef = useRef<Point | null>(null);
+
+  // Handle interaction state (resize/vertex editing)
+  const [activeHandle, setActiveHandle] = useState<HandleInfo | null>(null);
+  const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
 
   // Viewport state (Task 3)
   const [viewport, setViewport] = useState({ offsetX: 0, offsetY: 0, scale: 1 });
@@ -370,6 +466,27 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setTimeout(() => { isUndoRedoRef.current = false; }, 0);
   }, [editorHistory, editorHistoryIndex]);
 
+  // Duplicate selected paths
+  const handleDuplicate = useCallback(() => {
+    if (selectedPathIds.size === 0) return;
+    pushEditorHistory();
+    const offset = 20;
+    const newPaths: EditorPath[] = [];
+    const newIds = new Set<string>();
+    for (const path of paths) {
+      if (!selectedPathIds.has(path.id)) continue;
+      const newId = `path-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      newPaths.push({
+        ...path,
+        id: newId,
+        points: path.points.map(pt => ({ x: pt.x + offset, y: pt.y + offset })),
+      });
+      newIds.add(newId);
+    }
+    setPaths(prev => [...prev, ...newPaths]);
+    setSelectedPathIds(newIds);
+  }, [selectedPathIds, paths, pushEditorHistory]);
+
   // Keyboard shortcuts for undo/redo/delete/escape/backspace
   useEffect(() => {
     if (!isOpen) return;
@@ -388,6 +505,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
         e.preventDefault();
         editorRedo();
+        return;
+      }
+      // Duplicate: Cmd/Ctrl+D
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        handleDuplicate();
         return;
       }
       // Delete selected
@@ -436,7 +559,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, editorUndo, editorRedo, selectedPathIds, selectedPinId, isDrawing, currentPath]);
+  }, [isOpen, editorUndo, editorRedo, selectedPathIds, selectedPinId, isDrawing, currentPath, handleDuplicate]);
 
   // Load existing symbol for editing + auto-center (Task 1 + Task 3)
   useEffect(() => {
@@ -596,6 +719,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         for (let i = 1; i < pts.length; i++) {
           d += `L${pts[i].x},${pts[i].y}`;
         }
+        if (path.closed) d += 'Z';
         parts.push(d);
       }
     }
@@ -641,6 +765,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           type: 'polyline',
           points: path.points.map(p => ({ x: p.x, y: p.y })),
         };
+        if (path.closed) prim.closed = true;
         if (path.dashed) prim.strokeDash = [2, 2];
         result.push(prim);
       } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
@@ -751,6 +876,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         for (let i = 1; i < path.points.length; i++) {
           ctx.lineTo(path.points[i].x, path.points[i].y);
         }
+        if (path.closed) ctx.closePath();
         ctx.stroke();
       } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
         ctx.beginPath();
@@ -862,8 +988,45 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       ctx.setLineDash([]);
     }
 
+    // Draw handles for single-selected shape
+    if (selectedPathIds.size === 1 && selectedTool === 'select') {
+      const selPathId = [...selectedPathIds][0];
+      const selPath = paths.find(p => p.id === selPathId);
+      if (selPath) {
+        const handleSize = 6 / scale;
+        let handles: { id: string; pos: Point; cursor: string }[] = [];
+
+        if (selPath.type === 'rect') {
+          handles = getRectHandles(selPath);
+        } else if (selPath.type === 'circle') {
+          handles = getCircleHandles(selPath);
+        } else if (selPath.type === 'polyline' || selPath.type === 'line') {
+          handles = getVertexHandles(selPath);
+        }
+
+        ctx.setLineDash([]);
+        for (const h of handles) {
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#4a9eff';
+          ctx.lineWidth = 1.5 / scale;
+
+          if (selPath.type === 'polyline' || selPath.type === 'line') {
+            // Vertex handles as circles
+            ctx.beginPath();
+            ctx.arc(h.pos.x, h.pos.y, handleSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            // Resize handles as squares
+            ctx.fillRect(h.pos.x - handleSize / 2, h.pos.y - handleSize / 2, handleSize, handleSize);
+            ctx.strokeRect(h.pos.x - handleSize / 2, h.pos.y - handleSize / 2, handleSize, handleSize);
+          }
+        }
+      }
+    }
+
     ctx.restore();
-  }, [paths, pins, currentPath, selectedPathIds, selectedPinId, symbolWidth, symbolHeight, viewport, canvasWidth, canvasHeight, marqueeRect]);
+  }, [paths, pins, currentPath, selectedPathIds, selectedPinId, symbolWidth, symbolHeight, viewport, canvasWidth, canvasHeight, marqueeRect, selectedTool]);
 
   // Render preview
   const renderPreview = useCallback(() => {
@@ -918,6 +1081,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         for (let i = 1; i < path.points.length; i++) {
           ctx.lineTo(path.points[i].x, path.points[i].y);
         }
+        if (path.closed) ctx.closePath();
         ctx.stroke();
       } else if (path.type === 'arc' && path.points.length >= 1 && path.radius) {
         ctx.beginPath();
@@ -1001,6 +1165,17 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       const worldPos = getWorldPos(e);
       const hitRadius = 6 / viewport.scale;
       const isShift = e.shiftKey;
+
+      // Check for handle interaction (resize/vertex) before anything else
+      if (selectedPathIds.size === 1) {
+        const handle = getHandleAtPoint(worldPos, selectedPathIds, paths, viewport.scale);
+        if (handle) {
+          pushEditorHistory();
+          setActiveHandle(handle);
+          dragStartRef.current = pos;
+          return;
+        }
+      }
 
       // Check if clicking on a pin
       const clickedPin = pins.find(p =>
@@ -1113,6 +1288,46 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     const pos = getMousePos(e);
 
+    // Handle resize/vertex drag
+    if (activeHandle && dragStartRef.current) {
+      const path = paths.find(p => p.id === activeHandle.pathId);
+      if (path) {
+        if (activeHandle.type === 'resize' && path.type === 'rect') {
+          const [p1, p2] = path.points;
+          let x1 = Math.min(p1.x, p2.x), y1 = Math.min(p1.y, p2.y);
+          let x2 = Math.max(p1.x, p2.x), y2 = Math.max(p1.y, p2.y);
+          const h = activeHandle.handleId;
+          if (h === 'nw' || h === 'w' || h === 'sw') x1 = pos.x;
+          if (h === 'nw' || h === 'n' || h === 'ne') y1 = pos.y;
+          if (h === 'ne' || h === 'e' || h === 'se') x2 = pos.x;
+          if (h === 'se' || h === 's' || h === 'sw') y2 = pos.y;
+          if (Math.abs(x2 - x1) >= 5 && Math.abs(y2 - y1) >= 5) {
+            setPaths(prev => prev.map(p =>
+              p.id === activeHandle.pathId
+                ? { ...p, points: [{ x: x1, y: y1 }, { x: x2, y: y2 }] }
+                : p
+            ));
+          }
+        } else if (activeHandle.type === 'resize' && path.type === 'circle') {
+          const center = path.points[0];
+          const newRadius = Math.max(5, snapToGrid(Math.hypot(pos.x - center.x, pos.y - center.y), snapEnabled));
+          setPaths(prev => prev.map(p =>
+            p.id === activeHandle.pathId ? { ...p, radius: newRadius } : p
+          ));
+        } else if (activeHandle.type === 'vertex') {
+          const vertexIdx = parseInt(activeHandle.handleId);
+          setPaths(prev => prev.map(p => {
+            if (p.id !== activeHandle.pathId) return p;
+            const newPoints = [...p.points];
+            newPoints[vertexIdx] = { x: pos.x, y: pos.y };
+            return { ...p, points: newPoints };
+          }));
+        }
+      }
+      dragStartRef.current = pos;
+      return;
+    }
+
     // Marquee drag
     if (marqueeStart) {
       const worldPos = getWorldPos(e);
@@ -1150,6 +1365,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       return;
     }
 
+    // Hover detection for handle cursors
+    if (selectedTool === 'select' && !isDraggingPath && !isDraggingPin && !marqueeStart) {
+      const worldPos = getWorldPos(e);
+      const handle = getHandleAtPoint(worldPos, selectedPathIds, paths, viewport.scale);
+      setHoveredHandle(handle?.cursor ?? null);
+    }
+
     if (!isDrawing || !currentPath || !startPoint) return;
 
     if (currentPath.type === 'line' || currentPath.type === 'rect') {
@@ -1182,6 +1404,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     if (isPanning) {
       setIsPanning(false);
       panStartRef.current = null;
+      return;
+    }
+
+    // End handle drag
+    if (activeHandle) {
+      setActiveHandle(null);
+      dragStartRef.current = null;
       return;
     }
 
@@ -1272,13 +1501,46 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     setStartPoint(null);
   };
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Finalize polyline drawing
     if (isDrawing && currentPath && currentPath.type === 'polyline' && currentPath.points.length >= 2) {
       pushEditorHistory();
       setPaths([...paths, currentPath]);
       setIsDrawing(false);
       setCurrentPath(null);
       setStartPoint(null);
+      return;
+    }
+
+    // Insert vertex on polyline/line segment
+    if (selectedTool === 'select' && selectedPathIds.size === 1) {
+      const worldPos = getWorldPos(e);
+      const pathId = [...selectedPathIds][0];
+      const path = paths.find(p => p.id === pathId);
+      if (path && (path.type === 'polyline' || path.type === 'line')) {
+        const hitRadius = 8 / viewport.scale;
+        let bestDist = Infinity;
+        let bestIdx = -1;
+        const segCount = path.points.length - 1 + (path.closed ? 1 : 0);
+        for (let i = 0; i < segCount; i++) {
+          const a = path.points[i];
+          const b = path.points[(i + 1) % path.points.length];
+          const dist = pointToSegmentDist(worldPos, a, b);
+          if (dist < hitRadius && dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
+          }
+        }
+        if (bestIdx >= 0) {
+          pushEditorHistory();
+          const snappedPos = getMousePos(e);
+          const newPoints = [...path.points];
+          newPoints.splice(bestIdx + 1, 0, snappedPos);
+          // If it was a line with 2 points, promote to polyline
+          const newType = path.type === 'line' && newPoints.length > 2 ? 'polyline' as const : path.type;
+          setPaths(prev => prev.map(p => p.id === pathId ? { ...p, type: newType, points: newPoints } : p));
+        }
+      }
     }
   };
 
@@ -1560,49 +1822,49 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 onClick={() => setSelectedTool('select')}
                 title="Select (V)"
               >
-                Select
+                <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 1l10 6-5 1.5L6.5 14z" fill="currentColor" stroke="currentColor" strokeWidth="0.5"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'line' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('line')}
                 title="Line (L)"
               >
-                Line
+                <svg width="16" height="16" viewBox="0 0 16 16"><line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'rect' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('rect')}
                 title="Rectangle (R)"
               >
-                Rect
+                <svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" rx="0.5"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'circle' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('circle')}
                 title="Circle (C)"
               >
-                Circle
+                <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'polyline' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('polyline')}
                 title="Polyline (P) - Double-click to finish"
               >
-                Polyline
+                <svg width="16" height="16" viewBox="0 0 16 16"><polyline points="2,13 5,4 10,10 14,3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'text' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('text')}
                 title="Text (T)"
               >
-                Text
+                <svg width="16" height="16" viewBox="0 0 16 16"><text x="8" y="13" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="bold" fontFamily="serif">T</text></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'pin' ? 'active' : ''}`}
                 onClick={() => setSelectedTool('pin')}
                 title="Add Pin (N)"
               >
-                Pin
+                <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor"/><line x1="8" y1="11" x2="8" y2="15" stroke="currentColor" strokeWidth="1.5"/></svg>
               </button>
             </div>
 
@@ -1618,6 +1880,9 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               </button>
               <button className="action-btn" onClick={() => flipPaths('horizontal')} title="Flip horizontally (mirror left↔right)">
                 Flip H
+              </button>
+              <button className="action-btn" onClick={handleDuplicate} disabled={selectedPathIds.size === 0} title="Duplicate (Cmd+D)">
+                Duplicate
               </button>
               <button className="action-btn" onClick={editorUndo} disabled={editorHistoryIndex < 0} title="Undo (Cmd+Z)">
                 Undo
@@ -1677,6 +1942,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                     <option value="pe">PE (Earth)</option>
                   </select>
                 </label>
+                <div className="numeric-coords">
+                  <div className="coord-row">
+                    <label>X: <input type="number" value={Math.round(selectedPin.position.x)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, x: Number(e.target.value) } })} step={GRID_SIZE} /></label>
+                    <label>Y: <input type="number" value={Math.round(selectedPin.position.y)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, y: Number(e.target.value) } })} step={GRID_SIZE} /></label>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1702,11 +1973,51 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                       />
                       Dashed
                     </label>
+                    {allSameType && selectedPaths[0]?.type === 'polyline' && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPaths.every(p => !!p.closed)}
+                          onChange={e => updateSelectedPath({ closed: e.target.checked })}
+                        />
+                        Closed
+                      </label>
+                    )}
                   </div>
                 );
               }
               const selectedPath = paths.find(p => selectedPathIds.has(p.id));
               if (!selectedPath) return null;
+
+              // Helper to update a specific point
+              const updatePoint = (idx: number, axis: 'x' | 'y', val: number) => {
+                setPaths(prev => prev.map(p => {
+                  if (!selectedPathIds.has(p.id)) return p;
+                  const newPoints = [...p.points];
+                  newPoints[idx] = { ...newPoints[idx], [axis]: val };
+                  return { ...p, points: newPoints };
+                }));
+              };
+
+              // Rect helpers
+              const rectX = selectedPath.type === 'rect' ? Math.min(selectedPath.points[0]?.x ?? 0, selectedPath.points[1]?.x ?? 0) : 0;
+              const rectY = selectedPath.type === 'rect' ? Math.min(selectedPath.points[0]?.y ?? 0, selectedPath.points[1]?.y ?? 0) : 0;
+              const rectW = selectedPath.type === 'rect' ? Math.abs((selectedPath.points[1]?.x ?? 0) - (selectedPath.points[0]?.x ?? 0)) : 0;
+              const rectH = selectedPath.type === 'rect' ? Math.abs((selectedPath.points[1]?.y ?? 0) - (selectedPath.points[0]?.y ?? 0)) : 0;
+
+              const updateRect = (field: 'x' | 'y' | 'w' | 'h', val: number) => {
+                let x = rectX, y = rectY, w = rectW, h = rectH;
+                if (field === 'x') x = val;
+                if (field === 'y') y = val;
+                if (field === 'w') w = Math.max(5, val);
+                if (field === 'h') h = Math.max(5, val);
+                setPaths(prev => prev.map(p =>
+                  selectedPathIds.has(p.id)
+                    ? { ...p, points: [{ x, y }, { x: x + w, y: y + h }] }
+                    : p
+                ));
+              };
+
               return (
                 <div className="pin-properties">
                   <h4>Path Properties</h4>
@@ -1721,6 +2032,78 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                     />
                     Dashed
                   </label>
+                  {selectedPath.type === 'polyline' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedPath.closed}
+                        onChange={e => updateSelectedPath({ closed: e.target.checked })}
+                      />
+                      Closed
+                    </label>
+                  )}
+
+                  {/* Numeric inputs for rect */}
+                  {selectedPath.type === 'rect' && (
+                    <div className="numeric-coords">
+                      <div className="coord-row">
+                        <label>X: <input type="number" value={Math.round(rectX)} onChange={e => updateRect('x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>Y: <input type="number" value={Math.round(rectY)} onChange={e => updateRect('y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                      </div>
+                      <div className="coord-row">
+                        <label>W: <input type="number" value={Math.round(rectW)} onChange={e => updateRect('w', Number(e.target.value))} step={GRID_SIZE} min={5} /></label>
+                        <label>H: <input type="number" value={Math.round(rectH)} onChange={e => updateRect('h', Number(e.target.value))} step={GRID_SIZE} min={5} /></label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Numeric inputs for circle */}
+                  {selectedPath.type === 'circle' && (
+                    <div className="numeric-coords">
+                      <div className="coord-row">
+                        <label>CX: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>CY: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Numeric inputs for line */}
+                  {selectedPath.type === 'line' && (
+                    <div className="numeric-coords">
+                      <div className="coord-row">
+                        <label>X1: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>Y1: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                      </div>
+                      <div className="coord-row">
+                        <label>X2: <input type="number" value={Math.round(selectedPath.points[1]?.x ?? 0)} onChange={e => updatePoint(1, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>Y2: <input type="number" value={Math.round(selectedPath.points[1]?.y ?? 0)} onChange={e => updatePoint(1, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Numeric inputs for text position */}
+                  {selectedPath.type === 'text' && (
+                    <div className="numeric-coords">
+                      <div className="coord-row">
+                        <label>X: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>Y: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Vertex list for polyline */}
+                  {(selectedPath.type === 'polyline' || selectedPath.type === 'line') && selectedPath.points.length > 0 && (
+                    <div className="numeric-coords vertex-list">
+                      <span style={{ fontSize: '11px', color: 'var(--fc-text-muted, #888)' }}>Vertices ({selectedPath.points.length})</span>
+                      {selectedPath.points.map((pt, i) => (
+                        <div className="coord-row" key={i}>
+                          <label>X: <input type="number" value={Math.round(pt.x)} onChange={e => updatePoint(i, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
+                          <label>Y: <input type="number" value={Math.round(pt.y)} onChange={e => updatePoint(i, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {(selectedPath.type === 'arc' || selectedPath.type === 'circle') && (
                     <label>
                       Radius:
@@ -1814,7 +2197,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 width={canvasWidth}
                 height={canvasHeight}
                 className="symbol-editor-canvas"
-                style={{ cursor: isPanning ? 'grabbing' : marqueeStart ? 'crosshair' : (selectedTool === 'select' ? 'default' : 'crosshair') }}
+                style={{ cursor: isPanning ? 'grabbing' : activeHandle ? 'grabbing' : hoveredHandle || (marqueeStart ? 'crosshair' : (selectedTool === 'select' ? 'default' : 'crosshair')) }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1832,7 +2215,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               {selectedTool === 'polyline' ? 'Click to add points, double-click to finish. Backspace removes last point, Escape cancels.' :
                selectedTool === 'pin' ? 'Click to place pin' :
                selectedTool === 'text' ? 'Click to place text, then edit in properties panel' :
-               selectedTool === 'select' ? 'Click to select, Shift+click to multi-select, drag empty space for marquee, R to rotate' :
+               selectedTool === 'select' ? 'Click to select, drag handles to resize/edit vertices, double-click segment to add vertex, Cmd+D to duplicate' :
                'Click and drag to draw'}
               {' \u00b7 Scroll to zoom, Shift+drag to pan'}
             </div>

@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-03 (SymbolEditor Multi-Select + Marquee + Rotate + Snap Toggle)
+**Last Updated**: 2026-03-04 (Symbol Editor Enhancements + Canvas Rendering Polish)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -80,11 +80,15 @@ This file tracks where we are in development. **Always read this file at the sta
   - Category filtering, symbol preview with SVG rendering
   - Symbol ID passed through for correct rendering and tag generation
 - ✅ **Symbol Editor** (Visual Symbol Builder):
-  - Drawing tools: Line, Rectangle, Circle, Polyline
+  - Drawing tools: Line, Rectangle, Circle, Polyline (SVG icon buttons)
   - Pin placement with name, direction, type properties
   - Symbol metadata: name, category, tag prefix, dimensions
   - Real-time preview, save to library
   - Access from Symbol Library: "Create Symbol" and "Edit Symbol" buttons
+  - Resize handles: 8 handles on rects (corners + edges), 4 cardinal on circles
+  - Vertex editing: drag polyline/line vertices, double-click segment to insert
+  - Numeric inputs: X/Y/W/H for rects, CX/CY for circles, vertex list for polylines
+  - Duplicate (Cmd+D): copies selected paths with +20 offset
 - ✅ **Wire Preview**: Dashed green line from start pin to mouse during wire creation
 - ✅ **Object Inspector (Editable Properties Panel)**:
   - Inline-editable device tag/function/location (click to edit, Enter/blur to commit, Escape to cancel)
@@ -93,7 +97,7 @@ This file tracks where we are in development. **Always read this file at the sta
   - Multi-select summary with tag chips when 2+ devices selected
   - Fixed createSnapshot() to include sheets/annotations/terminals in undo/redo
   - Fixed updateAnnotation() to push history (annotation edits now undoable)
-  - 35 E2E tests passing
+  - 125 E2E tests passing
 
 ### What We're Working On
 - ✅ ~~VISIBILITY BUG~~ — Fixed! RAF coalescing `needsRenderRef` was stuck at `true`
@@ -104,6 +108,11 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Cloud deployment ready** — Dockerfile, migrations, Railway config, CORS, health check
 - ✅ **ERC hot-to-neutral short circuit** — Device classifier + circuit graph + BFS path analysis
 - ✅ **Google/GitHub OAuth** — Amplify federated identity, OAuth buttons in AuthModal
+- ✅ **UI Layout Restructure** — Left sidebar → page explorer (sheets + title block), right panel → added Properties tab with auto-switch on selection
+- ✅ **Design System Established** — Refactoring UI + modern 2025-2026 patterns cross-referenced, design tokens defined (spacing, color, typography, shadows), saved to `memory/design-system.md`
+- ✅ **Symbol Editor Enhancements** — Resize handles, vertex editing, numeric inputs, duplicate, SVG tool icons
+- ✅ **Canvas Rendering Polish** — Round lineCap/lineJoin + stroke width 2px across all themes
+- 🟡 **Design System Implementation** — Applying design tokens: CSS variables, canvas/chrome theme separation, progressive disclosure, contextual UI
 
 ### ✅ DECIDED: Free-Tier Storage Architecture (2026-03-03, updated)
 
@@ -125,12 +134,15 @@ This file tracks where we are in development. **Always read this file at the sta
 5. Later: org_id multi-tenancy, Stripe payments, team features
 
 ### Next Immediate Steps
-1. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying symbols (selector switch and all symbols)
-2. **Automatic terminal block calculation** (Phase 3-4 feature)
-3. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
-4. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-5. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres, env vars
-6. **Gate AI features behind auth** — Free users can draw but not generate
+1. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove vertices from polylines (min 2 points)
+2. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing scale, typography, shadows
+3. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
+4. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying symbols (selector switch and all symbols)
+5. **Automatic terminal block calculation** (Phase 3-4 feature)
+6. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
+7. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+8. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres, env vars
+9. **Gate AI features behind auth** — Free users can draw but not generate
 
 ---
 
@@ -1003,6 +1015,72 @@ This file tracks where we are in development. **Always read this file at the sta
 - OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
 - ERC short circuit detection is conservative: unknown device roles don't trigger false positives
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
+
+---
+
+### Session 15 - 2026-03-04 (Symbol Editor Enhancements + Canvas Rendering Polish)
+**Duration**: ~2 hours
+**Completed**:
+- **Symbol Editor Resize Handles** — 8 handles for rectangles (4 corners + 4 edge midpoints), 4 cardinal handles for circles. Drag to resize with grid snap support. Min size constraint of 5px.
+- **Vertex Editing** — Draggable vertex handles on polyline/line points. Double-click a polyline segment to insert a new vertex. Lines auto-promote to polyline when vertex added.
+- **Numeric Inputs** — Properties panel shows coordinate/dimension fields: X/Y/W/H for rects, CX/CY for circles, X1/Y1/X2/Y2 for lines, scrollable vertex list for polylines, X/Y for text and pins.
+- **Duplicate (Cmd+D)** — Copies selected paths with +20 offset, new IDs, selects duplicates. Also added toolbar button.
+- **SVG Tool Icons** — Replaced text labels (Line, Rect, etc.) with inline SVG icons for drawing tools.
+- **Canvas Rendering Polish** — Applied `lineCap: 'round'` and `lineJoin: 'round'` to main circuit renderer. Bumped `symbolStrokeWidth` and `wireWidth` from 1.5→2, `wireWidthSelected` from 2→2.5 across all 5 themes.
+- **E2E Test Fixes** — Fixed 3 pre-existing failures from Session 14 UI restructure: tab name "Favorites"→"Favs", property selectors `.sidebar`→`.right-panel`, delete button strict mode.
+- **Handle Architecture** — Unified `HandleInfo` type + `getHandleAtPoint()` function for hit testing across rect/circle/polyline/line handles. Cursor management for directional resize cursors.
+
+**Files Modified**:
+- `apps/web/src/components/SymbolEditor.tsx` — +409 lines: resize handles, vertex editing, numeric inputs, duplicate, SVG icons
+- `apps/web/src/App.css` — Styles for numeric inputs, SVG tool buttons, vertex list
+- `apps/web/src/renderer/circuit-renderer.ts` — Added round lineCap/lineJoin
+- `apps/web/src/renderer/theme.ts` — Stroke width updates across all themes
+- `e2e/tests/app-loads.spec.ts` — Tab name fix
+- `e2e/tests/property-editing.spec.ts` — Selector fixes for right panel
+
+**Tests**: 125 E2E all passing, TypeScript clean
+
+**Next Session**:
+1. Delete vertices (right-click or select+Delete on polyline vertex)
+2. Design system CSS variable implementation
+3. Inline annotation editing
+4. Symbol creation/verification tool
+
+---
+
+### Session 14 - 2026-03-04 (UI Layout Restructure + Design System)
+**Duration**: ~2 hours (across 2 context windows)
+**Completed**:
+- **Left Sidebar Restructured** — Converted from properties panel to page explorer: sheet tree (click=switch, double-click=rename, x=delete), title block editor for active sheet, theme/debug footer. Removed all selection/device/wire/annotation props.
+- **Right Panel Properties Tab** — Added 4th tab "Props" to right panel (Symbols/Favs/Parts/Props). Moved all device, wire, and annotation property editing here. Auto-switches to Properties on selection with `previousTabRef` restore pattern on deselect.
+- **SheetTabs Close Buttons** — Added x close button on each sheet tab (hidden when 1 sheet), right-click context menu for rename/delete.
+- **App.tsx Props Rerouted** — Selection/circuit props moved from Sidebar to RightPanel, sheet CRUD props added to Sidebar.
+- **Design System Established** — Read full Refactoring UI book (252 pages), extracted comprehensive design tokens. Cross-referenced with 2025-2026 modern patterns (progressive disclosure, contextual UI, command palettes, micro-interactions, dark-first). Saved to `memory/design-system.md`.
+
+**Design System Key Decisions**:
+- Canvas theme = document (user-controlled). Chrome theme = application (fixed dark mode).
+- Spacing scale: 4/8/12/16/24/32/48px
+- HSL color palette: 10 blue-tinted greys + primary blue (7 shades) + semantic (success/warning/danger/info)
+- Typography: system font stack, 11-18px scale
+- Shadows: 5-level elevation system (xs through xl, two-part)
+- Progressive disclosure: show only what's relevant to current task
+- Contextual UI: controls near the action, not just in fixed panels
+
+**Files Modified**:
+- `apps/web/src/components/Sidebar.tsx` — Rewritten as page explorer
+- `apps/web/src/components/RightPanel.tsx` — Added Properties tab with auto-switch
+- `apps/web/src/components/SheetTabs.tsx` — Added close buttons + context menu
+- `apps/web/src/components/PropertiesPanel.tsx` — Read (unchanged, moved to RightPanel)
+- `apps/web/src/App.tsx` — Props rerouted between Sidebar and RightPanel
+- `memory/design-system.md` — New design system reference document
+
+**Blockers/Questions**: None
+
+**Next Session**:
+1. Implement CSS variable system with design tokens
+2. Separate canvas theme from UI chrome
+3. Inline annotation editing (replace prompt windows)
+4. Apply spacing/typography/shadow consistency
 
 ---
 

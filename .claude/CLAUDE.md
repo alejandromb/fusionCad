@@ -30,25 +30,30 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-03)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-04)
 
-**Current task:** SymbolEditor Multi-Select + Marquee + Rotate + Snap Toggle — COMPLETE
+**Current task:** Symbol Editor Enhancements + Canvas Rendering Polish — COMPLETE
 
-**What was implemented:**
-- **Multi-select:** `selectedPathIds: Set<string>` replaces single selection. Shift+click toggles items. Marquee drag on empty space. All operations (drag, delete, flip, properties) work with multi-select.
-- **Rotate:** R key or toolbar button rotates selected paths 90° CW around collective center.
-- **Snap toggle:** Checkbox to disable snap-to-grid for freeform placement.
-- **Tests:** 125 E2E all passing, TypeScript clean
+**What was completed this session (Session 15):**
+- **Symbol Editor resize handles** — 8 handles for rects, 4 for circles; drag to resize with snap
+- **Vertex editing** — Drag polyline/line vertices, double-click segment to insert new vertex
+- **Numeric inputs** — X/Y/W/H for rects, CX/CY for circles, vertex list for polylines, endpoint coords for lines
+- **Duplicate (Cmd+D)** — Copy selected paths with offset, toolbar button added
+- **SVG tool icons** — Replaced text labels with inline SVG icons for drawing tools
+- **Canvas rendering polish** — Round lineCap/lineJoin + stroke width 1.5→2 across all themes
+- **E2E test fixes** — Fixed 3 pre-existing failures from UI restructure
 
-**Branch:** `main` (uncommitted changes)
+**Branch:** `main` (uncommitted changes from sessions 14 + 15)
 
 **Next steps (priority order):**
-1. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols (selector switch, etc.)
-2. **Automatic terminal block calculation** (Phase 3-4 feature)
-3. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
-4. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-5. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
-6. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
+1. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
+2. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing, typography, shadows
+3. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
+4. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols
+5. **Automatic terminal block calculation** (Phase 3-4 feature)
+6. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+7. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
+8. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
 
 ---
 
@@ -57,6 +62,10 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (99% complete)
 
 **Recent achievements:**
+- ✅ **Symbol Editor Enhancements** - Resize handles (rect + circle), vertex editing (polyline + line), numeric inputs, duplicate (Cmd+D), SVG tool icons
+- ✅ **Canvas Rendering Polish** - Round lineCap/lineJoin + stroke width 2px across all themes for smoother visual quality
+- ✅ **UI Layout Restructure** - Left sidebar → page explorer, right panel → Properties tab with auto-switch
+- ✅ **Design System** - Comprehensive design tokens from Refactoring UI + modern 2025-2026 patterns (see `memory/design-system.md`)
 - ✅ **SymbolEditor Multi-Select** - Marquee selection, Shift+click toggle, multi-drag/delete/flip, rotate (R key), snap toggle
 - ✅ **Power Distribution Ladder Layout** - L1/N rails, branch rungs, transformer/PS output terminals
 - ✅ **Visibility Bug Fixed** - RAF coalescing broke rendering; fixed with cancel-and-reschedule pattern

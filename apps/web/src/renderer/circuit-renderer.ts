@@ -597,6 +597,10 @@ export function renderCircuit(
   ctx.translate(viewport.offsetX, viewport.offsetY);
   ctx.scale(viewport.scale, viewport.scale);
 
+  // Round caps/joins for smoother, more polished lines
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
   // Render visible grid with adaptive density
   if (options?.showGrid !== false) {
     const baseGridSize = options?.gridSize || 20;

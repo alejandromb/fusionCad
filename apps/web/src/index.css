@@ -1,3 +1,84 @@
+/* ================================================================
+   fusionCad Design Tokens
+   ================================================================
+   Chrome (UI shell) uses fixed dark mode. Canvas follows user theme.
+   Accent color bridges both — set by canvas theme selection.
+   ================================================================ */
+
+:root {
+  /* ── Spacing Scale ── */
+  --fc-space-1: 0.25rem;   /*  4px — tight inner padding */
+  --fc-space-2: 0.5rem;    /*  8px — compact spacing */
+  --fc-space-3: 0.75rem;   /* 12px — default inner padding */
+  --fc-space-4: 1rem;      /* 16px — standard gap */
+  --fc-space-6: 1.5rem;    /* 24px — section padding */
+  --fc-space-8: 2rem;      /* 32px — between sections */
+  --fc-space-12: 3rem;     /* 48px — large separation */
+
+  /* ── Typography ── */
+  --fc-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --fc-font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas,
+    'Courier New', monospace;
+
+  --fc-text-xs:  0.6875rem;  /* 11px — tiny labels, badges */
+  --fc-text-sm:  0.75rem;    /* 12px — chips, table headers */
+  --fc-text-base: 0.8125rem; /* 13px — sidebar items, property values */
+  --fc-text-md:  0.875rem;   /* 14px — body text, inputs, buttons */
+  --fc-text-lg:  1rem;       /* 16px — section headings */
+  --fc-text-xl:  1.125rem;   /* 18px — panel titles */
+
+  /* ── Shadows (5-level elevation) ── */
+  --fc-shadow-xs:  0 1px 2px hsla(220, 15%, 5%, 0.25);
+  --fc-shadow-sm:  0 1px 3px hsla(220, 15%, 5%, 0.3),
+                   0 1px 2px hsla(220, 15%, 5%, 0.2);
+  --fc-shadow-md:  0 4px 6px hsla(220, 15%, 5%, 0.3),
+                   0 2px 4px hsla(220, 15%, 5%, 0.2);
+  --fc-shadow-lg:  0 10px 15px hsla(220, 15%, 5%, 0.3),
+                   0 4px 6px hsla(220, 15%, 5%, 0.15);
+  --fc-shadow-xl:  0 20px 25px hsla(220, 15%, 5%, 0.35),
+                   0 8px 10px hsla(220, 15%, 5%, 0.15);
+
+  /* ── Border Radius ── */
+  --fc-radius-sm: 3px;      /* buttons, inputs, chips */
+  --fc-radius-md: 6px;      /* cards, panels, dropdowns */
+  --fc-radius-lg: 8px;      /* modals, dialogs */
+  --fc-radius-full: 9999px; /* pills, avatars */
+
+  /* ── Chrome Colors (fixed dark mode, independent of canvas theme) ── */
+  --fc-bg-app:          hsl(220, 15%, 13%);
+  --fc-bg-panel:        hsl(220, 13%, 18%);
+  --fc-bg-hover:        hsl(220, 11%, 22%);
+  --fc-border:          hsl(220, 10%, 25%);
+  --fc-border-strong:   hsl(220, 10%, 32%);
+  --fc-text-primary:    hsl(220, 14%, 90%);
+  --fc-text-secondary:  hsl(220, 10%, 65%);
+  --fc-text-muted:      hsl(220,  8%, 50%);
+  --fc-text-dim:        hsl(220,  8%, 38%);
+
+  /* ── Semantic Colors ── */
+  --fc-danger:          hsl(  4, 90%, 58%);
+  --fc-danger-bg:       hsla(  4, 90%, 58%, 0.12);
+  --fc-success:         hsl(150, 60%, 40%);
+  --fc-success-bg:      hsla(150, 60%, 40%, 0.12);
+  --fc-warning:         hsl( 40, 90%, 50%);
+  --fc-warning-bg:      hsla( 40, 90%, 50%, 0.12);
+  --fc-info:            hsl(200, 70%, 50%);
+  --fc-info-bg:         hsla(200, 70%, 50%, 0.12);
+
+  /* ── Accent (set dynamically by theme.ts — defaults to Professional blue) ── */
+  --fc-accent:          #5B9BD5;
+  --fc-accent-bg:       rgba(91, 155, 213, 0.10);
+  --fc-accent-border:   rgba(91, 155, 213, 0.25);
+  --fc-bg-accent-tint:  rgba(91, 155, 213, 0.12);
+  --fc-bg-accent-hover: rgba(91, 155, 213, 0.20);
+
+  /* ── Canvas pass-through (set dynamically by theme.ts) ── */
+  --fc-canvas-bg:       #1e1e1e;
+  --fc-symbol-stroke:   #c8c8c8;
+}
+
+/* ── Global Reset ── */
 * {
   margin: 0;
   padding: 0;
@@ -5,18 +86,17 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--fc-font-ui);
+  font-size: var(--fc-text-base);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--fc-bg-app, #1a1a1a);
-  color: var(--fc-text-primary, #e0e0e0);
+  background: var(--fc-bg-app);
+  color: var(--fc-text-primary);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: var(--fc-font-mono);
 }
 
 #root {

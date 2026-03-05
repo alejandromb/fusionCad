@@ -15,10 +15,11 @@ test.describe('App loads', () => {
     const rightPanel = page.locator('.right-panel');
     await expect(rightPanel).toBeVisible();
 
-    // Verify tabs (Symbols, Favorites, Parts)
+    // Verify tabs (Symbols, Favs, Parts, Props)
     await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Symbols' })).toBeVisible();
-    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Favorites' })).toBeVisible();
+    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Favs' })).toBeVisible();
     await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Parts' })).toBeVisible();
+    await expect(rightPanel.locator('.right-panel-tab').filter({ hasText: 'Props' })).toBeVisible();
 
     // Verify search input
     await expect(rightPanel.locator('.right-panel-search input')).toBeVisible();

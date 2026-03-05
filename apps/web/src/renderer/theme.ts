@@ -215,7 +215,7 @@ const PROFESSIONAL: ThemeData = {
   canvasBg: '#1e1e1e',
   gridDotColor: 'rgba(255, 255, 255, 0.08)',
   symbolStroke: '#c8c8c8',
-  symbolStrokeWidth: 1.5,
+  symbolStrokeWidth: 2,
   symbolTextFill: '#c8c8c8',
   pinDotColor: '#808080',
   pinDotRadius: 3,
@@ -224,8 +224,8 @@ const PROFESSIONAL: ThemeData = {
   tagFont: 'bold 12px monospace',
   partLabelColor: '#999999',
   partLabelFont: '10px monospace',
-  wireWidth: 1.5,
-  wireWidthSelected: 2,
+  wireWidth: 2,
+  wireWidthSelected: 2.5,
   wireColors: ['#6B8EA0', '#7A9A6D', '#B07850', '#C4A24D', '#8B7EB8', '#5A9E9E', '#B06880', '#7AA3C8', '#9E8A6E', '#6EA87A', '#A8856E'],
   wireLabelBg: 'rgba(0, 0, 0, 0.75)',
   wireLabelFont: 'bold 10px monospace',
@@ -321,7 +321,7 @@ const BLUEPRINT: ThemeData = {
   canvasBg: '#0D1B2A',
   gridDotColor: 'rgba(224, 213, 192, 0.06)',
   symbolStroke: '#E0D5C0',
-  symbolStrokeWidth: 1.5,
+  symbolStrokeWidth: 2,
   symbolTextFill: '#E0D5C0',
   pinDotColor: '#8A7E6B',
   pinDotRadius: 3,
@@ -330,8 +330,8 @@ const BLUEPRINT: ThemeData = {
   tagFont: 'bold 12px monospace',
   partLabelColor: '#A09580',
   partLabelFont: '10px monospace',
-  wireWidth: 1.5,
-  wireWidthSelected: 2,
+  wireWidth: 2,
+  wireWidthSelected: 2.5,
   wireColors: ['#7AA3C8', '#8FB88A', '#C49A6C', '#D4B84D', '#9B8EC8', '#6BB8B8', '#C07890', '#5A93B8', '#B09A7E', '#7EB88A', '#B8957E'],
   wireLabelBg: 'rgba(13, 27, 42, 0.85)',
   wireLabelFont: 'bold 10px monospace',
@@ -374,7 +374,7 @@ const CLASSIC: ThemeData = {
   canvasBg: '#000000',
   gridDotColor: 'rgba(0, 255, 0, 0.06)',
   symbolStroke: '#00ff00',
-  symbolStrokeWidth: 1.5,
+  symbolStrokeWidth: 2,
   symbolTextFill: '#00ff00',
   pinDotColor: '#008800',
   pinDotRadius: 3,
@@ -383,8 +383,8 @@ const CLASSIC: ThemeData = {
   tagFont: 'bold 12px monospace',
   partLabelColor: '#00aa00',
   partLabelFont: '10px monospace',
-  wireWidth: 1.5,
-  wireWidthSelected: 2,
+  wireWidth: 2,
+  wireWidthSelected: 2.5,
   wireColors: ['#00BFFF', '#00FF80', '#FF8000', '#FFFF00', '#FF00FF', '#00FFFF', '#FF4080', '#4080FF', '#80FF00', '#FF8080', '#80FFFF'],
   wireLabelBg: 'rgba(0, 0, 0, 0.85)',
   wireLabelFont: 'bold 10px monospace',
@@ -427,7 +427,7 @@ const LIGHT: ThemeData = {
   canvasBg: '#f5f5f5',
   gridDotColor: 'rgba(0, 0, 0, 0.08)',
   symbolStroke: '#333333',
-  symbolStrokeWidth: 1.5,
+  symbolStrokeWidth: 2,
   symbolTextFill: '#333333',
   pinDotColor: '#666666',
   pinDotRadius: 3,
@@ -436,8 +436,8 @@ const LIGHT: ThemeData = {
   tagFont: 'bold 12px monospace',
   partLabelColor: '#666666',
   partLabelFont: '10px monospace',
-  wireWidth: 1.5,
-  wireWidthSelected: 2,
+  wireWidth: 2,
+  wireWidthSelected: 2.5,
   wireColors: ['#2070B0', '#3A8A3A', '#B06030', '#A08020', '#7060A0', '#207878', '#A04060', '#4080B0', '#806040', '#408050', '#905040'],
   wireLabelBg: 'rgba(255, 255, 255, 0.85)',
   wireLabelFont: 'bold 10px monospace',
@@ -488,24 +488,36 @@ const PRESET_THEMES: Record<Exclude<ThemeId, 'custom'>, ThemeData> = {
 // CSS vars derivation from ThemeData
 // ---------------------------------------------------------------------------
 
-function deriveCSSVars(theme: ThemeData, isLight: boolean): CSSThemeVars {
+/**
+ * Derive CSS vars from a canvas theme.
+ *
+ * Chrome colors (bg, text, borders) are FIXED in index.css — they never change
+ * with canvas theme. Only accent + canvas pass-through vars are set here.
+ * This decouples the UI shell from the drawing canvas.
+ */
+function deriveCSSVars(theme: ThemeData): CSSThemeVars {
   const accent = theme.accentColor;
   return {
+    // Accent — bridges canvas theme into UI chrome
     '--fc-accent': accent,
     '--fc-accent-bg': hexToRgba(accent, 0.1),
     '--fc-accent-border': hexToRgba(accent, 0.25),
-    '--fc-bg-app': isLight ? '#e8e8e8' : adjustBrightness(theme.canvasBg, 1.05),
-    '--fc-bg-panel': isLight ? '#f0f0f0' : adjustBrightness(theme.canvasBg, 1.35),
-    '--fc-bg-hover': isLight ? '#e0e0e0' : adjustBrightness(theme.canvasBg, 1.65),
-    '--fc-bg-accent-tint': isLight ? hexToRgba(accent, 0.08) : hexToRgba(accent, 0.12),
-    '--fc-bg-accent-hover': isLight ? hexToRgba(accent, 0.15) : hexToRgba(accent, 0.2),
-    '--fc-border': isLight ? '#c0c0c0' : adjustBrightness(theme.canvasBg, 2.0),
-    '--fc-border-strong': isLight ? '#aaaaaa' : adjustBrightness(theme.canvasBg, 2.6),
-    '--fc-text-primary': theme.tagColor,
-    '--fc-text-secondary': isLight ? '#555555' : adjustBrightness(theme.tagColor, 0.75),
-    '--fc-text-muted': isLight ? '#888888' : adjustBrightness(theme.tagColor, 0.55),
-    '--fc-text-dim': isLight ? '#aaaaaa' : adjustBrightness(theme.tagColor, 0.4),
-    '--fc-danger': '#f44336',
+    '--fc-bg-accent-tint': hexToRgba(accent, 0.12),
+    '--fc-bg-accent-hover': hexToRgba(accent, 0.2),
+
+    // Chrome — fixed dark mode (values from index.css :root, repeated here for completeness)
+    '--fc-bg-app': 'hsl(220, 15%, 13%)',
+    '--fc-bg-panel': 'hsl(220, 13%, 18%)',
+    '--fc-bg-hover': 'hsl(220, 11%, 22%)',
+    '--fc-border': 'hsl(220, 10%, 25%)',
+    '--fc-border-strong': 'hsl(220, 10%, 32%)',
+    '--fc-text-primary': 'hsl(220, 14%, 90%)',
+    '--fc-text-secondary': 'hsl(220, 10%, 65%)',
+    '--fc-text-muted': 'hsl(220, 8%, 50%)',
+    '--fc-text-dim': 'hsl(220, 8%, 38%)',
+    '--fc-danger': 'hsl(4, 90%, 58%)',
+
+    // Canvas pass-through (used by SymbolPreview, symbol editor, etc.)
     '--fc-symbol-stroke': theme.symbolStroke,
     '--fc-canvas-bg': theme.canvasBg,
   };
@@ -523,7 +535,7 @@ export function deriveFullTheme(input: CustomThemeInput): { theme: ThemeData; cs
     canvasBg: input.canvasBg,
     gridDotColor: `rgba(${isLight ? '0, 0, 0' : '255, 255, 255'}, ${(gridAlpha / 255).toFixed(2)})`,
     symbolStroke: input.symbolColor,
-    symbolStrokeWidth: 1.5,
+    symbolStrokeWidth: 2,
     symbolTextFill: input.symbolColor,
     pinDotColor: adjustBrightness(input.symbolColor, 0.6),
     pinDotRadius: 3,
@@ -532,8 +544,8 @@ export function deriveFullTheme(input: CustomThemeInput): { theme: ThemeData; cs
     tagFont: 'bold 12px monospace',
     partLabelColor: adjustBrightness(input.textColor, 0.7),
     partLabelFont: '10px monospace',
-    wireWidth: 1.5,
-    wireWidthSelected: 2,
+    wireWidth: 2,
+    wireWidthSelected: 2.5,
     wireColors: generateWireColors(input.wireBaseColor),
     wireLabelBg: hexToRgba(input.canvasBg, 0.8),
     wireLabelFont: 'bold 10px monospace',
@@ -572,8 +584,9 @@ export function deriveFullTheme(input: CustomThemeInput): { theme: ThemeData; cs
     accentColor: input.accentColor,
   };
 
-  const css = deriveCSSVars(theme, isLight);
-  // Override with direct user picks for panel/text/border
+  const css = deriveCSSVars(theme);
+  // Custom theme: allow user to override chrome colors if they explicitly set them
+  // (panelBg, textColor, borderColor from the custom input)
   css['--fc-bg-panel'] = input.panelBg;
   css['--fc-bg-app'] = adjustBrightness(input.panelBg, isLight ? 0.95 : 0.85);
   css['--fc-bg-hover'] = adjustBrightness(input.panelBg, isLight ? 0.92 : 1.2);
@@ -634,8 +647,7 @@ export function applyTheme(themeId: ThemeId, customInput?: CustomThemeInput): vo
   } else {
     const preset = PRESET_THEMES[themeId as Exclude<ThemeId, 'custom'>] || PROFESSIONAL;
     currentTheme = preset;
-    const isLight = themeId === 'light';
-    const css = deriveCSSVars(preset, isLight);
+    const css = deriveCSSVars(preset);
     applyCSSVars(css);
   }
 }

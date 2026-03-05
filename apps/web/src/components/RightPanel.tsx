@@ -1,19 +1,23 @@
 /**
  * RightPanel - Symbol palette with search, category filter, standard filter,
- * favorites, and tabs.
+ * favorites, parts catalog, and properties tabs.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { getAllSymbols, getSymbolCategories } from '@fusion-cad/core-model';
-import type { SymbolDefinition } from '@fusion-cad/core-model';
-import type { InteractionMode, SymbolCategory } from '../types';
+import type { SymbolDefinition, Part, Annotation } from '@fusion-cad/core-model';
+import type { InteractionMode, SymbolCategory, PinHit } from '../types';
+import type { CircuitData } from '../renderer/circuit-renderer';
 import { SymbolPreview } from './SymbolPreview';
+import { PropertiesPanel } from './PropertiesPanel';
 
 const FAVORITES_KEY = 'fusionCad_favoriteSymbols';
 const STANDARD_KEY = 'fusionCad_preferredStandard';
 
 const STANDARDS = ['All', 'IEC 60617', 'ANSI/NEMA'] as const;
 type Standard = (typeof STANDARDS)[number];
+
+type TabId = 'symbols' | 'favorites' | 'parts' | 'properties';
 
 function loadFavorites(): Set<string> {
   try {
@@ -39,22 +43,64 @@ interface RightPanelProps {
   onSelectSymbol: (symbolId: string, category: string) => void;
   interactionMode: InteractionMode;
   placementCategory: SymbolCategory | null;
+  // Properties tab props
+  wireStart: PinHit | null;
+  selectedDevices: string[];
+  selectedWireIndex: number | null;
+  circuit: CircuitData | null;
+  deleteDevices: (deviceIds: string[]) => void;
+  updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
+  onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
+  onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
+  selectedAnnotationId: string | null;
+  onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
+  onDeleteAnnotation: (id: string) => void;
+  onSelectAnnotation: (id: string | null) => void;
 }
 
 export function RightPanel({
   onSelectSymbol,
   interactionMode,
   placementCategory,
+  wireStart,
+  selectedDevices,
+  selectedWireIndex,
+  circuit,
+  deleteDevices,
+  updateWireNumber,
+  onAssignPart,
+  onUpdateDevice,
+  selectedAnnotationId,
+  onUpdateAnnotation,
+  onDeleteAnnotation,
+  onSelectAnnotation,
 }: RightPanelProps) {
-  const [activeTab, setActiveTab] = useState<'symbols' | 'favorites' | 'parts'>('symbols');
+  const [activeTab, setActiveTab] = useState<TabId>('symbols');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedStandard, setSelectedStandard] = useState<Standard>(loadStandard);
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [collapsed, setCollapsed] = useState(false);
+  const previousTabRef = useRef<TabId>('symbols');
 
   const allSymbols = useMemo(() => getAllSymbols(), []);
   const categories = useMemo(() => getSymbolCategories(), []);
+
+  // Auto-switch to Properties tab when something is selected
+  const hasSelection = selectedDevices.length > 0 || selectedWireIndex !== null || selectedAnnotationId !== null;
+
+  useEffect(() => {
+    if (hasSelection) {
+      if (activeTab !== 'properties') {
+        previousTabRef.current = activeTab;
+        setActiveTab('properties');
+      }
+    } else {
+      if (activeTab === 'properties') {
+        setActiveTab(previousTabRef.current);
+      }
+    }
+  }, [hasSelection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFavorite = useCallback((symbolId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -102,6 +148,24 @@ export function RightPanel({
     return allSymbols.filter(s => favorites.has(s.id));
   }, [allSymbols, favorites]);
 
+  // Derived state for properties tab
+  const primarySelectedDeviceId = selectedDevices.length > 0 ? selectedDevices[0] : null;
+  const selectedDeviceInfo = primarySelectedDeviceId && circuit
+    ? circuit.devices.find(d => d.id === primarySelectedDeviceId)
+    : null;
+  const selectedDevicePart = selectedDeviceInfo?.partId && circuit
+    ? circuit.parts.find(p => p.id === selectedDeviceInfo.partId)
+    : null;
+  const selectedWire = selectedWireIndex !== null && circuit
+    ? circuit.connections[selectedWireIndex]
+    : null;
+  const selectedWireNet = selectedWire && circuit
+    ? circuit.nets.find(n => n.id === selectedWire.netId)
+    : null;
+  const selectedAnnotation = selectedAnnotationId && circuit
+    ? (circuit.annotations || []).find(a => a.id === selectedAnnotationId)
+    : null;
+
   if (collapsed) {
     return (
       <aside className="right-panel right-panel-collapsed">
@@ -139,6 +203,153 @@ export function RightPanel({
     </button>
   );
 
+  const renderPropertiesContent = () => (
+    <div className="right-panel-content right-panel-properties">
+      {/* Status Messages */}
+      {(interactionMode === 'place' || interactionMode === 'wire' || interactionMode === 'text' || selectedDevices.length > 0) && (
+        <div className="properties-status">
+          {interactionMode === 'place' && placementCategory && (
+            <p className="status-message success">
+              Click to place {placementCategory}
+            </p>
+          )}
+          {interactionMode === 'wire' && (
+            <p className="status-message info">
+              {wireStart
+                ? (() => {
+                    const dev = circuit?.devices.find(d => d.id === wireStart.device);
+                    return `From ${dev?.tag || wireStart.device}:${wireStart.pin} → click target pin`;
+                  })()
+                : 'Click a pin to start wire'}
+            </p>
+          )}
+          {interactionMode === 'text' && (
+            <p className="status-message info">
+              Click to place text annotation
+            </p>
+          )}
+          {interactionMode === 'select' && selectedDevices.length > 1 && (
+            <p className="status-message info">
+              {selectedDevices.length} devices selected
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Device Properties */}
+      {(selectedDeviceInfo || selectedDevices.length > 1) && (
+        <div className="properties-section-wrap">
+          <h3>Properties</h3>
+          <PropertiesPanel
+            device={selectedDeviceInfo || null}
+            part={selectedDevicePart || null}
+            circuit={circuit}
+            onDeleteDevices={deleteDevices}
+            selectedDevices={selectedDevices}
+            onAssignPart={onAssignPart}
+            onUpdateDevice={onUpdateDevice}
+          />
+        </div>
+      )}
+
+      {/* Annotation Properties */}
+      {selectedAnnotation && !selectedDeviceInfo && (
+        <div className="properties-section-wrap">
+          <h3>Annotation</h3>
+          <div className="annotation-properties">
+            <div className="property-row">
+              <span className="property-label">Content</span>
+            </div>
+            <textarea
+              className="annotation-content-input"
+              value={selectedAnnotation.content}
+              onChange={e => onUpdateAnnotation(selectedAnnotation.id, { content: e.target.value })}
+              rows={3}
+            />
+            <div className="property-row">
+              <span className="property-label">Font Size</span>
+              <input
+                className="property-input"
+                type="number"
+                min={8}
+                max={72}
+                value={selectedAnnotation.style?.fontSize || 14}
+                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                  style: { ...selectedAnnotation.style, fontSize: parseInt(e.target.value) || 14 },
+                })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Font Weight</span>
+              <select
+                className="property-input"
+                value={selectedAnnotation.style?.fontWeight || 'normal'}
+                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                  style: { ...selectedAnnotation.style, fontWeight: e.target.value as 'normal' | 'bold' },
+                })}
+              >
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+              </select>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Position</span>
+              <span className="property-value">
+                ({Math.round(selectedAnnotation.position.x)}, {Math.round(selectedAnnotation.position.y)})
+              </span>
+            </div>
+            <button
+              className="delete-btn"
+              onClick={() => {
+                onDeleteAnnotation(selectedAnnotation.id);
+                onSelectAnnotation(null);
+              }}
+            >
+              Delete Annotation
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Wire Properties */}
+      {selectedWire && selectedWireIndex !== null && (
+        <div className="properties-section-wrap">
+          <h3>Wire Properties</h3>
+          <div className="properties-panel">
+            <div className="property-row">
+              <span className="property-label">Wire #</span>
+              <input
+                className="property-input"
+                type="text"
+                value={selectedWire.wireNumber || `W${String(selectedWireIndex + 1).padStart(3, '0')}`}
+                onChange={(e) => updateWireNumber(selectedWireIndex, e.target.value)}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Net</span>
+              <span className="property-value">{selectedWireNet?.name || 'unknown'}</span>
+            </div>
+            <div className="property-row">
+              <span className="property-label">From</span>
+              <span className="property-value">{selectedWire.fromDevice}:{selectedWire.fromPin}</span>
+            </div>
+            <div className="property-row">
+              <span className="property-label">To</span>
+              <span className="property-value">{selectedWire.toDevice}:{selectedWire.toPin}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state when nothing selected */}
+      {!selectedDeviceInfo && selectedDevices.length === 0 && !selectedAnnotation && selectedWireIndex === null && interactionMode === 'select' && (
+        <div className="right-panel-empty">
+          Select a device, wire, or annotation to view properties
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <aside className="right-panel">
       {/* Tab bar */}
@@ -153,13 +364,19 @@ export function RightPanel({
           className={`right-panel-tab ${activeTab === 'favorites' ? 'active' : ''}`}
           onClick={() => setActiveTab('favorites')}
         >
-          Favorites
+          Favs
         </button>
         <button
           className={`right-panel-tab ${activeTab === 'parts' ? 'active' : ''}`}
           onClick={() => setActiveTab('parts')}
         >
           Parts
+        </button>
+        <button
+          className={`right-panel-tab ${activeTab === 'properties' ? 'active' : ''}`}
+          onClick={() => setActiveTab('properties')}
+        >
+          Props
         </button>
         <button
           className="right-panel-toggle"
@@ -237,6 +454,8 @@ export function RightPanel({
             )}
           </div>
         </div>
+      ) : activeTab === 'properties' ? (
+        renderPropertiesContent()
       ) : (
         <div className="right-panel-content">
           <div className="right-panel-empty">
