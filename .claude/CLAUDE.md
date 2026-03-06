@@ -30,30 +30,28 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-04)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-06)
 
-**Current task:** Symbol Editor Enhancements + Canvas Rendering Polish — COMPLETE
+**Current task:** Symbol Accuracy Audit — IN PROGRESS
 
-**What was completed this session (Session 15):**
-- **Symbol Editor resize handles** — 8 handles for rects, 4 for circles; drag to resize with snap
-- **Vertex editing** — Drag polyline/line vertices, double-click segment to insert new vertex
-- **Numeric inputs** — X/Y/W/H for rects, CX/CY for circles, vertex list for polylines, endpoint coords for lines
-- **Duplicate (Cmd+D)** — Copy selected paths with offset, toolbar button added
-- **SVG tool icons** — Replaced text labels with inline SVG icons for drawing tools
-- **Canvas rendering polish** — Round lineCap/lineJoin + stroke width 1.5→2 across all themes
-- **E2E test fixes** — Fixed 3 pre-existing failures from UI restructure
+**What was completed this session (Session 16):**
+- **Switch symbol accuracy fix** — 10 switch symbols corrected from contact-style (parallel bars) to switch-style (arm/lever with terminal dots)
+- **Key insight**: Contacts (relay) = parallel bars; Switches (pushbutton, limit, etc.) = diagonal arm + dots
+- **DB sync workflow** — Discovered and documented that JSON changes require core-model rebuild + API PUT with converted format
+- Fixed: iec-emergency-stop, iec-limit-switch, iec-manual-switch, iec-selector-switch, iec-key-switch, iec-foot-switch, iec-level-switch, iec-flow-switch, iec-pressure-switch, iec-temperature-switch
 
-**Branch:** `main` (uncommitted changes from sessions 14 + 15)
+**Branch:** `main` (uncommitted changes from sessions 14-16)
 
 **Next steps (priority order):**
-1. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
-2. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing, typography, shadows
-3. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
-4. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols
-5. **Automatic terminal block calculation** (Phase 3-4 feature)
-6. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-7. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
-8. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
+1. **Continue symbol accuracy audit** — Verify remaining symbols against IEC 60617 references
+2. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
+3. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing, typography, shadows
+4. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
+5. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols
+6. **Automatic terminal block calculation** (Phase 3-4 feature)
+7. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
+8. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
+9. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
 
 ---
 

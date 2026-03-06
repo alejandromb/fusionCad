@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-04 (Symbol Editor Enhancements + Canvas Rendering Polish)
+**Last Updated**: 2026-03-06 (Symbol Accuracy Fix — switches vs contacts)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -112,6 +112,7 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Design System Established** — Refactoring UI + modern 2025-2026 patterns cross-referenced, design tokens defined (spacing, color, typography, shadows), saved to `memory/design-system.md`
 - ✅ **Symbol Editor Enhancements** — Resize handles, vertex editing, numeric inputs, duplicate, SVG tool icons
 - ✅ **Canvas Rendering Polish** — Round lineCap/lineJoin + stroke width 2px across all themes
+- ✅ **Symbol Accuracy Fix** — 10 switch symbols corrected from contact-style (parallel bars) to proper switch-style (arm/lever with contact dots)
 - 🟡 **Design System Implementation** — Applying design tokens: CSS variables, canvas/chrome theme separation, progressive disclosure, contextual UI
 
 ### ✅ DECIDED: Free-Tier Storage Architecture (2026-03-03, updated)
@@ -134,10 +135,11 @@ This file tracks where we are in development. **Always read this file at the sta
 5. Later: org_id multi-tenancy, Stripe payments, team features
 
 ### Next Immediate Steps
-1. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove vertices from polylines (min 2 points)
-2. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing scale, typography, shadows
-3. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
-4. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying symbols (selector switch and all symbols)
+1. **Continue symbol accuracy audit** — Verify remaining symbols match IEC 60617 / reference standards
+2. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove vertices from polylines (min 2 points)
+3. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing scale, typography, shadows
+4. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
+5. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying symbols
 5. **Automatic terminal block calculation** (Phase 3-4 feature)
 6. **Improve AI panel** — Route non-motor prompts to `generate_power_distribution` or clear error messaging (when needed for demos)
 7. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
@@ -1015,6 +1017,27 @@ This file tracks where we are in development. **Always read this file at the sta
 - OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
 - ERC short circuit detection is conservative: unknown device roles don't trigger false positives
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
+
+---
+
+### Session 16 - 2026-03-06 (Symbol Accuracy Fix — Switches vs Contacts)
+**Duration**: ~1 hour
+**Completed**:
+- **Switch symbol audit & fix** — Identified that 10 switch-type symbols incorrectly used contact-style parallel bars instead of proper switch-style arm/lever with contact dots
+- **Fixed 10 symbols** — iec-emergency-stop, iec-limit-switch, iec-manual-switch, iec-selector-switch, iec-key-switch, iec-foot-switch, iec-level-switch, iec-flow-switch, iec-pressure-switch, iec-temperature-switch
+- **Key distinction**: Contacts (relay/contactor) use parallel bars = correct. Switches (pushbutton, limit, etc.) use diagonal arm with terminal dots = correct.
+- **Database sync workflow discovered** — Editing builtin-symbols.json doesn't auto-update the running app; must rebuild core-model + PUT to API with converted format (geometry, position on pins)
+- **Documented in memory** — Added "Symbol JSON → Database Sync" section to MEMORY.md
+
+**Files Modified**:
+- `packages/core-model/src/symbols/builtin-symbols.json` — 10 switch symbols updated
+- `memory/MEMORY.md` — New section on symbol DB sync workflow
+
+**Tests**: 125 E2E all passing
+
+**Still In Progress**:
+- Continue verifying remaining symbols against IEC 60617 references
+- User reviewing updated symbols in browser
 
 ---
 

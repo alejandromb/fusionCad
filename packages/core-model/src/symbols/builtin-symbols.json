@@ -416,11 +416,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 18 },
-        { "type": "line", "x1": 20, "y1": 18, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 }
       ]
     },
     {
@@ -428,7 +428,7 @@
       "name": "Emergency Stop (E-Stop)",
       "category": "Control",
       "standard": "IEC 60617",
-      "width": 40,
+      "width": 50,
       "height": 60,
       "svgPath": "",
       "pins": [
@@ -437,13 +437,14 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 30, "y1": 25, "x2": 10, "y2": 35 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
-        { "type": "circle", "cx": 20, "cy": 18, "r": 5 },
-        { "type": "line", "x1": 16, "y1": 14, "x2": 24, "y2": 14 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 25 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 30, "x2": 7, "y2": 30, "strokeDash": [4, 3] },
+        { "type": "arc", "cx": 7, "cy": 30, "r": 8, "startAngle": 1.5708, "endAngle": 4.7124 },
+        { "type": "line", "x1": 7, "y1": 22, "x2": 7, "y2": 38 }
       ]
     },
     {
@@ -460,10 +461,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 20, "cy": 14, "r": 8, "startAngle": 3.93, "endAngle": 5.50 },
         { "type": "polyline", "points": [{"x": 25, "y": 7.5}, {"x": 27, "y": 11}, {"x": 23.5, "y": 9}] }
       ]
@@ -482,10 +484,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 17, "y": 18}, {"x": 20, "y": 14}, {"x": 23, "y": 18}] },
         { "type": "polyline", "points": [{"x": 17, "y": 14}, {"x": 20, "y": 10}, {"x": 23, "y": 14}] }
       ]
@@ -504,10 +507,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 12, "y": 18}, {"x": 20, "y": 10}, {"x": 28, "y": 18}], "closed": true }
       ]
     },
@@ -516,7 +520,7 @@
       "name": "Limit Switch",
       "category": "Control",
       "standard": "IEC 60617",
-      "width": 40,
+      "width": 50,
       "height": 60,
       "svgPath": "",
       "pins": [
@@ -525,12 +529,12 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
-        { "type": "line", "x1": 20, "y1": 25, "x2": 28, "y2": 17 },
-        { "type": "circle", "cx": 30, "cy": 15, "r": 3 }
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
+        { "type": "polyline", "points": [{"x": 30, "y": 25}, {"x": 40, "y": 30}, {"x": 30, "y": 36}], "closed": true, "fill": "stroke" }
       ]
     },
     {
@@ -547,10 +551,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "arc", "cx": 20, "cy": 14, "r": 5, "startAngle": 3.14, "endAngle": 6.28 }
       ]
     },
@@ -568,10 +573,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "rect", "x": 15, "y": 8, "width": 10, "height": 10 }
       ]
     },
@@ -589,10 +595,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "polyline", "points": [{"x": 16, "y": 16}, {"x": 16, "y": 8}, {"x": 24, "y": 8}, {"x": 24, "y": 16}] }
       ]
     },
@@ -610,10 +617,11 @@
       ],
       "tagPrefix": "S",
       "primitives": [
-        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 25, "x2": 30, "y2": 25 },
-        { "type": "line", "x1": 10, "y1": 35, "x2": 30, "y2": 35 },
-        { "type": "line", "x1": 20, "y1": 35, "x2": 20, "y2": 60 },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 24 },
+        { "type": "circle", "cx": 20, "cy": 25, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 12, "y2": 26 },
+        { "type": "circle", "cx": 20, "cy": 36, "r": 2, "fill": "stroke" },
+        { "type": "line", "x1": 20, "y1": 36, "x2": 20, "y2": 60 },
         { "type": "line", "x1": 18, "y1": 16, "x2": 18, "y2": 8 },
         { "type": "line", "x1": 22, "y1": 16, "x2": 22, "y2": 8 },
         { "type": "line", "x1": 18, "y1": 8, "x2": 22, "y2": 8 }
