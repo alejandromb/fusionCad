@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-06 (Symbol Accuracy Fix — switches vs contacts)
+**Last Updated**: 2026-03-08 (Symbol Accuracy Audit continued — changeover, contactor, selector, transformer)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -113,6 +113,7 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Symbol Editor Enhancements** — Resize handles, vertex editing, numeric inputs, duplicate, SVG tool icons
 - ✅ **Canvas Rendering Polish** — Round lineCap/lineJoin + stroke width 2px across all themes
 - ✅ **Symbol Accuracy Fix** — 10 switch symbols corrected from contact-style (parallel bars) to proper switch-style (arm/lever with contact dots)
+- ✅ **Symbol Accuracy Audit (Batch 2)** — 4 more symbols fixed: changeover contact, contactor 3P, selector switch 3-pos, transformer 3-phase
 - 🟡 **Design System Implementation** — Applying design tokens: CSS variables, canvas/chrome theme separation, progressive disclosure, contextual UI
 
 ### ✅ DECIDED: Free-Tier Storage Architecture (2026-03-03, updated)
@@ -1017,6 +1018,24 @@ This file tracks where we are in development. **Always read this file at the sta
 - OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
 - ERC short circuit detection is conservative: unknown device roles don't trigger false positives
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
+
+---
+
+### Session 17 - 2026-03-08 (Symbol Accuracy Audit Batch 2)
+**Duration**: ~30 min
+**Completed**:
+- **iec-changeover-contact** — Removed incorrect wide horizontal bar spanning full width at y=25; arm now goes directly from common pivot to NC contact bar
+- **iec-contactor-3p** — Replaced non-standard 12x12 rectangles + U-shaped bridges on each pole with standard IEC NO contact parallel bars + dashed mechanical linkage line
+- **iec-selector-switch-3pos** — Changed from contact-style parallel bars to switch-style terminal dots + diagonal arm (consistent with Session 16 switch fixes)
+- **iec-transformer-3ph** — Expanded from 2 pins (H1, X1) to proper 6 pins (H1-H3, X1-X3); widened to 60px; 3 primary + 3 secondary coils with core lines
+
+**Files Modified**:
+- `packages/core-model/src/symbols/builtin-symbols.json` — 4 symbols updated
+
+**Tests**: 125 E2E all passing
+
+**Still In Progress**:
+- Continue verifying remaining symbols (transformer-1ph full circles, surge arrester, horn, etc.)
 
 ---
 

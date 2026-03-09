@@ -30,20 +30,18 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-06)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-08)
 
 **Current task:** Symbol Accuracy Audit — IN PROGRESS
 
-**What was completed this session (Session 16):**
-- **Switch symbol accuracy fix** — 10 switch symbols corrected from contact-style (parallel bars) to switch-style (arm/lever with terminal dots)
-- **Key insight**: Contacts (relay) = parallel bars; Switches (pushbutton, limit, etc.) = diagonal arm + dots
-- **DB sync workflow** — Discovered and documented that JSON changes require core-model rebuild + API PUT with converted format
-- Fixed: iec-emergency-stop, iec-limit-switch, iec-manual-switch, iec-selector-switch, iec-key-switch, iec-foot-switch, iec-level-switch, iec-flow-switch, iec-pressure-switch, iec-temperature-switch
+**What was completed this session (Session 17):**
+- **4 more symbols fixed** — iec-changeover-contact (removed wide bar, arm direct to NC), iec-contactor-3p (parallel bars + dashed linkage), iec-selector-switch-3pos (switch-style dots), iec-transformer-3ph (6 pins, 3 coil pairs)
+- **Total symbols fixed so far**: 14 (10 switches in Session 16 + 4 in Session 17)
 
-**Branch:** `main` (uncommitted changes from sessions 14-16)
+**Branch:** `main` (uncommitted changes from sessions 14-17)
 
 **Next steps (priority order):**
-1. **Continue symbol accuracy audit** — Verify remaining symbols against IEC 60617 references
+1. **Continue symbol accuracy audit** — Remaining candidates: iec-transformer-1ph (full circles→semicircles), iec-horn, iec-surge-arrester, ansi-normally-closed-contact
 2. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
 3. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing, typography, shadows
 4. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
