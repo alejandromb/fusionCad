@@ -15,6 +15,7 @@
     "cli": "npm run start --workspace=apps/cli",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
+    "db:backup": "bash scripts/backup-db.sh",
     "test": "npm run test --workspaces --if-present",
     "test:unit": "vitest run --config packages/mcp-server/vitest.config.ts",
     "test:e2e": "npx playwright test",

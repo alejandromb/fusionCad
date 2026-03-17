@@ -47,6 +47,9 @@ pnpm-debug.log*
 /datasheets/
 /4661010/
 
+# Database backups (local only, do not commit)
+/backups/
+
 # Misc project files
 *.dxf
 *.pdf

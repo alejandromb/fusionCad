@@ -23,6 +23,8 @@ import { saveSymbol as saveSymbolApi } from '../api/symbols';
 import { getTheme } from '../renderer/theme';
 import { SymbolPreview } from './SymbolPreview';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin' | 'text';
 
 interface Point {
@@ -72,12 +74,17 @@ interface SymbolEditorProps {
 }
 
 const GRID_SIZE = 5;
+const PIN_GRID_SIZE = 20; // Pins snap to main canvas grid for alignment
 const PREVIEW_SCALE = 0.8;
 const MAX_EDITOR_HISTORY = 50;
 
 function snapToGrid(value: number, enabled = true): number {
   if (!enabled) return value;
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function snapPinToGrid(value: number): number {
+  return Math.round(value / PIN_GRID_SIZE) * PIN_GRID_SIZE;
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +398,70 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   const [editorHistory, setEditorHistory] = useState<EditorSnapshot[]>([]);
   const [editorHistoryIndex, setEditorHistoryIndex] = useState(-1);
   const isUndoRedoRef = useRef(false);
+
+  // AI symbol generation
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAIGenerate = useCallback(async () => {
+    if (!aiPrompt.trim() || aiGenerating) return;
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const resp = await fetch(`${API_BASE}/api/symbols/ai-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: aiPrompt.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        setAiError(data.error || 'Generation failed');
+        return;
+      }
+      const sym = data.symbol;
+      // Convert AI-generated primitives → EditorPaths
+      const newPaths: EditorPath[] = [];
+      for (const prim of (sym.primitives || [])) {
+        const id = generateId();
+        if (prim.type === 'rect') {
+          newPaths.push({ id, type: 'rect', points: [{ x: prim.x, y: prim.y }, { x: prim.x + prim.width, y: prim.y + prim.height }], dashed: !!prim.strokeDash });
+        } else if (prim.type === 'line') {
+          newPaths.push({ id, type: 'line', points: [{ x: prim.x1, y: prim.y1 }, { x: prim.x2, y: prim.y2 }], dashed: !!prim.strokeDash });
+        } else if (prim.type === 'circle') {
+          newPaths.push({ id, type: 'circle', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r, dashed: !!prim.strokeDash });
+        } else if (prim.type === 'polyline') {
+          newPaths.push({ id, type: 'polyline', points: prim.points.map((p: any) => ({ x: p.x, y: p.y })), closed: prim.closed, dashed: !!prim.strokeDash });
+        } else if (prim.type === 'arc') {
+          newPaths.push({ id, type: 'arc', points: [{ x: prim.cx, y: prim.cy }], radius: prim.r, startAngle: prim.startAngle, endAngle: prim.endAngle, dashed: !!prim.strokeDash });
+        } else if (prim.type === 'text') {
+          newPaths.push({ id, type: 'text', points: [{ x: prim.x, y: prim.y }], content: prim.content, fontSize: prim.fontSize, fontWeight: prim.fontWeight, textAnchor: prim.textAnchor === 'middle' ? 'center' : prim.textAnchor });
+        }
+      }
+      // Convert AI-generated pins → EditorPins
+      const newPins: EditorPin[] = (sym.pins || []).map((p: any) => ({
+        id: p.id || generateId(),
+        name: p.name || p.id,
+        position: { x: p.position.x, y: p.position.y },
+        direction: p.direction || 'left',
+        pinType: p.pinType || 'passive',
+      }));
+      // Apply to editor (push history first)
+      pushEditorHistory();
+      setPaths(newPaths);
+      setPins(newPins);
+      setSymbolName(sym.name);
+      setSymbolCategory(sym.category);
+      setTagPrefix(sym.tagPrefix || 'D');
+      setSymbolWidth(sym.width);
+      setSymbolHeight(sym.height);
+      setSymbolStandard(sym.standard || 'common');
+    } catch (err: any) {
+      setAiError(err.message || 'Network error');
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiPrompt, aiGenerating, pushEditorHistory]);
 
   // Canvas ref
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1225,10 +1296,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     if (selectedTool === 'pin') {
       pushEditorHistory();
+      // Snap pins to 20px grid so they align with the main canvas grid
+      const pinPos = { x: snapPinToGrid(pos.x), y: snapPinToGrid(pos.y) };
       const newPin: EditorPin = {
         id: `pin-${Date.now()}`,
         name: `${pins.length + 1}`,
-        position: pos,
+        position: pinPos,
         direction: 'top',
         pinType: 'passive',
       };
@@ -1355,11 +1428,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       return;
     }
 
-    // Drag selected pin
+    // Drag selected pin (snap to 20px grid for main canvas alignment)
     if (isDraggingPin && selectedPinId && dragStartRef.current) {
+      const pinPos = { x: snapPinToGrid(pos.x), y: snapPinToGrid(pos.y) };
       setPins(prev => prev.map(p => {
         if (p.id !== selectedPinId) return p;
-        return { ...p, position: { x: pos.x, y: pos.y } };
+        return { ...p, position: pinPos };
       }));
       dragStartRef.current = pos;
       return;
@@ -2223,6 +2297,26 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
           {/* Right: Properties & Preview */}
           <div className="symbol-editor-properties">
+            {/* AI Symbol Generation */}
+            <div style={{ marginBottom: 12, padding: '8px', background: 'rgba(59,130,246,0.08)', borderRadius: 6, border: '1px solid rgba(59,130,246,0.2)' }}>
+              <h4 style={{ margin: '0 0 6px', fontSize: 12, color: '#60a5fa' }}>AI Generate</h4>
+              <textarea
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="Describe a symbol, e.g. &quot;IEC normally open pushbutton with 2 pins&quot; or &quot;Allen-Bradley Micro850 PLC with 24 DI and 16 DO&quot;"
+                style={{ width: '100%', height: 48, fontSize: 11, resize: 'vertical', background: '#1a1a2e', color: '#ccc', border: '1px solid #333', borderRadius: 4, padding: 6, boxSizing: 'border-box' }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAIGenerate(); } }}
+              />
+              <button
+                onClick={handleAIGenerate}
+                disabled={aiGenerating || !aiPrompt.trim()}
+                style={{ marginTop: 4, width: '100%', padding: '5px 0', fontSize: 11, background: aiGenerating ? '#333' : '#3b82f6', color: '#fff', border: 'none', borderRadius: 4, cursor: aiGenerating ? 'wait' : 'pointer' }}
+              >
+                {aiGenerating ? 'Generating...' : 'Generate Symbol'}
+              </button>
+              {aiError && <div style={{ marginTop: 4, fontSize: 10, color: '#ef4444' }}>{aiError}</div>}
+            </div>
+
             <h4>Symbol Properties</h4>
 
             <label>

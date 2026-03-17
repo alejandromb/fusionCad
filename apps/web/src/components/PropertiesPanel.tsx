@@ -4,6 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Device, Part } from '@fusion-cad/core-model';
+import { ALL_MANUFACTURER_PARTS } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { PartsCatalog } from './PartsCatalog';
 
@@ -154,8 +155,11 @@ export function PropertiesPanel({
     setEditingField(null);
   };
 
-  // Determine category filter for the catalog
-  const catalogFilter = part?.category || undefined;
+  // Determine category filter for the catalog — only pre-filter if the
+  // device's part category actually exists in the parts catalog, otherwise
+  // it would show "0 parts" (symbol IDs like 'iec-relay-coil' don't match catalog categories)
+  const catalogCategories = new Set(ALL_MANUFACTURER_PARTS.map(p => p.category));
+  const catalogFilter = part?.category && catalogCategories.has(part.category) ? part.category : undefined;
 
   const handleSelectPart = (selectedPart: ManufacturerPart) => {
     onAssignPart(device.id, selectedPart);

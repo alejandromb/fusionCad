@@ -17,6 +17,8 @@ interface HeaderProps {
   createNewProject: () => Promise<void>;
   deleteCurrentProject: () => Promise<void>;
   renameProject: () => Promise<void>;
+  exportProject: () => void;
+  importProject: (file: File) => Promise<void>;
   circuit: CircuitData | null;
   onOpenReports: () => void;
   onOpenExport?: () => void;
@@ -44,6 +46,8 @@ export function Header({
   createNewProject,
   deleteCurrentProject,
   renameProject,
+  exportProject,
+  importProject,
   circuit,
   onOpenReports,
   onOpenExport,
@@ -109,6 +113,24 @@ export function Header({
               <button className="menu-item" onClick={renameProject}>
                 Rename...
               </button>
+              <div className="menu-divider" />
+              <button className="menu-item" onClick={() => { setShowProjectMenu(false); exportProject(); }}>
+                Download Backup (.json)
+              </button>
+              <button className="menu-item" onClick={() => {
+                setShowProjectMenu(false);
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json,.fcad.json';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) importProject(file);
+                };
+                input.click();
+              }}>
+                Import from Backup...
+              </button>
+              <div className="menu-divider" />
               <button className="menu-item danger" onClick={deleteCurrentProject}>
                 Delete Project
               </button>

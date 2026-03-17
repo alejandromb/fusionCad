@@ -1012,21 +1012,25 @@ export function useCircuitState(
 
       let updatedParts = [...prev.parts];
 
+      // Find the device and get its old part so we can preserve the symbol
+      const device = prev.devices.find(d => d.id === deviceId);
+      const oldPartId = device?.partId;
+      const oldPart = oldPartId ? prev.parts.find(p => p.id === oldPartId) : undefined;
+
       if (!existingPart) {
-        // Create new part with generated ID
+        // Create new part with generated ID, but preserve the original
+        // symbol category so assigning a part doesn't change the schematic symbol
         const now = Date.now();
+        const preservedCategory = oldPart?.category || partData.category;
         existingPart = {
           ...partData,
+          category: preservedCategory,
           id: generateId(),
           createdAt: now,
           modifiedAt: now,
         } as Part;
         updatedParts.push(existingPart);
       }
-
-      // Find the device and get its old partId
-      const device = prev.devices.find(d => d.id === deviceId);
-      const oldPartId = device?.partId;
 
       // Update the device to point to the new part
       const updatedDevices = prev.devices.map(d =>

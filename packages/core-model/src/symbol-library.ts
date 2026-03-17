@@ -7,7 +7,7 @@
  */
 
 import type { SymbolDefinition, SymbolPrimitive, SymbolPath, SymbolText, SymbolVariant } from './types.js';
-import { tryGeneratePLCSymbol, generateSmartFallback } from './symbols/symbol-generators.js';
+import { tryGeneratePLCSymbol, tryGenerateMicro800Symbol, generateSmartFallback } from './symbols/symbol-generators.js';
 
 // Primary registry: ID -> SymbolDefinition
 const symbolById: Map<string, SymbolDefinition> = new Map();
@@ -111,12 +111,20 @@ export function resolveSymbol(idOrCategory: string): SymbolDefinition {
   const byCat = symbolByCategory.get(idOrCategory);
   if (byCat) return byCat;
 
-  // Tier 3: parametric generation for parseable categories
+  // Tier 3a: parametric generation for PLC module categories
   const generated = tryGeneratePLCSymbol(idOrCategory);
   if (generated) {
     registerSymbol(generated); // cache for next lookup
     registerCategoryAlias(idOrCategory, generated.id);
     return generated;
+  }
+
+  // Tier 3b: Micro800 CPU generation
+  const micro800 = tryGenerateMicro800Symbol(idOrCategory);
+  if (micro800) {
+    registerSymbol(micro800);
+    registerCategoryAlias(idOrCategory, micro800.id);
+    return micro800;
   }
 
   // Tier 4: smart generic fallback

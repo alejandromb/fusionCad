@@ -8,6 +8,7 @@ import { User } from './entities/User.js';
 import { Symbol } from './entities/Symbol.js';
 import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
 import { aiGenerate } from './ai-generate.js';
+import { aiSymbolGenerate } from './ai-symbol-generate.js';
 import { requireAuth, optionalAuth } from './middleware/auth.js';
 import { checkAiRateLimit } from './middleware/ai-rate-limit.js';
 
@@ -198,6 +199,32 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error updating project:', error);
     res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
+// Beacon save — used by beforeunload to flush unsaved changes
+// sendBeacon always sends POST, so this mirrors the PUT logic
+app.post('/api/projects/:id/save', requireAuth, async (req, res) => {
+  try {
+    const projectRepo = AppDataSource.getRepository(Project);
+    const project = await projectRepo.findOneBy({ id: req.params.id });
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { circuitData } = req.body;
+    if (circuitData !== undefined) project.circuitData = circuitData;
+
+    await projectRepo.save(project);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error in beacon save:', error);
+    res.status(500).json({ error: 'Failed to save project' });
   }
 });
 
@@ -405,6 +432,29 @@ app.post('/api/projects/:id/ai-generate', optionalAuth, checkAiRateLimit, async 
   } catch (error: any) {
     console.error('Error in AI generation:', error);
     res.status(500).json({ error: `AI generation failed: ${error.message}` });
+  }
+});
+
+// ============ AI SYMBOL GENERATION ============
+
+// AI-powered symbol generation from natural language description
+app.post('/api/symbols/ai-generate', optionalAuth, async (req, res) => {
+  try {
+    const { description } = req.body;
+    if (!description || typeof description !== 'string') {
+      return res.status(400).json({ error: 'A "description" string is required' });
+    }
+
+    const result = await aiSymbolGenerate(description);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error in AI symbol generation:', error);
+    res.status(500).json({ error: `AI symbol generation failed: ${error.message}` });
   }
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import './App.css';
-import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol } from '@fusion-cad/core-model';
+import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
 import { detectStorageProvider, IndexedDBStorageProvider, type StorageProvider, type StorageType } from './storage';
@@ -11,6 +11,7 @@ import { useCanvasInteraction, type ManufacturerPart } from './hooks/useCanvasIn
 import { configureAmplify, useAuth } from './auth';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
+import { MenuBar, type MenuTab } from './components/MenuBar';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
 import { Canvas } from './components/Canvas';
@@ -65,15 +66,22 @@ export function App() {
           }
           // Also register parametrically-generated PLC I/O defaults
           // (these aren't stored in the DB — they come from the generator)
-          for (const def of [
+          const plcDefs = [
             generatePLCDigitalSymbol('DI', 8), generatePLCDigitalSymbol('DI', 16),
             generatePLCDigitalSymbol('DO', 8), generatePLCDigitalSymbol('DO', 16),
             generatePLCAnalogSymbol('AI', 4), generatePLCAnalogSymbol('AI', 8),
             generatePLCAnalogSymbol('AO', 4), generatePLCAnalogSymbol('AO', 8),
-          ]) {
+          ];
+          // Micro800 CPU symbols (Allen-Bradley)
+          const micro800Models = ['micro820', 'micro830', 'micro850', 'micro870'];
+          for (const model of micro800Models) {
+            const sym = generateMicro800Symbol(model);
+            if (sym) plcDefs.push(sym);
+          }
+          for (const def of plcDefs) {
             registerSymbol(def);
           }
-          console.log(`Loaded ${symbols.length} symbols from API + 8 PLC generators`);
+          console.log(`Loaded ${symbols.length} symbols from API + ${plcDefs.length} PLC generators`);
           setSymbolsLoaded(true);
           return;
         } catch {
@@ -134,6 +142,7 @@ function AppInner({
   const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
   const [editSymbolId, setEditSymbolId] = useState<string | undefined>(undefined);
+  const [activeMenuTab, setActiveMenuTab] = useState<MenuTab>('draw');
 
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
@@ -259,6 +268,32 @@ function AppInner({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  const pasteAtCenter = useCallback(() => {
+    const canvas = interaction.canvasRef.current;
+    if (canvas) {
+      const centerX = (canvas.width / 2 - interaction.viewport.offsetX) / interaction.viewport.scale;
+      const centerY = (canvas.height / 2 - interaction.viewport.offsetY) / interaction.viewport.scale;
+      clipboardState.pasteDevice(centerX, centerY);
+    }
+  }, [interaction.canvasRef, interaction.viewport, clipboardState]);
+
+  const selectAll = useCallback(() => {
+    if (project.circuit) {
+      circuitState.setSelectedDevices(project.circuit.devices.map(d => d.id));
+    }
+  }, [project.circuit, circuitState]);
+
+  const triggerImport = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.fcad.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) project.importProject(file);
+    };
+    input.click();
+  }, [project]);
+
   return (
     <div className="app">
       <Header
@@ -272,6 +307,8 @@ function AppInner({
         createNewProject={project.createNewProject}
         deleteCurrentProject={project.deleteCurrentProject}
         renameProject={project.renameProject}
+        exportProject={project.exportProject}
+        importProject={project.importProject}
         circuit={project.circuit}
         onOpenReports={() => setShowReports(true)}
         onOpenExport={() => setShowExport(true)}
@@ -292,35 +329,56 @@ function AppInner({
         <div className="menu-backdrop" onClick={() => project.setShowProjectMenu(false)} />
       )}
 
-      <Toolbar
-        selectedDevices={circuitState.selectedDevices}
-        selectedWireIndex={circuitState.selectedWireIndex}
-        interactionMode={interaction.interactionMode}
-        setInteractionMode={interaction.setInteractionMode}
-        rotateDevice={circuitState.rotateDevice}
-        rotateSelectedDevices={circuitState.rotateSelectedDevices}
-        mirrorDevice={circuitState.mirrorDevice}
-        deleteDevices={circuitState.deleteDevices}
-        deleteWire={circuitState.deleteWire}
-        copyDevice={clipboardState.copyDevice}
-        pasteDevice={() => {
-          // Paste at center of viewport
-          const canvas = interaction.canvasRef.current;
-          if (canvas) {
-            const centerX = (canvas.width / 2 - interaction.viewport.offsetX) / interaction.viewport.scale;
-            const centerY = (canvas.height / 2 - interaction.viewport.offsetY) / interaction.viewport.scale;
-            clipboardState.pasteDevice(centerX, centerY);
-          }
-        }}
-        hasClipboard={!!clipboardState.clipboard}
+      <MenuBar
+        activeTab={activeMenuTab}
+        setActiveTab={setActiveMenuTab}
+        projectName={project.projectName}
+        saveStatus={project.saveStatus}
+        onNewProject={project.createNewProject}
+        onRenameProject={project.renameProject}
+        onDeleteProject={project.deleteCurrentProject}
+        onExportBackup={project.exportProject}
+        onImportBackup={triggerImport}
+        onOpenExport={() => setShowExport(true)}
+        onOpenReports={() => setShowReports(true)}
+        onSaveNow={project.saveNow}
+        // Edit
         undo={circuitState.undo}
         redo={circuitState.redo}
         canUndo={circuitState.canUndo}
         canRedo={circuitState.canRedo}
+        copyDevice={clipboardState.copyDevice}
+        pasteDevice={pasteAtCenter}
+        hasClipboard={!!clipboardState.clipboard}
+        deleteDevices={circuitState.deleteDevices}
+        deleteWire={circuitState.deleteWire}
+        selectedDevices={circuitState.selectedDevices}
+        selectedWireIndex={circuitState.selectedWireIndex}
+        selectAll={selectAll}
+        // Draw
+        interactionMode={interaction.interactionMode}
+        setInteractionMode={interaction.setInteractionMode}
+        rotateSelectedDevices={circuitState.rotateSelectedDevices}
+        mirrorDevice={circuitState.mirrorDevice}
+        // View
         zoomIn={() => interaction.setViewport(prev => ({ ...prev, scale: Math.min(prev.scale * 1.25, 5) }))}
         zoomOut={() => interaction.setViewport(prev => ({ ...prev, scale: Math.max(prev.scale / 1.25, 0.1) }))}
         zoomToFit={interaction.zoomToFit}
         zoomLevel={interaction.viewport.scale}
+        debugMode={circuitState.debugMode}
+        setDebugMode={circuitState.setDebugMode}
+        themeId={theme.themeId}
+        setThemeId={theme.setThemeId}
+        // Insert
+        onOpenSymbolPalette={() => setShowSymbolLibrary(true)}
+        onAddSheet={circuitState.addSheet}
+        // Tools
+        onOpenAIGenerate={() => setShowAIPrompt(true)}
+        onOpenERC={() => setShowERC(true)}
+        onOpenSymbolEditor={() => setEditSymbolId('_create_new_')}
+        onOpenPartsCatalog={() => setShowPartsCatalog(true)}
+        // Help
+        onShowShortcuts={() => setShowShortcuts(true)}
       />
 
       <div className="layout">
@@ -456,7 +514,7 @@ function AppInner({
           isOpen={true}
           onClose={() => setEditSymbolId(undefined)}
           onSave={() => {}}
-          editSymbolId={editSymbolId}
+          editSymbolId={editSymbolId === '_create_new_' ? undefined : editSymbolId}
           storageProvider={storageProvider}
         />
       )}

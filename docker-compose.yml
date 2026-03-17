@@ -1,3 +1,13 @@
+# ============================================================
+# WARNING: Your project data lives in the Docker volume below.
+#
+#   SAFE:     docker-compose down      (stops container, keeps data)
+#   SAFE:     docker-compose restart   (restarts container, keeps data)
+#   DESTROYS: docker-compose down -v   (DELETES ALL PROJECT DATA!)
+#   DESTROYS: docker volume rm ...     (DELETES ALL PROJECT DATA!)
+#
+# Always run `npm run db:backup` BEFORE any destructive operation.
+# ============================================================
 services:
   db:
     image: postgres:15-alpine

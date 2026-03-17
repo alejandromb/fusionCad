@@ -173,13 +173,71 @@
 /* ============================================
    Horizontal Toolbar (CAD-style)
    ============================================ */
+/* ============================================
+   Menu Bar (tabs + contextual toolbar)
+   ============================================ */
+.menu-bar-wrapper {
+  flex-shrink: 0;
+  background: var(--fc-bg-panel);
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.menu-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 var(--fc-space-3);
+  height: 28px;
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.menu-tab {
+  padding: 4px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fc-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  letter-spacing: 0.02em;
+}
+
+.menu-tab:hover {
+  color: var(--fc-text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.menu-tab.active {
+  color: var(--fc-accent);
+  border-bottom-color: var(--fc-accent);
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: var(--fc-text-muted);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.toolbar-select {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--fc-bg-app);
+  color: var(--fc-text-primary);
+  border: 1px solid var(--fc-border-strong);
+  border-radius: var(--fc-radius-sm);
+  cursor: pointer;
+  height: 26px;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
   gap: var(--fc-space-1);
   padding: var(--fc-space-2) var(--fc-space-3);
   background: var(--fc-bg-panel);
-  border-bottom: 1px solid var(--fc-border);
   height: 40px;
   flex-shrink: 0;
 }

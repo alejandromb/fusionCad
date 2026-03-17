@@ -274,6 +274,181 @@ export function generatePLCAnalogSymbol(type: PLCAnalogType, channels: number): 
 }
 
 // ---------------------------------------------------------------------------
+// Micro800 / Compact PLC CPU Generator
+// ---------------------------------------------------------------------------
+
+interface Micro800Config {
+  model: string;        // e.g., 'Micro850', 'Micro870'
+  catalogNumber?: string; // e.g., '2080-LC50-48QWB'
+  diCount: number;
+  doCount: number;
+  aiCount?: number;     // embedded analog inputs
+  aoCount?: number;     // embedded analog outputs
+  hasCommunication?: boolean; // Ethernet/USB
+}
+
+const MICRO800_MODELS: Record<string, Micro800Config> = {
+  'micro820': { model: 'Micro820', catalogNumber: '2080-LC20-20QWB', diCount: 12, doCount: 8, aiCount: 4, hasCommunication: true },
+  'micro830': { model: 'Micro830', catalogNumber: '2080-LC30-48QWB', diCount: 24, doCount: 16, hasCommunication: true },
+  'micro850': { model: 'Micro850', catalogNumber: '2080-LC50-48QWB', diCount: 24, doCount: 16, aiCount: 2, hasCommunication: true },
+  'micro870': { model: 'Micro870', catalogNumber: '2080-LC70-24QWB', diCount: 12, doCount: 12, aiCount: 4, aoCount: 2, hasCommunication: true },
+};
+
+/**
+ * Generate a Micro800 PLC CPU symbol with embedded I/O.
+ * Left side: DI pins + AI pins (inputs)
+ * Right side: DO pins + AO pins (outputs)
+ * Top: Power (V+, V-) + Comm ports
+ */
+export function generateMicro800Symbol(modelKey: string): SymbolDefinition | null {
+  const config = MICRO800_MODELS[modelKey.toLowerCase()];
+  if (!config) return null;
+
+  const PIN_SPACING = 25;
+  const BODY_X = 20;
+  const BODY_R = 130;   // body right edge
+  const TOTAL_W = 150;
+  const HEADER_H = 60;
+
+  // Calculate left side pin count (DI + AI + COM pins)
+  const diComCount = Math.ceil(config.diCount / 8);
+  const leftPinCount = config.diCount + diComCount + (config.aiCount || 0);
+
+  // Calculate right side pin count (DO + AO + COM pins)
+  const doComCount = Math.ceil(config.doCount / 8);
+  const rightPinCount = config.doCount + doComCount + (config.aoCount || 0);
+
+  const maxPins = Math.max(leftPinCount, rightPinCount);
+  const bodyBottom = HEADER_H + maxPins * PIN_SPACING + 20;
+  const totalHeight = bodyBottom + 10;
+
+  const pins: SymbolPin[] = [];
+  const primitives: SymbolPrimitive[] = [];
+
+  // Body rectangle
+  primitives.push({ type: 'rect', x: BODY_X, y: 5, width: BODY_R - BODY_X, height: bodyBottom - 5 });
+
+  // Header text
+  const centerX = TOTAL_W / 2;
+  primitives.push({ type: 'text', x: centerX, y: 18, content: config.model, fontSize: 12, fontWeight: 'bold', textAnchor: 'middle' });
+  if (config.catalogNumber) {
+    primitives.push({ type: 'text', x: centerX, y: 32, content: config.catalogNumber, fontSize: 8, textAnchor: 'middle' });
+  }
+  // Separator line under header
+  primitives.push({ type: 'line', x1: BODY_X, y1: 40, x2: BODY_R, y2: 40 });
+
+  // Section labels
+  primitives.push({ type: 'text', x: BODY_X + 5, y: 53, content: 'INPUTS', fontSize: 7, fontWeight: 'bold', textAnchor: 'start' });
+  primitives.push({ type: 'text', x: BODY_R - 5, y: 53, content: 'OUTPUTS', fontSize: 7, fontWeight: 'bold', textAnchor: 'end' });
+
+  // --- Left side: DI pins with COM groups ---
+  let leftY = HEADER_H;
+  let diGroup = 0;
+  for (let i = 0; i < config.diCount; i++) {
+    if (i > 0 && i % 8 === 0) {
+      // COM pin between groups
+      const comId = diComCount === 1 ? 'DC_COM' : `DC_COM${diGroup}`;
+      pins.push({ id: comId, name: comId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'power' });
+      primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
+      primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: comId, fontSize: 7, textAnchor: 'start' });
+      leftY += PIN_SPACING;
+      diGroup++;
+    }
+    const pinId = `DI${i}`;
+    pins.push({ id: pinId, name: pinId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'input' });
+    primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
+    primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: pinId, fontSize: 7, textAnchor: 'start' });
+    leftY += PIN_SPACING;
+  }
+  // Final DI COM
+  const lastDiCom = diComCount === 1 ? 'DC_COM' : `DC_COM${diGroup}`;
+  if (!pins.find(p => p.id === lastDiCom)) {
+    pins.push({ id: lastDiCom, name: lastDiCom, position: { x: 0, y: leftY }, direction: 'left', pinType: 'power' });
+    primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
+    primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: lastDiCom, fontSize: 7, textAnchor: 'start' });
+    leftY += PIN_SPACING;
+  }
+
+  // Embedded AI pins
+  if (config.aiCount) {
+    primitives.push({ type: 'line', x1: BODY_X + 5, y1: leftY - 8, x2: centerX - 10, y2: leftY - 8, strokeDash: [2, 2] });
+    for (let i = 0; i < config.aiCount; i++) {
+      const pinId = `AI${i}`;
+      pins.push({ id: pinId, name: pinId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'input' });
+      primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
+      primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: pinId, fontSize: 7, textAnchor: 'start' });
+      leftY += PIN_SPACING;
+    }
+  }
+
+  // --- Right side: DO pins with COM groups ---
+  let rightY = HEADER_H;
+  let doGroup = 0;
+  for (let i = 0; i < config.doCount; i++) {
+    if (i > 0 && i % 8 === 0) {
+      const comId = doComCount === 1 ? 'DO_COM' : `DO_COM${doGroup}`;
+      pins.push({ id: comId, name: comId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'power' });
+      primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
+      primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: comId, fontSize: 7, textAnchor: 'end' });
+      rightY += PIN_SPACING;
+      doGroup++;
+    }
+    const pinId = `DO${i}`;
+    pins.push({ id: pinId, name: pinId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'output' });
+    primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
+    primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: pinId, fontSize: 7, textAnchor: 'end' });
+    rightY += PIN_SPACING;
+  }
+  // Final DO COM
+  const lastDoCom = doComCount === 1 ? 'DO_COM' : `DO_COM${doGroup}`;
+  if (!pins.find(p => p.id === lastDoCom)) {
+    pins.push({ id: lastDoCom, name: lastDoCom, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'power' });
+    primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
+    primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: lastDoCom, fontSize: 7, textAnchor: 'end' });
+    rightY += PIN_SPACING;
+  }
+
+  // Embedded AO pins
+  if (config.aoCount) {
+    primitives.push({ type: 'line', x1: centerX + 10, y1: rightY - 8, x2: BODY_R - 5, y2: rightY - 8, strokeDash: [2, 2] });
+    for (let i = 0; i < config.aoCount; i++) {
+      const pinId = `AO${i}`;
+      pins.push({ id: pinId, name: pinId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'output' });
+      primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
+      primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: pinId, fontSize: 7, textAnchor: 'end' });
+      rightY += PIN_SPACING;
+    }
+  }
+
+  return {
+    id: `ab-${modelKey.toLowerCase()}-cpu`,
+    type: 'symbol-definition',
+    name: `AB ${config.model} CPU`,
+    category: 'PLC',
+    geometry: { width: TOTAL_W, height: totalHeight },
+    pins,
+    primitives,
+    tagPrefix: 'PLC',
+    source: 'generated',
+    standard: 'common',
+    createdAt: 0,
+    modifiedAt: 0,
+  };
+}
+
+/**
+ * Try to generate a Micro800 symbol from a category string.
+ * Matches patterns like 'micro850', 'ab-micro870-cpu', 'micro820'
+ */
+export function tryGenerateMicro800Symbol(category: string): SymbolDefinition | null {
+  const normalized = category.toLowerCase().replace(/^ab-/, '').replace(/-cpu$/, '');
+  if (MICRO800_MODELS[normalized]) {
+    return generateMicro800Symbol(normalized);
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Category parser — extract type + channels from category strings
 // ---------------------------------------------------------------------------
 

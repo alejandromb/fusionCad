@@ -101,6 +101,9 @@ export interface UseProjectPersistenceReturn {
   renameProject: () => Promise<void>;
   refreshProjectsList: () => Promise<void>;
   reloadProject: () => Promise<void>;
+  exportProject: () => void;
+  importProject: (file: File) => Promise<void>;
+  saveNow: () => Promise<void>;
 }
 
 export function useProjectPersistence(
@@ -265,6 +268,49 @@ export function useProjectPersistence(
   // Debounced auto-save
   const debouncedSave = useDebouncedCallback(saveProject, AUTO_SAVE_DELAY);
 
+  // Keep a ref to saveProject so beforeunload can call it synchronously
+  const saveProjectRef = useRef(saveProject);
+  saveProjectRef.current = saveProject;
+
+  // Flush pending save on page unload — prevents data loss if user closes tab
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'unsaved') {
+        // Attempt synchronous save via sendBeacon (fire-and-forget)
+        if (projectId && circuit) {
+          const positions: Record<string, Point> = {};
+          devicePositions.forEach((pos, deviceId) => {
+            positions[deviceId] = pos;
+          });
+          const payload = JSON.stringify({
+            circuitData: {
+              devices: circuit.devices,
+              nets: circuit.nets,
+              parts: circuit.parts,
+              connections: circuit.connections,
+              positions,
+              ...(circuit.sheets ? { sheets: circuit.sheets } : {}),
+              ...(circuit.annotations ? { annotations: circuit.annotations } : {}),
+              ...(circuit.terminals ? { terminals: circuit.terminals } : {}),
+              ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
+              ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
+              ...(circuit.blocks ? { blocks: circuit.blocks } : {}),
+            },
+          });
+          const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+          navigator.sendBeacon(
+            `${apiBase}/api/projects/${projectId}/save`,
+            new Blob([payload], { type: 'application/json' }),
+          );
+        }
+        // Show browser's "unsaved changes" warning
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveStatus, projectId, circuit, devicePositions]);
+
   // Trigger auto-save when circuit or positions change
   useEffect(() => {
     if (projectId && circuit && !isLoading) {
@@ -371,6 +417,76 @@ export function useProjectPersistence(
     }
   }, [projectId, switchProject]);
 
+  // Export current project as a JSON file download
+  const exportProject = useCallback(() => {
+    if (!projectId || !circuit) return;
+
+    const positions: Record<string, Point> = {};
+    devicePositions.forEach((pos, deviceId) => {
+      positions[deviceId] = pos;
+    });
+
+    const backup = {
+      _fusionCadBackup: true,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      project: {
+        name: projectName,
+        circuitData: {
+          devices: circuit.devices,
+          nets: circuit.nets,
+          parts: circuit.parts,
+          connections: circuit.connections,
+          positions,
+          ...(circuit.sheets ? { sheets: circuit.sheets } : {}),
+          ...(circuit.annotations ? { annotations: circuit.annotations } : {}),
+          ...(circuit.terminals ? { terminals: circuit.terminals } : {}),
+          ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
+          ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
+          ...(circuit.blocks ? { blocks: circuit.blocks } : {}),
+        },
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const date = new Date().toISOString().slice(0, 10);
+    a.download = `${safeName}_${date}.fcad.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [projectId, projectName, circuit, devicePositions]);
+
+  // Import a project from a JSON backup file
+  const importProject = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validate backup format
+      if (!data._fusionCadBackup || !data.project?.circuitData) {
+        throw new Error('Invalid backup file — not a fusionCad project export.');
+      }
+
+      const { name, circuitData } = data.project;
+      const importName = name ? `${name} (imported)` : 'Imported Project';
+
+      setIsLoading(true);
+      const project = await storage.createProject(importName, '', circuitData);
+      await switchProject(project.id);
+      await refreshProjectsList();
+    } catch (error: any) {
+      console.error('Failed to import project:', error);
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [storage, switchProject, refreshProjectsList]);
+
   return {
     projectId,
     projectName,
@@ -389,5 +505,8 @@ export function useProjectPersistence(
     renameProject,
     refreshProjectsList,
     reloadProject,
+    exportProject,
+    importProject,
+    saveNow: saveProject,
   };
 }

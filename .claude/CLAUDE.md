@@ -30,26 +30,31 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-08)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-15)
 
-**Current task:** Symbol Accuracy Audit — IN PROGRESS
+**Current task:** User starting first real project — Micro800 refrigeration sequential recovery
 
-**What was completed this session (Session 17):**
-- **4 more symbols fixed** — iec-changeover-contact (removed wide bar, arm direct to NC), iec-contactor-3p (parallel bars + dashed linkage), iec-selector-switch-3pos (switch-style dots), iec-transformer-3ph (6 pins, 3 coil pairs)
-- **Total symbols fixed so far**: 14 (10 switches in Session 16 + 4 in Session 17)
+**What was completed this session (Session 18):**
+- **Data protection suite** — Project JSON export/import (.fcad.json), beforeunload save (sendBeacon), `npm run db:backup` script, Docker safety warnings
+- **Menu bar with contextual toolbar** — 7 tabs (File/Edit/Draw/View/Insert/Tools/Help), toolbar icons change per active tab
+- **Micro800 PLC symbols** — 4 Allen-Bradley models (Micro820/830/850/870) with embedded I/O pins
+- **AI symbol generation** — `POST /api/symbols/ai-generate` + UI in Symbol Editor (describe symbol → Claude generates geometry)
+- **Pin snap fix** — Symbol Editor pins now snap to 20px (main canvas grid) instead of 5px
+- **Parts catalog empty fix** — Was pre-filtering on symbolId categories; now shows all 324 parts by default
+- **Assign part symbol fix** — Assigning a part no longer replaces the schematic symbol on the drawing
+- **View tab features** — Fullscreen toggle, theme picker dropdown
 
-**Branch:** `main` (uncommitted changes from sessions 14-17)
+**Branch:** `main` (uncommitted changes from sessions 14-18)
 
 **Next steps (priority order):**
-1. **Continue symbol accuracy audit** — Remaining candidates: iec-transformer-1ph (full circles→semicircles), iec-horn, iec-surge-arrester, ansi-normally-closed-contact
-2. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
-3. **Design system implementation** — CSS variables, canvas/chrome theme separation, spacing, typography, shadows
-4. **Inline annotation editing** — Replace prompt windows with on-canvas text editing
-5. **Symbol creation/verification tool** — Build reliable tooling to assist creating and verifying all symbols
-6. **Automatic terminal block calculation** (Phase 3-4 feature)
-7. **Configure Cognito OAuth providers** — Add Google + GitHub in AWS Console, set VITE_COGNITO_OAUTH_DOMAIN
-8. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres (keep local until it works)
-9. **Gate AI features behind auth** — Free tier = 3 cloud projects, no AI; paid = unlimited + AI
+1. **Support user's Micro800 project** — Real-world testing, fix issues as they arise
+2. **Menu bar remaining features** — Find/Replace, grid toggle, pin label toggle, settings panel (see `memory/menu-bar-todo.md`)
+3. **Parts-to-symbol mapping** — Auto-assign obvious symbol matches (breakers→breaker symbol, etc.)
+4. **PLC interlock circuit generator** — New AI generator type for sequential relay interlock patterns
+5. **Continue symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
+6. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
+7. **Automatic terminal block calculation** (Phase 3-4 feature)
+8. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres
 
 ---
 
