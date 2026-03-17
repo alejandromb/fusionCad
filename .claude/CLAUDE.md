@@ -30,11 +30,27 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-16)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-17)
 
-**Current task:** AI Electrical Intelligence — make AI generate complete, correct circuits
+**Current task:** AI Electrical Intelligence — improving generated schematic quality
 
-**What was completed this session (Session 19):**
+**What was completed this session (Session 20):**
+- **P0-P4 complete** — System prompt with electrical rules + pin reference + circuit patterns + ANSI preference
+- **P2 template tools** — generate_relay_bank, generate_relay_output, generate_power_section
+- **P3 post-gen ERC** — Auto-runs after AI finishes, appends errors/warnings
+- **P1 rich context** — Server-side pin status (wired/OPEN!) per device
+- **AI chat tools** — move_device, delete_device, delete_wire, create_ladder_block, add_rung, auto_layout_ladder
+- **ANSI symbols horizontal** — ansi-coil, ansi-normally-open-contact, ansi-normally-closed-contact all pins left/right
+- **Terminal single pin** — Reduced to 1 pin (left), connection point only
+- **PSU pins on 20px grid** — Was 12/38, now 20/40 for clean wire routing
+- **Pin Y alignment** — Coil and terminal Y positions account for pin offsets within symbols
+- **Rung annotations** — "RELAY OUTPUT N" auto-added next to each coil
+- **Title blocks** — Drawing numbers auto-filled
+- **Design rules documented** — 10 categories from IEC 61082, NFPA 79, industry standards
+- **symbols:refresh** — Force-update endpoint + npm script
+- **Centralized AI model ID** — ai-config.ts
+
+**What was completed in Session 19:**
 - **AI Chat Panel** — Persistent sidebar chat with tool use (place_device, create_wire, add_annotation, add_sheet, list_symbols). AI can now modify drawings directly.
 - **Resizable right panel** — Drag left edge to resize (200-600px), persists to localStorage
 - **AI tab first** — AI is the leftmost tab in right panel
@@ -49,15 +65,13 @@ Before doing ANYTHING else:
 **Branch:** `main` (uncommitted changes from sessions 14-19)
 
 **Next steps (priority order):**
-1. **P0: Enhanced AI system prompt** — Electrical rules, pin reference, circuit patterns, ANSI defaults (see `memory/ai-electrical-intelligence-plan.md`)
-2. **P2: Template tools** — `generate_relay_output`, `generate_plc_relay_bank`, `run_erc_check` + add missing tools (create_linked_device, create_ladder_block)
-3. **P1: Rich circuit context** — Show AI which pins are connected/unconnected per device
-4. **P3: Post-generation ERC + auto-fix loop** — Run ERC after AI finishes, feed violations back
-5. **P4: ANSI/IEC awareness** — Default to ANSI symbols and tag conventions
-6. **P5: Smart defaults** — "16 relays" → full project with power, sheets, contacts, terminals
-7. **Print/PDF output** — Verify paper sizes (Letter, Tabloid, A4, A3), margins, scale-to-fit
-8. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
-9. **Symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
+1. **L1/L2 power rails in templates** — Integrate ladder blocks into generateRelayBank for proper rail rendering
+2. **Wire numbers visible on canvas** — Renderer feature to show wire labels
+3. **Cross-references** — Coil ↔ contact references on schematic (data model + renderer)
+4. **Print/PDF output** — Verify paper sizes (Letter, Tabloid, A4, A3), margins, scale-to-fit
+5. **AI model investigation** — Test cheaper models for simple edit tasks
+6. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
+7. **Symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
 
 ---
 
