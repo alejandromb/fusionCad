@@ -175,7 +175,13 @@ function addSheet(circuit: CircuitData, name: string): { circuit: CircuitData; s
       ...circuit,
       sheets: [...(circuit.sheets || []), {
         id: sheetId, name, order: (circuit.sheets?.length || 0) + 1,
-        titleBlock: { title: name, date: new Date().toISOString().slice(0, 10), revision: 'A' },
+        titleBlock: {
+          title: name,
+          date: new Date().toISOString().slice(0, 10),
+          revision: 'A',
+          drawingNumber: `DWG-${String((circuit.sheets?.length || 0) + 1).padStart(3, '0')}`,
+          drawnBy: '',
+        },
       }],
     },
   };
@@ -226,8 +232,10 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
 
   // 3. Wire coil pin 2 (A2) → 0V return
   // Place a ground/return terminal for the 0V bus connection
+  // Return terminal: align pin (at y=10 within 20px symbol) with coil pin 2 (at coilY+20)
+  // So terminalY = coilY + 20 - 10 = coilY + 10
   const retTag = `RET-${params.relayTag}`;
-  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY, coilSheetId, '0V Return');
+  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY + 10, coilSheetId, '0V Return');
   circuit = r1b.circuit;
   circuit = addWireById(circuit, coilDeviceId, params.relayTag, '2', r1b.deviceId, retTag, '1');
 
@@ -240,15 +248,22 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const tbInTag = `TB-${params.relayTag}a`;
   const tbOutTag = `TB-${params.relayTag}b`;
 
-  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, contactY, contactSheetId, `${params.relayTag} Field In`);
+  // Terminals: pin at y=10 within 20px symbol. Contact pin at y=20 within 40px symbol.
+  // To align: terminalY = contactY + 20 - 10 = contactY + 10
+  const tbAlignedY = contactY + 10;
+  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, tbAlignedY, contactSheetId, `${params.relayTag} - IN`);
   circuit = r3.circuit;
 
-  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, contactY, contactSheetId, `${params.relayTag} Field Out`);
+  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, tbAlignedY, contactSheetId, `${params.relayTag} - OUT`);
   circuit = r4.circuit;
 
   // 6. Wire by deviceId: TB-in pin 1 → NO contact pin 1; NO contact pin 2 → TB-out pin 1
   circuit = addWireById(circuit, r3.deviceId, tbInTag, '1', contactDeviceId, params.relayTag, '1');
   circuit = addWireById(circuit, contactDeviceId, params.relayTag, '2', r4.deviceId, tbOutTag, '1');
+
+  // 7. Add rung description annotation next to the coil
+  const relayNum = params.relayTag.replace(/\D/g, '');
+  circuit = addAnnotation(circuit, `RELAY OUTPUT ${relayNum}`, retX + 60, coilY, coilSheetId);
 
   return {
     circuit,
@@ -362,16 +377,20 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     // Annotations
     circuit = addAnnotation(circuit, doSheetName.toUpperCase(), 200, 20, doSheet.sheetId);
 
-    // Place relay outputs — align coil Y with each PLC DO pin Y
-    // DO pin positions: first pin at plcY + 50, then every 30px
-    const firstPinY = plcY + 50;  // DO0 pin Y position
-    const pinSpacing = 30;        // matches PLC DO symbol pin spacing
+    // Place relay outputs — align coil pin Y with each PLC DO pin Y
+    // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px (from symbol-generators.ts)
+    // ANSI coil: pin 1 (A1) is at symbol_y+20 within the 40px tall symbol
+    // So coilPlacementY = plcPinAbsoluteY - coilPinOffset
+    const firstPinAbsY = plcY + 50;  // DO0 absolute pin Y
+    const pinSpacing = 30;            // matches PLC DO symbol pin spacing
+    const coilPinOffset = 20;         // ansi-coil pin 1 is at y=20 within symbol
 
     for (let i = 0; i < count; i++) {
       const doPin = `DO${i}`;
       const relayTag = `${relayPrefix}${relayIndex}`;
-      // Align coil Y exactly with the PLC DO pin Y for straight horizontal wire
-      const rungY = firstPinY + i * pinSpacing;
+      // Place coil so its pin 1 aligns exactly with PLC DO pin Y → straight horizontal wire
+      const plcPinY = firstPinAbsY + i * pinSpacing;
+      const rungY = plcPinY - coilPinOffset;
       const contactY = 80 + i * 80; // contacts sheet has more spacing for clarity
 
       const result = generateRelayOutput(circuit, {
