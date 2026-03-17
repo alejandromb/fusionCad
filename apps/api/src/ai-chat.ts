@@ -18,7 +18,8 @@ import {
   type Part,
 } from '@fusion-cad/core-model';
 import { generateRelayBank, generateRelayOutput, generatePowerSection } from './ai-circuit-patterns.js';
-import { runERC, type ERCReport } from '@fusion-cad/core-engine';
+import { runERC, type ERCReport, layoutLadder } from '@fusion-cad/core-engine';
+import type { LadderConfig, LadderBlock, Rung, AnyDiagramBlock } from '@fusion-cad/core-model';
 
 // Ensure symbols are registered
 registerBuiltinSymbols();
@@ -38,6 +39,80 @@ function generateTag(symbolId: string, devices: Device[]): string {
   const prefix = sym?.tagPrefix || 'D';
   const nums = devices.filter(d => d.tag.startsWith(prefix)).map(d => parseInt(d.tag.slice(prefix.length)) || 0);
   return `${prefix}${Math.max(0, ...nums) + 1}`;
+}
+
+// ================================================================
+// P1: Rich circuit context builder (server-side, has symbol pin data)
+// ================================================================
+
+function buildEnrichedContext(circuit: CircuitData): string {
+  if (!circuit.devices.length) return 'Empty project — no devices placed yet.';
+
+  // Build a set of connected pins: "deviceId:pinId"
+  const connectedPins = new Set<string>();
+  for (const conn of circuit.connections) {
+    const fromId = conn.fromDeviceId || circuit.devices.find((d: any) => d.tag === conn.fromDevice)?.id;
+    const toId = conn.toDeviceId || circuit.devices.find((d: any) => d.tag === conn.toDevice)?.id;
+    if (fromId) connectedPins.add(`${fromId}:${conn.fromPin}`);
+    if (toId) connectedPins.add(`${toId}:${conn.toPin}`);
+  }
+
+  // Group devices by sheet
+  const sheetDevices = new Map<string, typeof circuit.devices>();
+  for (const dev of circuit.devices) {
+    const sid = dev.sheetId || 'sheet-1';
+    if (!sheetDevices.has(sid)) sheetDevices.set(sid, []);
+    sheetDevices.get(sid)!.push(dev);
+  }
+
+  const lines: string[] = [];
+  lines.push(`Devices: ${circuit.devices.length} | Wires: ${circuit.connections.length} | Sheets: ${circuit.sheets?.length || 1}`);
+  lines.push('');
+
+  // For each sheet, list devices with pin status
+  const sheets = circuit.sheets || [{ id: 'sheet-1', name: 'Sheet 1' }];
+  for (const sheet of sheets as any[]) {
+    const devs = sheetDevices.get(sheet.id) || [];
+    if (devs.length === 0) {
+      lines.push(`Sheet "${sheet.name}": (empty)`);
+      continue;
+    }
+    lines.push(`Sheet "${sheet.name}" (${devs.length} devices):`);
+
+    // Cap at 20 devices per sheet for context size
+    const displayDevs = devs.slice(0, 20);
+    for (const dev of displayDevs) {
+      // Find the part to get the symbolId
+      const part = circuit.parts.find((p: any) => p.id === dev.partId);
+      const symbolId = part?.category || 'unknown';
+      const sym = getSymbolById(symbolId);
+
+      if (sym && sym.pins.length > 0) {
+        const pinStatuses = sym.pins.map(pin => {
+          const isConnected = connectedPins.has(`${dev.id}:${pin.id}`);
+          return `${pin.name}(${isConnected ? 'wired' : 'OPEN!'})`;
+        });
+        lines.push(`  ${dev.tag} [${sym.name}] — ${pinStatuses.join(', ')}`);
+      } else {
+        lines.push(`  ${dev.tag} [${symbolId}]`);
+      }
+    }
+    if (devs.length > 20) lines.push(`  ...and ${devs.length - 20} more`);
+    lines.push('');
+  }
+
+  // Connection summary (cap at 20)
+  if (circuit.connections.length > 0) {
+    lines.push('Connections:');
+    for (const conn of circuit.connections.slice(0, 20)) {
+      lines.push(`  ${conn.fromDevice}:${conn.fromPin} → ${conn.toDevice}:${conn.toPin}`);
+    }
+    if (circuit.connections.length > 20) {
+      lines.push(`  ...and ${circuit.connections.length - 20} more`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 // ================================================================
@@ -152,6 +227,46 @@ const TOOLS: Anthropic.Tool[] = [
         contactSheetName: { type: 'string', description: 'Sheet for contacts (optional, defaults to coil sheet)' },
       },
       required: ['plcTag', 'doPin', 'relayTag', 'coilSheetName'],
+    },
+  },
+  // ---- LADDER DIAGRAM TOOLS ----
+  {
+    name: 'create_ladder_block',
+    description: 'Create a ladder diagram on a sheet with L1/L2 power rails. This is the PREFERRED layout for control panel schematics. Devices are then added to rungs.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sheetName: { type: 'string', description: 'Sheet name to create the ladder on' },
+        voltage: { type: 'string', description: 'Voltage label (e.g., "24VDC", "120VAC")' },
+        railLabelL1: { type: 'string', description: 'Left rail label (default: "L1")' },
+        railLabelL2: { type: 'string', description: 'Right rail label (default: "L2")' },
+      },
+      required: ['sheetName'],
+    },
+  },
+  {
+    name: 'add_rung',
+    description: 'Add a rung to a ladder diagram. Specify device tags left-to-right (L1→L2). Devices must already be placed on the sheet. After adding all rungs, call auto_layout_ladder.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        blockId: { type: 'string', description: 'Ladder block ID (from create_ladder_block)' },
+        rungNumber: { type: 'number', description: 'Rung number (1, 2, 3...)' },
+        deviceTags: { type: 'array', items: { type: 'string' }, description: 'Device tags left to right (e.g., ["PLC1-DO1", "CR1"])' },
+        description: { type: 'string', description: 'Rung description (e.g., "PUMP NO.1 START/STOP RELAY")' },
+      },
+      required: ['blockId', 'rungNumber', 'deviceTags'],
+    },
+  },
+  {
+    name: 'auto_layout_ladder',
+    description: 'Auto-position all devices on a ladder based on rung definitions. Call this AFTER adding all rungs. Positions devices evenly between L1 and L2 rails.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        blockId: { type: 'string', description: 'Ladder block ID' },
+      },
+      required: ['blockId'],
     },
   },
 ];
@@ -359,7 +474,7 @@ ansi-fuse:
   pin "1" = top (line) | pin "2" = bottom (load)
 
 iec-terminal-single:
-  pin "1" = top | pin "2" = bottom
+  pin "1" = left (single connection point — one pin only)
 
 iec-plc-do-8:
   pins "DO0"-"DO7" = outputs (right side) | pin "COM" = common (right side)
@@ -403,7 +518,7 @@ RELAY OUTPUT (repeat for each PLC DO → relay):
     Place: Terminal (TB-xa) for power input to contact
     Place: ansi-normally-open-contact with SAME TAG as coil (e.g., CR1)
     Place: Terminal (TB-xb) for field output
-    Wire: TB-xa pin 2 → CR_NO pin 1
+    Wire: TB-xa pin 1 → CR_NO pin 1
     Wire: CR_NO pin 2 → TB-xb pin 1
 
 E-STOP CIRCUIT:
@@ -440,24 +555,33 @@ TAG CONVENTIONS (ANSI/NEMA style):
   OL1       = Overload Relay
 
 ═══════════════════════════════════════════════════
-WORKFLOW
+WORKFLOW — LADDER DIAGRAM PREFERRED
 ═══════════════════════════════════════════════════
 
-1. Create sheets FIRST with clear names ("Power Distribution", "DO0-DO7 Outputs", "DO8-DO15 Outputs", "Field Contacts").
-2. ALWAYS specify sheetName when placing devices and annotations.
-3. Build power supply section first (breaker → PSU → fuse → distribution).
-4. Place ALL devices for a circuit pattern before wiring.
-5. Wire in order: power source → protection → switching → load → return.
-6. After placing relay coils, ALWAYS place their NO contacts + terminal blocks.
-7. After ALL circuits are built, mentally trace every path from power to return. Fix any open circuits.
-8. Add annotations for section titles, voltage labels, and wire references.
+For control panel schematics (relay outputs, motor starters, PLC I/O), ALWAYS use LADDER DIAGRAM layout:
 
-LAYOUT:
-  - PLC modules: x=160, starting y=80
-  - Relay coils: x=500, spaced 80px vertically
-  - Contacts + terminals: x=700-900
-  - Power supply devices: stacked vertically, 160px apart
-  - Annotations: y=40 for sheet titles
+1. Create sheets with clear names.
+2. For each sheet, create a LADDER BLOCK using create_ladder_block with appropriate voltage label.
+3. Place devices on the sheet (they'll be repositioned by auto_layout).
+4. Add rungs using add_rung — specify device tags left-to-right (L1 side → L2 side).
+   Example rung: ["PLC1-DO1", "CR1"] means PLC output on left, relay coil on right.
+5. Call auto_layout_ladder to position everything on the ladder grid.
+6. Wire devices AFTER layout (the auto-layout sets positions correctly).
+7. Add annotations for rung descriptions.
+
+LADDER RUNG CONVENTIONS:
+  - Each rung is a horizontal path from L1 (power) to L2 (return)
+  - Input devices (PLC outputs, contacts, switches) go on the LEFT
+  - Output devices (coils, lights, horns) go on the RIGHT
+  - One output per rung (standard practice)
+  - Rung description on the right: "PUMP NO.1 START/STOP RELAY"
+
+WHEN TO USE LADDER vs FREE-FORM:
+  - Control panels, relay logic, PLC I/O → LADDER (always)
+  - Power distribution, single-line diagrams → FREE-FORM with manual positioning
+  - If unsure, ask the user
+
+For bulk relay projects, use generate_relay_bank tool — it handles everything.
 
 Keep text responses brief. Focus on DOING, not explaining.`;
 
@@ -492,9 +616,10 @@ export async function aiChat(
     messages.push({ role: msg.role, content: msg.content });
   }
 
-  // Add current message with circuit context
-  const userContent = circuitContext
-    ? `[Current drawing state]\n${circuitContext}\n\n${message}`
+  // Build enriched context from the loaded circuit (server-side, with pin status)
+  const enrichedContext = circuit ? buildEnrichedContext(circuit) : circuitContext;
+  const userContent = enrichedContext
+    ? `[Current drawing state]\n${enrichedContext}\n\n${message}`
     : message;
   messages.push({ role: 'user', content: userContent });
 
@@ -518,7 +643,7 @@ export async function aiChat(
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
     for (const toolUse of toolUseBlocks) {
-      let result: string;
+      let result = '';
       const input = toolUse.input as any;
 
       switch (toolUse.name) {
@@ -589,6 +714,79 @@ export async function aiChat(
           result = r.summary;
           actionsPerformed += 5;
           actionLog.push(result);
+          break;
+        }
+        case 'create_ladder_block': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const sheetId = input.sheetName && circuit.sheets
+            ? (circuit.sheets.find((s: any) => s.name === input.sheetName)?.id || circuit.sheets[0]?.id || 'sheet-1')
+            : (circuit.sheets?.[0]?.id || 'sheet-1');
+          const ladderConfig: Partial<LadderConfig> = {};
+          if (input.voltage) ladderConfig.voltage = input.voltage;
+          if (input.railLabelL1) ladderConfig.railLabelL1 = input.railLabelL1;
+          if (input.railLabelL2) ladderConfig.railLabelL2 = input.railLabelL2;
+          const blockId = generateId();
+          const now = Date.now();
+          const block: LadderBlock = {
+            id: blockId, type: 'block', blockType: 'ladder', sheetId,
+            name: `${input.sheetName || 'Sheet'} Ladder`,
+            position: { x: 0, y: 0 },
+            ladderConfig: { railL1X: 100, railL2X: 900, firstRungY: 100, rungSpacing: 120, railLabelL1: 'L1', railLabelL2: 'L2', ...ladderConfig },
+            createdAt: now, modifiedAt: now,
+          };
+          circuit = { ...circuit, blocks: [...(circuit.blocks || []), block] };
+          result = `Created ladder block "${block.name}" (blockId: ${blockId}) on sheet "${input.sheetName}"`;
+          actionsPerformed++;
+          actionLog.push(result);
+          break;
+        }
+        case 'add_rung': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          try {
+            // Find the block to get its sheetId
+            const block = (circuit.blocks || []).find((b: any) => b.id === input.blockId);
+            if (!block) { result = `Error: Block "${input.blockId}" not found`; break; }
+            const sheetId = block.sheetId;
+            // Resolve device tags to IDs
+            const deviceIds: string[] = [];
+            for (const tag of input.deviceTags) {
+              const dev = circuit.devices.find((d: any) => d.tag === tag && d.sheetId === sheetId)
+                || circuit.devices.find((d: any) => d.tag === tag);
+              if (!dev) { result = `Error: Device "${tag}" not found`; break; }
+              deviceIds.push(dev.id);
+            }
+            if (deviceIds.length !== input.deviceTags.length) { if (!result) result = 'Error: one or more device tags not found'; break; }
+            const rungId = generateId();
+            const newRung: Rung = {
+              id: rungId, type: 'rung', number: input.rungNumber,
+              sheetId, blockId: input.blockId, deviceIds,
+              description: input.description,
+              createdAt: Date.now(), modifiedAt: Date.now(),
+            };
+            circuit = { ...circuit, rungs: [...(circuit.rungs || []), newRung] };
+            result = `Added rung ${input.rungNumber}: [${input.deviceTags.join(' → ')}]${input.description ? ` — ${input.description}` : ''}`;
+            actionsPerformed++;
+            actionLog.push(result);
+          } catch (e: any) {
+            result = `Error adding rung: ${e.message}`;
+          }
+          break;
+        }
+        case 'auto_layout_ladder': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          try {
+            const block = (circuit.blocks || []).find((b: any) => b.id === input.blockId) as LadderBlock | undefined;
+            if (!block) { result = `Error: Block "${input.blockId}" not found`; break; }
+            const blockRungs = (circuit.rungs || []).filter((r: any) => r.blockId === input.blockId);
+            const layoutResult = layoutLadder(blockRungs, circuit.devices, block.ladderConfig, block.position);
+            // Merge computed positions into circuit
+            circuit = { ...circuit, positions: { ...circuit.positions, ...layoutResult.positions } };
+            result = `Auto-layout complete: ${blockRungs.length} rungs positioned`;
+            actionsPerformed++;
+            actionLog.push(result);
+          } catch (e: any) {
+            result = `Error in auto-layout: ${e.message}`;
+          }
           break;
         }
         default:

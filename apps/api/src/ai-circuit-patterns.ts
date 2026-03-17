@@ -124,13 +124,22 @@ function addLinkedDevice(
   };
 }
 
+/** Wire by tag (finds first device with that tag) */
 function addWire(
   circuit: CircuitData, fromTag: string, fromPin: string, toTag: string, toPin: string,
 ): CircuitData {
   const fromDev = circuit.devices.find(d => d.tag === fromTag);
   const toDev = circuit.devices.find(d => d.tag === toTag);
   if (!fromDev || !toDev) return circuit;
+  return addWireById(circuit, fromDev.id, fromTag, fromPin, toDev.id, toTag, toPin);
+}
 
+/** Wire by device ID (precise — needed for linked devices sharing a tag) */
+function addWireById(
+  circuit: CircuitData,
+  fromDeviceId: string, fromTag: string, fromPin: string,
+  toDeviceId: string, toTag: string, toPin: string,
+): CircuitData {
   const netId = generateId();
   return {
     ...circuit,
@@ -139,8 +148,8 @@ function addWire(
       netType: 'signal', createdAt: Date.now(), modifiedAt: Date.now(),
     }],
     connections: [...circuit.connections, {
-      fromDevice: fromTag, fromDeviceId: fromDev.id, fromPin,
-      toDevice: toTag, toDeviceId: toDev.id, toPin, netId,
+      fromDevice: fromTag, fromDeviceId, fromPin,
+      toDevice: toTag, toDeviceId, toPin, netId,
     }],
   };
 }
@@ -196,41 +205,52 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
 
   const coilX = params.coilX || 500;
   const coilY = params.coilY || 80;
-  const contactX = params.contactX || 740;
+  // Contacts laid out HORIZONTALLY: TB -- NO contact -- TB (left to right)
   const contactY = params.contactY || coilY;
+  const tbInX = 440;
+  const contactX = 560;
+  const tbOutX = 680;
 
   // 1. Place coil
   const r1 = addDevice(circuit, 'ansi-coil', params.relayTag, coilX, coilY, coilSheetId, `${params.relayTag} Coil`);
   circuit = r1.circuit;
+  const coilDeviceId = r1.deviceId;
 
-  // 2. Wire PLC DO → coil pin 1
-  circuit = addWire(circuit, params.plcTag, params.doPin, params.relayTag, '1');
+  // 2. Wire PLC DO → coil pin 1 (A1)
+  const plcDev = circuit.devices.find(d => d.tag === params.plcTag);
+  if (plcDev) {
+    circuit = addWireById(circuit, plcDev.id, params.plcTag, params.doPin, coilDeviceId, params.relayTag, '1');
+  }
 
-  // 3. Wire coil pin 2 → 0V (we use an annotation to mark it since we don't have a rail device)
-  // For now, leave pin 2 for the user to connect to 0V bus — but annotate it
-  circuit = addAnnotation(circuit, '→ 0V', coilX + 40, coilY + 30, coilSheetId);
+  // 3. Wire coil pin 2 (A2) → 0V return
+  // Place a ground/return terminal for the 0V bus connection
+  const retTag = `RET-${params.relayTag}`;
+  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, coilX + 80, coilY, coilSheetId, '0V Return');
+  circuit = r1b.circuit;
+  circuit = addWireById(circuit, coilDeviceId, params.relayTag, '2', r1b.deviceId, retTag, '1');
 
-  // 4. Place linked NO contact (same tag = linked device)
+  // 4. Place linked NO contact (same tag = linked device, HORIZONTAL orientation)
   const r2 = addLinkedDevice(circuit, params.relayTag, 'ansi-normally-open-contact', contactX, contactY, contactSheetId, `${params.relayTag} NO Contact`);
   circuit = r2.circuit;
+  const contactDeviceId = r2.deviceId;
 
-  // 5. Place terminal blocks for field wiring
+  // 5. Place terminal blocks for field wiring (horizontal: TB-in ... NO contact ... TB-out)
   const tbInTag = `TB-${params.relayTag}a`;
   const tbOutTag = `TB-${params.relayTag}b`;
 
-  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, contactX - 80, contactY, contactSheetId, `${params.relayTag} Field In`);
+  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, contactY, contactSheetId, `${params.relayTag} Field In`);
   circuit = r3.circuit;
 
-  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, contactX + 80, contactY, contactSheetId, `${params.relayTag} Field Out`);
+  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, contactY, contactSheetId, `${params.relayTag} Field Out`);
   circuit = r4.circuit;
 
-  // 6. Wire: terminal-in → NO contact → terminal-out
-  circuit = addWire(circuit, tbInTag, '2', params.relayTag, '1');
-  circuit = addWire(circuit, params.relayTag, '2', tbOutTag, '1');
+  // 6. Wire by deviceId: TB-in pin 1 → NO contact pin 1; NO contact pin 2 → TB-out pin 1
+  circuit = addWireById(circuit, r3.deviceId, tbInTag, '1', contactDeviceId, params.relayTag, '1');
+  circuit = addWireById(circuit, contactDeviceId, params.relayTag, '2', r4.deviceId, tbOutTag, '1');
 
   return {
     circuit,
-    summary: `${params.relayTag}: coil (${params.coilSheetName}) + NO contact + terminals (${params.contactSheetName || params.coilSheetName})`,
+    summary: `${params.relayTag}: coil wired (DO→A1, A2→0V) + NO contact + terminals`,
   };
 }
 
@@ -269,30 +289,44 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     circuit = ps.circuit;
     const psSheetId = ps.sheetId;
 
-    // CB1
+    // CB1 (120VAC line breaker)
     const cb = addDevice(circuit, 'iec-circuit-breaker-1p', 'CB1', 200, 100, psSheetId, 'Main Breaker 120VAC');
     circuit = cb.circuit;
 
-    // PS1
-    const psu = addDevice(circuit, 'iec-power-supply-ac-dc', 'PS1', 200, 280, psSheetId, 'Power Supply 120VAC→24VDC');
+    // Neutral terminal (straight-through, no breaker on neutral per NEC)
+    const nTerm = addDevice(circuit, 'iec-terminal-single', 'TB-N', 400, 100, psSheetId, 'Neutral');
+    circuit = nTerm.circuit;
+
+    // PS1 (AC/DC power supply: pins 1=L, 2=N, 3=+24V, 4=0V)
+    const psu = addDevice(circuit, 'iec-power-supply-ac-dc', 'PS1', 300, 300, psSheetId, 'Power Supply 120VAC→24VDC');
     circuit = psu.circuit;
 
-    // FU1
-    const fu = addDevice(circuit, 'ansi-fuse', 'FU1', 200, 460, psSheetId, '24VDC Fuse');
+    // FU1 (fuse on +24VDC output)
+    const fu = addDevice(circuit, 'ansi-fuse', 'FU1', 200, 500, psSheetId, '24VDC Fuse');
     circuit = fu.circuit;
 
-    // Wire power chain: CB1 → PS1 → FU1
-    circuit = addWire(circuit, 'CB1', '2', 'PS1', '1');  // CB load → PS L
-    circuit = addWire(circuit, 'PS1', '3', 'FU1', '1');  // PS +24V → Fuse
+    // 0V distribution terminal
+    const zeroV = addDevice(circuit, 'iec-terminal-single', 'TB-0V', 400, 500, psSheetId, '0V Distribution');
+    circuit = zeroV.circuit;
+
+    // Wire complete power chain:
+    // AC side: CB1 pin 2 (load) → PS1 pin 1 (L)
+    circuit = addWireById(circuit, cb.deviceId, 'CB1', '2', psu.deviceId, 'PS1', '1');
+    // Neutral: TB-N pin 2 → PS1 pin 2 (N)
+    circuit = addWireById(circuit, nTerm.deviceId, 'TB-N', '1', psu.deviceId, 'PS1', '2');
+    // DC output: PS1 pin 3 (+24V) → FU1 pin 1
+    circuit = addWireById(circuit, psu.deviceId, 'PS1', '3', fu.deviceId, 'FU1', '1');
+    // DC return: PS1 pin 4 (0V) → TB-0V pin 1
+    circuit = addWireById(circuit, psu.deviceId, 'PS1', '4', zeroV.deviceId, 'TB-0V', '1');
 
     // Annotations
     circuit = addAnnotation(circuit, '120VAC INPUT', 140, 60, psSheetId);
     circuit = addAnnotation(circuit, 'L', 160, 100, psSheetId);
-    circuit = addAnnotation(circuit, 'N', 300, 280, psSheetId);
-    circuit = addAnnotation(circuit, '+24VDC', 140, 520, psSheetId);
-    circuit = addAnnotation(circuit, '0V', 300, 460, psSheetId);
+    circuit = addAnnotation(circuit, 'N', 440, 100, psSheetId);
+    circuit = addAnnotation(circuit, '+24VDC OUTPUT', 140, 560, psSheetId);
+    circuit = addAnnotation(circuit, '0V', 440, 500, psSheetId);
 
-    log.push('Power Distribution: CB1 → PS1 → FU1');
+    log.push('Power Distribution: CB1→PS1(L+N)→FU1(+24V), PS1→TB-0V(0V)');
   }
 
   // 2. Create relay output sheets
@@ -374,24 +408,38 @@ export function generatePowerSection(circuit: CircuitData, params: PowerSectionP
     sheetId = s.sheetId;
   }
 
-  const r1 = addDevice(circuit, 'iec-circuit-breaker-1p', 'CB1', 200, 100, sheetId, 'Main Breaker');
+  const inV = params.inputVoltage || '120VAC';
+  const outV = params.outputVoltage || '24VDC';
+
+  const r1 = addDevice(circuit, 'iec-circuit-breaker-1p', 'CB1', 200, 100, sheetId, `Main Breaker ${inV}`);
   circuit = r1.circuit;
 
-  const r2 = addDevice(circuit, 'iec-power-supply-ac-dc', 'PS1', 200, 280, sheetId, `PSU ${params.inputVoltage || '120VAC'}→${params.outputVoltage || '24VDC'}`);
+  const rN = addDevice(circuit, 'iec-terminal-single', 'TB-N', 400, 100, sheetId, 'Neutral');
+  circuit = rN.circuit;
+
+  const r2 = addDevice(circuit, 'iec-power-supply-ac-dc', 'PS1', 300, 300, sheetId, `PSU ${inV}→${outV}`);
   circuit = r2.circuit;
 
-  const r3 = addDevice(circuit, 'ansi-fuse', 'FU1', 200, 460, sheetId, 'DC Output Fuse');
+  const r3 = addDevice(circuit, 'ansi-fuse', 'FU1', 200, 500, sheetId, 'DC Output Fuse');
   circuit = r3.circuit;
 
-  circuit = addWire(circuit, 'CB1', '2', 'PS1', '1');
-  circuit = addWire(circuit, 'PS1', '3', 'FU1', '1');
+  const r4 = addDevice(circuit, 'iec-terminal-single', 'TB-0V', 400, 500, sheetId, '0V Distribution');
+  circuit = r4.circuit;
 
-  circuit = addAnnotation(circuit, `${params.inputVoltage || '120VAC'} INPUT`, 140, 60, sheetId);
-  circuit = addAnnotation(circuit, `+${params.outputVoltage || '24VDC'}`, 140, 520, sheetId);
-  circuit = addAnnotation(circuit, '0V', 300, 460, sheetId);
+  // Complete wiring: L, N, +24V, 0V
+  circuit = addWireById(circuit, r1.deviceId, 'CB1', '2', r2.deviceId, 'PS1', '1');
+  circuit = addWireById(circuit, rN.deviceId, 'TB-N', '1', r2.deviceId, 'PS1', '2');
+  circuit = addWireById(circuit, r2.deviceId, 'PS1', '3', r3.deviceId, 'FU1', '1');
+  circuit = addWireById(circuit, r2.deviceId, 'PS1', '4', r4.deviceId, 'TB-0V', '1');
+
+  circuit = addAnnotation(circuit, `${inV} INPUT`, 140, 60, sheetId);
+  circuit = addAnnotation(circuit, 'L', 160, 100, sheetId);
+  circuit = addAnnotation(circuit, 'N', 440, 100, sheetId);
+  circuit = addAnnotation(circuit, `+${outV} OUTPUT`, 140, 560, sheetId);
+  circuit = addAnnotation(circuit, '0V', 440, 500, sheetId);
 
   return {
     circuit,
-    summary: 'Power section: CB1 → PS1 → FU1 (breaker → PSU → fuse)',
+    summary: `Power section: CB1→PS1(L+N)→FU1(+${outV}), PS1→TB-0V(0V) — all pins wired`,
   };
 }

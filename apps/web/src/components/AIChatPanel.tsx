@@ -40,20 +40,11 @@ function saveHistory(messages: Message[]): void {
   localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(trimmed));
 }
 
+// Context is now built server-side with full pin status.
+// We just send a minimal summary here; the server enriches from the DB.
 function buildCircuitContext(circuit: CircuitData | null, projectName: string): string {
   if (!circuit) return 'No circuit loaded.';
-
-  const deviceSummary = circuit.devices.length > 0
-    ? circuit.devices.slice(0, 20).map(d => `${d.tag} (${d.function || 'no desc'})`).join(', ')
-    : 'none';
-
-  const truncated = circuit.devices.length > 20 ? ` ...and ${circuit.devices.length - 20} more` : '';
-
-  return `Project: "${projectName}"
-Devices (${circuit.devices.length}): ${deviceSummary}${truncated}
-Wires: ${circuit.connections.length}
-Sheets: ${circuit.sheets?.length || 1}
-Blocks: ${circuit.blocks?.length || 0}`;
+  return `Project: "${projectName}" | ${circuit.devices.length} devices | ${circuit.connections.length} wires | ${circuit.sheets?.length || 1} sheets`;
 }
 
 export function AIChatPanel({ circuit, projectName, projectId, onProjectChanged }: AIChatPanelProps) {

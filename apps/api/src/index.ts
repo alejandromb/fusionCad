@@ -343,10 +343,11 @@ app.delete('/api/symbols/:id', async (req, res) => {
   }
 });
 
-// Force re-seed symbols from builtin JSON
-app.post('/api/symbols/seed', async (_req, res) => {
+// Force re-seed symbols from builtin JSON (?force=true to update existing)
+app.post('/api/symbols/seed', async (req, res) => {
   try {
-    const result = await seedBuiltinSymbols();
+    const force = req.query.force === 'true';
+    const result = await seedBuiltinSymbols(force);
     res.json(result);
   } catch (error) {
     console.error('Error seeding symbols:', error);
@@ -356,22 +357,35 @@ app.post('/api/symbols/seed', async (_req, res) => {
 
 /**
  * Seed builtin symbols from JSON into the database.
- * Only inserts symbols that don't already exist (by id).
+ * Default: only inserts symbols that don't already exist (by id).
+ * With force=true: updates existing symbols with latest JSON definitions.
  */
-async function seedBuiltinSymbols(): Promise<{ seeded: number; skipped: number }> {
+async function seedBuiltinSymbols(force = false): Promise<{ seeded: number; updated: number; skipped: number }> {
   const symbolRepo = AppDataSource.getRepository(Symbol);
   const jsonData = builtinSymbolsJson as any;
   let seeded = 0;
+  let updated = 0;
   let skipped = 0;
 
   for (const jsonSymbol of jsonData.symbols) {
+    const definition = convertSymbol(jsonSymbol, jsonData.source) as any;
     const existing = await symbolRepo.findOneBy({ id: jsonSymbol.id });
+
     if (existing) {
-      skipped++;
+      if (force) {
+        existing.name = definition.name;
+        existing.category = definition.category;
+        existing.standard = definition.standard;
+        existing.source = definition.source;
+        existing.tagPrefix = definition.tagPrefix;
+        existing.definition = definition;
+        await symbolRepo.save(existing);
+        updated++;
+      } else {
+        skipped++;
+      }
       continue;
     }
-
-    const definition = convertSymbol(jsonSymbol, jsonData.source) as any;
 
     const symbol = symbolRepo.create({
       id: definition.id,
@@ -387,7 +401,7 @@ async function seedBuiltinSymbols(): Promise<{ seeded: number; skipped: number }
     seeded++;
   }
 
-  return { seeded, skipped };
+  return { seeded, updated, skipped };
 }
 
 // ============ AI GENERATION ROUTES ============
