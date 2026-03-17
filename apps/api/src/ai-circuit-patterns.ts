@@ -203,13 +203,15 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
     ? resolveSheetId(circuit, params.contactSheetName)
     : coilSheetId;
 
-  const coilX = params.coilX || 500;
+  const coilX = params.coilX || 400;
   const coilY = params.coilY || 80;
-  // Contacts laid out HORIZONTALLY: TB -- NO contact -- TB (left to right)
+  const retX = coilX + 140;  // return terminal to the right of coil (same Y = straight wire)
+
+  // Contacts sheet: laid out HORIZONTALLY with good spacing
   const contactY = params.contactY || coilY;
-  const tbInX = 440;
-  const contactX = 560;
-  const tbOutX = 680;
+  const tbInX = 100;        // TB field-in on the left
+  const contactX = 240;     // NO contact in the middle
+  const tbOutX = 400;       // TB field-out on the right
 
   // 1. Place coil
   const r1 = addDevice(circuit, 'ansi-coil', params.relayTag, coilX, coilY, coilSheetId, `${params.relayTag} Coil`);
@@ -225,7 +227,7 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   // 3. Wire coil pin 2 (A2) → 0V return
   // Place a ground/return terminal for the 0V bus connection
   const retTag = `RET-${params.relayTag}`;
-  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, coilX + 80, coilY, coilSheetId, '0V Return');
+  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY, coilSheetId, '0V Return');
   circuit = r1b.circuit;
   circuit = addWireById(circuit, coilDeviceId, params.relayTag, '2', r1b.deviceId, retTag, '1');
 
@@ -350,19 +352,27 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     }
 
     // Place PLC DO module
+    // PLC DO-8 pin layout: header=50px, pin spacing=30px
+    // So DO0 is at symbol_y + 50, DO1 at symbol_y + 80, etc.
     const plcTag = `PLC1-DO${sheet + 1}`;
-    const plcDev = addDevice(circuit, plcSymbolId, plcTag, 160, 80, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
+    const plcY = 60;
+    const plcDev = addDevice(circuit, plcSymbolId, plcTag, 100, plcY, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
     circuit = plcDev.circuit;
 
     // Annotations
-    circuit = addAnnotation(circuit, doSheetName.toUpperCase(), 200, 40, doSheet.sheetId);
+    circuit = addAnnotation(circuit, doSheetName.toUpperCase(), 200, 20, doSheet.sheetId);
 
-    // Place relay outputs
+    // Place relay outputs — align coil Y with each PLC DO pin Y
+    // DO pin positions: first pin at plcY + 50, then every 30px
+    const firstPinY = plcY + 50;  // DO0 pin Y position
+    const pinSpacing = 30;        // matches PLC DO symbol pin spacing
+
     for (let i = 0; i < count; i++) {
       const doPin = `DO${i}`;
       const relayTag = `${relayPrefix}${relayIndex}`;
-      const coilY = 80 + i * 80;
-      const contactY = 80 + i * 80;
+      // Align coil Y exactly with the PLC DO pin Y for straight horizontal wire
+      const rungY = firstPinY + i * pinSpacing;
+      const contactY = 80 + i * 80; // contacts sheet has more spacing for clarity
 
       const result = generateRelayOutput(circuit, {
         plcTag,
@@ -370,9 +380,9 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
         relayTag,
         coilSheetName: doSheetName,
         contactSheetName: includeContacts ? contactSheetName : undefined,
-        coilX: 500,
-        coilY,
-        contactX: 500,
+        coilX: 400,       // coil to the right of PLC (PLC is 100px wide at x=100, so x=400 gives clearance)
+        coilY: rungY,     // aligned with PLC pin
+        contactX: 200,    // contact sheet center
         contactY,
       });
       circuit = result.circuit;

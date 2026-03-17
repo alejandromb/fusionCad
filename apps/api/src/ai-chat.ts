@@ -136,6 +136,44 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'move_device',
+    description: 'Move an existing device to a new position.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tag: { type: 'string', description: 'Device tag to move (e.g., "CR1")' },
+        x: { type: 'number', description: 'New X position (multiples of 20)' },
+        y: { type: 'number', description: 'New Y position (multiples of 20)' },
+      },
+      required: ['tag', 'x', 'y'],
+    },
+  },
+  {
+    name: 'delete_device',
+    description: 'Delete a device and its connections from the project.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tag: { type: 'string', description: 'Device tag to delete (e.g., "CR1")' },
+      },
+      required: ['tag'],
+    },
+  },
+  {
+    name: 'delete_wire',
+    description: 'Delete a wire between two device pins.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        fromDevice: { type: 'string', description: 'Source device tag' },
+        fromPin: { type: 'string', description: 'Source pin ID' },
+        toDevice: { type: 'string', description: 'Target device tag' },
+        toPin: { type: 'string', description: 'Target pin ID' },
+      },
+      required: ['fromDevice', 'fromPin', 'toDevice', 'toPin'],
+    },
+  },
+  {
     name: 'create_wire',
     description: 'Connect two device pins with a wire.',
     input_schema: {
@@ -583,6 +621,40 @@ WHEN TO USE LADDER vs FREE-FORM:
 
 For bulk relay projects, use generate_relay_bank tool — it handles everything.
 
+═══════════════════════════════════════════════════
+SCHEMATIC LAYOUT RULES — NEVER violate these (IEC 61082 / industry standard)
+═══════════════════════════════════════════════════
+
+1. SIGNAL FLOW: Always left to right. L1 (power) on left, L2 (return) on right.
+   Input devices (PLC outputs, contacts, switches) on the LEFT side of each rung.
+   Output devices (coils, lights) on the RIGHT side, last device before L2.
+
+2. HORIZONTAL ALIGNMENT: ALL devices on the same rung MUST share the same Y coordinate.
+   PLC output pin Y = coil Y = return terminal Y. This creates straight horizontal wires.
+
+3. NO OVERLAPPING: Every device must have clear space around it.
+   Minimum horizontal gap between devices on a rung: 100px.
+   Minimum vertical gap between rungs: 80px.
+   NEVER place a device where another device already exists.
+
+4. NO WIRES THROUGH DEVICES: Wires must route around device bounding boxes, never through them.
+
+5. ONE LOAD PER RUNG: Each rung has exactly one output device (coil, light, horn).
+   Multiple control devices (contacts) can be in series or parallel on the left side.
+
+6. WIRE ROUTING: Strictly orthogonal (horizontal and vertical only, no diagonals).
+   Horizontal wires on rungs, vertical wires between rungs to power rails.
+   Minimize crossings. Use T-junctions, avoid 4-way crosses.
+
+7. WHEN MOVING DEVICES: Always check that the new position:
+   - Does not overlap any existing device
+   - Maintains horizontal alignment with other devices on the same rung
+   - Keeps minimum spacing from adjacent devices
+
+8. CONTACT SHEET LAYOUT: Terminal → NO Contact → Terminal, all on the same horizontal line.
+   TB-CRxa at x=100, CR contact at x=200, TB-CRxb at x=340.
+   Each row spaced 80px vertically.
+
 Keep text responses brief. Focus on DOING, not explaining.`;
 
 // ================================================================
@@ -652,6 +724,90 @@ export async function aiChat(
           const r = executeToolPlaceDevice(circuit, input);
           circuit = r.circuit;
           result = r.result;
+          actionsPerformed++;
+          actionLog.push(result);
+          break;
+        }
+        case 'move_device': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const moveDev = circuit.devices.find((d: any) => d.tag === input.tag);
+          if (!moveDev) { result = `Error: Device "${input.tag}" not found`; break; }
+          const newX = snapToGrid(input.x);
+          const newY = snapToGrid(input.y);
+          // Overlap check: ensure no other device on the same sheet is within 40px
+          const MIN_CLEARANCE = 40;
+          const positions = circuit!.positions;
+          const overlapping = circuit!.devices.find((d: any) => {
+            if (d.id === moveDev.id) return false;
+            if (d.sheetId !== moveDev.sheetId) return false;
+            const pos = positions[d.id];
+            if (!pos) return false;
+            return Math.abs(pos.x - newX) < MIN_CLEARANCE && Math.abs(pos.y - newY) < MIN_CLEARANCE;
+          });
+          if (overlapping) {
+            result = `Warning: Moving ${input.tag} to (${newX}, ${newY}) would overlap with ${(overlapping as any).tag} at (${circuit.positions[(overlapping as any).id]?.x}, ${circuit.positions[(overlapping as any).id]?.y}). Move completed but check layout.`;
+          } else {
+            result = `Moved ${input.tag} to (${newX}, ${newY})`;
+          }
+          circuit = {
+            ...circuit,
+            positions: { ...circuit.positions, [moveDev.id]: { x: newX, y: newY } },
+          };
+          actionsPerformed++;
+          actionLog.push(result);
+          break;
+        }
+        case 'delete_device': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const delDev = circuit.devices.find((d: any) => d.tag === input.tag);
+          if (!delDev) { result = `Error: Device "${input.tag}" not found`; break; }
+          const delId = delDev.id;
+          // Remove device
+          const remainingDevices = circuit.devices.filter((d: any) => d.id !== delId);
+          // Remove connections referencing this device
+          const remainingConns = circuit.connections.filter((c: any) =>
+            c.fromDeviceId !== delId && c.toDeviceId !== delId &&
+            c.fromDevice !== input.tag && c.toDevice !== input.tag
+          );
+          // Remove orphaned nets
+          const usedNetIds = new Set(remainingConns.map((c: any) => c.netId));
+          const remainingNets = circuit.nets.filter((n: any) => usedNetIds.has(n.id));
+          // Remove position
+          const { [delId]: _removed, ...remainingPositions } = circuit.positions;
+          // Remove orphaned part if no other device uses it
+          const delPartId = delDev.partId;
+          const otherUsesOfPart = remainingDevices.some((d: any) => d.partId === delPartId);
+          const remainingParts = otherUsesOfPart ? circuit.parts : circuit.parts.filter((p: any) => p.id !== delPartId);
+          circuit = {
+            ...circuit,
+            devices: remainingDevices,
+            connections: remainingConns,
+            nets: remainingNets,
+            parts: remainingParts,
+            positions: remainingPositions,
+          };
+          result = `Deleted ${input.tag} and its ${circuit.connections.length - remainingConns.length} connection(s)`;
+          actionsPerformed++;
+          actionLog.push(result);
+          break;
+        }
+        case 'delete_wire': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const connIdx = circuit.connections.findIndex((c: any) =>
+            (c.fromDevice === input.fromDevice && c.fromPin === input.fromPin &&
+             c.toDevice === input.toDevice && c.toPin === input.toPin) ||
+            (c.fromDevice === input.toDevice && c.fromPin === input.toPin &&
+             c.toDevice === input.fromDevice && c.toPin === input.fromPin)
+          );
+          if (connIdx === -1) { result = `Error: Wire ${input.fromDevice}:${input.fromPin} → ${input.toDevice}:${input.toPin} not found`; break; }
+          const removedConn = circuit.connections[connIdx];
+          const updatedConns = [...circuit.connections];
+          updatedConns.splice(connIdx, 1);
+          // Remove orphaned net
+          const netStillUsed = updatedConns.some((c: any) => c.netId === removedConn.netId);
+          const updatedNets = netStillUsed ? circuit.nets : circuit.nets.filter((n: any) => n.id !== removedConn.netId);
+          circuit = { ...circuit, connections: updatedConns, nets: updatedNets };
+          result = `Deleted wire ${input.fromDevice}:${input.fromPin} → ${input.toDevice}:${input.toPin}`;
           actionsPerformed++;
           actionLog.push(result);
           break;
