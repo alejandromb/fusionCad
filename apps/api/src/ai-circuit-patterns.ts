@@ -10,6 +10,10 @@ import {
   getSymbolById,
   type Device,
   type Part,
+  type LadderBlock,
+  type LadderConfig,
+  type Rung,
+  type AnyDiagramBlock,
 } from '@fusion-cad/core-model';
 
 const GRID_SIZE = 20;
@@ -187,6 +191,46 @@ function addSheet(circuit: CircuitData, name: string): { circuit: CircuitData; s
   };
 }
 
+function addLadderBlock(
+  circuit: CircuitData, sheetId: string, name: string,
+  config?: Partial<LadderConfig>,
+): { circuit: CircuitData; blockId: string } {
+  const blockId = generateId();
+  const now = Date.now();
+  const fullConfig: LadderConfig = {
+    railL1X: 80, railL2X: 700, firstRungY: 80, rungSpacing: 30,
+    railLabelL1: '+24VDC', railLabelL2: '0V',
+    numberingScheme: 'page-based',
+    ...config,
+  };
+  const block: LadderBlock = {
+    id: blockId, type: 'block', blockType: 'ladder', sheetId,
+    name, position: { x: 0, y: 0 }, ladderConfig: fullConfig,
+    createdAt: now, modifiedAt: now,
+  };
+  return {
+    blockId,
+    circuit: { ...circuit, blocks: [...(circuit.blocks || []), block] },
+  };
+}
+
+function addRung(
+  circuit: CircuitData, blockId: string, sheetId: string,
+  rungNumber: number, deviceTags: string[], description?: string,
+): CircuitData {
+  const deviceIds: string[] = [];
+  for (const tag of deviceTags) {
+    const dev = circuit.devices.find(d => d.tag === tag);
+    if (dev) deviceIds.push(dev.id);
+  }
+  const rung: Rung = {
+    id: generateId(), type: 'rung', number: rungNumber,
+    sheetId, blockId, deviceIds, description,
+    createdAt: Date.now(), modifiedAt: Date.now(),
+  };
+  return { ...circuit, rungs: [...(circuit.rungs || []), rung] };
+}
+
 // ================================================================
 // Pattern: Complete Relay Output
 // ================================================================
@@ -360,51 +404,77 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
     // Create contacts sheet if needed
     let contactSheetName = doSheetName;
+    let contactSheetId = doSheet.sheetId;
     if (includeContacts) {
       contactSheetName = `${relayPrefix}${relayIndex}-${relayPrefix}${relayIndex + count - 1} Field Contacts`;
       const cSheet = addSheet(circuit, contactSheetName);
       circuit = cSheet.circuit;
+      contactSheetId = cSheet.sheetId;
     }
 
     // Place PLC DO module
-    // PLC DO-8 pin layout: header=50px, pin spacing=30px
-    // So DO0 is at symbol_y + 50, DO1 at symbol_y + 80, etc.
     const plcTag = `PLC1-DO${sheet + 1}`;
     const plcY = 60;
     const plcDev = addDevice(circuit, plcSymbolId, plcTag, 100, plcY, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
     circuit = plcDev.circuit;
 
+    // Create ladder block for this DO sheet (renders L1/L2 rails + rung numbers)
+    const sheetNum = sheet + 2; // Sheet 1 = power, sheet 2+ = DO outputs
+    const firstRungNum = sheetNum * 100 + 1; // Page-based: sheet 2 → 201, sheet 3 → 301
+    const ladderBlock = addLadderBlock(circuit, doSheet.sheetId, `${doSheetName} Ladder`, {
+      railL1X: 80, railL2X: 700,
+      firstRungY: plcY + 50, // align with first PLC pin
+      rungSpacing: 30,       // match PLC pin spacing
+      railLabelL1: '+24VDC', railLabelL2: '0V',
+      voltage: '24VDC',
+      numberingScheme: 'page-based',
+      firstRungNumber: firstRungNum,
+    });
+    circuit = ladderBlock.circuit;
+
     // Annotations
     circuit = addAnnotation(circuit, doSheetName.toUpperCase(), 200, 20, doSheet.sheetId);
 
+    // Create ladder block for contacts sheet too
+    if (includeContacts) {
+      const contactBlock = addLadderBlock(circuit, contactSheetId, `${contactSheetName} Ladder`, {
+        railL1X: 80, railL2X: 500,
+        firstRungY: 80, rungSpacing: 80,
+        railLabelL1: 'FIELD PWR', railLabelL2: 'FIELD RTN',
+        numberingScheme: 'page-based',
+        firstRungNumber: (sheetNum + 1) * 100 + 1,
+      });
+      circuit = contactBlock.circuit;
+    }
+
     // Place relay outputs — align coil pin Y with each PLC DO pin Y
-    // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px (from symbol-generators.ts)
-    // ANSI coil: pin 1 (A1) is at symbol_y+20 within the 40px tall symbol
-    // So coilPlacementY = plcPinAbsoluteY - coilPinOffset
-    const firstPinAbsY = plcY + 50;  // DO0 absolute pin Y
-    const pinSpacing = 30;            // matches PLC DO symbol pin spacing
-    const coilPinOffset = 20;         // ansi-coil pin 1 is at y=20 within symbol
+    // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px
+    // ANSI coil: pin 1 (A1) is at symbol_y+20 within symbol
+    const firstPinAbsY = plcY + 50;
+    const pinSpacing = 30;
+    const coilPinOffset = 20;
 
     for (let i = 0; i < count; i++) {
       const doPin = `DO${i}`;
       const relayTag = `${relayPrefix}${relayIndex}`;
-      // Place coil so its pin 1 aligns exactly with PLC DO pin Y → straight horizontal wire
       const plcPinY = firstPinAbsY + i * pinSpacing;
       const rungY = plcPinY - coilPinOffset;
-      const contactY = 80 + i * 80; // contacts sheet has more spacing for clarity
+      const contactY = 80 + i * 80;
 
       const result = generateRelayOutput(circuit, {
-        plcTag,
-        doPin,
-        relayTag,
+        plcTag, doPin, relayTag,
         coilSheetName: doSheetName,
         contactSheetName: includeContacts ? contactSheetName : undefined,
-        coilX: 400,       // coil to the right of PLC (PLC is 100px wide at x=100, so x=400 gives clearance)
-        coilY: rungY,     // aligned with PLC pin
-        contactX: 200,    // contact sheet center
-        contactY,
+        coilX: 400, coilY: rungY,
+        contactX: 200, contactY,
       });
       circuit = result.circuit;
+
+      // Add rung to the ladder block (for rung number rendering)
+      const rungNum = firstRungNum + i;
+      circuit = addRung(circuit, ladderBlock.blockId, doSheet.sheetId, rungNum,
+        [plcTag, relayTag], `RELAY OUTPUT ${relayIndex}`);
+
       log.push(result.summary);
       relayIndex++;
     }

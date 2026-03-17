@@ -407,6 +407,14 @@ export interface LadderConfig {
   railLabelL1?: string;   // Label for left rail (default: "L1")
   railLabelL2?: string;   // Label for right rail (default: "L2")
   voltage?: string;       // "480V", "120VAC", "24VDC" — displayed at top
+  /**
+   * Rung numbering scheme:
+   * - 'sequential': 1, 2, 3... (default)
+   * - 'page-based': Sheet 1 → 100,101..., Sheet 2 → 200,201... (firstRungNumber = sheetNumber * 100)
+   * - 'page-tens': Sheet 1 → 100,110,120..., Sheet 2 → 200,210... (increments by 10, allows inserts)
+   */
+  numberingScheme?: 'sequential' | 'page-based' | 'page-tens';
+  firstRungNumber?: number; // Override starting rung number (default: derived from scheme)
 }
 
 /**
