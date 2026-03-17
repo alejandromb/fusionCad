@@ -6,6 +6,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { AI_MODEL } from './ai-config.js';
 import {
   generateId,
   registerBuiltinSymbols,
@@ -894,7 +895,7 @@ export async function aiGenerate(
   let parsed: Record<string, any>;
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: AI_MODEL,
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],

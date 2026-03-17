@@ -30,31 +30,34 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-15)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-16)
 
-**Current task:** User starting first real project — Micro800 refrigeration sequential recovery
+**Current task:** AI Electrical Intelligence — make AI generate complete, correct circuits
 
-**What was completed this session (Session 18):**
-- **Data protection suite** — Project JSON export/import (.fcad.json), beforeunload save (sendBeacon), `npm run db:backup` script, Docker safety warnings
-- **Menu bar with contextual toolbar** — 7 tabs (File/Edit/Draw/View/Insert/Tools/Help), toolbar icons change per active tab
-- **Micro800 PLC symbols** — 4 Allen-Bradley models (Micro820/830/850/870) with embedded I/O pins
-- **AI symbol generation** — `POST /api/symbols/ai-generate` + UI in Symbol Editor (describe symbol → Claude generates geometry)
-- **Pin snap fix** — Symbol Editor pins now snap to 20px (main canvas grid) instead of 5px
-- **Parts catalog empty fix** — Was pre-filtering on symbolId categories; now shows all 324 parts by default
-- **Assign part symbol fix** — Assigning a part no longer replaces the schematic symbol on the drawing
-- **View tab features** — Fullscreen toggle, theme picker dropdown
+**What was completed this session (Session 19):**
+- **AI Chat Panel** — Persistent sidebar chat with tool use (place_device, create_wire, add_annotation, add_sheet, list_symbols). AI can now modify drawings directly.
+- **Resizable right panel** — Drag left edge to resize (200-600px), persists to localStorage
+- **AI tab first** — AI is the leftmost tab in right panel
+- **Centralized AI model ID** — `apps/api/src/ai-config.ts` (single place to update model)
+- **AI chat sheet targeting fix** — place_device and add_annotation now accept `sheetName` param
+- **ANSI preference saved** — User prefers ANSI/NEMA symbols (circle coils, CR tags)
+- **Micro870 16-relay project created** — 3 sheets, ANSI coils, PLC DO modules, all wired
+- **Print capabilities** — Added to TODO (user needs to submit printed drawings)
 
-**Branch:** `main` (uncommitted changes from sessions 14-18)
+**Key issue identified:** AI generates incomplete circuits — open coil returns, no power connections, missing relay contacts. Need comprehensive electrical intelligence.
+
+**Branch:** `main` (uncommitted changes from sessions 14-19)
 
 **Next steps (priority order):**
-1. **Support user's Micro800 project** — Real-world testing, fix issues as they arise
-2. **Menu bar remaining features** — Find/Replace, grid toggle, pin label toggle, settings panel (see `memory/menu-bar-todo.md`)
-3. **Parts-to-symbol mapping** — Auto-assign obvious symbol matches (breakers→breaker symbol, etc.)
-4. **PLC interlock circuit generator** — New AI generator type for sequential relay interlock patterns
-5. **Continue symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
-6. **Symbol Editor: delete vertices** — Right-click or select+Delete to remove polyline vertices
-7. **Automatic terminal block calculation** (Phase 3-4 feature)
-8. **Deploy to AWS** — Lambda + CDK infrastructure, managed Postgres
+1. **P0: Enhanced AI system prompt** — Electrical rules, pin reference, circuit patterns, ANSI defaults (see `memory/ai-electrical-intelligence-plan.md`)
+2. **P2: Template tools** — `generate_relay_output`, `generate_plc_relay_bank`, `run_erc_check` + add missing tools (create_linked_device, create_ladder_block)
+3. **P1: Rich circuit context** — Show AI which pins are connected/unconnected per device
+4. **P3: Post-generation ERC + auto-fix loop** — Run ERC after AI finishes, feed violations back
+5. **P4: ANSI/IEC awareness** — Default to ANSI symbols and tag conventions
+6. **P5: Smart defaults** — "16 relays" → full project with power, sheets, contacts, terminals
+7. **Print/PDF output** — Verify paper sizes (Letter, Tabloid, A4, A3), margins, scale-to-fit
+8. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
+9. **Symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
 
 ---
 

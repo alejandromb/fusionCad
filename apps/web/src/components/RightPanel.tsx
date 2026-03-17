@@ -3,13 +3,14 @@
  * favorites, parts catalog, and properties tabs.
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { getAllSymbols, getSymbolCategories } from '@fusion-cad/core-model';
 import type { SymbolDefinition, Part, Annotation } from '@fusion-cad/core-model';
 import type { InteractionMode, SymbolCategory, PinHit } from '../types';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { SymbolPreview } from './SymbolPreview';
 import { PropertiesPanel } from './PropertiesPanel';
+import { AIChatPanel } from './AIChatPanel';
 
 const FAVORITES_KEY = 'fusionCad_favoriteSymbols';
 const STANDARD_KEY = 'fusionCad_preferredStandard';
@@ -17,7 +18,7 @@ const STANDARD_KEY = 'fusionCad_preferredStandard';
 const STANDARDS = ['All', 'IEC 60617', 'ANSI/NEMA'] as const;
 type Standard = (typeof STANDARDS)[number];
 
-type TabId = 'symbols' | 'favorites' | 'parts' | 'properties';
+type TabId = 'symbols' | 'favorites' | 'parts' | 'properties' | 'ai';
 
 function loadFavorites(): Set<string> {
   try {
@@ -56,6 +57,9 @@ interface RightPanelProps {
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
   onSelectAnnotation: (id: string | null) => void;
+  projectName: string;
+  projectId: string | null;
+  onProjectChanged: () => void;
 }
 
 export function RightPanel({
@@ -74,6 +78,9 @@ export function RightPanel({
   onUpdateAnnotation,
   onDeleteAnnotation,
   onSelectAnnotation,
+  projectName,
+  projectId,
+  onProjectChanged,
 }: RightPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('symbols');
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,6 +89,44 @@ export function RightPanel({
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [collapsed, setCollapsed] = useState(false);
   const previousTabRef = useRef<TabId>('symbols');
+
+  // Resizable panel
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('fusionCad_rightPanelWidth');
+    return saved ? parseInt(saved, 10) : 280;
+  });
+  const isResizingRef = useRef(false);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(280);
+
+  const panelWidthRef = useRef(panelWidth);
+  panelWidthRef.current = panelWidth;
+
+  const handleResizeStart = useCallback((e: ReactPointerEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = panelWidthRef.current;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMove = (ev: globalThis.PointerEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = resizeStartXRef.current - ev.clientX; // dragging left = wider
+      const newWidth = Math.min(600, Math.max(200, resizeStartWidthRef.current + delta));
+      setPanelWidth(newWidth);
+    };
+    const handleUp = () => {
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('fusionCad_rightPanelWidth', String(panelWidthRef.current));
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+    };
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+  }, []);
 
   const allSymbols = useMemo(() => getAllSymbols(), []);
   const categories = useMemo(() => getSymbolCategories(), []);
@@ -351,9 +396,20 @@ export function RightPanel({
   );
 
   return (
-    <aside className="right-panel">
+    <aside className="right-panel" style={{ width: panelWidth }}>
+      {/* Resize handle */}
+      <div
+        className="right-panel-resize-handle"
+        onPointerDown={handleResizeStart}
+      />
       {/* Tab bar */}
       <div className="right-panel-tabs">
+        <button
+          className={`right-panel-tab ${activeTab === 'ai' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ai')}
+        >
+          AI
+        </button>
         <button
           className={`right-panel-tab ${activeTab === 'symbols' ? 'active' : ''}`}
           onClick={() => setActiveTab('symbols')}
@@ -456,6 +512,8 @@ export function RightPanel({
         </div>
       ) : activeTab === 'properties' ? (
         renderPropertiesContent()
+      ) : activeTab === 'ai' ? (
+        <AIChatPanel circuit={circuit} projectName={projectName} projectId={projectId} onProjectChanged={onProjectChanged} />
       ) : (
         <div className="right-panel-content">
           <div className="right-panel-empty">

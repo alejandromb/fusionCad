@@ -6,6 +6,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { AI_MODEL } from './ai-config.js';
 import type { SymbolPrimitive, SymbolPin } from '@fusion-cad/core-model';
 
 const client = new Anthropic();
@@ -67,7 +68,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 export async function aiSymbolGenerate(description: string): Promise<AISymbolResult> {
   try {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250514',
+      model: AI_MODEL,
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [

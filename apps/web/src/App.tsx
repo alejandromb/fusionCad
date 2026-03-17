@@ -477,6 +477,9 @@ function AppInner({
           onUpdateAnnotation={circuitState.updateAnnotation}
           onDeleteAnnotation={circuitState.deleteAnnotation}
           onSelectAnnotation={circuitState.selectAnnotation}
+          projectName={project.projectName}
+          projectId={project.projectId}
+          onProjectChanged={project.reloadProject}
         />
       </div>
 

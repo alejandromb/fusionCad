@@ -9,6 +9,7 @@ import { Symbol } from './entities/Symbol.js';
 import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
 import { aiGenerate } from './ai-generate.js';
 import { aiSymbolGenerate } from './ai-symbol-generate.js';
+import { aiChat } from './ai-chat.js';
 import { requireAuth, optionalAuth } from './middleware/auth.js';
 import { checkAiRateLimit } from './middleware/ai-rate-limit.js';
 
@@ -455,6 +456,24 @@ app.post('/api/symbols/ai-generate', optionalAuth, async (req, res) => {
   } catch (error: any) {
     console.error('Error in AI symbol generation:', error);
     res.status(500).json({ error: `AI symbol generation failed: ${error.message}` });
+  }
+});
+
+// ============ AI CHAT ============
+
+// AI assistant chat — context-aware conversation about the drawing
+app.post('/api/ai-chat', optionalAuth, async (req, res) => {
+  try {
+    const { message, projectId, circuitContext, history } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'A "message" string is required' });
+    }
+
+    const result = await aiChat(message, circuitContext || '', history || [], projectId);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error in AI chat:', error);
+    res.status(500).json({ error: `AI chat failed: ${error.message}` });
   }
 });
 

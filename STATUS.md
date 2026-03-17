@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-15 (Session 18 — Data protection, Menu bar, Micro800 symbols, AI symbol generation, bug fixes)
+**Last Updated**: 2026-03-16 (Session 19 — AI Chat Panel with tool use, resizable panel, ANSI preference, electrical intelligence plan)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -1020,6 +1020,33 @@ This file tracks where we are in development. **Always read this file at the sta
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
 
 ---
+
+### Session 19 - 2026-03-16 (AI Chat Panel + Electrical Intelligence Plan)
+**Duration**: ~3 hours
+**Completed**:
+- **AI Chat Panel** — Persistent sidebar chat with Claude tool use (place_device, create_wire, add_annotation, add_sheet, list_symbols). AI modifies drawings directly and reloads project on completion.
+- **Resizable right panel** — Drag left edge, 200-600px range, persists to localStorage
+- **AI tab first position** — AI is leftmost tab in right panel
+- **Centralized AI model ID** — `apps/api/src/ai-config.ts` single source of truth for model string
+- **Sheet targeting fix** — AI chat place_device/add_annotation accept `sheetName` to target correct sheet
+- **ANSI preference** — User prefers ANSI/NEMA symbols (circle coils, CR tags), saved to memory
+- **Micro870 16-relay project** — Built via MCP: 3 sheets, 2 PLC DO-8 modules, 16 ANSI relay coils, 16 wires
+- **Print capabilities** — Added to TODO list (user needs printed drawings)
+
+**Key Discovery**:
+AI generates electrically incomplete circuits — open coil returns, no power connections, missing relay contacts. Planned comprehensive 6-priority roadmap (P0-P5) for AI Electrical Intelligence. See `memory/ai-electrical-intelligence-plan.md`.
+
+**Next Session**:
+1. P0: Enhanced system prompt with electrical rules + circuit patterns
+2. P2: Template tools (generate_relay_output, generate_plc_relay_bank, run_erc_check)
+3. P1: Rich circuit context (pin connection status per device)
+4. P3: Post-generation ERC + auto-fix loop
+
+**Session End Notes**:
+- User is building a REAL panel — Micro870 controlling 16 refrigeration machine relays
+- User prefers ANSI/NEMA symbols, not IEC
+- AI chat model ID was wrong (claude-sonnet-4-5-20250514 → 20250929), now centralized in ai-config.ts
+- The AI chat's tool_use works well but needs electrical knowledge to generate correct circuits
 
 ### Session 17 - 2026-03-08 (Symbol Accuracy Audit Batch 2)
 **Duration**: ~30 min
