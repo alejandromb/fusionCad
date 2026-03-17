@@ -17,6 +17,8 @@ import {
   type Device,
   type Part,
 } from '@fusion-cad/core-model';
+import { generateRelayBank, generateRelayOutput, generatePowerSection } from './ai-circuit-patterns.js';
+import { runERC, type ERCReport } from '@fusion-cad/core-engine';
 
 // Ensure symbols are registered
 registerBuiltinSymbols();
@@ -105,6 +107,51 @@ const TOOLS: Anthropic.Tool[] = [
         name: { type: 'string', description: 'Sheet name' },
       },
       required: ['name'],
+    },
+  },
+  // ---- HIGH-LEVEL PATTERN TOOLS (P2) ----
+  {
+    name: 'generate_relay_bank',
+    description: 'Generate a COMPLETE relay output system: power supply + PLC DO modules + relay coils (with return wires) + NO contacts + terminal blocks for field wiring. Creates multiple sheets automatically. This is the preferred tool for relay-based projects — use it instead of placing individual devices.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        relayCount: { type: 'number', description: 'Number of relay outputs (e.g., 16)' },
+        relayPrefix: { type: 'string', description: 'Tag prefix for relays (default: "CR")' },
+        startIndex: { type: 'number', description: 'Starting relay number (default: 1)' },
+        relaysPerSheet: { type: 'number', description: 'Relays per sheet (default: 8)' },
+        includeContacts: { type: 'boolean', description: 'Include NO contacts + terminal blocks (default: true)' },
+        includePowerSupply: { type: 'boolean', description: 'Include power supply sheet with CB+PSU+fuse (default: true)' },
+        plcSymbolId: { type: 'string', description: 'PLC DO module symbol (default: "iec-plc-do-8")' },
+      },
+      required: ['relayCount'],
+    },
+  },
+  {
+    name: 'generate_power_section',
+    description: 'Generate a complete power supply section: circuit breaker → AC/DC power supply → fuse. Creates the sheet if needed.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        inputVoltage: { type: 'string', description: 'Input voltage (default: "120VAC")' },
+        outputVoltage: { type: 'string', description: 'Output voltage (default: "24VDC")' },
+        sheetName: { type: 'string', description: 'Sheet name (default: "Power Distribution")' },
+      },
+    },
+  },
+  {
+    name: 'generate_relay_output',
+    description: 'Generate ONE complete relay output: PLC DO → coil + NO contact + terminal blocks. Use generate_relay_bank for multiple relays.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        plcTag: { type: 'string', description: 'PLC device tag (e.g., "PLC1-DO1")' },
+        doPin: { type: 'string', description: 'Digital output pin (e.g., "DO0")' },
+        relayTag: { type: 'string', description: 'Relay tag (e.g., "CR1")' },
+        coilSheetName: { type: 'string', description: 'Sheet for the coil circuit' },
+        contactSheetName: { type: 'string', description: 'Sheet for contacts (optional, defaults to coil sheet)' },
+      },
+      required: ['plcTag', 'doPin', 'relayTag', 'coilSheetName'],
     },
   },
 ];
@@ -247,30 +294,170 @@ function executeToolAddSheet(circuit: CircuitData, input: any): { result: string
 // System prompt
 // ================================================================
 
-const SYSTEM_PROMPT = `You are an expert electrical controls engineer and the AI assistant built into fusionCad.
+const SYSTEM_PROMPT = `You are an expert electrical controls engineer and the AI assistant built into fusionCad, an electrical CAD tool for industrial control schematics.
 
-You have tools to DIRECTLY modify the user's drawing:
-- place_device: Place symbols on the schematic
-- create_wire: Connect device pins with wires
-- add_annotation: Add text labels
-- add_sheet: Add new pages
-- list_available_symbols: Search for available symbol IDs
+You have tools to DIRECTLY modify the user's drawing. When asked to create/build/draw something, USE YOUR TOOLS — don't just describe what to do.
 
-IMPORTANT WORKFLOW:
-1. When the user asks you to create/build/draw something, USE YOUR TOOLS to do it. Don't just describe what to do.
-2. Call list_available_symbols first if you're not sure which symbolId to use.
-3. Place devices with enough spacing (80px minimum between devices vertically, 200px horizontally).
-4. Use meaningful tags (K1-K16 for relays, CB1 for breakers, PS1 for power supplies, PLC1 for PLCs).
-5. Wire devices together after placing them.
-6. Add annotations for section labels and notes.
-7. When using multiple sheets, ALWAYS specify sheetName in place_device and add_annotation to put devices on the correct sheet.
+═══════════════════════════════════════════════════
+CIRCUIT COMPLETION RULES — NEVER violate these
+═══════════════════════════════════════════════════
 
-LAYOUT CONVENTIONS:
-- PLC outputs on the left side (~200-300 x range)
-- Relay coils to the right of PLC outputs (~500 x range)
-- Power supply components at the top
-- Vertical spacing: 60px per device row
-- Use sheets to organize: Sheet 1 = Power, Sheet 2+ = Control outputs
+1. Every coil (relay, contactor, solenoid) needs TWO connections:
+   - Pin 1 (A1) → power source (e.g., PLC DO output, or +24VDC through a contact)
+   - Pin 2 (A2) → return (0V / COM / L2)
+   Missing the return = OPEN CIRCUIT. No current flows.
+
+2. Every contact (NO/NC) needs TWO connections:
+   - Pin 1 → source side (power rail or upstream device)
+   - Pin 2 → load side (downstream device or load)
+
+3. Every load (pilot light, horn, LED) needs TWO connections: power + return.
+
+4. Every circuit must have a COMPLETE PATH: power source → devices → return.
+   Trace every circuit mentally: +24V → ... → 0V. If any link is missing, fix it.
+
+5. PLC digital outputs are CURRENT SOURCES:
+   - DO pin provides +24V when ON
+   - The load (coil) connects between DO and 0V return
+   - Wire: DO pin → coil pin 1; coil pin 2 → 0V/COM
+
+6. Every relay that has a coil placed MUST also have its contacts placed:
+   - At minimum, place one NO contact for each relay coil
+   - Contacts go to field wiring via terminal blocks: Terminal → NO contact → Terminal
+   - Coil and contacts share the same tag (e.g., CR1 coil + CR1 NO contact)
+
+7. Terminal blocks are the interface between panel and field wiring:
+   - Place them at every panel boundary (where wires leave the panel)
+   - Each relay contact output pair needs terminals for field connection
+
+8. Power supply circuits must be complete:
+   - AC input: L (line) and N (neutral) both connected
+   - DC output: + and - both connected to distribution
+   - Add fuse protection on the DC output
+
+═══════════════════════════════════════════════════
+PIN REFERENCE — exact pin IDs from the symbol library
+═══════════════════════════════════════════════════
+
+ansi-coil (PREFERRED for relays):
+  pin "1" = A1 (top, power input) | pin "2" = A2 (bottom, return)
+
+ansi-normally-open-contact (PREFERRED for NO contacts):
+  pin "1" = top (input) | pin "2" = bottom (output)
+
+ansi-normally-closed-contact:
+  pin "1" = top | pin "2" = bottom
+
+iec-circuit-breaker-1p:
+  pin "1" = line (top) | pin "2" = load (bottom)
+
+iec-power-supply-ac-dc:
+  pin "1" = L (AC line) | pin "2" = N (AC neutral)
+  pin "3" = + (DC out) | pin "4" = - (DC out)
+
+ansi-fuse:
+  pin "1" = top (line) | pin "2" = bottom (load)
+
+iec-terminal-single:
+  pin "1" = top | pin "2" = bottom
+
+iec-plc-do-8:
+  pins "DO0"-"DO7" = outputs (right side) | pin "COM" = common (right side)
+
+iec-plc-do-16:
+  pins "DO0"-"DO15" = outputs | "COM0", "COM1" = commons
+
+iec-plc-di-8:
+  pins "DI0"-"DI7" = inputs (left side) | pin "COM" = common
+
+iec-plc-cpu:
+  pin "1" = L+ (24VDC) | pin "2" = M (0V)
+
+iec-pilot-light:
+  pin "1" = top (power) | pin "2" = bottom (return)
+
+iec-earth-ground:
+  pin "1" = top (single pin)
+
+═══════════════════════════════════════════════════
+STANDARD CIRCUIT PATTERNS
+═══════════════════════════════════════════════════
+
+POWER SUPPLY SECTION (always Sheet 1):
+  CB1 pin 2 → PS1 pin 1 (L)
+  Neutral wire → PS1 pin 2 (N)
+  PS1 pin 3 (+24V) → FU1 pin 1 (fuse for protection)
+  FU1 pin 2 → 24VDC distribution
+  PS1 pin 4 (0V) → 0V distribution
+  Add annotations: "120VAC INPUT", "+24VDC", "0V"
+
+PLC POWER:
+  +24VDC (from fused PSU output) → PLC CPU pin 1 (L+)
+  0V → PLC CPU pin 2 (M)
+
+RELAY OUTPUT (repeat for each PLC DO → relay):
+  Step 1 — Coil circuit (on DO output sheet):
+    Wire: PLC_DO:DOx → CR_coil pin 1
+    Wire: CR_coil pin 2 → 0V return
+  Step 2 — Contact circuit (on same or separate sheet):
+    Place: Terminal (TB-xa) for power input to contact
+    Place: ansi-normally-open-contact with SAME TAG as coil (e.g., CR1)
+    Place: Terminal (TB-xb) for field output
+    Wire: TB-xa pin 2 → CR_NO pin 1
+    Wire: CR_NO pin 2 → TB-xb pin 1
+
+E-STOP CIRCUIT:
+  Series NC contacts: power → ES1 pin 1; ES1 pin 2 → next device
+
+PILOT LIGHT:
+  Contact NO pin 2 → PL pin 1; PL pin 2 → return
+
+═══════════════════════════════════════════════════
+SYMBOL STANDARD — ANSI/NEMA PREFERRED
+═══════════════════════════════════════════════════
+
+ALWAYS use ANSI symbols when available:
+  Coil:       "ansi-coil" (circle style, NOT iec-coil rectangle)
+  NO Contact: "ansi-normally-open-contact"
+  NC Contact: "ansi-normally-closed-contact"
+  Fuse:       "ansi-fuse"
+  Overload:   "ansi-overload-relay"
+  Switch:     "ansi-manual-switch"
+
+For symbols without ANSI variants, use IEC:
+  Breakers, PLCs, terminals, motors, power supplies, transformers → IEC symbols
+
+TAG CONVENTIONS (ANSI/NEMA style):
+  CR1-CR16  = Control Relays (NOT K1-K16)
+  CB1       = Circuit Breaker
+  PS1       = Power Supply
+  PLC1      = PLC module
+  PL1       = Pilot Light
+  ES1       = E-Stop
+  TB1-xx    = Terminal Block (TB1-1, TB1-2, etc.)
+  FU1       = Fuse
+  M1        = Motor
+  OL1       = Overload Relay
+
+═══════════════════════════════════════════════════
+WORKFLOW
+═══════════════════════════════════════════════════
+
+1. Create sheets FIRST with clear names ("Power Distribution", "DO0-DO7 Outputs", "DO8-DO15 Outputs", "Field Contacts").
+2. ALWAYS specify sheetName when placing devices and annotations.
+3. Build power supply section first (breaker → PSU → fuse → distribution).
+4. Place ALL devices for a circuit pattern before wiring.
+5. Wire in order: power source → protection → switching → load → return.
+6. After placing relay coils, ALWAYS place their NO contacts + terminal blocks.
+7. After ALL circuits are built, mentally trace every path from power to return. Fix any open circuits.
+8. Add annotations for section titles, voltage labels, and wire references.
+
+LAYOUT:
+  - PLC modules: x=160, starting y=80
+  - Relay coils: x=500, spaced 80px vertically
+  - Contacts + terminals: x=700-900
+  - Power supply devices: stacked vertically, 160px apart
+  - Annotations: y=40 for sheet titles
 
 Keep text responses brief. Focus on DOING, not explaining.`;
 
@@ -317,7 +504,7 @@ export async function aiChat(
   // Tool use loop — keep going until Claude stops calling tools
   let response = await client.messages.create({
     model: AI_MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools: projectId ? TOOLS : [], // Only provide tools if we have a project to modify
     messages,
@@ -375,6 +562,35 @@ export async function aiChat(
           actionLog.push(result);
           break;
         }
+        case 'generate_relay_bank': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const r = generateRelayBank(circuit, input);
+          circuit = r.circuit;
+          result = r.summary;
+          const deviceCount = r.circuit.devices.length;
+          const wireCount = r.circuit.connections.length;
+          actionsPerformed += deviceCount;
+          actionLog.push(`Relay bank: ${input.relayCount} relays (${deviceCount} devices, ${wireCount} wires)`);
+          break;
+        }
+        case 'generate_power_section': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const r = generatePowerSection(circuit, input);
+          circuit = r.circuit;
+          result = r.summary;
+          actionsPerformed += 3;
+          actionLog.push(result);
+          break;
+        }
+        case 'generate_relay_output': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          const r = generateRelayOutput(circuit, input);
+          circuit = r.circuit;
+          result = r.summary;
+          actionsPerformed += 5;
+          actionLog.push(result);
+          break;
+        }
         default:
           result = `Unknown tool: ${toolUse.name}`;
       }
@@ -388,7 +604,7 @@ export async function aiChat(
 
     response = await client.messages.create({
       model: AI_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       tools: TOOLS,
       messages,
@@ -408,8 +624,37 @@ export async function aiChat(
     .map(b => b.text)
     .join('');
 
+  // P3: Post-generation ERC validation
+  let ercSection = '';
+  if (circuit && actionsPerformed > 0) {
+    try {
+      const ercReport: ERCReport = runERC({
+        devices: circuit.devices,
+        nets: circuit.nets,
+        parts: circuit.parts,
+        connections: circuit.connections,
+      });
+      if (ercReport.violations.length > 0) {
+        const errors = ercReport.violations.filter(v => v.severity === 'error');
+        const warnings = ercReport.violations.filter(v => v.severity === 'warning');
+        const parts: string[] = [];
+        if (errors.length > 0) {
+          parts.push(`**${errors.length} error(s):**\n${errors.slice(0, 10).map(e => `  - ${e.message}`).join('\n')}`);
+        }
+        if (warnings.length > 0) {
+          parts.push(`**${warnings.length} warning(s):**\n${warnings.slice(0, 10).map(w => `  - ${w.message}`).join('\n')}`);
+        }
+        ercSection = `\n\n---\n**ERC Check:**\n${parts.join('\n')}`;
+      } else {
+        ercSection = '\n\n---\n**ERC Check:** All clear — no violations found.';
+      }
+    } catch {
+      // ERC failed — don't block the response
+    }
+  }
+
   const reply = actionsPerformed > 0
-    ? `${text}\n\n---\n*${actionsPerformed} action(s) performed:*\n${actionLog.map(a => `- ${a}`).join('\n')}`
+    ? `${text}\n\n---\n*${actionsPerformed} action(s) performed:*\n${actionLog.map(a => `- ${a}`).join('\n')}${ercSection}`
     : text;
 
   return { reply, actionsPerformed };
