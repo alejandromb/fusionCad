@@ -479,7 +479,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
     // Place PLC DO module
     const plcTag = `PLC1-DO${sheet + 1}`;
-    const plcY = 60;
+    const plcY = 45;  // chosen so plcY + HEADER_HEIGHT (75) = 120, on 20px grid
     const bankLayout = layoutForSheet('Tabloid');
     const plcDev = addDevice(circuit, plcSymbolId, plcTag, bankLayout.plcX, plcY, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
     circuit = plcDev.circuit;
@@ -525,7 +525,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
       const relayTag = `${relayPrefix}${relayIndex}`;
       const plcPinY = firstPinAbsY + i * pinSpacing;
       const rungY = plcPinY - coilPinOffset;
-      const contactY = 80 + i * 80;
+      const contactY = 90 + i * 100; // 90+30=120 on grid, spacing 100 keeps alignment
 
       const result = generateRelayOutput(circuit, {
         plcTag, doPin, relayTag,
