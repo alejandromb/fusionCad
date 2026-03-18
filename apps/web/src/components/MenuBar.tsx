@@ -54,6 +54,8 @@ interface MenuBarProps {
   zoomLevel: number;
   debugMode: boolean;
   setDebugMode: (v: boolean) => void;
+  snapEnabled: boolean;
+  setSnapEnabled: (v: boolean) => void;
   themeId: string;
   setThemeId: (id: string) => void;
 
@@ -299,6 +301,10 @@ export function MenuBar(props: MenuBarProps) {
             <Divider />
             <div className="toolbar-group">
               <ToolBtn icon={icons.debug} label="Debug Mode" onClick={() => props.setDebugMode(!props.debugMode)} active={props.debugMode} />
+            </div>
+            <Divider />
+            <div className="toolbar-group">
+              <ToolBtn icon={icons.grid} label="Snap to Grid (G)" onClick={() => props.setSnapEnabled(!props.snapEnabled)} active={props.snapEnabled} />
             </div>
             <Divider />
             <div className="toolbar-group">

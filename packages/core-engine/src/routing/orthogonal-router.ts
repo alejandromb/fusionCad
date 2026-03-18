@@ -79,12 +79,14 @@ export function routeWire(
   padding = 10
 ): RouteResult {
   try {
-    // Build visibility graph
+    // Build visibility graph with optional pin direction constraints
     const graph = buildVisibilityGraph(
       obstacles,
       request.start,
       request.end,
-      padding
+      padding,
+      request.startDirection,
+      request.endDirection
     );
 
     const pathNodeIds = findPath(graph, 'start', 'end');

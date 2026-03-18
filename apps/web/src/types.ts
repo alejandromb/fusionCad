@@ -20,6 +20,14 @@ export const GRID_SIZE = 20;
 export const AUTO_SAVE_DELAY = 1000;
 export const MAX_HISTORY_SIZE = 50;
 
+/** Global snap-to-grid enabled flag. Toggled from UI, persisted to localStorage. */
+let _snapEnabled = localStorage.getItem('snapToGridEnabled') !== 'false'; // default ON
+export function isSnapEnabled(): boolean { return _snapEnabled; }
+export function setSnapEnabled(v: boolean): void {
+  _snapEnabled = v;
+  localStorage.setItem('snapToGridEnabled', v ? 'true' : 'false');
+}
+
 export interface PinHit {
   device: string;  // device ID (ULID)
   pin: string;
@@ -31,6 +39,7 @@ export interface HistorySnapshot {
 }
 
 export function snapToGrid(value: number): number {
+  if (!_snapEnabled) return value;
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 

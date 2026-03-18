@@ -10,6 +10,8 @@ interface StatusBarProps {
   interactionMode: InteractionMode;
   selectedCount: number;
   gridSize?: number;
+  snapEnabled?: boolean;
+  onToggleSnap?: () => void;
   storageType?: 'rest' | 'indexeddb';
 }
 
@@ -19,12 +21,15 @@ export function StatusBar({
   interactionMode,
   selectedCount,
   gridSize = 20,
+  snapEnabled = true,
+  onToggleSnap,
   storageType,
 }: StatusBarProps) {
   const zoomPercent = Math.round(viewport.scale * 100);
 
   const modeLabels: Record<InteractionMode, string> = {
     select: 'Select',
+    pan: 'Pan',
     wire: 'Wire',
     place: 'Place',
     text: 'Text',
@@ -53,8 +58,13 @@ export function StatusBar({
           {' '}
           Y: {mouseWorldPos ? Math.round(mouseWorldPos.y) : '—'}
         </span>
-        <span className="status-item grid-info">
-          Grid: {gridSize}px
+        <span
+          className={`status-item grid-info ${onToggleSnap ? 'clickable' : ''}`}
+          onClick={onToggleSnap}
+          title={`Snap to Grid: ${snapEnabled ? 'ON' : 'OFF'} (G)`}
+          style={onToggleSnap ? { cursor: 'pointer' } : undefined}
+        >
+          Grid: {gridSize}px {snapEnabled ? '⊞' : '⊟'}
         </span>
         <span className="status-item zoom-level">
           {zoomPercent}%

@@ -66,12 +66,20 @@ export interface RoutedPath {
 }
 
 /**
+ * Direction constraint for a pin's wire exit.
+ * Maps to PinDirection from core-model ('top'/'bottom' mapped to 'up'/'down').
+ */
+export type ConnDirection = 'left' | 'right' | 'up' | 'down';
+
+/**
  * Wire routing request
  */
 export interface RouteRequest {
   id: string; // Connection/wire ID
   start: Point;
   end: Point;
+  startDirection?: ConnDirection; // Pin exit direction at start
+  endDirection?: ConnDirection;   // Pin exit direction at end
   netId?: string; // Optional net ID for grouping
 }
 

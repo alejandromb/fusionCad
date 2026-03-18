@@ -10,6 +10,8 @@ import type { Connection } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
 import {
   snapToGrid,
+  isSnapEnabled,
+  setSnapEnabled,
   getPinAtPoint,
   getSymbolAtPoint,
   type InteractionMode,
@@ -1085,6 +1087,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             mirrorDevice(tag);
           }
         }
+      }
+
+      // G = toggle snap to grid
+      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setSnapEnabled(!isSnapEnabled());
+        window.dispatchEvent(new CustomEvent('snap-toggled'));
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {

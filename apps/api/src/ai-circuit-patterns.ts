@@ -18,6 +18,44 @@ import {
 
 const GRID_SIZE = 20;
 
+/**
+ * Compute the device Y position so that the given pin aligns with a target world Y.
+ * Reads pin offset from the actual symbol definition — no hardcoded offsets.
+ *
+ * deviceY = targetPinWorldY - pinOffsetWithinSymbol
+ */
+function alignDeviceToPin(symbolId: string, pinId: string, targetPinWorldY: number): number {
+  const sym = getSymbolById(symbolId);
+  if (!sym) return targetPinWorldY; // fallback: place at target Y
+  const pin = sym.pins.find(p => p.id === pinId);
+  if (!pin) return targetPinWorldY;
+  const pinY = pin.position.y;
+  return targetPinWorldY - pinY;
+}
+
+/**
+ * Get the Y offset of a pin within a symbol.
+ */
+function getPinOffsetY(symbolId: string, pinId: string): number {
+  const sym = getSymbolById(symbolId);
+  if (!sym) return 0;
+  const pin = sym.pins.find(p => p.id === pinId);
+  return pin ? pin.position.y : 0;
+}
+
+/**
+ * Get the Y positions of all digital pins for a PLC symbol.
+ * Returns absolute Y positions given the device's world Y.
+ */
+function getPlcPinWorldYs(symbolId: string, deviceY: number, pinPrefix: string, count: number): number[] {
+  const sym = getSymbolById(symbolId);
+  if (!sym) return [];
+  return Array.from({ length: count }, (_, i) => {
+    const pin = sym.pins.find(p => p.id === `${pinPrefix}${i}`);
+    return pin ? deviceY + pin.position.y : deviceY;
+  });
+}
+
 // ================================================================
 // Drawing Layout System — coordinates scale to paper size
 // ================================================================
@@ -335,11 +373,11 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   }
 
   // 3. Wire coil pin 2 (A2) → 0V return
-  // Place a ground/return terminal for the 0V bus connection
-  // Return terminal: align pin (at y=10 within 20px symbol) with coil pin 2 (at coilY+20)
-  // So terminalY = coilY + 20 - 10 = coilY + 15
+  // Align return terminal pin '1' with coil pin '2' (A2) world Y
+  const coilA2WorldY = coilY + getPinOffsetY('ansi-coil', '2');
   const retTag = `RET-${params.relayTag}`;
-  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY + 15, coilSheetId, '0V Return');
+  const retTerminalY = alignDeviceToPin('iec-terminal-single', '1', coilA2WorldY);
+  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, retTerminalY, coilSheetId, '0V Return');
   circuit = r1b.circuit;
   // Rotate return terminal 180° so pin faces left (toward the coil)
   circuit = setTransform(circuit, r1b.deviceId, 180);
@@ -354,14 +392,15 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const tbInTag = `TB-${params.relayTag}a`;
   const tbOutTag = `TB-${params.relayTag}b`;
 
-  // Terminals: pin at y=10 within 20px symbol. Contact pin at y=20 within 40px symbol.
-  // To align: terminalY = contactY + 20 - 10 = contactY + 15
-  // Left terminal: pin-right (toward contact). Right terminal: pin-left (toward contact).
-  const tbAlignedY = contactY + 15;
-  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, tbAlignedY, contactSheetId, `${params.relayTag} - IN`);
+  // Align terminal pin '1' with contact pin world Y (reads from symbol data)
+  const contactPin1WorldY = contactY + getPinOffsetY('ansi-normally-open-contact', '1');
+  const tbInAlignedY = alignDeviceToPin('iec-terminal-single', '1', contactPin1WorldY);
+  const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, tbInAlignedY, contactSheetId, `${params.relayTag} - IN`);
   circuit = r3.circuit;
 
-  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, tbAlignedY, contactSheetId, `${params.relayTag} - OUT`);
+  const contactPin2WorldY = contactY + getPinOffsetY('ansi-normally-open-contact', '2');
+  const tbOutAlignedY = alignDeviceToPin('iec-terminal-single', '1', contactPin2WorldY);
+  const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, tbOutAlignedY, contactSheetId, `${params.relayTag} - OUT`);
   circuit = r4.circuit;
   // Rotate right-side terminal 180° so pin faces left (toward the contact)
   circuit = setTransform(circuit, r4.deviceId, 180);
@@ -514,18 +553,18 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     }
 
     // Place relay outputs — align coil pin Y with each PLC DO pin Y
-    // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px
-    // ANSI coil: pin 1 (A1) is at symbol_y+20 within symbol
-    const firstPinAbsY = plcY + 75;  // HEADER_HEIGHT at 1.5x scale
-    const pinSpacing = 60;            // DIGITAL_PIN_SPACING at 1.5x scale
-    const coilPinOffset = 30;         // ansi-coil pin 1 at y=30 within 60px tall symbol (1.5x)
+    // Uses actual symbol pin data instead of hardcoded offsets
+    const plcPinWorldYs = getPlcPinWorldYs(plcSymbolId, plcY, 'DO', count);
 
     for (let i = 0; i < count; i++) {
       const doPin = `DO${i}`;
       const relayTag = `${relayPrefix}${relayIndex}`;
-      const plcPinY = firstPinAbsY + i * pinSpacing;
-      const rungY = plcPinY - coilPinOffset;
-      const contactY = 90 + i * 100; // 90+30=120 on grid, spacing 100 keeps alignment
+      const plcPinY = plcPinWorldYs[i];
+      // Position coil so its pin '1' (A1) aligns exactly with the PLC DO pin
+      const rungY = alignDeviceToPin('ansi-coil', '1', plcPinY);
+      // Contact sheet: align contact pin '1' with a regular grid starting at 90
+      const contactPinOffset = getPinOffsetY('ansi-normally-open-contact', '1');
+      const contactY = 90 + i * 100; // aligned to grid, spacing 100
 
       const result = generateRelayOutput(circuit, {
         plcTag, doPin, relayTag,

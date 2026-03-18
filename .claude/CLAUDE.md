@@ -1,5 +1,20 @@
 # 🛑 STOP! READ THIS FIRST! 🛑
 
+## 🧠 ENGINEERING STANDARDS
+
+You are a **senior software developer**. Act accordingly:
+
+- **No hacks.** Write clean, well-reasoned solutions. If a shortcut compromises correctness, maintainability, or clarity, don't take it.
+- **Research before guessing.** If you don't know something, look it up — read docs, search the web, read source code. Come back with a solid, informed approach. Don't wing it.
+- **Trial-and-error is a last resort.** Only use trial-and-error when there is no good knowledge base available (offline docs, source code, web resources) or the problem is genuinely novel. Otherwise, understand the system first, then act.
+- **Understand before changing.** Read the relevant code, understand the architecture, then propose changes. Never modify code you haven't read.
+- **Minimal, focused changes.** Only change what's necessary. Don't refactor surroundings, add features that weren't asked for, or "improve" unrelated code.
+- **No redundant confirmations.** Once a plan is agreed upon (e.g., "we'll edit files A, B, C"), just do it — don't ask permission for each file edit. Don't ask "is your dev server running?" or other obvious questions. Batch checks at the end, not after every edit.
+- **Just fetch and research.** Never ask permission to fetch URLs, web pages, documentation, or research papers. Just do it — it's an obvious part of the workflow.
+- **Minimize back-and-forth.** Be concise. Don't narrate every step. Don't summarize what you just did unless the user asks. Act, don't talk about acting.
+
+---
+
 ## 🚢 PORT ASSIGNMENTS (DO NOT CONFLICT)
 
 fusionCad uses these specific ports. Never kill other vite/api processes:
@@ -30,47 +45,30 @@ Before doing ANYTHING else:
 
 ---
 
-## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-17)
+## 📍 WHERE WE LEFT OFF (Last Session: 2026-03-18)
 
-**Current task:** AI Electrical Intelligence — improving generated schematic quality
+**Current task:** Schematic visual quality — wire routing, alignment, snap controls
 
-**What was completed this session (Session 20):**
-- **P0-P4 AI intelligence** — System prompt, templates, ERC, rich context, ANSI preference
-- **Symbol scaling 1.5x for Tabloid** — All 75 symbols + PLC generators scaled, script at scripts/scale-symbols.mjs
-- **Tabloid (11×17) paper size** — Added as default, industry standard for control panels
-- **Proportional layout system** — layoutForSheet() calculates positions from paper dimensions
-- **Grid alignment fix** — Pin Y positions land on 20px grid (plcY=45+75=120), eliminates wire bends
-- **AI chat tools** — move_device, delete_device, delete_wire, create_ladder_block, add_rung, auto_layout_ladder
-- **ANSI symbols horizontal** — coil, NO/NC contacts all pins left/right
-- **Terminal pin right + rotation** — Right-side terminals rotated 180° so pins face inward
-- **Ladder blocks + rungs** — generateRelayBank creates ladder entities with page-based numbering
-- **Design rules** — 10 categories documented from IEC 61082, NFPA 79, industry standards
-- **Schematic design rules in system prompt** — 8 layout rules the AI must follow
-- **symbols:refresh builds core-model** — One command for symbol updates (tsx watch auto-reloads API)
+**What was completed this session (Session 21):**
+- **Wire routing direction constraints** — libavoid-style edge filtering in visibility graph. Wires exit pins in correct direction. Core algorithm untouched.
+- **37 routing unit tests** — First test coverage for routing: isEdgeAllowed, visibility graph, direction-constrained routing, real-world scenarios
+- **Snap-to-grid toggle** — View menu, G key, clickable status bar. Persists to localStorage.
+- **Pin-based device alignment** — `alignDeviceToPin()`, `getPinOffsetY()`, `getPlcPinWorldYs()` replace hardcoded offsets. All templates align pin-to-pin.
+- **Reverted offset routing approach** — Previous session's offset approach caused regressions. Researched libavoid, implemented proper edge filtering.
+- **Wire routing evolution doc** — `memory/wire-routing-evolution.md` tracks all approaches tried
+- **CLAUDE.md + settings optimized** — No redundant confirmations, wildcarded permissions, `acceptEdits` mode
 
-**What was completed in Session 19:**
-- **AI Chat Panel** — Persistent sidebar chat with tool use (place_device, create_wire, add_annotation, add_sheet, list_symbols). AI can now modify drawings directly.
-- **Resizable right panel** — Drag left edge to resize (200-600px), persists to localStorage
-- **AI tab first** — AI is the leftmost tab in right panel
-- **Centralized AI model ID** — `apps/api/src/ai-config.ts` (single place to update model)
-- **AI chat sheet targeting fix** — place_device and add_annotation now accept `sheetName` param
-- **ANSI preference saved** — User prefers ANSI/NEMA symbols (circle coils, CR tags)
-- **Micro870 16-relay project created** — 3 sheets, ANSI coils, PLC DO modules, all wired
-- **Print capabilities** — Added to TODO (user needs to submit printed drawings)
+**Key discovery:** Wire bending was TWO problems: (1) routing direction (fixed with edge filtering), (2) device placement alignment (fixed with pin-based positioning).
 
-**Key issue identified:** AI generates incomplete circuits — open coil returns, no power connections, missing relay contacts. Need comprehensive electrical intelligence.
-
-**Branch:** `main` (uncommitted changes from sessions 14-19)
+**Branch:** `main` (uncommitted changes from sessions 14-21)
 
 **Next steps (priority order):**
-1. **P0: Wire router pin exit direction** — Wires from PLC DO pins bend downward instead of going straight horizontal to coils. Router needs to respect pin exit direction (right pin → exit right, left pin → exit left) and not route around the parent device bounding box. This is the #1 visual quality issue.
+1. **Alignment as design principle** — Ensure ALL templates/AI generation use pin-based alignment. Professional schematics demand perfect alignment for clarity.
 2. **L1/L2 power rails rendering** — Ladder blocks + rungs exist in data but rails may not render properly yet
 3. **Wire numbers visible on canvas** — Renderer feature to show wire labels
 4. **Cross-references** — Coil ↔ contact references on schematic (data model + renderer)
 5. **Print/PDF output** — Verify Tabloid paper size, margins, scale-to-fit
-6. **Rung numbers verification** — Confirm rung numbers render from ladder blocks
-7. **AI model investigation** — Test cheaper models for simple edit tasks
-8. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
+6. **AI model investigation** — Test cheaper models for simple edit tasks
 
 ---
 
@@ -79,6 +77,9 @@ Before doing ANYTHING else:
 **Phase:** Phase 2 - Minimal Editor (99% complete)
 
 **Recent achievements:**
+- ✅ **Wire Routing Direction Constraints** - libavoid-style edge filtering, 37 routing tests, pin direction support
+- ✅ **Snap-to-Grid Toggle** - View menu + G key + status bar, persists to localStorage
+- ✅ **Pin-Based Device Alignment** - alignDeviceToPin() reads symbol geometry, eliminates hardcoded offsets
 - ✅ **Symbol Editor Enhancements** - Resize handles (rect + circle), vertex editing (polyline + line), numeric inputs, duplicate (Cmd+D), SVG tool icons
 - ✅ **Canvas Rendering Polish** - Round lineCap/lineJoin + stroke width 2px across all themes for smoother visual quality
 - ✅ **UI Layout Restructure** - Left sidebar → page explorer, right panel → Properties tab with auto-switch

@@ -10,7 +10,8 @@ import type {
   Obstacle,
   VisibilityGraph,
   VisibilityNode,
-  VisibilityEdge
+  VisibilityEdge,
+  ConnDirection
 } from './types.js';
 
 /**
@@ -128,13 +129,50 @@ function distance(p1: Point, p2: Point): number {
 }
 
 /**
+ * Check if an edge from a direction-constrained pin node is allowed.
+ *
+ * Based on libavoid's visDirections approach: edges that violate the pin's
+ * exit direction are excluded from the graph so A* cannot route through them.
+ * Only the first segment from the pin is constrained — the pin node simply
+ * has no edges going the wrong way.
+ */
+export function isEdgeAllowed(
+  pinPoint: Point,
+  otherPoint: Point,
+  direction: ConnDirection
+): boolean {
+  // Orthogonal edges are either horizontal (same Y) or vertical (same X)
+  const isHorizontal = pinPoint.y === otherPoint.y;
+  const isVertical = pinPoint.x === otherPoint.x;
+
+  if (!isHorizontal && !isVertical) return true; // Shouldn't happen, allow non-orthogonal
+
+  switch (direction) {
+    case 'right':
+      // Only allow horizontal edges going right
+      return isHorizontal && otherPoint.x >= pinPoint.x;
+    case 'left':
+      // Only allow horizontal edges going left
+      return isHorizontal && otherPoint.x <= pinPoint.x;
+    case 'down':
+      // Only allow vertical edges going down
+      return isVertical && otherPoint.y >= pinPoint.y;
+    case 'up':
+      // Only allow vertical edges going up
+      return isVertical && otherPoint.y <= pinPoint.y;
+  }
+}
+
+/**
  * Build orthogonal visibility graph
  */
 export function buildVisibilityGraph(
   obstacles: Obstacle[],
   start: Point,
   end: Point,
-  padding = 10
+  padding = 10,
+  startDirection?: ConnDirection,
+  endDirection?: ConnDirection
 ): VisibilityGraph {
   const nodes = new Map<string, VisibilityNode>();
   const edges: VisibilityEdge[] = [];
@@ -263,6 +301,30 @@ export function buildVisibilityGraph(
         }
       }
     }
+  }
+
+  // Filter edges from start/end nodes that violate direction constraints.
+  // This is the libavoid approach: the pin vertex exists at its real position,
+  // but edges going the wrong way are removed so A* can't use them.
+  if (startDirection || endDirection) {
+    const filteredEdges = edges.filter(edge => {
+      if (startDirection && (edge.from === startId || edge.to === startId)) {
+        const otherId = edge.from === startId ? edge.to : edge.from;
+        const otherNode = nodes.get(otherId);
+        if (otherNode && !isEdgeAllowed(start, otherNode.point, startDirection)) {
+          return false;
+        }
+      }
+      if (endDirection && (edge.from === endId || edge.to === endId)) {
+        const otherId = edge.from === endId ? edge.to : edge.from;
+        const otherNode = nodes.get(otherId);
+        if (otherNode && !isEdgeAllowed(end, otherNode.point, endDirection)) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return { nodes, edges: filteredEdges };
   }
 
   return { nodes, edges };

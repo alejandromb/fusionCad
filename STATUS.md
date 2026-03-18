@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-17 (Session 20 — AI Electrical Intelligence, symbol scaling, layout system, design rules)
+**Last Updated**: 2026-03-18 (Session 21 — Wire routing direction constraints, snap toggle, pin-based alignment)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -34,6 +34,8 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Visibility graph routing**: Wires route around device bounding boxes
 - ✅ **A* pathfinding**: Optimal path calculation through visibility graph
 - ✅ **Wire separation (nudging)**: Overlapping segments automatically offset
+  - ✅ **Pin direction constraints**: Wires exit pins in correct direction (libavoid edge-filtering approach)
+  - ✅ **37 routing unit tests**: isEdgeAllowed, visibility graph, direction-constrained routing, real-world scenarios
 - ✅ **Color-coded wires**: 11 unique colors for wire identification (with legend in sidebar)
 - ✅ **Pan/zoom controls**: Mouse wheel zoom, click-drag pan
 - ✅ **Debug mode toggle**: Show/hide wire labels for clean screenshots
@@ -41,7 +43,7 @@ This file tracks where we are in development. **Always read this file at the sta
 - ✅ **Wire drawing tool**: Click pin-to-pin to create connections
 - ✅ **Symbol selection**: Click to select, dashed highlight, Delete to remove
 - ✅ **Drag to reposition**: Move symbols by dragging
-- ✅ **Snap to grid**: 20px grid for placement and dragging
+- ✅ **Snap to grid**: 20px grid for placement and dragging (toggleable: View menu, G key, status bar click)
 - ✅ **Persistence**: Postgres + TypeORM, auto-save, project management UI
 - ✅ **Copy/Paste**: Cmd+C/V/D for copy, paste, duplicate
 - ✅ **Undo/Redo**: Cmd+Z and Cmd+Shift+Z (50 history entries)
@@ -1018,6 +1020,42 @@ This file tracks where we are in development. **Always read this file at the sta
 - OAuth UI is ready but dormant until VITE_COGNITO_OAUTH_DOMAIN is set in env
 - ERC short circuit detection is conservative: unknown device roles don't trigger false positives
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
+
+---
+
+### Session 21 - 2026-03-18 (Wire Routing Direction Constraints + Snap Toggle + Pin-Based Alignment)
+**Completed**:
+- **Wire routing direction constraints** — Implemented libavoid-style edge filtering in visibility graph. Pins now constrain which direction wires can exit/enter. Core algorithm (visibility-graph, A*, nudging) untouched — constraints enforced by removing edges from the graph before A* runs.
+- **37 routing unit tests** — First test coverage for routing system: isEdgeAllowed (14), visibility graph (6), basic routing (5), direction-constrained routing (6), multi-wire nudging (3), real-world scenarios (3). All pass.
+- **Snap-to-grid toggle** — View menu button, G keyboard shortcut, clickable status bar indicator. Persists to localStorage. Uses global flag so all ~20 snapToGrid call sites work without changes.
+- **Pin-based device alignment** — Replaced hardcoded Y offsets in templates with `alignDeviceToPin()` and `getPinOffsetY()` that read actual pin positions from symbol definitions. Coils, terminals, contacts all align pin-to-pin. If symbol geometry changes, alignment stays correct.
+- **`getPlcPinWorldYs()`** — Reads actual PLC pin positions from symbol data instead of assuming HEADER_HEIGHT + i * PIN_SPACING.
+- **Reverted previous offset routing approach** — Session 20's start/end point offset approach caused regressions (COM wires overshooting). Reverted to clean algorithm, then researched proper approach (libavoid papers).
+- **Wire routing evolution document** — `memory/wire-routing-evolution.md` tracks all routing approaches tried, what worked/failed, current state.
+- **CLAUDE.md engineering standards updated** — No redundant confirmations, no fetch permission prompts, minimize back-and-forth.
+- **Settings optimized** — Replaced ~60 individual permission rules with 15 wildcards + `acceptEdits` mode.
+
+**Key Discovery**: The wire bending issue was TWO problems: (1) routing direction — fixed with edge filtering, (2) device placement alignment — fixed with pin-based positioning. Template math was correct for plcY=45 but user's project had stale plcY=40 from older session.
+
+**Files Modified**:
+- `packages/core-engine/src/routing/types.ts` — ConnDirection type, startDirection/endDirection on RouteRequest
+- `packages/core-engine/src/routing/visibility-graph.ts` — isEdgeAllowed(), edge filtering in buildVisibilityGraph()
+- `packages/core-engine/src/routing/orthogonal-router.ts` — Pass direction constraints through
+- `packages/core-engine/src/routing/routing.test.ts` — NEW: 37 routing tests
+- `apps/web/src/renderer/circuit-renderer.ts` — rotatePinDirection(), pass pin directions to RouteRequest
+- `apps/web/src/types.ts` — isSnapEnabled/setSnapEnabled global flag, conditional snapToGrid
+- `apps/web/src/App.tsx` — Snap state, event listener for G key sync
+- `apps/web/src/components/MenuBar.tsx` — Snap toggle in View tab
+- `apps/web/src/components/StatusBar.tsx` — Clickable snap indicator, fixed missing 'pan' mode
+- `apps/web/src/hooks/useCanvasInteraction.ts` — G keyboard shortcut for snap toggle
+- `apps/api/src/ai-circuit-patterns.ts` — alignDeviceToPin(), getPinOffsetY(), getPlcPinWorldYs(), pin-based alignment in generateRelayOutput/generateRelayBank
+
+**Next Session**:
+1. **Alignment as a design principle** — Ensure ALL templates/AI generation uses pin-based alignment. Research professional schematic layout standards.
+2. **L1/L2 power rails rendering** — Ladder blocks exist in data but rails may not render properly
+3. **Wire numbers visible on canvas** — Renderer feature to show wire labels
+4. **Cross-references** — Coil ↔ contact references on schematic
+5. **Print/PDF output** — Verify Tabloid paper size, margins, scale-to-fit
 
 ---
 

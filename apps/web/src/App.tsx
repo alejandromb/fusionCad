@@ -12,6 +12,7 @@ import { configureAmplify, useAuth } from './auth';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { MenuBar, type MenuTab } from './components/MenuBar';
+import { isSnapEnabled, setSnapEnabled } from './types';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
 import { Canvas } from './components/Canvas';
@@ -143,6 +144,17 @@ function AppInner({
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
   const [editSymbolId, setEditSymbolId] = useState<string | undefined>(undefined);
   const [activeMenuTab, setActiveMenuTab] = useState<MenuTab>('draw');
+  const [snapEnabled, setSnapEnabledState] = useState(() => isSnapEnabled());
+  const handleSetSnapEnabled = useCallback((v: boolean) => {
+    setSnapEnabled(v);
+    setSnapEnabledState(v);
+  }, []);
+  // Sync state when toggled via keyboard shortcut (G key)
+  useEffect(() => {
+    const handler = () => setSnapEnabledState(isSnapEnabled());
+    window.addEventListener('snap-toggled', handler);
+    return () => window.removeEventListener('snap-toggled', handler);
+  }, []);
 
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
@@ -367,6 +379,8 @@ function AppInner({
         zoomLevel={interaction.viewport.scale}
         debugMode={circuitState.debugMode}
         setDebugMode={circuitState.setDebugMode}
+        snapEnabled={snapEnabled}
+        setSnapEnabled={handleSetSnapEnabled}
         themeId={theme.themeId}
         setThemeId={theme.setThemeId}
         // Insert
@@ -452,6 +466,8 @@ function AppInner({
             viewport={interaction.viewport}
             interactionMode={interaction.interactionMode}
             selectedCount={circuitState.selectedDevices.length}
+            snapEnabled={snapEnabled}
+            onToggleSnap={() => handleSetSnapEnabled(!snapEnabled)}
             storageType={storageType}
           />
         </div>

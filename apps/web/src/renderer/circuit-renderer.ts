@@ -7,11 +7,26 @@
 import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBlock, LadderBlock } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
-import { routeWires, type Obstacle, type RouteRequest, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
+import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
 import { renderTitleBlock } from './title-block';
 import { getTheme } from './theme';
+
+/**
+ * Rotate a pin direction by a device's rotation angle.
+ * Follows CW rotation: right→down→left→up per 90° step.
+ */
+function rotatePinDirection(
+  dir: 'left' | 'right' | 'top' | 'bottom',
+  rotation: number
+): ConnDirection {
+  // Map core-model PinDirection to our rotation array
+  const dirMap: Record<string, number> = { right: 0, bottom: 1, left: 2, top: 3 };
+  const connDirs: ConnDirection[] = ['right', 'down', 'left', 'up'];
+  const steps = Math.round(((rotation % 360) + 360) % 360 / 90);
+  return connDirs[(dirMap[dir] + steps) % 4];
+}
 
 /**
  * Resolve device for a connection endpoint.
@@ -247,10 +262,14 @@ export function getWireAtPoint(
       }
     } else {
       // For auto-routed wires, collect for batch routing
+      const fromRot = transforms?.[fromDevice.id]?.rotation || 0;
+      const toRot = transforms?.[toDevice.id]?.rotation || 0;
       routeRequests.push({
         id: `wire_${i}`,
         start: { x: fromX, y: fromY },
         end: { x: toX, y: toY },
+        startDirection: fromPinDef?.direction ? rotatePinDirection(fromPinDef.direction, fromRot) : undefined,
+        endDirection: toPinDef?.direction ? rotatePinDirection(toPinDef.direction, toRot) : undefined,
         netId: conn.netId,
       });
       connectionMetadata.push({
@@ -721,10 +740,22 @@ export function renderCircuit(
     const toX = toPinPos.x;
     const toY = toPinPos.y;
 
+    // Compute pin exit directions (accounting for device rotation)
+    const fromRotation = getTransform(fromDevice.id)?.rotation || 0;
+    const toRotation = getTransform(toDevice.id)?.rotation || 0;
+    const startDir = fromPinDef?.direction
+      ? rotatePinDirection(fromPinDef.direction, fromRotation)
+      : undefined;
+    const endDir = toPinDef?.direction
+      ? rotatePinDirection(toPinDef.direction, toRotation)
+      : undefined;
+
     routeRequests.push({
       id: `wire_${i}`,
       start: { x: fromX, y: fromY },
       end: { x: toX, y: toY },
+      startDirection: startDir,
+      endDirection: endDir,
       netId: conn.netId,
     });
 
