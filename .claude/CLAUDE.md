@@ -35,20 +35,18 @@ Before doing ANYTHING else:
 **Current task:** AI Electrical Intelligence — improving generated schematic quality
 
 **What was completed this session (Session 20):**
-- **P0-P4 complete** — System prompt with electrical rules + pin reference + circuit patterns + ANSI preference
-- **P2 template tools** — generate_relay_bank, generate_relay_output, generate_power_section
-- **P3 post-gen ERC** — Auto-runs after AI finishes, appends errors/warnings
-- **P1 rich context** — Server-side pin status (wired/OPEN!) per device
+- **P0-P4 AI intelligence** — System prompt, templates, ERC, rich context, ANSI preference
+- **Symbol scaling 1.5x for Tabloid** — All 75 symbols + PLC generators scaled, script at scripts/scale-symbols.mjs
+- **Tabloid (11×17) paper size** — Added as default, industry standard for control panels
+- **Proportional layout system** — layoutForSheet() calculates positions from paper dimensions
+- **Grid alignment fix** — Pin Y positions land on 20px grid (plcY=45+75=120), eliminates wire bends
 - **AI chat tools** — move_device, delete_device, delete_wire, create_ladder_block, add_rung, auto_layout_ladder
-- **ANSI symbols horizontal** — ansi-coil, ansi-normally-open-contact, ansi-normally-closed-contact all pins left/right
-- **Terminal single pin** — Reduced to 1 pin (left), connection point only
-- **PSU pins on 20px grid** — Was 12/38, now 20/40 for clean wire routing
-- **Pin Y alignment** — Coil and terminal Y positions account for pin offsets within symbols
-- **Rung annotations** — "RELAY OUTPUT N" auto-added next to each coil
-- **Title blocks** — Drawing numbers auto-filled
-- **Design rules documented** — 10 categories from IEC 61082, NFPA 79, industry standards
-- **symbols:refresh** — Force-update endpoint + npm script
-- **Centralized AI model ID** — ai-config.ts
+- **ANSI symbols horizontal** — coil, NO/NC contacts all pins left/right
+- **Terminal pin right + rotation** — Right-side terminals rotated 180° so pins face inward
+- **Ladder blocks + rungs** — generateRelayBank creates ladder entities with page-based numbering
+- **Design rules** — 10 categories documented from IEC 61082, NFPA 79, industry standards
+- **Schematic design rules in system prompt** — 8 layout rules the AI must follow
+- **symbols:refresh builds core-model** — One command for symbol updates (tsx watch auto-reloads API)
 
 **What was completed in Session 19:**
 - **AI Chat Panel** — Persistent sidebar chat with tool use (place_device, create_wire, add_annotation, add_sheet, list_symbols). AI can now modify drawings directly.
@@ -65,13 +63,14 @@ Before doing ANYTHING else:
 **Branch:** `main` (uncommitted changes from sessions 14-19)
 
 **Next steps (priority order):**
-1. **L1/L2 power rails in templates** — Integrate ladder blocks into generateRelayBank for proper rail rendering
-2. **Wire numbers visible on canvas** — Renderer feature to show wire labels
-3. **Cross-references** — Coil ↔ contact references on schematic (data model + renderer)
-4. **Print/PDF output** — Verify paper sizes (Letter, Tabloid, A4, A3), margins, scale-to-fit
-5. **AI model investigation** — Test cheaper models for simple edit tasks
-6. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
-7. **Symbol accuracy audit** — Remaining: iec-transformer-1ph, iec-horn, iec-surge-arrester
+1. **P0: Wire router pin exit direction** — Wires from PLC DO pins bend downward instead of going straight horizontal to coils. Router needs to respect pin exit direction (right pin → exit right, left pin → exit left) and not route around the parent device bounding box. This is the #1 visual quality issue.
+2. **L1/L2 power rails rendering** — Ladder blocks + rungs exist in data but rails may not render properly yet
+3. **Wire numbers visible on canvas** — Renderer feature to show wire labels
+4. **Cross-references** — Coil ↔ contact references on schematic (data model + renderer)
+5. **Print/PDF output** — Verify Tabloid paper size, margins, scale-to-fit
+6. **Rung numbers verification** — Confirm rung numbers render from ladder blocks
+7. **AI model investigation** — Test cheaper models for simple edit tasks
+8. **Menu bar remaining** — Find/Replace, grid toggle, settings panel
 
 ---
 
