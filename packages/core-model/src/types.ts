@@ -439,7 +439,7 @@ export interface Sheet extends Entity {
   type: 'sheet';
   name: string;
   number: number;
-  size: 'A4' | 'A3' | 'A2' | 'A1' | 'A0' | 'Letter' | 'ANSI-D';
+  size: 'A4' | 'A3' | 'A2' | 'A1' | 'A0' | 'Letter' | 'Tabloid' | 'ANSI-D';
   titleBlock?: TitleBlockData;
   diagramType?: DiagramType;
   ladderConfig?: LadderConfig;

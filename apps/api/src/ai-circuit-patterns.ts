@@ -360,7 +360,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
   // 1. Create power supply sheet if requested
   if (includePowerSupply) {
-    const ps = addSheet(circuit, 'Power Distribution', 'ANSI-D');
+    const ps = addSheet(circuit, 'Power Distribution', 'Tabloid');
     circuit = ps.circuit;
     const psSheetId = ps.sheetId;
 
@@ -413,7 +413,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
     // Create DO output sheet
     const doSheetName = `DO${startDO}-DO${endDO - 1} Outputs`;
-    const doSheet = addSheet(circuit, doSheetName, 'ANSI-D');
+    const doSheet = addSheet(circuit, doSheetName, 'Tabloid');
     circuit = doSheet.circuit;
 
     // Create contacts sheet if needed
@@ -421,7 +421,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     let contactSheetId = doSheet.sheetId;
     if (includeContacts) {
       contactSheetName = `${relayPrefix}${relayIndex}-${relayPrefix}${relayIndex + count - 1} Field Contacts`;
-      const cSheet = addSheet(circuit, contactSheetName, 'ANSI-D');
+      const cSheet = addSheet(circuit, contactSheetName, 'Tabloid');
       circuit = cSheet.circuit;
       contactSheetId = cSheet.sheetId;
     }

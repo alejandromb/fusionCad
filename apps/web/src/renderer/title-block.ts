@@ -14,6 +14,7 @@ export const SHEET_SIZES: Record<string, { width: number; height: number }> = {
   'A1': { width: 3179, height: 2245 },     // 841mm x 594mm
   'A0': { width: 4494, height: 3179 },     // 1189mm x 841mm
   'Letter': { width: 1056, height: 816 },  // 11" x 8.5"
+  'Tabloid': { width: 1632, height: 1056 }, // 17" x 11"
   'ANSI-D': { width: 2592, height: 1728 }, // 34" x 22"
 };
 
