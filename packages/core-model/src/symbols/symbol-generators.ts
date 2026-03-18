@@ -24,8 +24,8 @@ const BODY_INSET = 15;           // body rect starts at x=15
 const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 70px
 const HEADER_HEIGHT = 50;        // space for module type text at top
 const FOOTER_HEIGHT = 20;        // bottom padding
-const DIGITAL_PIN_SPACING = 60;  // px between digital pins (matches relay coil height for alignment)
-const ANALOG_PIN_SPACING = 40;   // px between analog pins
+const DIGITAL_PIN_SPACING = 40;  // px between digital pins (fits 8ch on tabloid with coil clearance)
+const ANALOG_PIN_SPACING = 30;   // px between analog pins
 
 // ---------------------------------------------------------------------------
 // PLC Digital I/O Generator (DI-N, DO-N)

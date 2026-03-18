@@ -171,7 +171,7 @@ function addAnnotation(
   };
 }
 
-function addSheet(circuit: CircuitData, name: string): { circuit: CircuitData; sheetId: string } {
+function addSheet(circuit: CircuitData, name: string, size?: string): { circuit: CircuitData; sheetId: string } {
   const sheetId = generateId();
   return {
     sheetId,
@@ -179,6 +179,7 @@ function addSheet(circuit: CircuitData, name: string): { circuit: CircuitData; s
       ...circuit,
       sheets: [...(circuit.sheets || []), {
         id: sheetId, name, order: (circuit.sheets?.length || 0) + 1,
+        ...(size ? { size } : {}),
         titleBlock: {
           title: name,
           date: new Date().toISOString().slice(0, 10),
@@ -206,7 +207,7 @@ function addLadderBlock(
   const blockId = generateId();
   const now = Date.now();
   const fullConfig: LadderConfig = {
-    railL1X: 80, railL2X: 700, firstRungY: 80, rungSpacing: 60,
+    railL1X: 80, railL2X: 700, firstRungY: 80, rungSpacing: 40,
     railLabelL1: '+24VDC', railLabelL2: '0V',
     numberingScheme: 'page-based',
     ...config,
@@ -359,7 +360,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
   // 1. Create power supply sheet if requested
   if (includePowerSupply) {
-    const ps = addSheet(circuit, 'Power Distribution');
+    const ps = addSheet(circuit, 'Power Distribution', 'ANSI-D');
     circuit = ps.circuit;
     const psSheetId = ps.sheetId;
 
@@ -412,7 +413,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
 
     // Create DO output sheet
     const doSheetName = `DO${startDO}-DO${endDO - 1} Outputs`;
-    const doSheet = addSheet(circuit, doSheetName);
+    const doSheet = addSheet(circuit, doSheetName, 'ANSI-D');
     circuit = doSheet.circuit;
 
     // Create contacts sheet if needed
@@ -420,7 +421,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     let contactSheetId = doSheet.sheetId;
     if (includeContacts) {
       contactSheetName = `${relayPrefix}${relayIndex}-${relayPrefix}${relayIndex + count - 1} Field Contacts`;
-      const cSheet = addSheet(circuit, contactSheetName);
+      const cSheet = addSheet(circuit, contactSheetName, 'ANSI-D');
       circuit = cSheet.circuit;
       contactSheetId = cSheet.sheetId;
     }
@@ -437,7 +438,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     const ladderBlock = addLadderBlock(circuit, doSheet.sheetId, `${doSheetName} Ladder`, {
       railL1X: 80, railL2X: 700,
       firstRungY: plcY + 50, // align with first PLC pin
-      rungSpacing: 60,       // match PLC pin spacing
+      rungSpacing: 40,       // match PLC pin spacing
       railLabelL1: '+24VDC', railLabelL2: '0V',
       voltage: '24VDC',
       numberingScheme: 'page-based',
@@ -464,7 +465,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px
     // ANSI coil: pin 1 (A1) is at symbol_y+20 within symbol
     const firstPinAbsY = plcY + 50;
-    const pinSpacing = 60;            // matches PLC DO symbol pin spacing (DIGITAL_PIN_SPACING)
+    const pinSpacing = 40;            // matches PLC DO symbol pin spacing (DIGITAL_PIN_SPACING)
     const coilPinOffset = 20;
 
     for (let i = 0; i < count; i++) {
