@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-16 (Session 19 — AI Chat Panel with tool use, resizable panel, ANSI preference, electrical intelligence plan)
+**Last Updated**: 2026-03-17 (Session 20 — AI Electrical Intelligence, symbol scaling, layout system, design rules)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -1020,6 +1020,33 @@ This file tracks where we are in development. **Always read this file at the sta
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
 
 ---
+
+### Session 20 - 2026-03-17 (AI Electrical Intelligence + Symbol Scaling + Layout System)
+**Duration**: ~8 hours
+**Completed**:
+- **AI Electrical Intelligence P0-P4**: Enhanced system prompt (circuit rules, pin reference, patterns), template tools (generate_relay_bank, generate_power_section, generate_relay_output), post-gen ERC, rich context (pin status per device), ANSI preference
+- **Symbol scaling 1.5x for Tabloid**: All 75 JSON symbols + PLC generators + Micro800 generators scaled via script (scripts/scale-symbols.mjs)
+- **Tabloid (11×17) paper size**: Added as default, industry standard for US control panel drawings
+- **Proportional layout system**: layoutForSheet() calculates device positions from paper dimensions — change paper size, everything repositions
+- **Grid alignment**: All pin absolute Y positions land on 20px grid multiples, eliminating unnecessary wire bends
+- **ANSI symbols horizontal**: ansi-coil, ansi-normally-open-contact, ansi-normally-closed-contact redrawn with pins left/right
+- **Terminal symbol**: Single pin (right), right-side terminals rotated 180° via transforms
+- **PSU symbol**: Pins snapped to grid-aligned positions (30/60)
+- **Ladder blocks + rungs**: generateRelayBank creates LadderBlock + Rung entities per DO sheet with page-based numbering (sheet 2 → 201-208)
+- **AI chat tools**: move_device (with overlap warning), delete_device (cascades), delete_wire, create_ladder_block, add_rung, auto_layout_ladder
+- **Schematic design rules**: 10 categories documented (IEC 61082, NFPA 79, industry standards), 8 layout rules in AI system prompt
+- **symbols:refresh improvement**: Now builds core-model + waits for API auto-reload in one command
+- **Production requirements documented**: P0-P2 checklist for launch (rate limiting, print, auth, deployment)
+
+**Key Decisions**:
+- Templates are the reliable foundation, AI is the productivity layer on top
+- Symbols designed at 1:1 for Tabloid — no viewport scaling needed (EPLAN approach)
+- ANSI/NEMA is the default standard (user preference)
+- Fix the tool, never the individual project (all improvements are permanent)
+
+**Next Session P0**: Wire router pin exit direction — wires from PLC DO pins bend downward instead of going straight horizontal. Router needs to respect pin exit direction and not route around parent device bounding box.
+
+**Blockers/Questions**: Anthropic API credits showed "too low" error despite $19 balance — may be a workspace/key mismatch.
 
 ### Session 19 - 2026-03-16 (AI Chat Panel + Electrical Intelligence Plan)
 **Duration**: ~3 hours
