@@ -198,7 +198,7 @@ function addLadderBlock(
   const blockId = generateId();
   const now = Date.now();
   const fullConfig: LadderConfig = {
-    railL1X: 80, railL2X: 700, firstRungY: 80, rungSpacing: 30,
+    railL1X: 80, railL2X: 700, firstRungY: 80, rungSpacing: 60,
     railLabelL1: '+24VDC', railLabelL2: '0V',
     numberingScheme: 'page-based',
     ...config,
@@ -424,7 +424,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     const ladderBlock = addLadderBlock(circuit, doSheet.sheetId, `${doSheetName} Ladder`, {
       railL1X: 80, railL2X: 700,
       firstRungY: plcY + 50, // align with first PLC pin
-      rungSpacing: 30,       // match PLC pin spacing
+      rungSpacing: 60,       // match PLC pin spacing
       railLabelL1: '+24VDC', railLabelL2: '0V',
       voltage: '24VDC',
       numberingScheme: 'page-based',
@@ -451,7 +451,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px
     // ANSI coil: pin 1 (A1) is at symbol_y+20 within symbol
     const firstPinAbsY = plcY + 50;
-    const pinSpacing = 30;
+    const pinSpacing = 60;            // matches PLC DO symbol pin spacing (DIGITAL_PIN_SPACING)
     const coilPinOffset = 20;
 
     for (let i = 0; i < count; i++) {
