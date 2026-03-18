@@ -337,9 +337,9 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   // 3. Wire coil pin 2 (A2) → 0V return
   // Place a ground/return terminal for the 0V bus connection
   // Return terminal: align pin (at y=10 within 20px symbol) with coil pin 2 (at coilY+20)
-  // So terminalY = coilY + 20 - 10 = coilY + 10
+  // So terminalY = coilY + 20 - 10 = coilY + 15
   const retTag = `RET-${params.relayTag}`;
-  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY + 10, coilSheetId, '0V Return');
+  const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY + 15, coilSheetId, '0V Return');
   circuit = r1b.circuit;
   // Rotate return terminal 180° so pin faces left (toward the coil)
   circuit = setTransform(circuit, r1b.deviceId, 180);
@@ -355,9 +355,9 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const tbOutTag = `TB-${params.relayTag}b`;
 
   // Terminals: pin at y=10 within 20px symbol. Contact pin at y=20 within 40px symbol.
-  // To align: terminalY = contactY + 20 - 10 = contactY + 10
+  // To align: terminalY = contactY + 20 - 10 = contactY + 15
   // Left terminal: pin-right (toward contact). Right terminal: pin-left (toward contact).
-  const tbAlignedY = contactY + 10;
+  const tbAlignedY = contactY + 15;
   const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, tbAlignedY, contactSheetId, `${params.relayTag} - IN`);
   circuit = r3.circuit;
 
@@ -489,7 +489,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     const firstRungNum = sheetNum * 100 + 1; // Page-based: sheet 2 → 201, sheet 3 → 301
     const ladderBlock = addLadderBlock(circuit, doSheet.sheetId, `${doSheetName} Ladder`, {
       railL1X: bankLayout.railL1X, railL2X: bankLayout.railL2X,
-      firstRungY: plcY + 50, // align with first PLC pin
+      firstRungY: plcY + 75, // align with first PLC pin (HEADER_HEIGHT at 1.5x)
       rungSpacing: 40,       // match PLC pin spacing
       railLabelL1: '+24VDC', railLabelL2: '0V',
       voltage: '24VDC',
@@ -516,9 +516,9 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     // Place relay outputs — align coil pin Y with each PLC DO pin Y
     // PLC DO-8 pins: DO0 at symbol_y+50, then every 30px
     // ANSI coil: pin 1 (A1) is at symbol_y+20 within symbol
-    const firstPinAbsY = plcY + 50;
-    const pinSpacing = 40;            // matches PLC DO symbol pin spacing (DIGITAL_PIN_SPACING)
-    const coilPinOffset = 20;
+    const firstPinAbsY = plcY + 75;  // HEADER_HEIGHT at 1.5x scale
+    const pinSpacing = 60;            // DIGITAL_PIN_SPACING at 1.5x scale
+    const coilPinOffset = 30;         // ansi-coil pin 1 at y=30 within 60px tall symbol (1.5x)
 
     for (let i = 0; i < count; i++) {
       const doPin = `DO${i}`;

@@ -19,13 +19,14 @@ import type { SymbolDefinition, SymbolPin, SymbolPrimitive, PinType, PinDirectio
 // Constants for industrial-convention PLC symbols
 // ---------------------------------------------------------------------------
 
-const WIDTH = 100;
-const BODY_INSET = 15;           // body rect starts at x=15
-const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 70px
-const HEADER_HEIGHT = 50;        // space for module type text at top
-const FOOTER_HEIGHT = 20;        // bottom padding
-const DIGITAL_PIN_SPACING = 40;  // px between digital pins (fits 8ch on tabloid with coil clearance)
-const ANALOG_PIN_SPACING = 30;   // px between analog pins
+// All dimensions at 1.5x scale for Tabloid (11x17) paper
+const WIDTH = 150;
+const BODY_INSET = 22;           // body rect starts at x=22
+const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 106px
+const HEADER_HEIGHT = 75;        // space for module type text at top
+const FOOTER_HEIGHT = 30;        // bottom padding
+const DIGITAL_PIN_SPACING = 60;  // px between digital pins (fits 8ch on tabloid)
+const ANALOG_PIN_SPACING = 45;   // px between analog pins
 
 // ---------------------------------------------------------------------------
 // PLC Digital I/O Generator (DI-N, DO-N)
@@ -304,11 +305,12 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
   const config = MICRO800_MODELS[modelKey.toLowerCase()];
   if (!config) return null;
 
-  const PIN_SPACING = 25;
-  const BODY_X = 20;
-  const BODY_R = 130;   // body right edge
-  const TOTAL_W = 150;
-  const HEADER_H = 60;
+  // Micro800 at 1.5x scale for Tabloid
+  const PIN_SPACING = 38;
+  const BODY_X = 30;
+  const BODY_R = 195;   // body right edge
+  const TOTAL_W = 225;
+  const HEADER_H = 90;
 
   // Calculate left side pin count (DI + AI + COM pins)
   const diComCount = Math.ceil(config.diCount / 8);
