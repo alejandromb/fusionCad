@@ -17,6 +17,56 @@ import {
 } from '@fusion-cad/core-model';
 
 const GRID_SIZE = 20;
+
+// ================================================================
+// Drawing Layout System — coordinates scale to paper size
+// ================================================================
+
+const SHEET_SIZES: Record<string, { width: number; height: number }> = {
+  'A4': { width: 1123, height: 794 },
+  'A3': { width: 1587, height: 1123 },
+  'Letter': { width: 1056, height: 816 },
+  'Tabloid': { width: 1632, height: 1056 },
+  'ANSI-D': { width: 2592, height: 1728 },
+};
+
+const BORDER_MARGIN = 40;
+const TITLE_BLOCK_HEIGHT = 100;
+
+/** Get usable drawing area for a paper size */
+function getDrawingArea(paperSize: string = 'Tabloid') {
+  const sheet = SHEET_SIZES[paperSize] || SHEET_SIZES['Tabloid'];
+  return {
+    left: BORDER_MARGIN,
+    top: BORDER_MARGIN,
+    right: sheet.width - BORDER_MARGIN,
+    bottom: sheet.height - BORDER_MARGIN - TITLE_BLOCK_HEIGHT,
+    width: sheet.width - 2 * BORDER_MARGIN,
+    height: sheet.height - 2 * BORDER_MARGIN - TITLE_BLOCK_HEIGHT,
+  };
+}
+
+/** Calculate layout positions as proportions of the drawing area */
+function layoutForSheet(paperSize: string = 'Tabloid') {
+  const area = getDrawingArea(paperSize);
+  return {
+    // PLC I/O sheet positions (proportional to drawing area)
+    plcX: snap(area.left + area.width * 0.1),           // 10% from left
+    coilX: snap(area.left + area.width * 0.55),          // 55% from left
+    retTerminalX: snap(area.left + area.width * 0.75),   // 75% from left
+    descriptionX: snap(area.left + area.width * 0.85),   // 85% for rung labels
+    firstDeviceY: snap(area.top + 40),                    // top margin + header space
+    railL1X: snap(area.left),                             // left rail at drawing edge
+    railL2X: snap(area.right),                            // right rail at drawing edge
+    // Contact sheet positions
+    contactTbInX: snap(area.left + area.width * 0.15),
+    contactX: snap(area.left + area.width * 0.40),
+    contactTbOutX: snap(area.left + area.width * 0.65),
+    // General
+    annotationY: snap(area.top),
+    area,
+  };
+}
 function snap(v: number): number { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
 
 interface CircuitData {
@@ -262,15 +312,16 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
     ? resolveSheetId(circuit, params.contactSheetName)
     : coilSheetId;
 
-  const coilX = params.coilX || 400;
+  const layout = layoutForSheet('Tabloid');
+  const coilX = params.coilX || layout.coilX;
   const coilY = params.coilY || 80;
-  const retX = coilX + 140;  // return terminal to the right of coil (same Y = straight wire)
+  const retX = layout.retTerminalX;
 
-  // Contacts sheet: laid out HORIZONTALLY with good spacing
+  // Contacts sheet: laid out HORIZONTALLY, scaled to paper
   const contactY = params.contactY || coilY;
-  const tbInX = 100;        // TB field-in on the left
-  const contactX = 240;     // NO contact in the middle
-  const tbOutX = 400;       // TB field-out on the right
+  const tbInX = layout.contactTbInX;
+  const contactX = layout.contactX;
+  const tbOutX = layout.contactTbOutX;
 
   // 1. Place coil
   const r1 = addDevice(circuit, 'ansi-coil', params.relayTag, coilX, coilY, coilSheetId, `${params.relayTag} Coil`);
@@ -321,7 +372,7 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
 
   // 7. Add rung description annotation next to the coil
   const relayNum = params.relayTag.replace(/\D/g, '');
-  circuit = addAnnotation(circuit, `RELAY OUTPUT ${relayNum}`, retX + 60, coilY, coilSheetId);
+  circuit = addAnnotation(circuit, `RELAY OUTPUT ${relayNum}`, layout.descriptionX, coilY, coilSheetId);
 
   return {
     circuit,
@@ -429,14 +480,15 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     // Place PLC DO module
     const plcTag = `PLC1-DO${sheet + 1}`;
     const plcY = 60;
-    const plcDev = addDevice(circuit, plcSymbolId, plcTag, 100, plcY, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
+    const bankLayout = layoutForSheet('Tabloid');
+    const plcDev = addDevice(circuit, plcSymbolId, plcTag, bankLayout.plcX, plcY, doSheet.sheetId, `PLC DO Module ${sheet + 1}`);
     circuit = plcDev.circuit;
 
     // Create ladder block for this DO sheet (renders L1/L2 rails + rung numbers)
     const sheetNum = sheet + 2; // Sheet 1 = power, sheet 2+ = DO outputs
     const firstRungNum = sheetNum * 100 + 1; // Page-based: sheet 2 → 201, sheet 3 → 301
     const ladderBlock = addLadderBlock(circuit, doSheet.sheetId, `${doSheetName} Ladder`, {
-      railL1X: 80, railL2X: 700,
+      railL1X: bankLayout.railL1X, railL2X: bankLayout.railL2X,
       firstRungY: plcY + 50, // align with first PLC pin
       rungSpacing: 40,       // match PLC pin spacing
       railLabelL1: '+24VDC', railLabelL2: '0V',
@@ -447,12 +499,12 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
     circuit = ladderBlock.circuit;
 
     // Annotations
-    circuit = addAnnotation(circuit, doSheetName.toUpperCase(), 200, 20, doSheet.sheetId);
+    circuit = addAnnotation(circuit, doSheetName.toUpperCase(), bankLayout.plcX, bankLayout.annotationY, doSheet.sheetId);
 
     // Create ladder block for contacts sheet too
     if (includeContacts) {
       const contactBlock = addLadderBlock(circuit, contactSheetId, `${contactSheetName} Ladder`, {
-        railL1X: 80, railL2X: 500,
+        railL1X: bankLayout.contactTbInX - 40, railL2X: bankLayout.contactTbOutX + 100,
         firstRungY: 80, rungSpacing: 80,
         railLabelL1: 'FIELD PWR', railLabelL2: 'FIELD RTN',
         numberingScheme: 'page-based',
@@ -479,7 +531,7 @@ export function generateRelayBank(circuit: CircuitData, params: RelayBankParams)
         plcTag, doPin, relayTag,
         coilSheetName: doSheetName,
         contactSheetName: includeContacts ? contactSheetName : undefined,
-        coilX: 400, coilY: rungY,
+        coilX: bankLayout.coilX, coilY: rungY,
         contactX: 200, contactY,
       });
       circuit = result.circuit;
