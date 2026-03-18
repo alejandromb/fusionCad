@@ -191,6 +191,14 @@ function addSheet(circuit: CircuitData, name: string): { circuit: CircuitData; s
   };
 }
 
+function setTransform(
+  circuit: CircuitData, deviceId: string, rotation: number, mirrorH?: boolean,
+): CircuitData {
+  const transforms = { ...(circuit.transforms || {}) };
+  transforms[deviceId] = { rotation, ...(mirrorH !== undefined ? { mirrorH } : {}) };
+  return { ...circuit, transforms };
+}
+
 function addLadderBlock(
   circuit: CircuitData, sheetId: string, name: string,
   config?: Partial<LadderConfig>,
@@ -281,6 +289,8 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const retTag = `RET-${params.relayTag}`;
   const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, coilY + 10, coilSheetId, '0V Return');
   circuit = r1b.circuit;
+  // Rotate return terminal 180° so pin faces left (toward the coil)
+  circuit = setTransform(circuit, r1b.deviceId, 180);
   circuit = addWireById(circuit, coilDeviceId, params.relayTag, '2', r1b.deviceId, retTag, '1');
 
   // 4. Place linked NO contact (same tag = linked device, HORIZONTAL orientation)
@@ -294,12 +304,15 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
 
   // Terminals: pin at y=10 within 20px symbol. Contact pin at y=20 within 40px symbol.
   // To align: terminalY = contactY + 20 - 10 = contactY + 10
+  // Left terminal: pin-right (toward contact). Right terminal: pin-left (toward contact).
   const tbAlignedY = contactY + 10;
   const r3 = addDevice(circuit, 'iec-terminal-single', tbInTag, tbInX, tbAlignedY, contactSheetId, `${params.relayTag} - IN`);
   circuit = r3.circuit;
 
   const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, tbAlignedY, contactSheetId, `${params.relayTag} - OUT`);
   circuit = r4.circuit;
+  // Rotate right-side terminal 180° so pin faces left (toward the contact)
+  circuit = setTransform(circuit, r4.deviceId, 180);
 
   // 6. Wire by deviceId: TB-in pin 1 → NO contact pin 1; NO contact pin 2 → TB-out pin 1
   circuit = addWireById(circuit, r3.deviceId, tbInTag, '1', contactDeviceId, params.relayTag, '1');
