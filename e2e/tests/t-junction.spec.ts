@@ -16,7 +16,7 @@ test.describe('T-Junction wire connections', () => {
     await canvasHelpers.waitForConnectionCount(page, 1);
   }
 
-  test('create T-junction: junction device, branch wire, original wire intact', async ({ page, canvasHelpers }) => {
+  test('create T-junction: 3 connections, junction device, same netId', async ({ page, canvasHelpers }) => {
     await setupBaseWire(page, canvasHelpers);
 
     // Place S3 to the right
@@ -35,42 +35,33 @@ test.describe('T-Junction wire connections', () => {
     await canvasHelpers.clickCanvas(page, 220, 340);
     await page.waitForTimeout(300);
 
-    // Should now have 4 devices (S1, S2, S3, J1) and 2 connections:
-    // - Original wire S1→S2 (intact, with waypoint at junction position)
-    // - Branch wire S3→J1
+    // Should now have 4 devices (S1, S2, S3, J1) and 3 connections
+    // (original wire split into 2 + 1 branch wire)
     await canvasHelpers.waitForDeviceCount(page, 4);
-    await canvasHelpers.waitForConnectionCount(page, 2);
+    await canvasHelpers.waitForConnectionCount(page, 3);
 
     const state = await canvasHelpers.getState(page);
     expect(state.circuit.devices).toHaveLength(4);
-    expect(state.circuit.connections).toHaveLength(2);
+    expect(state.circuit.connections).toHaveLength(3);
 
     // Verify junction device exists
     const junctionDevice = state.circuit.devices.find((d: any) => d.tag.startsWith('J'));
     expect(junctionDevice).toBeTruthy();
     expect(junctionDevice.tag).toBe('J1');
 
-    // Both connections share the same netId
+    // Verify all 3 connections share the same netId
     for (const conn of state.circuit.connections) {
       expect(conn.netId).toBe(originalNetId);
     }
 
-    // Original wire still connects S1→S2 and now has a waypoint at junction position
-    const originalWire = state.circuit.connections.find(
-      (c: any) => c.fromDevice === 'S1' && c.toDevice === 'S2'
-    );
-    expect(originalWire).toBeTruthy();
-    expect(originalWire.waypoints).toBeTruthy();
-    expect(originalWire.waypoints.length).toBeGreaterThanOrEqual(1);
-
-    // Branch wire connects S3 to junction
-    const branchWire = state.circuit.connections.find(
+    // All 3 connections reference the junction
+    const connToJ = state.circuit.connections.filter(
       (c: any) => c.toDevice === 'J1' || c.fromDevice === 'J1'
     );
-    expect(branchWire).toBeTruthy();
+    expect(connToJ).toHaveLength(3);
   });
 
-  test('delete junction removes branch wire, keeps original wire', async ({ page, canvasHelpers }) => {
+  test('delete junction removes connections through it', async ({ page, canvasHelpers }) => {
     await setupBaseWire(page, canvasHelpers);
 
     // Place S3 and create T-junction
@@ -85,7 +76,7 @@ test.describe('T-Junction wire connections', () => {
     await page.waitForTimeout(300);
 
     await canvasHelpers.waitForDeviceCount(page, 4);
-    await canvasHelpers.waitForConnectionCount(page, 2);
+    await canvasHelpers.waitForConnectionCount(page, 3);
 
     // Switch to select mode and click on junction to select it
     // Junction projected onto vertical wire at x=220, y=340
@@ -102,15 +93,13 @@ test.describe('T-Junction wire connections', () => {
     await page.keyboard.press('Delete');
     await page.waitForTimeout(300);
 
-    // Junction device gone, branch wire gone, original S1→S2 wire remains
+    // Junction device gone, all 3 connections referencing it removed
     const state = await canvasHelpers.getState(page);
     const junctionDevice = state.circuit.devices.find((d: any) => d.tag === 'J1');
     expect(junctionDevice).toBeUndefined();
 
-    // Original wire remains (S1→S2)
-    expect(state.circuit.connections).toHaveLength(1);
-    expect(state.circuit.connections[0].fromDevice).toBe('S1');
-    expect(state.circuit.connections[0].toDevice).toBe('S2');
+    // All 3 connections involved the junction, so 0 remain
+    expect(state.circuit.connections).toHaveLength(0);
 
     // 3 regular devices remain (S1, S2, S3)
     expect(state.circuit.devices).toHaveLength(3);
@@ -134,9 +123,9 @@ test.describe('T-Junction wire connections', () => {
     await page.waitForTimeout(300);
 
     await canvasHelpers.waitForDeviceCount(page, 4);
-    await canvasHelpers.waitForConnectionCount(page, 2);
+    await canvasHelpers.waitForConnectionCount(page, 3);
 
-    // Undo the T-junction (Cmd+Z on Mac, Ctrl+Z on others)
+    // Undo the T-junction
     await page.keyboard.press('Meta+z');
     await page.waitForTimeout(300);
 
@@ -145,7 +134,7 @@ test.describe('T-Junction wire connections', () => {
     expect(state.circuit.devices).toHaveLength(3);
     expect(state.circuit.connections).toHaveLength(1);
 
-    // Original connection restored (no waypoints)
+    // Original connection restored
     const conn = state.circuit.connections[0];
     expect(conn.fromDevice).toBe(originalConn.fromDevice);
     expect(conn.fromPin).toBe(originalConn.fromPin);

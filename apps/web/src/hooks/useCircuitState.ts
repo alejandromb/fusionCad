@@ -898,22 +898,19 @@ export function useCircuitState(
 
   // Connect a wire to the middle of an existing wire (T-junction)
   //
-  // Architecture: We add the junction as a WAYPOINT on the existing wire
-  // (so the wire passes through the junction) and create a NEW wire from
-  // the source pin to the junction. The original wire is NOT split.
-  //
-  // This avoids the fragile "split-and-splice" approach where each T-junction
-  // on a bus wire fragments it into smaller segments, causing index shifting
-  // and re-routing issues on subsequent junctions.
+  // Splits the target wire into 2 segments through a new junction device,
+  // and creates a 3rd wire from the source pin to the junction.
+  // The junction position comes from projectPointOntoWire() so it's exactly
+  // on the target wire path. The entire mutation happens in one setCircuit
+  // call to avoid stale-index issues.
   const connectToWire = useCallback((connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => {
     if (!circuit) return;
 
     pushToHistory();
 
     const now = Date.now();
-    const originalConn = circuit.connections[connectionIndex];
 
-    // Create junction part
+    // Create junction part + device
     const junctionPartId = generateId();
     const junctionPart: Part = {
       id: junctionPartId,
@@ -927,7 +924,6 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
-    // Create junction device with unique tag
     const junctionTag = generateTag('junction', circuit.devices);
     const junctionDeviceId = generateId();
     const junctionDevice: Device = {
@@ -941,39 +937,57 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
-    // Position junction at the projected coordinates (already on the wire).
+    // Use exact projected coordinates (no rounding — must stay on the wire)
     const junctionX = worldX;
     const junctionY = worldY;
 
-    // Resolve device ID for startPin
     const startDevice = circuit.devices.find(d => d.id === startPin.device);
 
-    // New connection from the starting pin to the junction
-    const newWire: Connection = {
-      fromDevice: startDevice?.tag || startPin.device,
-      fromDeviceId: startPin.device,
-      fromPin: startPin.pin,
-      toDevice: junctionTag,
-      toDeviceId: junctionDeviceId,
-      toPin: '1',
-      netId: originalConn.netId,
-      sheetId: originalConn.sheetId || validActiveSheetId,
-    };
-
+    // Read the original connection INSIDE setCircuit to avoid stale references.
+    // This is critical when multiple T-junctions are created rapidly.
     setCircuit(prev => {
       if (!prev) return prev;
+      const originalConn = prev.connections[connectionIndex];
+      if (!originalConn) return prev;
+
+      // Split: original wire → (from→junction) + (junction→to)
+      const conn1: Connection = {
+        fromDevice: originalConn.fromDevice,
+        fromDeviceId: originalConn.fromDeviceId,
+        fromPin: originalConn.fromPin,
+        toDevice: junctionTag,
+        toDeviceId: junctionDeviceId,
+        toPin: '1',
+        netId: originalConn.netId,
+        sheetId: originalConn.sheetId || validActiveSheetId,
+      };
+
+      const conn2: Connection = {
+        fromDevice: junctionTag,
+        fromDeviceId: junctionDeviceId,
+        fromPin: '1',
+        toDevice: originalConn.toDevice,
+        toDeviceId: originalConn.toDeviceId,
+        toPin: originalConn.toPin,
+        netId: originalConn.netId,
+        sheetId: originalConn.sheetId || validActiveSheetId,
+      };
+
+      // Branch wire: source pin → junction
+      const conn3: Connection = {
+        fromDevice: startDevice?.tag || startPin.device,
+        fromDeviceId: startPin.device,
+        fromPin: startPin.pin,
+        toDevice: junctionTag,
+        toDeviceId: junctionDeviceId,
+        toPin: '1',
+        netId: originalConn.netId,
+        sheetId: originalConn.sheetId || validActiveSheetId,
+      };
+
       const newConnections = [...prev.connections];
-
-      // Add waypoint to original wire at junction position so it visually
-      // passes through the junction point. Insert in order along the wire.
-      const conn = { ...newConnections[connectionIndex] };
-      const waypoints = conn.waypoints ? [...conn.waypoints] : [];
-      waypoints.push({ x: junctionX, y: junctionY });
-      conn.waypoints = waypoints;
-      newConnections[connectionIndex] = conn;
-
-      // Add new branch wire
-      newConnections.push(newWire);
+      newConnections.splice(connectionIndex, 1, conn1, conn2);
+      newConnections.push(conn3);
 
       return {
         ...prev,
