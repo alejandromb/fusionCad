@@ -81,10 +81,10 @@ test.describe('T-Junction wire connections', () => {
     await canvasHelpers.waitForConnectionCount(page, 3);
 
     // Switch to select mode and click on junction to select it
-    // Junction snaps to wire at x=220, Y aligned to source pin (S3 pin 1 at y=300)
-    // Junction symbol is 12x12 at (220, 300), center at (226, 306)
+    // Junction projects onto vertical wire at x=220, click y=340 projects to (220, 340)
+    // Junction symbol is 12x12 at (220, 340), center at (226, 346)
     await canvasHelpers.selectMode(page);
-    await canvasHelpers.clickCanvas(page, 226, 306);
+    await canvasHelpers.clickCanvas(page, 226, 346);
     await page.waitForTimeout(200);
 
     // Verify junction is selected (selectedDevices contains device IDs)
