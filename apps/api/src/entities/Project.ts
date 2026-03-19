@@ -11,10 +11,15 @@ import {
  */
 export interface ConnectionData {
   fromDevice: string;
+  fromDeviceId?: string;
   fromPin: string;
   toDevice: string;
+  toDeviceId?: string;
   toPin: string;
   netId: string;
+  sheetId?: string;
+  wireNumber?: string;
+  waypoints?: { x: number; y: number }[];
 }
 
 /**
@@ -39,6 +44,7 @@ export interface CircuitData {
   terminals?: unknown[];
   rungs?: unknown[];
   transforms?: Record<string, unknown>;
+  blocks?: unknown[];
 }
 
 @Entity('projects')

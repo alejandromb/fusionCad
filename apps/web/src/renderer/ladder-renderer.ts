@@ -59,6 +59,25 @@ export function renderLadderOverlay(
   ctx.fillText(labelL1, railL1X, railTopY - 8);
   ctx.fillText(labelL2, railL2X, railTopY - 8);
 
+  // ---- Vertical power rail lines (bold) ----
+  if (sortedRungs.length > 0) {
+    const firstY = firstRungY;
+    const lastY = firstRungY + (sortedRungs[sortedRungs.length - 1].number - 1) * rungSpacing;
+    ctx.strokeStyle = t.ladderRailLineColor;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    // L1 rail
+    ctx.beginPath();
+    ctx.moveTo(railL1X, firstY);
+    ctx.lineTo(railL1X, lastY);
+    ctx.stroke();
+    // L2 rail
+    ctx.beginPath();
+    ctx.moveTo(railL2X, firstY);
+    ctx.lineTo(railL2X, lastY);
+    ctx.stroke();
+  }
+
   // ---- Voltage label (centered between rails at top) ----
   if (voltage) {
     ctx.font = 'bold 14px monospace';

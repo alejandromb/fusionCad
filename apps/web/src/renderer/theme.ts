@@ -79,6 +79,7 @@ export interface ThemeData {
 
   // Ladder diagram
   ladderRailLabelColor: string;
+  ladderRailLineColor: string;
   ladderVoltageColor: string;
   ladderRungGuideColor: string;
   ladderRungNumberColor: string;
@@ -251,6 +252,7 @@ const PROFESSIONAL: ThemeData = {
   annotationSelectionColor: '#5B9BD5',
   junctionFill: '#c8c8c8',
   ladderRailLabelColor: '#ffffff',
+  ladderRailLineColor: '#888888',
   ladderVoltageColor: '#D4A84D',
   ladderRungGuideColor: 'rgba(255, 255, 255, 0.06)',
   ladderRungNumberColor: '#aaaaaa',
@@ -304,6 +306,7 @@ const HIGH_CONTRAST: ThemeData = {
   annotationSelectionColor: '#FFD700',
   junctionFill: '#ffffff',
   ladderRailLabelColor: '#ffffff',
+  ladderRailLineColor: '#888888',
   ladderVoltageColor: '#FFD700',
   ladderRungGuideColor: 'rgba(255, 255, 255, 0.12)',
   ladderRungNumberColor: '#dddddd',
@@ -357,6 +360,7 @@ const BLUEPRINT: ThemeData = {
   annotationSelectionColor: '#7AA3C8',
   junctionFill: '#E0D5C0',
   ladderRailLabelColor: '#E0D5C0',
+  ladderRailLineColor: '#8A7E6A',
   ladderVoltageColor: '#D4B84D',
   ladderRungGuideColor: 'rgba(224, 213, 192, 0.06)',
   ladderRungNumberColor: '#A09580',
@@ -410,6 +414,7 @@ const CLASSIC: ThemeData = {
   annotationSelectionColor: '#00BFFF',
   junctionFill: '#00ff00',
   ladderRailLabelColor: '#00ff00',
+  ladderRailLineColor: '#00aa00',
   ladderVoltageColor: '#FFFF00',
   ladderRungGuideColor: 'rgba(0, 255, 0, 0.06)',
   ladderRungNumberColor: '#00aa00',
@@ -463,6 +468,7 @@ const LIGHT: ThemeData = {
   annotationSelectionColor: '#2070B0',
   junctionFill: '#333333',
   ladderRailLabelColor: '#222222',
+  ladderRailLineColor: '#555555',
   ladderVoltageColor: '#A08020',
   ladderRungGuideColor: 'rgba(0, 0, 0, 0.06)',
   ladderRungNumberColor: '#666666',
@@ -571,6 +577,7 @@ export function deriveFullTheme(input: CustomThemeInput): { theme: ThemeData; cs
     annotationSelectionColor: input.accentColor,
     junctionFill: input.symbolColor,
     ladderRailLabelColor: input.textColor,
+    ladderRailLineColor: adjustBrightness(input.textColor, 0.5),
     ladderVoltageColor: '#D4A84D',
     ladderRungGuideColor: `rgba(${isLight ? '0, 0, 0' : '255, 255, 255'}, 0.06)`,
     ladderRungNumberColor: adjustBrightness(input.textColor, 0.7),
