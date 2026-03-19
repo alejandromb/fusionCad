@@ -937,9 +937,11 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
-    // Use exact projected coordinates (no rounding — must stay on the wire)
-    const junctionX = worldX;
-    const junctionY = worldY;
+    // Snap junction to grid. The projection puts us on the wire, and grid-snapping
+    // keeps coordinates clean for the auto-router. Since wire endpoints are grid-aligned,
+    // snapping the junction to grid keeps it on the wire while avoiding sub-pixel drift.
+    const junctionX = snapToGrid(worldX);
+    const junctionY = snapToGrid(worldY);
 
     const startDevice = circuit.devices.find(d => d.id === startPin.device);
 
