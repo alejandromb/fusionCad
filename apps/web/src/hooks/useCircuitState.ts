@@ -933,9 +933,12 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
-    // Position junction so its pin "1" (at position 0,0) aligns with the click point
-    const junctionX = snapToGrid(worldX);
-    const junctionY = snapToGrid(worldY);
+    // Position junction at the given coordinates.
+    // The caller (useCanvasInteraction) projects the click point onto the wire path,
+    // so these coordinates are already aligned to the wire — don't re-snap to grid
+    // as that would pull the junction off the wire.
+    const junctionX = Math.round(worldX);
+    const junctionY = Math.round(worldY);
 
     // Resolve device ID for startPin (startPin.device is now device ID)
     const startDevice = circuit.devices.find(d => d.id === startPin.device);

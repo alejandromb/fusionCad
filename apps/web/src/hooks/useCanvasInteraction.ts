@@ -160,6 +160,52 @@ function simplifyWaypoints(waypoints: Point[]): Point[] | undefined {
   return result.length > 0 ? result : undefined;
 }
 
+/**
+ * Project a point onto the nearest segment of a wire's rendered path.
+ * Returns the closest point ON the wire, ensuring T-junctions align perfectly.
+ */
+function projectPointOntoWire(
+  worldX: number,
+  worldY: number,
+  conn: Connection,
+  fromPinPos: Point,
+  toPinPos: Point,
+): Point {
+  // Build the wire path: from pin → waypoints → to pin, orthogonalized
+  const rawPoints: Point[] = [fromPinPos];
+  if (conn.waypoints && conn.waypoints.length > 0) {
+    rawPoints.push(...conn.waypoints);
+  }
+  rawPoints.push(toPinPos);
+  const pathPoints = toOrthogonalPath(rawPoints);
+
+  let bestDist = Infinity;
+  let bestPoint: Point = { x: worldX, y: worldY };
+
+  for (let i = 0; i < pathPoints.length - 1; i++) {
+    const ax = pathPoints[i].x, ay = pathPoints[i].y;
+    const bx = pathPoints[i + 1].x, by = pathPoints[i + 1].y;
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+
+    let proj: Point;
+    if (lenSq === 0) {
+      proj = { x: ax, y: ay };
+    } else {
+      const t = Math.max(0, Math.min(1, ((worldX - ax) * dx + (worldY - ay) * dy) / lenSq));
+      proj = { x: ax + t * dx, y: ay + t * dy };
+    }
+
+    const dist = Math.hypot(worldX - proj.x, worldY - proj.y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestPoint = proj;
+    }
+  }
+
+  return bestPoint;
+}
+
 export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasInteractionReturn {
   const {
     circuit,
@@ -939,7 +985,19 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               // Check if clicking on an existing wire for T-junction
               const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
               if (hitWire !== null) {
-                connectToWire(toGlobalIndex(hitWire), world.x, world.y, wireStart);
+                // Project click point onto the wire path so the junction
+                // aligns exactly on the wire (not just to the nearest grid point)
+                const hitConn = sheetConnections[hitWire];
+                const { fromPinPos, toPinPos } = computeWirePinPositions(
+                  hitConn, circuit.devices, circuit.parts, allPositions, circuit.transforms
+                );
+                let junctionX = world.x, junctionY = world.y;
+                if (fromPinPos && toPinPos) {
+                  const projected = projectPointOntoWire(world.x, world.y, hitConn, fromPinPos, toPinPos);
+                  junctionX = projected.x;
+                  junctionY = projected.y;
+                }
+                connectToWire(toGlobalIndex(hitWire), junctionX, junctionY, wireStart);
                 setWireStart(null);
               }
             }
