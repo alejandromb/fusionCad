@@ -953,6 +953,11 @@ export function useCircuitState(
       if (!originalConn) return prev;
 
       // Split: original wire → (from→junction) + (junction→to)
+      // Give each half a waypoint at the junction position so the auto-router
+      // keeps them on the same straight path as the original wire.
+      // (KiCad uses independent line segments; we emulate this with waypoints.)
+      const junctionWaypoint = { x: junctionX, y: junctionY };
+
       const conn1: Connection = {
         fromDevice: originalConn.fromDevice,
         fromDeviceId: originalConn.fromDeviceId,
@@ -962,6 +967,7 @@ export function useCircuitState(
         toPin: '1',
         netId: originalConn.netId,
         sheetId: originalConn.sheetId || validActiveSheetId,
+        waypoints: [junctionWaypoint],
       };
 
       const conn2: Connection = {
@@ -973,6 +979,7 @@ export function useCircuitState(
         toPin: originalConn.toPin,
         netId: originalConn.netId,
         sheetId: originalConn.sheetId || validActiveSheetId,
+        waypoints: [junctionWaypoint],
       };
 
       // Branch wire: source pin → junction
