@@ -8,6 +8,10 @@
 import {
   generateId,
   getSymbolById,
+  alignDeviceToPin,
+  getPinOffsetY,
+  getPinWorldY,
+  getPlcPinWorldYs,
   type Device,
   type Part,
   type LadderBlock,
@@ -17,44 +21,6 @@ import {
 } from '@fusion-cad/core-model';
 
 const GRID_SIZE = 20;
-
-/**
- * Compute the device Y position so that the given pin aligns with a target world Y.
- * Reads pin offset from the actual symbol definition — no hardcoded offsets.
- *
- * deviceY = targetPinWorldY - pinOffsetWithinSymbol
- */
-function alignDeviceToPin(symbolId: string, pinId: string, targetPinWorldY: number): number {
-  const sym = getSymbolById(symbolId);
-  if (!sym) return targetPinWorldY; // fallback: place at target Y
-  const pin = sym.pins.find(p => p.id === pinId);
-  if (!pin) return targetPinWorldY;
-  const pinY = pin.position.y;
-  return targetPinWorldY - pinY;
-}
-
-/**
- * Get the Y offset of a pin within a symbol.
- */
-function getPinOffsetY(symbolId: string, pinId: string): number {
-  const sym = getSymbolById(symbolId);
-  if (!sym) return 0;
-  const pin = sym.pins.find(p => p.id === pinId);
-  return pin ? pin.position.y : 0;
-}
-
-/**
- * Get the Y positions of all digital pins for a PLC symbol.
- * Returns absolute Y positions given the device's world Y.
- */
-function getPlcPinWorldYs(symbolId: string, deviceY: number, pinPrefix: string, count: number): number[] {
-  const sym = getSymbolById(symbolId);
-  if (!sym) return [];
-  return Array.from({ length: count }, (_, i) => {
-    const pin = sym.pins.find(p => p.id === `${pinPrefix}${i}`);
-    return pin ? deviceY + pin.position.y : deviceY;
-  });
-}
 
 // ================================================================
 // Drawing Layout System — coordinates scale to paper size

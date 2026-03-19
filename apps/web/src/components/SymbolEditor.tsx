@@ -399,6 +399,22 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   const [editorHistoryIndex, setEditorHistoryIndex] = useState(-1);
   const isUndoRedoRef = useRef(false);
 
+  // Push current state onto the history stack (call BEFORE mutation)
+  const pushEditorHistory = useCallback(() => {
+    if (isUndoRedoRef.current) return;
+    const snapshot: EditorSnapshot = {
+      paths: paths.map(p => ({ ...p, points: [...p.points] })),
+      pins: pins.map(p => ({ ...p, position: { ...p.position } })),
+    };
+    setEditorHistory(prev => {
+      const trimmed = prev.slice(0, editorHistoryIndex + 1);
+      trimmed.push(snapshot);
+      if (trimmed.length > MAX_EDITOR_HISTORY) return trimmed.slice(-MAX_EDITOR_HISTORY);
+      return trimmed;
+    });
+    setEditorHistoryIndex(prev => Math.min(prev + 1, MAX_EDITOR_HISTORY - 1));
+  }, [paths, pins, editorHistoryIndex]);
+
   // AI symbol generation
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -485,22 +501,6 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   const validationReport = useMemo((): SymbolValidationReport => {
     return validateSymbol(tempSymbolDef);
   }, [tempSymbolDef]);
-
-  // Push current state onto the history stack (call BEFORE mutation)
-  const pushEditorHistory = useCallback(() => {
-    if (isUndoRedoRef.current) return;
-    const snapshot: EditorSnapshot = {
-      paths: paths.map(p => ({ ...p, points: [...p.points] })),
-      pins: pins.map(p => ({ ...p, position: { ...p.position } })),
-    };
-    setEditorHistory(prev => {
-      const trimmed = prev.slice(0, editorHistoryIndex + 1);
-      trimmed.push(snapshot);
-      if (trimmed.length > MAX_EDITOR_HISTORY) return trimmed.slice(-MAX_EDITOR_HISTORY);
-      return trimmed;
-    });
-    setEditorHistoryIndex(prev => Math.min(prev + 1, MAX_EDITOR_HISTORY - 1));
-  }, [paths, pins, editorHistoryIndex]);
 
   const editorUndo = useCallback(() => {
     if (editorHistoryIndex < 0 || editorHistory.length === 0) return;
@@ -1831,7 +1831,9 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
   };
 
   // Export symbol in builtin-symbols.json flat format (browser download)
-  const handleExportToBuiltin = () => {
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+
+  const handleExportToBuiltin = async () => {
     const primitivesList = editorPathsToPrimitives(paths);
     const id = editSymbolId || `custom-${generateId()}`;
 
@@ -1855,14 +1857,20 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       standard: symbolStandard || undefined,
     };
 
-    const json = JSON.stringify(builtinEntry, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${id}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      setExportStatus('Saving...');
+      const resp = await fetch(`${API_BASE}/api/symbols/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(builtinEntry),
+      });
+      if (!resp.ok) throw new Error(`Failed: ${resp.status}`);
+      setExportStatus('Saved to library');
+      setTimeout(() => setExportStatus(null), 2000);
+    } catch (err: any) {
+      setExportStatus(`Error: ${err.message}`);
+      setTimeout(() => setExportStatus(null), 3000);
+    }
   };
 
   // Clear all (with history)
@@ -2437,9 +2445,29 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
           <button
             className="btn secondary"
             onClick={handleExportToBuiltin}
-            title="Download symbol in builtin-symbols.json format"
+            title="Save symbol directly to the symbol library"
           >
-            Export to Builtin
+            {exportStatus || 'Save to Library'}
+          </button>
+          <button
+            className="btn secondary"
+            onClick={() => {
+              const primitivesList = editorPathsToPrimitives(paths);
+              const id = editSymbolId || `custom-${generateId()}`;
+              const entry = {
+                id, name: symbolName, category: symbolCategory,
+                width: symbolWidth, height: symbolHeight, svgPath: '',
+                primitives: primitivesList.length > 0 ? primitivesList : [],
+                pins: pins.map(p => ({ id: p.name || p.id, name: p.name, x: p.position.x, y: p.position.y, direction: p.direction, pinType: p.pinType })),
+                tagPrefix, standard: symbolStandard || undefined,
+              };
+              const blob = new Blob([JSON.stringify(entry, null, 2)], { type: 'application/json' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `${id}.json`; a.click(); URL.revokeObjectURL(a.href);
+            }}
+            title="Download JSON to commit into builtin-symbols.json for deployment"
+          >
+            Export JSON
           </button>
           <button
             className="btn primary"

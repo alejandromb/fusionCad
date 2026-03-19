@@ -28,17 +28,17 @@ describe('generateMotorStarter', () => {
     expect(circuit.sheets![1].name).toBe('Control');
   });
 
-  it('Power sheet has 4 devices (CB1, K1, F1, M1)', () => {
+  it('Power sheet has 11 devices (X1:1-3, CB1, K1, F1, X2:1-3, M1, PE1)', () => {
     const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
     const { circuit, powerSheetId } = result;
     const powerDevices = circuit.devices.filter(d => d.sheetId === powerSheetId);
-    expect(powerDevices).toHaveLength(4);
+    expect(powerDevices).toHaveLength(11);
 
     const tags = powerDevices.map(d => d.tag).sort();
-    expect(tags).toEqual(['CB1', 'F1', 'K1', 'M1']);
+    expect(tags).toEqual(['CB1', 'F1', 'K1', 'M1', 'PE1', 'X1:1', 'X1:2', 'X1:3', 'X2:1', 'X2:2', 'X2:3']);
   });
 
-  it('Power sheet has 9 phase wires (3 phases x 3 hops)', () => {
+  it('Power sheet has 15 phase wires (3 phases x 5 hops through terminals)', () => {
     const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
     const { circuit, powerSheetId } = result;
     const powerDeviceIds = new Set(
@@ -49,15 +49,16 @@ describe('generateMotorStarter', () => {
     const powerWires = circuit.connections.filter(
       c => powerDeviceIds.has(c.fromDeviceId!) && powerDeviceIds.has(c.toDeviceId!),
     );
-    expect(powerWires).toHaveLength(9);
+    expect(powerWires).toHaveLength(15);
   });
 
-  it('Control sheet is ladder type', () => {
+  it('Control sheet has a ladder block', () => {
     const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
     const { circuit, controlSheetId } = result;
-    const controlSheet = circuit.sheets!.find(s => s.id === controlSheetId)!;
-    expect(controlSheet.diagramType).toBe('ladder');
-    expect(controlSheet.ladderConfig).toBeDefined();
+    const controlBlocks = (circuit.blocks || []).filter(
+      b => b.sheetId === controlSheetId && b.blockType === 'ladder',
+    );
+    expect(controlBlocks).toHaveLength(1);
   });
 
   it('Control sheet has 3 rungs (rung 2 is branch of 1)', () => {
@@ -97,27 +98,33 @@ describe('generateMotorStarter', () => {
   it('120VAC variant uses L1/L2 rail labels', () => {
     const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
     const { circuit, controlSheetId } = result;
-    const controlSheet = circuit.sheets!.find(s => s.id === controlSheetId)!;
-    expect(controlSheet.ladderConfig!.railLabelL1).toBe('L1');
-    expect(controlSheet.ladderConfig!.railLabelL2).toBe('L2');
+    const ladderBlock = (circuit.blocks || []).find(
+      b => b.sheetId === controlSheetId && b.blockType === 'ladder',
+    ) as any;
+    expect(ladderBlock).toBeDefined();
+    expect(ladderBlock.ladderConfig.railLabelL1).toBe('L1');
+    expect(ladderBlock.ladderConfig.railLabelL2).toBe('L2');
   });
 
   it('24VDC variant uses +24V/0V rail labels', () => {
     const result = generateMotorStarter(emptyCircuit(), '24VDC', 'M1');
     const { circuit, controlSheetId } = result;
-    const controlSheet = circuit.sheets!.find(s => s.id === controlSheetId)!;
-    expect(controlSheet.ladderConfig!.railLabelL1).toBe('+24V');
-    expect(controlSheet.ladderConfig!.railLabelL2).toBe('0V');
+    const ladderBlock = (circuit.blocks || []).find(
+      b => b.sheetId === controlSheetId && b.blockType === 'ladder',
+    ) as any;
+    expect(ladderBlock).toBeDefined();
+    expect(ladderBlock.ladderConfig.railLabelL1).toBe('+24V');
+    expect(ladderBlock.ladderConfig.railLabelL2).toBe('0V');
   });
 
   it('generates expected total device and connection counts', () => {
     const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
     const { circuit } = result;
 
-    // 4 power + 9 control + 5 rail junctions = 18 devices
-    expect(circuit.devices.length).toBe(18);
-    // 9 power + 7 control rung + 8 rail = 24 connections
-    expect(circuit.connections.length).toBe(24);
+    // 11 power (X1:1-3, CB1, K1, F1, X2:1-3, M1, PE1) + 10 control + 5 rail junctions = 26 devices
+    expect(circuit.devices.length).toBe(26);
+    // 15 power + 8 control rung + 8 rail = 31 connections
+    expect(circuit.connections.length).toBe(31);
   });
 
   it('all control devices have positions and transforms set', () => {
@@ -128,6 +135,24 @@ describe('generateMotorStarter', () => {
     for (const device of controlDevices) {
       expect(circuit.positions[device.id]).toBeDefined();
     }
+  });
+
+  it('power devices use pin-based alignment (no hardcoded Y values)', () => {
+    const result = generateMotorStarter(emptyCircuit(), '120VAC', 'M1');
+    const { circuit, powerSheetId } = result;
+    const powerDevices = circuit.devices.filter(d => d.sheetId === powerSheetId);
+
+    // CB1 should be below X1 terminals, K1 below CB1, etc.
+    const getY = (tag: string) => {
+      const dev = powerDevices.find(d => d.tag === tag)!;
+      return circuit.positions[dev.id]?.y;
+    };
+
+    expect(getY('X1:1')).toBeLessThan(getY('CB1'));
+    expect(getY('CB1')).toBeLessThan(getY('K1'));
+    expect(getY('K1')).toBeLessThan(getY('F1'));
+    expect(getY('F1')).toBeLessThan(getY('X2:1'));
+    expect(getY('X2:1')).toBeLessThan(getY('M1'));
   });
 });
 

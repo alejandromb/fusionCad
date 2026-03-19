@@ -23,7 +23,7 @@ import type { SymbolDefinition, SymbolPin, SymbolPrimitive, PinType, PinDirectio
 const WIDTH = 150;
 const BODY_INSET = 22;           // body rect starts at x=22
 const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 106px
-const HEADER_HEIGHT = 75;        // space for module type text at top
+const HEADER_HEIGHT = 80;        // space for module type text at top (grid-aligned)
 const FOOTER_HEIGHT = 30;        // bottom padding
 const DIGITAL_PIN_SPACING = 60;  // px between digital pins (fits 8ch on tabloid)
 const ANALOG_PIN_SPACING = 45;   // px between analog pins

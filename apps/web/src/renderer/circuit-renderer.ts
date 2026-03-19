@@ -197,6 +197,10 @@ export function getWireAtPoint(
     partMap.set(part.id, part);
   }
 
+  // Track best (closest) hit across all wires
+  let bestHitIndex: number | null = null;
+  let bestHitDist = Infinity;
+
   // Build route requests for wires without manual waypoints
   const routeRequests: RouteRequest[] = [];
   const connectionMetadata: Array<{
@@ -249,15 +253,16 @@ export function getWireAtPoint(
       rawPoints.push({ x: toX, y: toY });
       const pathPoints = toOrthogonalPath(rawPoints);
 
-      // Check each segment
+      // Check each segment — track closest hit
       for (let j = 0; j < pathPoints.length - 1; j++) {
         const dist = pointToSegmentDistance(
           worldX, worldY,
           pathPoints[j].x, pathPoints[j].y,
           pathPoints[j + 1].x, pathPoints[j + 1].y
         );
-        if (dist <= hitRadius) {
-          return i;
+        if (dist <= hitRadius && dist < bestHitDist) {
+          bestHitDist = dist;
+          bestHitIndex = i;
         }
       }
     } else {
@@ -303,21 +308,22 @@ export function getWireAtPoint(
         pathPoints = toOrthogonalPath(rawPoints);
       }
 
-      // Check each segment
+      // Check each segment — track closest hit
       for (let j = 0; j < pathPoints.length - 1; j++) {
         const dist = pointToSegmentDistance(
           worldX, worldY,
           pathPoints[j].x, pathPoints[j].y,
           pathPoints[j + 1].x, pathPoints[j + 1].y
         );
-        if (dist <= hitRadius) {
-          return metadata.index;
+        if (dist <= hitRadius && dist < bestHitDist) {
+          bestHitDist = dist;
+          bestHitIndex = metadata.index;
         }
       }
     }
   }
 
-  return null;
+  return bestHitIndex;
 }
 
 /**

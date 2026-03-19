@@ -1,6 +1,6 @@
 # fusionCad Development Status
 
-**Last Updated**: 2026-03-18 (Session 21 — Wire routing direction constraints, snap toggle, pin-based alignment)
+**Last Updated**: 2026-03-18 (Session 22 — Grid-aligned symbols, pin-based alignment, terminal redesign, symbol editor fix)
 **Current Phase**: Phase 2 - Minimal Editor
 **Phase Status**: 99% Complete
 
@@ -1022,6 +1022,31 @@ This file tracks where we are in development. **Always read this file at the sta
 - Root-level `npx tsc --noEmit` has pre-existing errors (TypeORM decorators, JSX flags) — use per-package tsconfigs instead
 
 ---
+
+### Session 22 - 2026-03-18 (Grid-Aligned Symbols + Pin-Based Templates + Terminal Redesign)
+**Completed**:
+- **Pin-based alignment in ALL templates** — Replaced hardcoded Y offsets (40, 140, 260...) with `alignDeviceToPin()` / `getPinWorldY()` chain in `circuit-templates.ts` and `ai-generate.ts`. Alignment functions moved to core-model for sharing.
+- **63 symbols grid-aligned** — All pin positions rounded to multiples of 20px. Automated script (`scripts/fix-symbol-grid.mjs`) scaled primitives proportionally. Fixes manual alignment — devices now snap to positions where pins align with each other.
+- **PLC generator grid-aligned** — `HEADER_HEIGHT` 75→80 in `symbol-generators.ts`. PLC DO pins now align with coils on 20px grid.
+- **Terminal redesign (hexagon)** — `iec-terminal-single` changed from rectangle to pointy-top hexagon (40x40), single pin at top vertex (20,0). No cross-bar. Dual-level terminal removed. All template wiring updated: pin '2' → pin '1'.
+- **Symbol Editor crash fixed** — `pushEditorHistory` referenced before initialization (temporal dead zone). Moved declaration above the callback that uses it.
+- **Symbol Editor "Save to Library"** — New button saves symbol directly to DB via `PUT /api/symbols/:id`. No rebuild/seed needed. "Export JSON" button kept for deployment workflow.
+- **Wire hit detection: closest match** — `getWireAtPoint` now returns closest wire by distance instead of first match. Helps with densely packed wires.
+- **Consolidated roadmap** — All requirements merged into single `memory/roadmap-priorities.md` (P0/P1/P2).
+
+**Discovered Bugs**:
+- **P0: Wire selection index mismatch** — Clicking a wire selects the WRONG wire. Renderer uses sheet-filtered connection indices but hit detection uses global indices. Full analysis in `memory/bug-wire-selection-mismatch.md`. Fix next session.
+
+**Key Decisions**:
+- All symbol pin positions MUST be multiples of 20px (grid size) — this is now a design principle
+- Terminals are single-pin hexagons. Dual-level = two singles linked by `deviceGroupId`
+- Symbol Editor saves directly to DB for live editing; JSON export for deployment
+
+**Next Session (Priority Order)**:
+1. **P0 FIX: Wire selection index mismatch** — Share sheet-filtered connections between renderer and interaction handler
+2. L1/L2 vertical rail rendering
+3. Wire numbers visible on canvas (persistence)
+4. Cross-references (coil ↔ contact)
 
 ### Session 21 - 2026-03-18 (Wire Routing Direction Constraints + Snap Toggle + Pin-Based Alignment)
 **Completed**:

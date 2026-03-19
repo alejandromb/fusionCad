@@ -21,6 +21,7 @@
 
 import type { CircuitData } from './api-client.js';
 import type { MotorStarterResult } from '@fusion-cad/core-model';
+import { alignDeviceToPin, getPinWorldY } from '@fusion-cad/core-model';
 import {
   placeDevice,
   placeLinkedDevice,
@@ -77,60 +78,75 @@ export function generateMotorStarter(
 
   // ================================================================
   //  SHEET 1 — Power Section (schematic, top-to-bottom)
+  //  Pin-based alignment: each device's input pin aligns with the
+  //  previous device's output pin. No hardcoded Y offsets.
   // ================================================================
+  const POWER_X = 100;       // center column X
+  const POWER_START_Y = 40;  // starting Y for supply terminals
+  const POWER_GAP = 20;      // vertical gap between output pin and next input pin
 
   // Supply terminals (strip X1) — panel boundary for incoming cables
-  const x1_1 = placeDevice(cd, 'iec-terminal-single', 60, 40, powerSheetId, 'X1:1');
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, POWER_START_Y, powerSheetId, 'X1:1');
   cd = x1_1.circuit;
-  const x1_2 = placeDevice(cd, 'iec-terminal-single', 100, 40, powerSheetId, 'X1:2');
+  const x1_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, POWER_START_Y, powerSheetId, 'X1:2');
   cd = x1_2.circuit;
-  const x1_3 = placeDevice(cd, 'iec-terminal-single', 140, 40, powerSheetId, 'X1:3');
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, POWER_START_Y, powerSheetId, 'X1:3');
   cd = x1_3.circuit;
 
-  // Place 3-phase power devices vertically
-  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 140, powerSheetId, 'CB1');
+  // Chain devices pin-to-pin: X1 pin1 → CB1 L1, CB1 T1 → K1 L1, etc.
+  const x1Pin1Y = getPinWorldY('iec-terminal-single', '1', POWER_START_Y);
+  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin1Y + POWER_GAP);
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', POWER_X, cb1Y, powerSheetId, 'CB1');
   cd = cb1.circuit;
 
-  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 260, powerSheetId, 'K1');
+  const cb1T1Y = getPinWorldY('iec-circuit-breaker-3p', 'T1', cb1Y);
+  const k1Y = alignDeviceToPin('iec-contactor-3p', 'L1', cb1T1Y + POWER_GAP);
+  const k1power = placeDevice(cd, 'iec-contactor-3p', POWER_X, k1Y, powerSheetId, 'K1');
   cd = k1power.circuit;
 
-  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 380, powerSheetId, 'F1');
+  const k1T1Y = getPinWorldY('iec-contactor-3p', 'T1', k1Y);
+  const f1Y = alignDeviceToPin('iec-thermal-overload-relay-3p', 'L1', k1T1Y + POWER_GAP);
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', POWER_X, f1Y, powerSheetId, 'F1');
   cd = f1power.circuit;
 
   // Motor output terminals (strip X2) — panel boundary for motor leads
-  const x2_1 = placeDevice(cd, 'iec-terminal-single', 60, 480, powerSheetId, 'X2:1');
+  const f1T1Y = getPinWorldY('iec-thermal-overload-relay-3p', 'T1', f1Y);
+  const x2Y = alignDeviceToPin('iec-terminal-single', '1', f1T1Y + POWER_GAP);
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, x2Y, powerSheetId, 'X2:1');
   cd = x2_1.circuit;
-  const x2_2 = placeDevice(cd, 'iec-terminal-single', 100, 480, powerSheetId, 'X2:2');
+  const x2_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, x2Y, powerSheetId, 'X2:2');
   cd = x2_2.circuit;
-  const x2_3 = placeDevice(cd, 'iec-terminal-single', 140, 480, powerSheetId, 'X2:3');
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, x2Y, powerSheetId, 'X2:3');
   cd = x2_3.circuit;
 
-  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 580, powerSheetId, 'M1');
+  const x2Pin1Y = getPinWorldY('iec-terminal-single', '1', x2Y);
+  const m1Y = alignDeviceToPin('iec-motor-3ph', '1', x2Pin1Y + POWER_GAP);
+  const m1 = placeDevice(cd, 'iec-motor-3ph', POWER_X, m1Y, powerSheetId, 'M1');
   cd = m1.circuit;
 
-  // Ground terminal (PE)
-  const pe1 = placeDevice(cd, 'iec-terminal-ground', 200, 580, powerSheetId, 'PE1');
+  // Ground terminal (PE) — beside motor
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 100, m1Y, powerSheetId, 'PE1');
   cd = pe1.circuit;
 
   // Wire 15 phase connections (3 phases × 5 hops through terminals)
   // Phase L1: X1:1 → CB1 → K1 → F1 → X2:1 → M1
-  cd = createWire(cd, 'X1:1', '2', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:1', '1', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T1', 'X2:1', '1', f1power.deviceId, x2_1.deviceId);
-  cd = createWire(cd, 'X2:1', '2', 'M1', '1', x2_1.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:1', '1', 'M1', '1', x2_1.deviceId, m1.deviceId);
   // Phase L2: X1:2 → CB1 → K1 → F1 → X2:2 → M1
-  cd = createWire(cd, 'X1:2', '2', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:2', '1', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T2', 'X2:2', '1', f1power.deviceId, x2_2.deviceId);
-  cd = createWire(cd, 'X2:2', '2', 'M1', '2', x2_2.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:2', '1', 'M1', '2', x2_2.deviceId, m1.deviceId);
   // Phase L3: X1:3 → CB1 → K1 → F1 → X2:3 → M1
-  cd = createWire(cd, 'X1:3', '2', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:3', '1', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T3', 'X2:3', '1', f1power.deviceId, x2_3.deviceId);
-  cd = createWire(cd, 'X2:3', '2', 'M1', '3', x2_3.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:3', '1', 'M1', '3', x2_3.deviceId, m1.deviceId);
 
   // ================================================================
   //  SHEET 2 — Control Section (ladder diagram)
@@ -462,71 +478,86 @@ export function generateMotorStarterPanel(
   cd = setSheetType(cd, sheetId, 'schematic');
 
   // ================================================================
-  //  Power Section (top of sheet, y=40..580)
+  //  Power Section (top of sheet, pin-based alignment)
   // ================================================================
+  const POWER_X = 100;
+  const POWER_START_Y = 40;
+  const POWER_GAP = 20;
 
-  // Supply terminals (strip X1) — panel boundary for incoming cables
-  const x1_1 = placeDevice(cd, 'iec-terminal-single', 60, 40, sheetId, 'X1:1');
+  // Supply terminals (strip X1)
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, POWER_START_Y, sheetId, 'X1:1');
   cd = x1_1.circuit;
-  const x1_2 = placeDevice(cd, 'iec-terminal-single', 100, 40, sheetId, 'X1:2');
+  const x1_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, POWER_START_Y, sheetId, 'X1:2');
   cd = x1_2.circuit;
-  const x1_3 = placeDevice(cd, 'iec-terminal-single', 140, 40, sheetId, 'X1:3');
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, POWER_START_Y, sheetId, 'X1:3');
   cd = x1_3.circuit;
 
-  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 140, sheetId, 'CB1');
+  // Chain devices pin-to-pin
+  const x1Pin2Y = getPinWorldY('iec-terminal-single', '1', POWER_START_Y);
+  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin1Y + POWER_GAP);
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', POWER_X, cb1Y, sheetId, 'CB1');
   cd = cb1.circuit;
 
-  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 260, sheetId, 'K1');
+  const cb1T1Y = getPinWorldY('iec-circuit-breaker-3p', 'T1', cb1Y);
+  const k1Y = alignDeviceToPin('iec-contactor-3p', 'L1', cb1T1Y + POWER_GAP);
+  const k1power = placeDevice(cd, 'iec-contactor-3p', POWER_X, k1Y, sheetId, 'K1');
   cd = k1power.circuit;
 
-  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 380, sheetId, 'F1');
+  const k1T1Y = getPinWorldY('iec-contactor-3p', 'T1', k1Y);
+  const f1Y = alignDeviceToPin('iec-thermal-overload-relay-3p', 'L1', k1T1Y + POWER_GAP);
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', POWER_X, f1Y, sheetId, 'F1');
   cd = f1power.circuit;
 
-  // Motor output terminals (strip X2) — panel boundary for motor leads
-  const x2_1 = placeDevice(cd, 'iec-terminal-single', 60, 480, sheetId, 'X2:1');
+  const f1T1Y = getPinWorldY('iec-thermal-overload-relay-3p', 'T1', f1Y);
+  const x2Y = alignDeviceToPin('iec-terminal-single', '1', f1T1Y + POWER_GAP);
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, x2Y, sheetId, 'X2:1');
   cd = x2_1.circuit;
-  const x2_2 = placeDevice(cd, 'iec-terminal-single', 100, 480, sheetId, 'X2:2');
+  const x2_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, x2Y, sheetId, 'X2:2');
   cd = x2_2.circuit;
-  const x2_3 = placeDevice(cd, 'iec-terminal-single', 140, 480, sheetId, 'X2:3');
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, x2Y, sheetId, 'X2:3');
   cd = x2_3.circuit;
 
-  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 580, sheetId, 'M1');
+  const x2Pin1Y = getPinWorldY('iec-terminal-single', '1', x2Y);
+  const m1Y = alignDeviceToPin('iec-motor-3ph', '1', x2Pin1Y + POWER_GAP);
+  const m1 = placeDevice(cd, 'iec-motor-3ph', POWER_X, m1Y, sheetId, 'M1');
   cd = m1.circuit;
 
-  // Ground terminal (PE)
-  const pe1 = placeDevice(cd, 'iec-terminal-ground', 200, 580, sheetId, 'PE1');
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 100, m1Y, sheetId, 'PE1');
   cd = pe1.circuit;
 
   // Wire 15 phase connections (3 phases × 5 hops through terminals)
   // Phase L1: X1:1 → CB1 → K1 → F1 → X2:1 → M1
-  cd = createWire(cd, 'X1:1', '2', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:1', '1', 'CB1', 'L1', x1_1.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T1', 'K1', 'L1', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T1', 'F1', 'L1', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T1', 'X2:1', '1', f1power.deviceId, x2_1.deviceId);
-  cd = createWire(cd, 'X2:1', '2', 'M1', '1', x2_1.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:1', '1', 'M1', '1', x2_1.deviceId, m1.deviceId);
   // Phase L2: X1:2 → CB1 → K1 → F1 → X2:2 → M1
-  cd = createWire(cd, 'X1:2', '2', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:2', '1', 'CB1', 'L2', x1_2.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T2', 'K1', 'L2', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T2', 'F1', 'L2', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T2', 'X2:2', '1', f1power.deviceId, x2_2.deviceId);
-  cd = createWire(cd, 'X2:2', '2', 'M1', '2', x2_2.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:2', '1', 'M1', '2', x2_2.deviceId, m1.deviceId);
   // Phase L3: X1:3 → CB1 → K1 → F1 → X2:3 → M1
-  cd = createWire(cd, 'X1:3', '2', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
+  cd = createWire(cd, 'X1:3', '1', 'CB1', 'L3', x1_3.deviceId, cb1.deviceId);
   cd = createWire(cd, 'CB1', 'T3', 'K1', 'L3', cb1.deviceId, k1power.deviceId);
   cd = createWire(cd, 'K1', 'T3', 'F1', 'L3', k1power.deviceId, f1power.deviceId);
   cd = createWire(cd, 'F1', 'T3', 'X2:3', '1', f1power.deviceId, x2_3.deviceId);
-  cd = createWire(cd, 'X2:3', '2', 'M1', '3', x2_3.deviceId, m1.deviceId);
+  cd = createWire(cd, 'X2:3', '1', 'M1', '3', x2_3.deviceId, m1.deviceId);
 
   // ================================================================
-  //  Control Section (ladder block below power, starting at y=700)
+  //  Control Section (ladder block below power section)
   // ================================================================
+  // Position ladder below last power device with gap
+  const motorBottomY = m1Y + 83 + POWER_GAP; // motor height (83) + gap
+  const ladderStartY = Math.ceil(motorBottomY / 20) * 20; // snap to grid
   const ladderBlock = createLadderBlock(cd, sheetId, {
     voltage: controlVoltage,
     railLabelL1: controlVoltage === '24VDC' ? '+24V' : 'L1',
     railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
     firstRungY: 100,
     rungSpacing: 120,
-  }, { x: 0, y: 700 }, 'Motor Control');
+  }, { x: 0, y: ladderStartY }, 'Motor Control');
   cd = ladderBlock.circuit;
   const controlBlockId = ladderBlock.blockId;
 
@@ -780,13 +811,13 @@ export function generateMotorStarterPanel(
   // Rung 4 (HOA Auto + PLC): SS1.2 → X3:1.1, X3:1.2 → PLC1.1, PLC1.2 → X3:2.1, X3:2.2 → K1 coil.1
   if (hasHOA && hasPLC && hoaAutoDeviceId && plcDeviceId && plcCoilId && termInDeviceId && termOutDeviceId) {
     cd = createWire(cd, 'SS1', '2', 'X3:1', '1', hoaAutoDeviceId, termInDeviceId);
-    cd = createWire(cd, 'X3:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
+    cd = createWire(cd, 'X3:1', '1', 'PLC1', '1', termInDeviceId, plcDeviceId);
     cd = createWire(cd, 'PLC1', '2', 'X3:2', '1', plcDeviceId, termOutDeviceId);
-    cd = createWire(cd, 'X3:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
+    cd = createWire(cd, 'X3:2', '1', 'K1', '1', termOutDeviceId, plcCoilId);
   } else if (hasPLC && !hasHOA && plcDeviceId && plcCoilId && termInDeviceId && termOutDeviceId) {
-    cd = createWire(cd, 'X3:1', '2', 'PLC1', '1', termInDeviceId, plcDeviceId);
+    cd = createWire(cd, 'X3:1', '1', 'PLC1', '1', termInDeviceId, plcDeviceId);
     cd = createWire(cd, 'PLC1', '2', 'X3:2', '1', plcDeviceId, termOutDeviceId);
-    cd = createWire(cd, 'X3:2', '2', 'K1', '1', termOutDeviceId, plcCoilId);
+    cd = createWire(cd, 'X3:2', '1', 'K1', '1', termOutDeviceId, plcCoilId);
   }
 
   // Pilot light rung: K1 aux.2 → PL1.1
@@ -1169,7 +1200,8 @@ export function generatePowerDistribution(
     cd = createWire(cd, 'T1', 'H2', l2Tag, '1', xfmr.deviceId, l2J.deviceId);
 
     // Output terminals below transformer for secondary winding
-    const termY = xfmrRungY + 80;
+    const xfmrOutputPinY = getPinWorldY('iec-transformer-1ph', 'X1', xfmrRungY - 35);
+    const termY = alignDeviceToPin('iec-terminal-single', '1', xfmrOutputPinY + 20);
     const xt1 = placeDevice(cd, 'iec-terminal-single', centerX - 40, termY, sheetId, 'XT:1');
     cd = xt1.circuit;
     const xt2 = placeDevice(cd, 'iec-terminal-single', centerX + 10, termY, sheetId, 'XT:2');
@@ -1193,7 +1225,8 @@ export function generatePowerDistribution(
   if (ps1DeviceId) {
     const ps1Pos = cd.positions[ps1DeviceId];
     if (ps1Pos) {
-      const termY = ps1Pos.y + 80;
+      const ps1OutputPinY = getPinWorldY('iec-power-supply-ac-dc', '3', ps1Pos.y);
+      const termY = alignDeviceToPin('iec-terminal-single', '1', ps1OutputPinY + 20);
       const xPlus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x - 10, termY, sheetId, 'X2:+');
       cd = xPlus.circuit;
       const xMinus = placeDevice(cd, 'iec-terminal-single', ps1Pos.x + 20, termY, sheetId, 'X2:-');
@@ -1207,7 +1240,8 @@ export function generatePowerDistribution(
   if (ps2DeviceId) {
     const ps2Pos = cd.positions[ps2DeviceId];
     if (ps2Pos) {
-      const termY = ps2Pos.y + 80;
+      const ps2OutputPinY = getPinWorldY('iec-power-supply-ac-dc', '3', ps2Pos.y);
+      const termY = alignDeviceToPin('iec-terminal-single', '1', ps2OutputPinY + 20);
       const xPlus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x - 10, termY, sheetId, 'X3:+');
       cd = xPlus.circuit;
       const xMinus = placeDevice(cd, 'iec-terminal-single', ps2Pos.x + 20, termY, sheetId, 'X3:-');

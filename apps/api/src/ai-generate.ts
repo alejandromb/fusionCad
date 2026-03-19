@@ -11,6 +11,8 @@ import {
   generateId,
   registerBuiltinSymbols,
   getSymbolById,
+  alignDeviceToPin,
+  getPinWorldY,
   lookupMotorStarter,
   type Device,
   type Part,
@@ -382,14 +384,27 @@ function generateMotorStarterPanel(
   cd = mainSheet.circuit;
   const sheetId = mainSheet.sheetId;
 
-  // Power section (top)
-  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', 100, 60, sheetId, 'CB1');
+  // Power section (top, pin-based alignment)
+  const POWER_X = 100;
+  const POWER_START_Y = 60;
+  const POWER_GAP = 20;
+
+  const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', POWER_X, POWER_START_Y, sheetId, 'CB1');
   cd = cb1.circuit;
-  const k1power = placeDevice(cd, 'iec-contactor-3p', 100, 180, sheetId, 'K1');
+
+  const cb1T1Y = getPinWorldY('iec-circuit-breaker-3p', 'T1', POWER_START_Y);
+  const k1Y = alignDeviceToPin('iec-contactor-3p', 'L1', cb1T1Y + POWER_GAP);
+  const k1power = placeDevice(cd, 'iec-contactor-3p', POWER_X, k1Y, sheetId, 'K1');
   cd = k1power.circuit;
-  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', 100, 300, sheetId, 'F1');
+
+  const k1T1Y = getPinWorldY('iec-contactor-3p', 'T1', k1Y);
+  const f1Y = alignDeviceToPin('iec-thermal-overload-relay-3p', 'L1', k1T1Y + POWER_GAP);
+  const f1power = placeDevice(cd, 'iec-thermal-overload-relay-3p', POWER_X, f1Y, sheetId, 'F1');
   cd = f1power.circuit;
-  const m1 = placeDevice(cd, 'iec-motor-3ph', 100, 420, sheetId, 'M1');
+
+  const f1T1Y = getPinWorldY('iec-thermal-overload-relay-3p', 'T1', f1Y);
+  const m1Y = alignDeviceToPin('iec-motor-3ph', '1', f1T1Y + POWER_GAP);
+  const m1 = placeDevice(cd, 'iec-motor-3ph', POWER_X, m1Y, sheetId, 'M1');
   cd = m1.circuit;
 
   // Phase wires
@@ -410,7 +425,7 @@ function generateMotorStarterPanel(
     railLabelL2: controlVoltage === '24VDC' ? '0V' : 'L2',
     firstRungY: 100,
     rungSpacing: 120,
-  }, { x: 0, y: 560 }, 'Motor Control');
+  }, { x: 0, y: Math.ceil((m1Y + 83 + POWER_GAP) / 20) * 20 }, 'Motor Control');
   cd = ladderBlock.circuit;
   const controlBlockId = ladderBlock.blockId;
 

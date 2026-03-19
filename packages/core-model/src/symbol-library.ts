@@ -143,6 +143,54 @@ export function clearSymbolRegistry(): void {
   symbolsByCategory.clear();
 }
 
+// ================================================================
+// Pin-based alignment utilities
+// ================================================================
+
+/**
+ * Compute the device Y position so that the given pin aligns with a target world Y.
+ * Reads pin offset from the actual symbol definition — no hardcoded offsets.
+ *
+ * deviceY = targetPinWorldY - pinOffsetWithinSymbol
+ */
+export function alignDeviceToPin(symbolId: string, pinId: string, targetPinWorldY: number): number {
+  const sym = symbolById.get(symbolId);
+  if (!sym) return targetPinWorldY;
+  const pin = sym.pins.find(p => p.id === pinId);
+  if (!pin) return targetPinWorldY;
+  return targetPinWorldY - pin.position.y;
+}
+
+/**
+ * Get the Y offset of a pin within a symbol.
+ */
+export function getPinOffsetY(symbolId: string, pinId: string): number {
+  const sym = symbolById.get(symbolId);
+  if (!sym) return 0;
+  const pin = sym.pins.find(p => p.id === pinId);
+  return pin ? pin.position.y : 0;
+}
+
+/**
+ * Get the world Y position of a pin given the device's Y position.
+ */
+export function getPinWorldY(symbolId: string, pinId: string, deviceY: number): number {
+  return deviceY + getPinOffsetY(symbolId, pinId);
+}
+
+/**
+ * Get the Y positions of all digital pins for a PLC symbol.
+ * Returns absolute Y positions given the device's world Y.
+ */
+export function getPlcPinWorldYs(symbolId: string, deviceY: number, pinPrefix: string, count: number): number[] {
+  const sym = symbolById.get(symbolId);
+  if (!sym) return [];
+  return Array.from({ length: count }, (_, i) => {
+    const pin = sym.pins.find(p => p.id === `${pinPrefix}${i}`);
+    return pin ? deviceY + pin.position.y : deviceY;
+  });
+}
+
 /**
  * Get available variants for a symbol.
  * Returns empty array if no variants defined.

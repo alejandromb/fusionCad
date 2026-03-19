@@ -500,6 +500,46 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           setSelectedDevices([]);
           if (hitWire !== selectedWireIndex) {
             setSelectedWireIndex(hitWire);
+          } else {
+            // Already selected — try segment drag with relaxed tolerance
+            const conn = circuit.connections[hitWire];
+            const { fromPinPos, toPinPos } = computeWirePinPositions(
+              conn, circuit.devices, circuit.parts, allPositions, circuit.transforms
+            );
+            if (fromPinPos && toPinPos) {
+              const segIdx = getWireSegmentAtPoint(
+                world.x, world.y, conn, fromPinPos.x, fromPinPos.y, toPinPos.x, toPinPos.y, 12
+              );
+              if (segIdx !== null) {
+                const fullPath = toOrthogonalPath([
+                  fromPinPos, ...(conn.waypoints || []), toPinPos
+                ]);
+                const interior = fullPath.slice(1, -1);
+                const totalSegments = fullPath.length - 1;
+                const p1 = fullPath[segIdx];
+                const p2 = fullPath[segIdx + 1];
+                const dir: 'h' | 'v' = Math.abs(p1.y - p2.y) < 1 ? 'h' : 'v';
+                const isFirst = segIdx === 0;
+                const isLast = segIdx === totalSegments - 1;
+                let wpIndices: number[];
+                if (isFirst) { wpIndices = [0]; }
+                else if (isLast) { wpIndices = [interior.length - 1]; }
+                else { wpIndices = [segIdx - 1, segIdx]; }
+                replaceWaypoints(hitWire, interior.length > 0 ? interior : undefined);
+                setDraggingSegment({
+                  connectionIndex: hitWire,
+                  direction: dir,
+                  wpIndices,
+                  isFirst,
+                  isLast,
+                  jogInserted: false,
+                  pinPos: isFirst ? fromPinPos : toPinPos,
+                });
+                dragHistoryPushedRef.current = false;
+                canvas.style.cursor = dir === 'h' ? 'ns-resize' : 'ew-resize';
+                return;
+              }
+            }
           }
           isDraggingRef.current = false;
           return;
