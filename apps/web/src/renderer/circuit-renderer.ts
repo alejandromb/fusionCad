@@ -72,6 +72,46 @@ export interface CircuitData {
   blocks?: AnyDiagramBlock[];
 }
 
+/** A connection with its original index in the global circuit.connections array */
+export interface SheetConnection extends Connection {
+  /** Index into the original circuit.connections array (for mutations) */
+  _globalIndex: number;
+}
+
+/**
+ * Filter connections to only those visible on the active sheet.
+ * Each returned connection has a `_globalIndex` property for mapping back to the
+ * global circuit.connections array when performing mutations.
+ *
+ * This function must be used by BOTH the renderer and the interaction handler
+ * so that index spaces are consistent.
+ */
+export function filterConnectionsBySheet(
+  connections: Connection[],
+  devices: Device[],
+  activeSheetId?: string,
+): SheetConnection[] {
+  if (!activeSheetId) {
+    return connections.map((c, i) => ({ ...c, _globalIndex: i }));
+  }
+  const result: SheetConnection[] = [];
+  for (let i = 0; i < connections.length; i++) {
+    const c = connections[i];
+    if (c.sheetId) {
+      if (c.sheetId === activeSheetId) {
+        result.push({ ...c, _globalIndex: i });
+      }
+    } else {
+      const fromDev = resolveDevice(c, 'from', devices);
+      const toDev = resolveDevice(c, 'to', devices);
+      if (fromDev !== undefined || toDev !== undefined) {
+        result.push({ ...c, _globalIndex: i });
+      }
+    }
+  }
+  return result;
+}
+
 /**
  * Compute a pin's world position accounting for device rotation.
  * Rotates the pin offset around the symbol center, then adds device position.
@@ -592,15 +632,7 @@ export function renderCircuit(
     ? circuit.devices.filter(d => d.sheetId === activeSheetId)
     : circuit.devices;
   const deviceIdSet = new Set(devices.map(d => d.id));
-  const connections = activeSheetId
-    ? circuit.connections.filter(c => {
-        // Include connection if it has matching sheetId, or if its devices are on the active sheet
-        if (c.sheetId) return c.sheetId === activeSheetId;
-        const fromDev = resolveDevice(c, 'from', devices);
-        const toDev = resolveDevice(c, 'to', devices);
-        return (fromDev !== undefined) || (toDev !== undefined);
-      })
-    : circuit.connections;
+  const connections = filterConnectionsBySheet(circuit.connections, devices, activeSheetId);
 
   // Create part lookup
   const partMap = new Map<string, Part>();

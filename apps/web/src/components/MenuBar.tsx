@@ -39,6 +39,7 @@ interface MenuBarProps {
   deleteWire: (idx: number) => void;
   selectedDevices: string[];
   selectedWireIndex: number | null;
+  sheetConnections?: import('../renderer/circuit-renderer').SheetConnection[];
   selectAll: () => void;
 
   // Draw mode
@@ -179,7 +180,10 @@ export function MenuBar(props: MenuBarProps) {
 
   const handleDelete = () => {
     if (hasDeviceSelection) props.deleteDevices(props.selectedDevices);
-    else if (hasWireSelection) props.deleteWire(props.selectedWireIndex!);
+    else if (hasWireSelection) {
+      const globalIdx = props.sheetConnections?.[props.selectedWireIndex!]?._globalIndex ?? props.selectedWireIndex!;
+      props.deleteWire(globalIdx);
+    }
   };
 
   const handleMirror = () => {

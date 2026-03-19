@@ -28,6 +28,7 @@ interface ToolbarProps {
   // Edit operations
   deleteDevices: (tags: string[]) => void;
   deleteWire: (connectionIndex: number) => void;
+  sheetConnections?: import('../renderer/circuit-renderer').SheetConnection[];
   copyDevice: () => void;
   pasteDevice: () => void;
   hasClipboard: boolean;
@@ -55,6 +56,7 @@ export function Toolbar({
   mirrorDevice,
   deleteDevices,
   deleteWire,
+  sheetConnections,
   copyDevice,
   pasteDevice,
   hasClipboard,
@@ -94,7 +96,8 @@ export function Toolbar({
     if (hasDeviceSelection) {
       deleteDevices(selectedDevices);
     } else if (hasWireSelection) {
-      deleteWire(selectedWireIndex);
+      const globalIdx = sheetConnections?.[selectedWireIndex]?._globalIndex ?? selectedWireIndex;
+      deleteWire(globalIdx);
     }
   };
 

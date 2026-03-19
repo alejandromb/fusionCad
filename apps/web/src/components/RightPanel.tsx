@@ -57,6 +57,7 @@ interface RightPanelProps {
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
   onSelectAnnotation: (id: string | null) => void;
+  sheetConnections?: import('../renderer/circuit-renderer').SheetConnection[];
   projectName: string;
   projectId: string | null;
   onProjectChanged: () => void;
@@ -78,6 +79,7 @@ export function RightPanel({
   onUpdateAnnotation,
   onDeleteAnnotation,
   onSelectAnnotation,
+  sheetConnections,
   projectName,
   projectId,
   onProjectChanged,
@@ -201,9 +203,10 @@ export function RightPanel({
   const selectedDevicePart = selectedDeviceInfo?.partId && circuit
     ? circuit.parts.find(p => p.id === selectedDeviceInfo.partId)
     : null;
-  const selectedWire = selectedWireIndex !== null && circuit
-    ? circuit.connections[selectedWireIndex]
+  const selectedSheetConn = selectedWireIndex !== null && sheetConnections
+    ? sheetConnections[selectedWireIndex]
     : null;
+  const selectedWire = selectedSheetConn as import('../renderer/circuit-renderer').Connection | null;
   const selectedWireNet = selectedWire && circuit
     ? circuit.nets.find(n => n.id === selectedWire.netId)
     : null;
@@ -367,7 +370,7 @@ export function RightPanel({
                 className="property-input"
                 type="text"
                 value={selectedWire.wireNumber || `W${String(selectedWireIndex + 1).padStart(3, '0')}`}
-                onChange={(e) => updateWireNumber(selectedWireIndex, e.target.value)}
+                onChange={(e) => updateWireNumber(selectedSheetConn?._globalIndex ?? selectedWireIndex, e.target.value)}
               />
             </div>
             <div className="property-row">

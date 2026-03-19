@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
-import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice } from '../renderer/circuit-renderer';
-import type { Connection } from '../renderer/circuit-renderer';
+import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
+import type { Connection, SheetConnection } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
 import {
   snapToGrid,
@@ -55,6 +55,8 @@ export interface UseCanvasInteractionReturn {
   zoomToFit: () => void;
   /** Ref for Canvas imperative render handle (zoom bypass) */
   renderHandleRef: React.MutableRefObject<import('../components/Canvas').CanvasRenderHandle | null>;
+  /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
+  sheetConnections: SheetConnection[];
 }
 
 interface UseCanvasInteractionDeps {
@@ -194,6 +196,22 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     selectAnnotation,
     activeSheetId,
   } = deps;
+
+  // Sheet-filtered connections — same filtering as the renderer uses.
+  // All hit detection must use this array so that indices match the renderer.
+  // Use _globalIndex to map back to circuit.connections for mutations.
+  const sheetConnections: SheetConnection[] = circuit
+    ? filterConnectionsBySheet(
+        circuit.connections,
+        activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices,
+        activeSheetId,
+      )
+    : [];
+
+  // Helper: map a filtered (sheet) index to the global circuit.connections index
+  const toGlobalIndex = (filteredIndex: number): number => {
+    return sheetConnections[filteredIndex]?._globalIndex ?? filteredIndex;
+  };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderHandleRef = useRef<import('../components/Canvas').CanvasRenderHandle | null>(null);
@@ -384,10 +402,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         if (selectedWireIndex !== null) {
           const endpointHit = getWireEndpointAtPoint(
             world.x, world.y, selectedWireIndex,
-            circuit.connections, circuit.devices, circuit.parts, allPositions, 10, circuit.transforms
+            sheetConnections, circuit.devices, circuit.parts, allPositions, 10, circuit.transforms
           );
           if (endpointHit) {
-            const conn = circuit.connections[selectedWireIndex];
+            const conn = sheetConnections[selectedWireIndex];
             const originalPin: PinHit = endpointHit.endpoint === 'from'
               ? { device: conn.fromDevice, pin: conn.fromPin }
               : { device: conn.toDevice, pin: conn.toPin };
@@ -401,7 +419,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             return;
           }
 
-          const waypointHit = getWaypointAtPoint(world.x, world.y, circuit.connections);
+          const waypointHit = getWaypointAtPoint(world.x, world.y, sheetConnections);
           if (waypointHit && waypointHit.connectionIndex === selectedWireIndex) {
             setDraggingWaypoint(waypointHit);
             dragHistoryPushedRef.current = false;
@@ -410,7 +428,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
 
           // Check for segment drag on selected wire
-          const conn = circuit.connections[selectedWireIndex];
+          const conn = sheetConnections[selectedWireIndex];
           const { fromPinPos, toPinPos } = computeWirePinPositions(
             conn, circuit.devices, circuit.parts, allPositions, circuit.transforms
           );
@@ -445,7 +463,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
 
               // Materialize waypoints
-              replaceWaypoints(selectedWireIndex, interior.length > 0 ? interior : undefined);
+              replaceWaypoints(toGlobalIndex(selectedWireIndex), interior.length > 0 ? interior : undefined);
 
               setDraggingSegment({
                 connectionIndex: selectedWireIndex,
@@ -495,14 +513,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           return;
         }
 
-        const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+        const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
         if (hitWire !== null) {
           setSelectedDevices([]);
           if (hitWire !== selectedWireIndex) {
             setSelectedWireIndex(hitWire);
           } else {
             // Already selected — try segment drag with relaxed tolerance
-            const conn = circuit.connections[hitWire];
+            const conn = sheetConnections[hitWire];
             const { fromPinPos, toPinPos } = computeWirePinPositions(
               conn, circuit.devices, circuit.parts, allPositions, circuit.transforms
             );
@@ -525,7 +543,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                 if (isFirst) { wpIndices = [0]; }
                 else if (isLast) { wpIndices = [interior.length - 1]; }
                 else { wpIndices = [segIdx - 1, segIdx]; }
-                replaceWaypoints(hitWire, interior.length > 0 ? interior : undefined);
+                replaceWaypoints(toGlobalIndex(hitWire), interior.length > 0 ? interior : undefined);
                 setDraggingSegment({
                   connectionIndex: hitWire,
                   direction: dir,
@@ -608,7 +626,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           pushToHistoryRef.current();
           dragHistoryPushedRef.current = true;
         }
-        moveWaypoint(draggingWaypoint.connectionIndex, draggingWaypoint.waypointIndex, world);
+        moveWaypoint(toGlobalIndex(draggingWaypoint.connectionIndex), draggingWaypoint.waypointIndex, world);
         lastMousePosRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
@@ -620,7 +638,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           dragHistoryPushedRef.current = true;
         }
 
-        const conn = circuit.connections[draggingSegment.connectionIndex];
+        const conn = sheetConnections[draggingSegment.connectionIndex];
         if (!conn.waypoints) return;
         const waypoints = [...conn.waypoints.map(wp => ({ ...wp }))];
 
@@ -672,7 +690,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
         }
 
-        replaceWaypoints(draggingSegment.connectionIndex, waypoints);
+        replaceWaypoints(toGlobalIndex(draggingSegment.connectionIndex), waypoints);
         lastMousePosRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
@@ -766,10 +784,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       // End segment dragging
       if (draggingSegment) {
         // Simplify: remove collinear waypoints
-        const conn = circuit.connections[draggingSegment.connectionIndex];
+        const conn = sheetConnections[draggingSegment.connectionIndex];
         if (conn.waypoints && conn.waypoints.length > 2) {
           const simplified = simplifyWaypoints(conn.waypoints);
-          replaceWaypoints(draggingSegment.connectionIndex, simplified);
+          replaceWaypoints(toGlobalIndex(draggingSegment.connectionIndex), simplified);
         }
         setDraggingSegment(null);
         isDraggingRef.current = false;
@@ -784,17 +802,18 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           const isOriginalPin = hitPin.device === draggingEndpoint.originalPin.device &&
                                hitPin.pin === draggingEndpoint.originalPin.pin;
           if (!isOriginalPin) {
-            reconnectWire(draggingEndpoint.connectionIndex, draggingEndpoint.endpoint, hitPin);
+            reconnectWire(toGlobalIndex(draggingEndpoint.connectionIndex), draggingEndpoint.endpoint, hitPin);
           }
         } else if (hasDraggedRef.current) {
-          const conn = circuit.connections[draggingEndpoint.connectionIndex];
+          const conn = sheetConnections[draggingEndpoint.connectionIndex];
           const waypointPos = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+          const globalIdx = toGlobalIndex(draggingEndpoint.connectionIndex);
 
           if (draggingEndpoint.endpoint === 'from') {
-            addWaypoint(draggingEndpoint.connectionIndex, 0, waypointPos);
+            addWaypoint(globalIdx, 0, waypointPos);
           } else {
             const insertIndex = conn.waypoints ? conn.waypoints.length : 0;
-            addWaypoint(draggingEndpoint.connectionIndex, insertIndex, waypointPos);
+            addWaypoint(globalIdx, insertIndex, waypointPos);
           }
         }
         setDraggingEndpoint(null);
@@ -898,9 +917,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
             } else if (wireStart) {
               // Check if clicking on an existing wire for T-junction
-              const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+              const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
               if (hitWire !== null) {
-                connectToWire(hitWire, world.x, world.y, wireStart);
+                connectToWire(toGlobalIndex(hitWire), world.x, world.y, wireStart);
                 setWireStart(null);
               }
             }
@@ -915,12 +934,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
           case 'select': {
             const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
-            const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+            const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
-              const conn = circuit.connections[hitWire];
+              const conn = sheetConnections[hitWire];
               const segmentIndex = conn.waypoints ? conn.waypoints.length : 0;
-              addWaypoint(hitWire, segmentIndex, {
+              addWaypoint(toGlobalIndex(hitWire), segmentIndex, {
                 x: snapToGrid(world.x),
                 y: snapToGrid(world.y),
               });
@@ -975,10 +994,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       if (interactionMode !== 'select') return;
 
       const world = getWorldCoords(e);
-      const waypointHit = getWaypointAtPoint(world.x, world.y, circuit.connections);
+      const waypointHit = getWaypointAtPoint(world.x, world.y, sheetConnections);
 
       if (waypointHit) {
-        removeWaypoint(waypointHit.connectionIndex, waypointHit.waypointIndex);
+        removeWaypoint(toGlobalIndex(waypointHit.connectionIndex), waypointHit.waypointIndex);
       }
     };
 
@@ -1105,7 +1124,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           deleteDevices(selectedDevices);
         } else if (selectedWireIndex !== null) {
           e.preventDefault();
-          deleteWire(selectedWireIndex);
+          deleteWire(toGlobalIndex(selectedWireIndex));
           setSelectedWireIndex(null);
         }
       }
@@ -1186,7 +1205,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const rect = canvas.getBoundingClientRect();
 
       const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
-      const hitWire = getWireAtPoint(world.x, world.y, circuit.connections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+      const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
 
       if (hitDeviceId) {
         if (!selectedDevices.includes(hitDeviceId)) {
@@ -1271,5 +1290,6 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     setContextMenu,
     zoomToFit,
     renderHandleRef,
+    sheetConnections,
   };
 }

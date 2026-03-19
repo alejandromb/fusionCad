@@ -975,7 +975,8 @@ export function generatePowerDistribution(
   const FIRST_RUNG_Y = 100;
   const RAIL_L1X = 100;
   const RAIL_L2X = 900;
-  const PIN_OFFSET = 6; // junction pin center offset
+  // Junction pin "1" is at position (0,0) relative to symbol origin — no offset needed
+  const PIN_OFFSET = 0;
 
   // ================================================================
   //  Create sheet + ladder block

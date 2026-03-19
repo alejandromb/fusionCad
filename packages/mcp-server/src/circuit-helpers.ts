@@ -830,9 +830,8 @@ export function createLadderRails(
 
   if (rungs.length === 0) return cd;
 
-  // Junction is 12x12 with pin at center (6,6).
-  // To place pin center at (railX, rungY), device position = (railX - 6, rungY - 6).
-  const PIN_OFFSET = 6;
+  // Junction pin "1" is at position (0,0) relative to symbol origin — no offset needed.
+  const PIN_OFFSET = 0;
 
   const l1Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];
   const l2Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];

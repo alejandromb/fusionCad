@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { renderCircuit, type CircuitData } from '../renderer/circuit-renderer';
+import { renderCircuit, type CircuitData, type SheetConnection } from '../renderer/circuit-renderer';
 import type { Viewport, Point, DeviceTransform } from '../renderer/types';
 import { snapToGrid, type InteractionMode, type SymbolCategory, type PinHit } from '../types';
 import type { DraggingEndpointState, MarqueeRect, UseCanvasInteractionReturn } from '../hooks/useCanvasInteraction';
@@ -41,6 +41,8 @@ interface CanvasProps {
   pasteDevice?: (worldX: number, worldY: number) => void;
   clipboard?: unknown;
   selectedAnnotationId?: string | null;
+  /** Sheet-filtered connections for mapping wireIndex back to global index */
+  sheetConnections?: SheetConnection[];
   /** Ref to expose imperative render handle for zoom bypass */
   renderHandleRef?: React.MutableRefObject<CanvasRenderHandle | null>;
   /** Open Symbol Editor for a given symbolKey (dev-only context menu) */
@@ -73,6 +75,7 @@ export function Canvas({
   pasteDevice,
   clipboard,
   selectedAnnotationId,
+  sheetConnections,
   renderHandleRef,
   onEditSymbol,
 }: CanvasProps) {
@@ -242,10 +245,11 @@ export function Canvas({
             {contextMenu.target === 'wire' && contextMenu.wireIndex !== undefined && (
               <>
                 <button className="context-menu-item" onClick={() => {
-                  if (addWaypoint && contextMenu.wireIndex !== undefined) {
-                    const conn = circuit?.connections[contextMenu.wireIndex];
-                    const segIdx = conn?.waypoints ? conn.waypoints.length : 0;
-                    addWaypoint(contextMenu.wireIndex, segIdx, {
+                  if (addWaypoint && contextMenu.wireIndex !== undefined && sheetConnections) {
+                    const sheetConn = sheetConnections[contextMenu.wireIndex];
+                    const segIdx = sheetConn?.waypoints ? sheetConn.waypoints.length : 0;
+                    const globalIdx = sheetConn?._globalIndex ?? contextMenu.wireIndex;
+                    addWaypoint(globalIdx, segIdx, {
                       x: snapToGrid(contextMenu.worldX),
                       y: snapToGrid(contextMenu.worldY),
                     });

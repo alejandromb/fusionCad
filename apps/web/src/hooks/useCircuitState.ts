@@ -932,21 +932,22 @@ export function useCircuitState(
       modifiedAt: now,
     };
 
-    // Position junction so pin J (at offset 6,6) aligns with click point
-    const junctionX = snapToGrid(worldX - 6);
-    const junctionY = snapToGrid(worldY - 6);
+    // Position junction so its pin "1" (at position 0,0) aligns with the click point
+    const junctionX = snapToGrid(worldX);
+    const junctionY = snapToGrid(worldY);
 
     // Resolve device ID for startPin (startPin.device is now device ID)
     const startDevice = circuit.devices.find(d => d.id === startPin.device);
 
     // Split original connection into 2 halves through junction
+    // Junction symbol pin ID is "1" (matches builtin-symbols.json)
     const conn1: Connection = {
       fromDevice: originalConn.fromDevice,
       fromDeviceId: originalConn.fromDeviceId,
       fromPin: originalConn.fromPin,
       toDevice: junctionTag,
       toDeviceId: junctionDeviceId,
-      toPin: 'J',
+      toPin: '1',
       netId: originalConn.netId,
       sheetId: originalConn.sheetId,
     };
@@ -954,7 +955,7 @@ export function useCircuitState(
     const conn2: Connection = {
       fromDevice: junctionTag,
       fromDeviceId: junctionDeviceId,
-      fromPin: 'J',
+      fromPin: '1',
       toDevice: originalConn.toDevice,
       toDeviceId: originalConn.toDeviceId,
       toPin: originalConn.toPin,
@@ -969,7 +970,7 @@ export function useCircuitState(
       fromPin: startPin.pin,
       toDevice: junctionTag,
       toDeviceId: junctionDeviceId,
-      toPin: 'J',
+      toPin: '1',
       netId: originalConn.netId,
       sheetId: originalConn.sheetId,
     };

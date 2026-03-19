@@ -249,6 +249,7 @@ function AppInner({
         interactionMode: interaction.interactionMode,
         selectedDevices: circuitState.selectedDevices,
         selectedWireIndex: circuitState.selectedWireIndex,
+        sheetConnections: interaction.sheetConnections,
         viewport: interaction.viewport,
         projectId: project.projectId,
         projectName: project.projectName,
@@ -260,8 +261,8 @@ function AppInner({
       };
     }
   }, [project.circuit, project.devicePositions, interaction.interactionMode,
-      circuitState.selectedDevices, circuitState.selectedWireIndex, interaction.viewport,
-      project.projectId, project.projectName, project.saveStatus,
+      circuitState.selectedDevices, circuitState.selectedWireIndex, interaction.sheetConnections,
+      interaction.viewport, project.projectId, project.projectName, project.saveStatus,
       circuitState.history, circuitState.historyIndex,
       circuitState.activeSheetId, circuitState.sheets]);
 
@@ -364,6 +365,7 @@ function AppInner({
         hasClipboard={!!clipboardState.clipboard}
         deleteDevices={circuitState.deleteDevices}
         deleteWire={circuitState.deleteWire}
+        sheetConnections={interaction.sheetConnections}
         selectedDevices={circuitState.selectedDevices}
         selectedWireIndex={circuitState.selectedWireIndex}
         selectAll={selectAll}
@@ -441,6 +443,7 @@ function AppInner({
             pasteDevice={clipboardState.pasteDevice}
             clipboard={clipboardState.clipboard}
             selectedAnnotationId={circuitState.selectedAnnotationId}
+            sheetConnections={interaction.sheetConnections}
             renderHandleRef={interaction.renderHandleRef}
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
           />
@@ -493,6 +496,7 @@ function AppInner({
           onUpdateAnnotation={circuitState.updateAnnotation}
           onDeleteAnnotation={circuitState.deleteAnnotation}
           onSelectAnnotation={circuitState.selectAnnotation}
+          sheetConnections={interaction.sheetConnections}
           projectName={project.projectName}
           projectId={project.projectId}
           onProjectChanged={project.reloadProject}
