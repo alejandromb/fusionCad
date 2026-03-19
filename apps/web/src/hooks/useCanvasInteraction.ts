@@ -996,6 +996,52 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   const projected = projectPointOntoWire(world.x, world.y, hitConn, fromPinPos, toPinPos);
                   junctionX = projected.x;
                   junctionY = projected.y;
+
+                  // Smart alignment: when connecting to a vertical bus wire,
+                  // snap junction Y to the source pin's Y for a perfectly straight
+                  // horizontal connection. For horizontal bus, snap X to source pin's X.
+                  const startDevice = circuit.devices.find(d => d.id === wireStart.device);
+                  if (startDevice) {
+                    const startPos = allPositions.get(startDevice.id);
+                    if (startPos) {
+                      const startPart = startDevice.partId ? circuit.parts.find(p => p.id === startDevice.partId) : null;
+                      const startGeom = getSymbolGeometry(startPart?.symbolCategory || startPart?.category || 'unknown');
+                      const startPinDef = startGeom.pins.find(p => p.id === wireStart.pin);
+                      if (startPinDef) {
+                        const startPinPos = getPinWorldPosition(startPos, startPinDef.position, startGeom, circuit.transforms?.[startDevice.id]);
+                        // Build the wire path to find which segment we hit
+                        const rawPts: Point[] = [fromPinPos];
+                        if (hitConn.waypoints?.length) rawPts.push(...hitConn.waypoints);
+                        rawPts.push(toPinPos);
+                        const pathPts = toOrthogonalPath(rawPts);
+                        // Find the closest segment to the projected point
+                        for (let si = 0; si < pathPts.length - 1; si++) {
+                          const segDx = Math.abs(pathPts[si + 1].x - pathPts[si].x);
+                          const segDy = Math.abs(pathPts[si + 1].y - pathPts[si].y);
+                          const isVertical = segDx < 1 && segDy > 1;
+                          const isHorizontal = segDy < 1 && segDx > 1;
+                          // Check if projected point is on this segment
+                          const onSeg = isVertical
+                            ? Math.abs(projected.x - pathPts[si].x) < 2
+                            : isHorizontal
+                              ? Math.abs(projected.y - pathPts[si].y) < 2
+                              : false;
+                          if (onSeg) {
+                            if (isVertical) {
+                              // Vertical segment: keep X from wire, use Y from source pin
+                              junctionX = pathPts[si].x;
+                              junctionY = startPinPos.y;
+                            } else if (isHorizontal) {
+                              // Horizontal segment: keep Y from wire, use X from source pin
+                              junctionX = startPinPos.x;
+                              junctionY = pathPts[si].y;
+                            }
+                            break;
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
                 connectToWire(toGlobalIndex(hitWire), junctionX, junctionY, wireStart);
                 setWireStart(null);

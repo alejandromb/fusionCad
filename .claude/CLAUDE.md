@@ -44,8 +44,8 @@ Before doing ANYTHING else:
 ## 🔴 PRIORITIES — Single Source of Truth
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
-**Branch:** `main` (uncommitted changes from sessions 14-22)
-**Last session:** 22 (2026-03-18) — Grid-aligned symbols, pin-based alignment, terminal redesign, symbol editor fixes
+**Branch:** `main`
+**Last session:** 24 (2026-03-19) — Source/dest arrows, sheetId wiring fixes, group drag waypoints, junction snap-to-wire, L1/L2 rails
 
 ### P0 — Must Fix / Complete Before Launch
 
@@ -55,9 +55,9 @@ Before doing ANYTHING else:
 
 #### Schematic Quality
 
-1. **L1/L2 vertical rail rendering** — Data model + junction wires exist, but `renderLadderOverlay()` doesn't draw vertical rail lines. Need bold vertical lines at railL1X/railL2X.
+1. **~~L1/L2 vertical rail rendering~~** ✅ Fixed (Session 24) — Bold vertical lines at railL1X/railL2X in `renderLadderOverlay()`. Theme color `ladderRailLineColor` added to all presets.
 2. **Cross-references (coil ↔ contact)** — Engine exists in `core-engine/src/cross-references.ts` but never called. Need: call generator, render annotations near devices, persist to DB.
-3. **Wire number persistence** — Wire numbers render on canvas (W001, W002...) but aren't persisted to DB. Add wireNumber to API's CircuitData interface.
+3. **~~Wire number persistence~~** ✅ Fixed (Session 24) — `wireNumber`, `sheetId`, `fromDeviceId`, `toDeviceId`, `waypoints` added to API `ConnectionData` type. Fields round-trip through jsonb.
 
 #### AI Intelligence
 
