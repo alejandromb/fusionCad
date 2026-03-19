@@ -309,6 +309,17 @@ export function getWireAtPoint(
         }
       }
     } else {
+      // Straight-line shortcut: if endpoints share X or Y, test directly
+      const isStraight = Math.abs(fromX - toX) < 1 || Math.abs(fromY - toY) < 1;
+      if (isStraight) {
+        const dist = pointToSegmentDistance(worldX, worldY, fromX, fromY, toX, toY);
+        if (dist <= hitRadius && dist < bestHitDist) {
+          bestHitDist = dist;
+          bestHitIndex = i;
+        }
+        continue;
+      }
+
       // For auto-routed wires, collect for batch routing
       const fromRot = transforms?.[fromDevice.id]?.rotation || 0;
       const toRot = transforms?.[toDevice.id]?.rotation || 0;
@@ -874,8 +885,20 @@ export function renderCircuit(
     // Build path points for rendering
     let pathPoints: Point[] = [];
 
-    // If connection has manual waypoints, use them with orthogonal routing
-    if (metadata.conn.waypoints && metadata.conn.waypoints.length > 0) {
+    // Straight-line optimization: if endpoints share X or Y, draw a direct line.
+    // This prevents the auto-router from routing junction-to-junction bus segments
+    // around obstacles. Matches KiCad/QElectroTech: wire segments are always straight.
+    const isStraight = Math.abs(metadata.fromX - metadata.toX) < 1 ||
+                       Math.abs(metadata.fromY - metadata.toY) < 1;
+
+    if (isStraight && !(metadata.conn.waypoints && metadata.conn.waypoints.length > 0)) {
+      // Direct straight wire — no routing needed
+      pathPoints = [
+        { x: metadata.fromX, y: metadata.fromY },
+        { x: metadata.toX, y: metadata.toY },
+      ];
+    } else if (metadata.conn.waypoints && metadata.conn.waypoints.length > 0) {
+      // If connection has manual waypoints, use them with orthogonal routing
       const rawPoints = [
         { x: metadata.fromX, y: metadata.fromY },
         ...metadata.conn.waypoints,
