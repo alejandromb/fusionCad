@@ -6,6 +6,48 @@ This file is now a session log archive only.
 
 ---
 
+## Session 24 — 2026-03-19: Wiring Architecture Deep Dive
+
+**Duration**: Full session
+**Focus**: Wire integrity, bus connections, T-junctions, source/destination arrows
+
+### Completed
+- **Wire sheetId fixes** — All wire creation paths (UI, MCP, T-junction) now set `sheetId`. Sheet filtering changed from OR→AND logic.
+- **Source/Destination arrows** — 2 new symbols (`source-arrow`, `destination-arrow`) for multi-sheet power continuation with voltage labels and cross-references.
+- **Group drag waypoints** — Wire waypoints now move with devices when dragging a selection.
+- **T-junction snap-to-wire** — Junctions project onto the wire path via perpendicular projection (standard CAD algorithm).
+- **L1/L2 vertical rail lines** — Bold vertical lines at rail positions in ladder overlay. `ladderRailLineColor` added to all 5 theme presets.
+- **Wire persistence types** — API `ConnectionData` now typed with `wireNumber`, `sheetId`, `fromDeviceId`, `toDeviceId`, `waypoints`.
+- **Straight-line bus rendering** — Wire segments with aligned endpoints (same X or Y) bypass auto-router entirely. Prevents bus segment routing around obstacles. Applied to both rendering and hit detection.
+
+### T-Junction Architecture Investigation
+- Researched KiCad (`bus-wire-junction.cpp`, `BreakSegment()`, `CONNECTION_GRAPH`), QElectroTech (`Conductor` class), and EPLAN approaches.
+- **Key insight**: Professional EDA tools use independent line segments, not auto-routed connections. KiCad's `BreakSegment()` splits wires at junction points; connectivity is resolved at runtime via `CONNECTION_GRAPH`.
+- **fusionCad adaptation**: Since we use auto-routing, added straight-line bypass for aligned endpoints + waypoints on split halves to prevent re-routing.
+- **Remaining issue**: T-junction UX still needs work for multi-junction bus patterns. The split approach creates segment chains that are fragile. Architecture decision needed: bus-as-entity vs KiCad-style segments vs hybrid.
+
+### Industrial Schematic Reference
+- Analyzed professional SolisPLC control panel schematic — documented every element fusionCad must reproduce.
+- Saved to memory: `reference_industrial_schematic_anatomy.md`
+- Key gaps identified: source/dest arrows (done), wire numbers, rung descriptions, dual-column layout, wire gauge annotations.
+
+### Files Modified
+- `apps/web/src/hooks/useCanvasInteraction.ts` — T-junction projection, group drag waypoints, sheetConnections
+- `apps/web/src/hooks/useCircuitState.ts` — T-junction redesign, sheetId on wires, grid snap
+- `apps/web/src/renderer/circuit-renderer.ts` — Straight-line rendering, arrow labels, sheetId AND logic
+- `apps/web/src/renderer/symbols.ts` — Arrow symbol skip tag rendering
+- `apps/web/src/renderer/ladder-renderer.ts` — L1/L2 vertical rail lines
+- `apps/web/src/renderer/theme.ts` — `ladderRailLineColor` in all presets
+- `apps/api/src/entities/Project.ts` — ConnectionData fields, blocks
+- `packages/core-model/src/symbols/builtin-symbols.json` — source-arrow, destination-arrow
+- `packages/mcp-server/src/circuit-helpers.ts` — sheetId on MCP wires
+- `e2e/tests/t-junction.spec.ts` — Updated for split approach
+- `e2e/tests/wire-selection.spec.ts` — Existing tests maintained
+
+**Tests**: 129 E2E all passing
+
+---
+
 ## 🎯 Phase 0 - Foundation
 
 **Goal**: Set up project structure, tooling, and "hello world" baseline.
