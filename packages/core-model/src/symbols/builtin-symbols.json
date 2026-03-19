@@ -3771,12 +3771,30 @@
         {
           "type": "polyline",
           "points": [
-            { "x": 20, "y": 0 },
-            { "x": 40, "y": 10 },
-            { "x": 40, "y": 30 },
-            { "x": 20, "y": 40 },
-            { "x": 0, "y": 30 },
-            { "x": 0, "y": 10 }
+            {
+              "x": 20,
+              "y": 0
+            },
+            {
+              "x": 40,
+              "y": 10
+            },
+            {
+              "x": 40,
+              "y": 30
+            },
+            {
+              "x": 20,
+              "y": 40
+            },
+            {
+              "x": 0,
+              "y": 30
+            },
+            {
+              "x": 0,
+              "y": 10
+            }
           ],
           "closed": true
         }
@@ -5827,6 +5845,118 @@
             2,
             2
           ]
+        }
+      ]
+    },
+    {
+      "id": "source-arrow",
+      "name": "Source Arrow",
+      "category": "Connectors",
+      "standard": "ANSI",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 60,
+          "direction": "bottom",
+          "pinType": "power",
+          "position": {
+            "x": 20,
+            "y": 60
+          }
+        }
+      ],
+      "tagPrefix": "SA",
+      "primitives": [
+        {
+          "type": "polyline",
+          "points": [
+            {
+              "x": 5,
+              "y": 10
+            },
+            {
+              "x": 35,
+              "y": 10
+            },
+            {
+              "x": 20,
+              "y": 35
+            }
+          ],
+          "closed": true,
+          "stroke": "stroke",
+          "fill": "stroke",
+          "strokeWidth": 2
+        },
+        {
+          "type": "line",
+          "x1": 20,
+          "y1": 35,
+          "x2": 20,
+          "y2": 60,
+          "stroke": "stroke",
+          "strokeWidth": 2
+        }
+      ]
+    },
+    {
+      "id": "destination-arrow",
+      "name": "Destination Arrow",
+      "category": "Connectors",
+      "standard": "ANSI",
+      "width": 40,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power",
+          "position": {
+            "x": 20,
+            "y": 0
+          }
+        }
+      ],
+      "tagPrefix": "DA",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 20,
+          "y1": 0,
+          "x2": 20,
+          "y2": 25,
+          "stroke": "stroke",
+          "strokeWidth": 2
+        },
+        {
+          "type": "polyline",
+          "points": [
+            {
+              "x": 20,
+              "y": 25
+            },
+            {
+              "x": 5,
+              "y": 50
+            },
+            {
+              "x": 35,
+              "y": 50
+            }
+          ],
+          "closed": true,
+          "stroke": "stroke",
+          "fill": "stroke",
+          "strokeWidth": 2
         }
       ]
     }

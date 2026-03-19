@@ -102,9 +102,12 @@ export function filterConnectionsBySheet(
         result.push({ ...c, _globalIndex: i });
       }
     } else {
+      // Fallback for legacy connections without sheetId:
+      // Only include if BOTH endpoints are on the active sheet.
+      // Using AND prevents cross-sheet wires from appearing on the wrong sheet.
       const fromDev = resolveDevice(c, 'from', devices);
       const toDev = resolveDevice(c, 'to', devices);
-      if (fromDev !== undefined || toDev !== undefined) {
+      if (fromDev !== undefined && toDev !== undefined) {
         result.push({ ...c, _globalIndex: i });
       }
     }
@@ -730,6 +733,48 @@ export function renderCircuit(
     const partLabel = part ? part.partNumber : undefined;
 
     drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel);
+
+    // Source/Destination arrow special rendering:
+    // Show voltage label and cross-reference text around the arrow symbol
+    if (symbolKey === 'source-arrow' || symbolKey === 'destination-arrow') {
+      const geometry = getSymbolGeometry(symbolKey);
+      const centerX = position.x + geometry.width / 2;
+      const voltageLabel = device.function || '';  // e.g., "(+24VDC)"
+      const crossRef = device.location || '';       // e.g., "Sheet 3, Rung 3100"
+
+      ctx.save();
+      ctx.textAlign = 'center';
+
+      if (symbolKey === 'source-arrow') {
+        // Source: voltage label ABOVE the triangle, cross-ref below pin
+        ctx.fillStyle = t.tagColor;
+        ctx.font = 'bold 11px monospace';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(voltageLabel, centerX, position.y - 2);
+
+        if (crossRef) {
+          ctx.fillStyle = t.annotationColor;
+          ctx.font = '9px monospace';
+          ctx.textBaseline = 'top';
+          ctx.fillText(crossRef, centerX, position.y + geometry.height + 14);
+        }
+      } else {
+        // Destination: cross-ref above pin, voltage label BELOW the triangle
+        if (crossRef) {
+          ctx.fillStyle = t.annotationColor;
+          ctx.font = '9px monospace';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(crossRef, centerX, position.y - 14);
+        }
+
+        ctx.fillStyle = t.tagColor;
+        ctx.font = 'bold 11px monospace';
+        ctx.textBaseline = 'top';
+        ctx.fillText(voltageLabel, centerX, position.y + geometry.height + 2);
+      }
+
+      ctx.restore();
+    }
   }
 
   // Create obstacles from devices for routing

@@ -736,6 +736,26 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             }
             return next;
           });
+
+          // Move waypoints on wires where BOTH endpoints are in the moved set.
+          // Without this, manual waypoints stay in place while devices move.
+          if (circuit && (dx !== 0 || dy !== 0)) {
+            const movedSet = new Set(devicesToMove);
+            for (let ci = 0; ci < circuit.connections.length; ci++) {
+              const conn = circuit.connections[ci];
+              if (!conn.waypoints || conn.waypoints.length === 0) continue;
+
+              const fromId = conn.fromDeviceId || circuit.devices.find(d => d.tag === conn.fromDevice)?.id;
+              const toId = conn.toDeviceId || circuit.devices.find(d => d.tag === conn.toDevice)?.id;
+              if (fromId && toId && movedSet.has(fromId) && movedSet.has(toId)) {
+                const shifted = conn.waypoints.map(wp => ({
+                  x: snapToGrid(wp.x + dx),
+                  y: snapToGrid(wp.y + dy),
+                }));
+                replaceWaypoints(ci, shifted);
+              }
+            }
+          }
         }
         lastMousePosRef.current = { x: e.clientX, y: e.clientY };
         return;

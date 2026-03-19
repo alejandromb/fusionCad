@@ -277,6 +277,11 @@ export function createWire(
     modifiedAt: now,
   };
 
+  // Derive sheetId from the endpoint devices — both should be on the same sheet.
+  // Prefer fromDevice's sheet; if devices are on different sheets, the wire
+  // belongs to whichever sheet contains the "from" device.
+  const wireSheetId = fromDev.sheetId || toDev.sheetId;
+
   const newConnection: Connection = {
     fromDevice,
     fromDeviceId: fromDev.id,
@@ -285,6 +290,7 @@ export function createWire(
     toDeviceId: toDev.id,
     toPin,
     netId: newNetId,
+    ...(wireSheetId ? { sheetId: wireSheetId } : {}),
   };
 
   return {

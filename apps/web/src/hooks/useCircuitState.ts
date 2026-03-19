@@ -551,6 +551,7 @@ export function useCircuitState(
       toDeviceId: toPin.device,
       toPin: toPin.pin,
       netId: newNetId,
+      sheetId: validActiveSheetId,
     };
 
     setCircuit(prev => {

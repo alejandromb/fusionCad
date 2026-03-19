@@ -736,8 +736,11 @@ export function drawSymbol(
 
   ctx.restore();
 
-  // Junction symbols: just draw the filled dot, skip tag and pins
-  if (def.category?.toLowerCase() === 'junction') {
+  // Junction and source/destination arrow symbols: skip standard tag/pin rendering
+  // (Arrows get custom label rendering in circuit-renderer.ts)
+  const skipCategory = def.category?.toLowerCase();
+  const isArrow = idOrCategory === 'source-arrow' || idOrCategory === 'destination-arrow';
+  if (skipCategory === 'junction' || isArrow) {
     return;
   }
 
