@@ -33,11 +33,14 @@ lsof -ti:3003,5174 | xargs kill 2>/dev/null
 
 ## SESSION START CHECKLIST
 
+**IMPORTANT: Start Claude Code with `claude --chrome` for this project.** fusionCad is a visual canvas-based tool — browser inspection is essential for debugging rendering, wire routing, and layout issues.
+
 Before doing ANYTHING else:
 
 1. **Read this file** — priorities, bugs, and context are all here. This is the single source of truth.
-2. **Present P0 items first** when summarizing what's next. Never bury critical bugs below feature work.
-3. **Ask user what they want to work on today.**
+2. **Connect to Chrome** — use `tabs_context_mcp` to see the running app. Take a screenshot to verify state.
+3. **Present P0 items first** when summarizing what's next. Never bury critical bugs below feature work.
+4. **Ask user what they want to work on today.**
 
 ---
 
