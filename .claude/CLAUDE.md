@@ -48,7 +48,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 26 (2026-03-20) — Multi-select copy/paste, alignment tools, ghost paste preview
+**Last session:** 26 (2026-03-20) — Multi-select copy/paste, alignment tools, ghost paste preview, rung enumeration
 
 ### P0 — Must Fix / Complete Before Launch
 

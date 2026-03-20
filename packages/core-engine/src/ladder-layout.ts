@@ -72,6 +72,13 @@ export function layoutLadder(
   // Sort rungs by number for consistent layout
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
 
+  // Map rung number → sequential index (for Y positioning)
+  // rung.number may be a display number (100, 101...) not a position index
+  const rungIndexMap = new Map<number, number>();
+  for (let i = 0; i < sortedRungs.length; i++) {
+    rungIndexMap.set(sortedRungs[i].number, i);
+  }
+
   // ── Detect multi-rung devices ──
   // Count how many rungs each device appears in
   const deviceRungCount = new Map<string, number>();
@@ -97,8 +104,10 @@ export function layoutLadder(
     const rungNums = deviceRungNumbers.get(deviceId)!;
     const minRung = Math.min(...rungNums);
     const maxRung = Math.max(...rungNums);
-    const firstRungY = config.firstRungY + (minRung - 1) * config.rungSpacing + oy;
-    const lastRungY = config.firstRungY + (maxRung - 1) * config.rungSpacing + oy;
+    const minIdx = rungIndexMap.get(minRung) ?? 0;
+    const maxIdx = rungIndexMap.get(maxRung) ?? 0;
+    const firstRungY = config.firstRungY + minIdx * config.rungSpacing + oy;
+    const lastRungY = config.firstRungY + maxIdx * config.rungSpacing + oy;
     const centerY = (firstRungY + lastRungY) / 2;
 
     const symbolHeight = symbolHeights?.[deviceId] ?? 60;
@@ -112,8 +121,9 @@ export function layoutLadder(
   // ── Position single-rung devices per rung ──
   const DEFAULT_SYMBOL_HEIGHT = 60;
 
-  for (const rung of sortedRungs) {
-    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing + oy;
+  for (let ri = 0; ri < sortedRungs.length; ri++) {
+    const rung = sortedRungs[ri];
+    const rungY = config.firstRungY + ri * config.rungSpacing + oy;
 
     // Filter to existing devices, EXCLUDING multi-rung devices from horizontal distribution
     const singleRungIds = rung.deviceIds.filter(id => deviceMap.has(id) && !multiRungDeviceIds.has(id));

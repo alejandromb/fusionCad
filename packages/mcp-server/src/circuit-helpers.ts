@@ -852,8 +852,9 @@ export function createLadderRails(
   const ox = blockOffset.x;
   const oy = blockOffset.y;
 
-  for (const rung of rungs) {
-    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing + oy;
+  for (let ri = 0; ri < rungs.length; ri++) {
+    const rung = rungs[ri];
+    const rungY = config.firstRungY + ri * config.rungSpacing + oy;
 
     // L1 junction for every rung
     const l1Tag = `JL${rung.number}`;

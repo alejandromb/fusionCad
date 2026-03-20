@@ -308,8 +308,9 @@ function createLadderRails(circuit: CircuitData, sheetId: string, blockId?: stri
   const l2Junctions: { deviceId: string; tag: string; rungNumber: number }[] = [];
   const ox = blockOffset.x;
   const oy = blockOffset.y;
-  for (const rung of rungs) {
-    const rungY = config.firstRungY + (rung.number - 1) * config.rungSpacing + oy;
+  for (let ri = 0; ri < rungs.length; ri++) {
+    const rung = rungs[ri];
+    const rungY = config.firstRungY + ri * config.rungSpacing + oy;
     const l1Tag = `JL${rung.number}`;
     const l1 = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);
     cd = l1.circuit;

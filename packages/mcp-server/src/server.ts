@@ -505,6 +505,8 @@ export function createServer(apiBase: string) {
         railLabelL1: z.string().optional().describe('Label for left rail (default: "L1")'),
         railLabelL2: z.string().optional().describe('Label for right rail (default: "L2")'),
         voltage: z.string().optional().describe('Voltage label displayed at top (e.g., "24VDC", "120VAC")'),
+        numberingScheme: z.enum(['sequential', 'page-based', 'page-tens']).optional().describe('Rung numbering: sequential (1,2,3), page-based (100,101 on page 1, 200,201 on page 2), page-tens (100,110,120)'),
+        firstRungNumber: z.number().optional().describe('Override starting rung number (e.g., 300 for page 3)'),
       }).optional().describe('Ladder configuration'),
     },
     async ({ projectId, sheetId, position, name, ladderConfig }) => {

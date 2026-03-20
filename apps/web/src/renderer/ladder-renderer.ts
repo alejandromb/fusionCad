@@ -28,6 +28,7 @@ export function renderLadderOverlay(
   rungs: Rung[],
   blockPosition?: { x: number; y: number },
   hideRungGuides?: boolean,
+  sheetNumber?: number,
 ): void {
   const cfg = config ?? DEFAULT_LADDER_CONFIG;
   const t = getTheme();
@@ -35,6 +36,8 @@ export function renderLadderOverlay(
   const labelL1 = cfg.railLabelL1 ?? 'L1';
   const labelL2 = cfg.railLabelL2 ?? 'L2';
   const voltage = cfg.voltage;
+  const scheme = cfg.numberingScheme ?? 'sequential';
+  const pageNum = sheetNumber ?? 1;
 
   // Sort rungs by number
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
@@ -62,7 +65,7 @@ export function renderLadderOverlay(
   // ---- Vertical power rail lines (bold) ----
   if (sortedRungs.length > 0) {
     const firstY = firstRungY;
-    const lastY = firstRungY + (sortedRungs[sortedRungs.length - 1].number - 1) * rungSpacing;
+    const lastY = firstRungY + (sortedRungs.length - 1) * rungSpacing;
     ctx.strokeStyle = t.ladderRailLineColor;
     ctx.lineWidth = 3;
     ctx.setLineDash([]);
@@ -89,8 +92,11 @@ export function renderLadderOverlay(
   }
 
   // ---- Rung guide lines, numbers, and descriptions ----
-  for (const rung of sortedRungs) {
-    const rungY = firstRungY + (rung.number - 1) * rungSpacing;
+  for (let ri = 0; ri < sortedRungs.length; ri++) {
+    const rung = sortedRungs[ri];
+    // Y position is based on sequential index, not rung.number
+    // (rung.number may be a display number like 100, 200, etc.)
+    const rungY = firstRungY + ri * rungSpacing;
 
     // Horizontal rung guide line (very subtle dots, hidden during wire mode)
     if (!hideRungGuides) {
@@ -104,14 +110,45 @@ export function renderLadderOverlay(
       ctx.setLineDash([]);
     }
 
+    // Compute display rung number based on numbering scheme
+    // rung.number is the stored value — used directly for 'sequential'
+    // For other schemes, compute from the rung's index (ri) within the block
+    let displayNum: number;
+    if (cfg.firstRungNumber != null) {
+      displayNum = cfg.firstRungNumber + ri;
+    } else {
+      switch (scheme) {
+        case 'page-based':
+          displayNum = pageNum * 100 + ri;
+          break;
+        case 'page-tens':
+          displayNum = pageNum * 100 + ri * 10;
+          break;
+        default: // 'sequential'
+          displayNum = rung.number;
+      }
+    }
+
     // Rung number (left margin)
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = t.ladderRungNumberColor;
-    ctx.fillText(String(rung.number), railL1X - 16, rungY);
+    ctx.fillText(String(displayNum), railL1X - 16, rungY);
 
-    // Rung description (right margin)
+    // Page-qualified rung number (right margin, far right)
+    // Format: "page line" (e.g., "3 25")
+    if (scheme !== 'sequential') {
+      const pageLineLabel = `${pageNum} ${String(displayNum).padStart(2)}`;
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = t.ladderRungNumberColor;
+      // Place after description column
+      ctx.fillText(pageLineLabel, railL2X + 200, rungY);
+    }
+
+    // Rung description (right margin, adjacent to L2)
     if (rung.description) {
       ctx.font = '12px monospace';
       ctx.textAlign = 'left';

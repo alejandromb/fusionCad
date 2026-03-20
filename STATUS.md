@@ -6,10 +6,10 @@ This file is now a session log archive only.
 
 ---
 
-## Session 26 — 2026-03-20: Multi-Select Copy/Paste, Alignment, Ghost Paste
+## Session 26 — 2026-03-20: Multi-Select Copy/Paste, Alignment, Ghost Paste, Rung Enumeration
 
 **Duration**: Full session
-**Focus**: P1 copy/paste fix, alignment tools, paste UX improvement
+**Focus**: P1 copy/paste fix, alignment tools, paste UX, rung numbering schemes
 
 ### Completed
 - **Multi-select copy/paste (P1 fix)** — Clipboard now stores all selected devices, parts, connections, and transforms. Paste remaps IDs, tags, connection references, and waypoints. Duplicate (Cmd+D) also handles multi-device with wires.
@@ -17,7 +17,11 @@ This file is now a session log archive only.
 - **Alignment tools** — 6 directions (left, center-x, right, top, center-y, bottom) in Draw toolbar and device context menu. Appear when 2+ devices selected. Grid-snapped, undo-supported.
 - **Hit detection fix** — Inset capped at 25% of symbol size so small symbols remain clickable at low zoom levels.
 - **Transform copy** — Device rotation/mirror preserved during paste and duplicate.
+- **Rung enumeration** — Three numbering schemes: sequential (default), page-based (100,101... per page), page-tens (100,110,120...). `firstRungNumber` override. Right-side page-qualified labels ("3 25" format). Fixed critical bug where `rung.number` was used for Y positioning instead of sequential index — caused rungs numbered 100+ to render off-screen.
 - **6 new E2E tests** — Multi-device copy, duplicate, wire preservation, 3 alignment tests. 135 total, all passing.
+
+### Discovered Issues
+- **Rung Y positioning bug** — `rung.number` was used in `firstRungY + (rung.number - 1) * rungSpacing` across 4 files. When rungs had display numbers like 100, devices rendered at Y=11,980px. Fixed to use sequential index instead.
 
 ### Files Created
 - `e2e/tests/multi-copy-paste.spec.ts` — 6 E2E tests
@@ -26,11 +30,16 @@ This file is now a session log archive only.
 - `apps/web/src/hooks/useClipboard.ts` — Multi-device clipboard, transform copy
 - `apps/web/src/hooks/useCircuitState.ts` — `alignSelectedDevices()` function
 - `apps/web/src/hooks/useCanvasInteraction.ts` — Paste preview mode, mouse tracking
-- `apps/web/src/renderer/circuit-renderer.ts` — Ghost paste rendering with transforms
+- `apps/web/src/renderer/circuit-renderer.ts` — Ghost paste rendering, sheetNumber pass-through
+- `apps/web/src/renderer/ladder-renderer.ts` — Numbering schemes, index-based Y positioning
 - `apps/web/src/components/Canvas.tsx` — ghostPaste prop, alignment context menu
 - `apps/web/src/components/MenuBar.tsx` — Alignment toolbar buttons + icons
 - `apps/web/src/App.tsx` — ghostPaste memo, alignment wiring
 - `apps/web/src/types.ts` — Hit detection inset cap
+- `packages/core-engine/src/ladder-layout.ts` — Index-based rung Y positioning
+- `packages/mcp-server/src/circuit-helpers.ts` — Index-based rung Y positioning
+- `packages/mcp-server/src/server.ts` — `numberingScheme`, `firstRungNumber` in MCP schema
+- `apps/api/src/ai-generate.ts` — Index-based rung Y positioning
 - `e2e/tests/copy-paste.spec.ts` — Updated for paste preview flow
 
 **Tests**: 135 E2E + 7 blueprint unit tests, all passing

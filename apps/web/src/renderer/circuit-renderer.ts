@@ -760,11 +760,13 @@ export function renderCircuit(
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
   const sheetBlocks = (circuit.blocks || []).filter(b => b.sheetId === activeSheetId);
 
+  const sheetNum = activeSheet?.number ?? 1;
+
   for (const block of sheetBlocks) {
     if (block.blockType === 'ladder') {
       const ladderBlock = block as LadderBlock;
       const blockRungs = (circuit.rungs || []).filter(r => r.blockId === block.id);
-      renderLadderOverlay(ctx, ladderBlock.ladderConfig, blockRungs, block.position, !!options?.wireStart);
+      renderLadderOverlay(ctx, ladderBlock.ladderConfig, blockRungs, block.position, !!options?.wireStart, sheetNum);
     }
   }
 
@@ -772,7 +774,7 @@ export function renderCircuit(
   if (sheetBlocks.length === 0 && activeSheet?.diagramType === 'ladder') {
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
     const fallbackConfig = activeSheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
-    renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart);
+    renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart, sheetNum);
   }
 
   // Render title block (sheet border + title block in bottom-right)
