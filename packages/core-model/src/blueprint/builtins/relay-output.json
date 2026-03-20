@@ -1,0 +1,92 @@
+{
+  "id": "relay-output",
+  "name": "Relay Output",
+  "version": 1,
+  "description": "PLC DO → Relay coil + NO contact + terminal blocks for field wiring",
+
+  "params": [
+    { "name": "relayTag", "type": "string", "description": "Relay tag, e.g. CR1" },
+    { "name": "plcRef", "type": "string", "description": "Parent ref of PLC device to wire from" },
+    { "name": "doPin", "type": "string", "description": "PLC DO pin, e.g. DO0" }
+  ],
+
+  "devices": [
+    {
+      "ref": "coil",
+      "symbolId": "ansi-coil",
+      "tag": "{{relayTag}}",
+      "function": "{{relayTag}} Coil",
+      "rung": 1
+    },
+    {
+      "ref": "retTerminal",
+      "symbolId": "iec-terminal-single",
+      "tag": "RET-{{relayTag}}",
+      "function": "0V Return",
+      "position": {
+        "type": "align-pin",
+        "anchor": "coil",
+        "anchorPin": "2",
+        "selfPin": "1",
+        "dx": 200
+      }
+    },
+    {
+      "ref": "contact",
+      "symbolId": "ansi-normally-open-contact",
+      "tag": "{{relayTag}}",
+      "linkedTo": "coil",
+      "function": "{{relayTag}} NO Contact",
+      "sheet": "contacts"
+    },
+    {
+      "ref": "tbIn",
+      "symbolId": "iec-terminal-single",
+      "tag": "TB-{{relayTag}}a",
+      "function": "{{relayTag}} - IN",
+      "sheet": "contacts",
+      "position": {
+        "type": "align-pin",
+        "anchor": "contact",
+        "anchorPin": "1",
+        "selfPin": "1",
+        "dx": -150
+      }
+    },
+    {
+      "ref": "tbOut",
+      "symbolId": "iec-terminal-single",
+      "tag": "TB-{{relayTag}}b",
+      "function": "{{relayTag}} - OUT",
+      "sheet": "contacts",
+      "position": {
+        "type": "align-pin",
+        "anchor": "contact",
+        "anchorPin": "2",
+        "selfPin": "1",
+        "dx": 150
+      }
+    }
+  ],
+
+  "wires": [
+    { "from": { "ref": "coil", "pin": "2" }, "to": { "ref": "retTerminal", "pin": "1" } },
+    { "from": { "ref": "tbIn", "pin": "1" }, "to": { "ref": "contact", "pin": "1" } },
+    { "from": { "ref": "contact", "pin": "2" }, "to": { "ref": "tbOut", "pin": "1" } }
+  ],
+
+  "ports": [
+    { "name": "coilInput", "ref": "coil", "pin": "1", "direction": "in" },
+    { "name": "contactPowerIn", "ref": "tbIn", "pin": "1", "direction": "in" },
+    { "name": "contactLoadOut", "ref": "tbOut", "pin": "1", "direction": "out" }
+  ],
+
+  "layout": { "type": "free-form" },
+
+  "annotations": [
+    {
+      "content": "RELAY OUTPUT {{relayTag}}",
+      "position": { "type": "relative", "anchor": "coil", "dx": 120, "dy": 0 }
+    }
+  ]
+}

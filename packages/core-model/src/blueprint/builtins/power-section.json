@@ -1,0 +1,89 @@
+{
+  "id": "power-section",
+  "name": "Power Supply Section",
+  "version": 1,
+  "description": "Circuit breaker → AC/DC power supply → fuse for DC distribution",
+
+  "params": [
+    { "name": "inputVoltage", "type": "string", "default": "120VAC", "description": "AC input voltage" },
+    { "name": "outputVoltage", "type": "string", "default": "24VDC", "description": "DC output voltage" }
+  ],
+
+  "devices": [
+    {
+      "ref": "cb",
+      "symbolId": "iec-circuit-breaker-1p",
+      "tag": "CB1",
+      "function": "Main Circuit Breaker",
+      "position": { "type": "absolute", "x": 200, "y": 100 }
+    },
+    {
+      "ref": "tbN",
+      "symbolId": "iec-terminal-single",
+      "tag": "TB-N",
+      "function": "Neutral Terminal",
+      "position": { "type": "absolute", "x": 400, "y": 100 }
+    },
+    {
+      "ref": "psu",
+      "symbolId": "iec-power-supply-ac-dc",
+      "tag": "PS1",
+      "function": "Power Supply {{inputVoltage}} → {{outputVoltage}}",
+      "position": {
+        "type": "align-pin",
+        "anchor": "cb",
+        "anchorPin": "2",
+        "selfPin": "1",
+        "dx": 0
+      }
+    },
+    {
+      "ref": "fuse",
+      "symbolId": "ansi-fuse",
+      "tag": "FU1",
+      "function": "DC Output Fuse",
+      "position": {
+        "type": "align-pin",
+        "anchor": "psu",
+        "anchorPin": "3",
+        "selfPin": "1",
+        "dx": 0
+      }
+    },
+    {
+      "ref": "tb0V",
+      "symbolId": "iec-terminal-single",
+      "tag": "TB-0V",
+      "function": "0V Distribution",
+      "position": {
+        "type": "align-pin",
+        "anchor": "psu",
+        "anchorPin": "4",
+        "selfPin": "1",
+        "dx": 0
+      }
+    }
+  ],
+
+  "wires": [
+    { "from": { "ref": "cb", "pin": "2" }, "to": { "ref": "psu", "pin": "1" } },
+    { "from": { "ref": "tbN", "pin": "1" }, "to": { "ref": "psu", "pin": "2" } },
+    { "from": { "ref": "psu", "pin": "3" }, "to": { "ref": "fuse", "pin": "1" } },
+    { "from": { "ref": "psu", "pin": "4" }, "to": { "ref": "tb0V", "pin": "1" } }
+  ],
+
+  "ports": [
+    { "name": "lineIn", "ref": "cb", "pin": "1", "direction": "in" },
+    { "name": "neutralIn", "ref": "tbN", "pin": "1", "direction": "in" },
+    { "name": "dcOut", "ref": "fuse", "pin": "2", "direction": "out" },
+    { "name": "dcReturn", "ref": "tb0V", "pin": "1", "direction": "out" }
+  ],
+
+  "layout": { "type": "vertical-chain", "startY": 100, "gap": 80 },
+
+  "annotations": [
+    { "content": "{{inputVoltage}} INPUT", "position": { "type": "relative", "anchor": "cb", "dx": -80, "dy": 0 } },
+    { "content": "+{{outputVoltage}}", "position": { "type": "relative", "anchor": "fuse", "dx": 60, "dy": 0 } },
+    { "content": "0V", "position": { "type": "relative", "anchor": "tb0V", "dx": 60, "dy": 0 } }
+  ]
+}

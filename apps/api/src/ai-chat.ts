@@ -593,16 +593,41 @@ TAG CONVENTIONS (ANSI/NEMA style):
   OL1       = Overload Relay
 
 ═══════════════════════════════════════════════════
-WORKFLOW — LADDER DIAGRAM PREFERRED
+TOOL SELECTION — USE HIGH-LEVEL TOOLS FIRST
 ═══════════════════════════════════════════════════
 
-For control panel schematics (relay outputs, motor starters, PLC I/O), ALWAYS use LADDER DIAGRAM layout:
+CRITICAL: Before placing individual devices, check if a high-level tool can do the job:
+
+🔴 ALWAYS use generate_relay_bank when:
+  - User wants PLC DO outputs connected to relay coils (ANY quantity)
+  - User mentions "relay bank", "relay outputs", "PLC DO + coils/relays"
+  - User says "N relays" or "CR1-CRN" with a PLC
+  - Even for 1-4 relays — generate_relay_bank handles small counts correctly
+  → It creates proper ladder layout, wiring, contacts, and terminals automatically
+
+🔴 ALWAYS use generate_power_section when:
+  - User wants a power supply circuit (breaker + PSU + fuse)
+
+🔴 ALWAYS use generate_relay_output when:
+  - User wants to ADD a single relay to an EXISTING PLC (relay bank already exists)
+
+🟡 Only use manual placement (place_device + create_wire + ladder tools) when:
+  - The circuit pattern doesn't match any high-level tool
+  - User explicitly asks for manual/custom placement
+  - Building something the templates don't cover (e.g., custom interlocking logic)
+
+═══════════════════════════════════════════════════
+WORKFLOW — LADDER DIAGRAM (manual fallback)
+═══════════════════════════════════════════════════
+
+Only use this manual workflow when high-level tools above don't apply:
 
 1. Create sheets with clear names.
 2. For each sheet, create a LADDER BLOCK using create_ladder_block with appropriate voltage label.
 3. Place devices on the sheet (they'll be repositioned by auto_layout).
 4. Add rungs using add_rung — specify device tags left-to-right (L1 side → L2 side).
    Example rung: ["PLC1-DO1", "CR1"] means PLC output on left, relay coil on right.
+   PLC modules can appear on MULTIPLE rungs — auto_layout will center them vertically.
 5. Call auto_layout_ladder to position everything on the ladder grid.
 6. Wire devices AFTER layout (the auto-layout sets positions correctly).
 7. Add annotations for rung descriptions.
@@ -618,8 +643,6 @@ WHEN TO USE LADDER vs FREE-FORM:
   - Control panels, relay logic, PLC I/O → LADDER (always)
   - Power distribution, single-line diagrams → FREE-FORM with manual positioning
   - If unsure, ask the user
-
-For bulk relay projects, use generate_relay_bank tool — it handles everything.
 
 ═══════════════════════════════════════════════════
 SCHEMATIC LAYOUT RULES — NEVER violate these (IEC 61082 / industry standard)
@@ -936,7 +959,17 @@ export async function aiChat(
             const blockRungs = (circuit.rungs || []).filter((r: any) => r.blockId === input.blockId);
             const layoutResult = layoutLadder(blockRungs, circuit.devices, block.ladderConfig, block.position);
             // Merge computed positions into circuit
-            circuit = { ...circuit, positions: { ...circuit.positions, ...layoutResult.positions } };
+            const updatedPositions = { ...circuit.positions, ...layoutResult.positions };
+            // Set rotation: -90 for single-rung devices, skip for multi-rung (PLC modules stay upright)
+            const updatedTransforms: Record<string, any> = { ...(circuit.transforms || {}) };
+            for (const deviceId of Object.keys(layoutResult.positions)) {
+              if (layoutResult.multiRungDeviceIds.has(deviceId)) {
+                delete updatedTransforms[deviceId];
+              } else {
+                updatedTransforms[deviceId] = { rotation: -90 };
+              }
+            }
+            circuit = { ...circuit, positions: updatedPositions, transforms: updatedTransforms };
             result = `Auto-layout complete: ${blockRungs.length} rungs positioned`;
             actionsPerformed++;
             actionLog.push(result);

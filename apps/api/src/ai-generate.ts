@@ -273,7 +273,11 @@ function autoLayoutLadder(
   }
   const updatedTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = { ...(circuit.transforms || {}) };
   for (const deviceId of Object.keys(result.positions)) {
-    updatedTransforms[deviceId] = { rotation: -90 };
+    if (result.multiRungDeviceIds.has(deviceId)) {
+      delete updatedTransforms[deviceId];
+    } else {
+      updatedTransforms[deviceId] = { rotation: -90 };
+    }
   }
   return { circuit: { ...circuit, positions: updatedPositions, transforms: updatedTransforms } };
 }

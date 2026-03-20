@@ -1,0 +1,76 @@
+{
+  "id": "relay-bank",
+  "name": "PLC Relay Bank",
+  "version": 1,
+  "description": "Complete relay output system: power supply + PLC DO modules + relay coils + NO contacts + terminal blocks",
+
+  "params": [
+    { "name": "relayCount", "type": "number", "default": 4, "description": "Number of relay outputs" },
+    { "name": "relayPrefix", "type": "string", "default": "CR", "description": "Relay tag prefix" },
+    { "name": "startIndex", "type": "number", "default": 1, "description": "Starting relay number" },
+    { "name": "plcSymbolId", "type": "string", "default": "iec-plc-do-8", "description": "PLC DO module symbol" },
+    { "name": "controlVoltage", "type": "string", "default": "24VDC", "description": "Control voltage" },
+    { "name": "includePowerSupply", "type": "boolean", "default": true, "description": "Include power supply sheet" }
+  ],
+
+  "sheets": [
+    { "ref": "power", "name": "Power Distribution", "size": "Tabloid" },
+    { "ref": "outputs", "name": "DO Outputs", "size": "Tabloid" },
+    { "ref": "contacts", "name": "Field Contacts", "size": "Tabloid" }
+  ],
+
+  "devices": [
+    {
+      "ref": "plcDO",
+      "symbolId": "{{plcSymbolId}}",
+      "tag": "PLC1-DO1",
+      "function": "PLC DO Module",
+      "sheet": "outputs"
+    }
+  ],
+
+  "wires": [],
+
+  "ports": [],
+
+  "layout": {
+    "type": "ladder",
+    "voltage": "{{controlVoltage}}",
+    "railLabelL1": "+{{controlVoltage}}",
+    "railLabelL2": "0V",
+    "createRails": true
+  },
+
+  "children": [
+    {
+      "ref": "powerSection",
+      "blueprint": "power-section",
+      "params": {
+        "inputVoltage": "120VAC",
+        "outputVoltage": "{{controlVoltage}}"
+      },
+      "sheet": "power",
+      "condition": "includePowerSupply"
+    }
+  ],
+
+  "repeats": [
+    {
+      "ref": "relay",
+      "blueprint": "relay-output",
+      "count": "{{relayCount}}",
+      "params": {
+        "relayTag": "{{relayPrefix}}{{_index + startIndex}}",
+        "plcRef": "plcDO",
+        "doPin": "DO{{_index}}"
+      },
+      "wiring": [
+        {
+          "port": "coilInput",
+          "toRef": "plcDO",
+          "toPin": "DO{{_index}}"
+        }
+      ]
+    }
+  ]
+}

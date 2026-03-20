@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
-import { getWireAtPoint, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
+import { getWireAtPoint, getWireHitWithDistance, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
 import type { Connection, SheetConnection } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
 import {
@@ -527,9 +527,25 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
         }
 
-        // hitSymbol returns device ID
-        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
-        if (hitDeviceId) {
+        // Hit radii are screen-space constant (divided by zoom scale)
+        const wireHitRadius = 8 / viewport.scale;
+        const wirePriorityRadius = 4 / viewport.scale;
+
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+        const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, wireHitRadius, circuit.transforms);
+        const hitWire = wireHit?.index ?? null;
+
+        // When both are hit, prefer wire only if click is within ~4 screen-px of the wire path.
+        // Exception: junctions are ON wires by design — always prefer the junction device.
+        const WIRE_PRIORITY_THRESHOLD = wirePriorityRadius;
+        const hitDeviceIsJunction = hitDeviceId
+          ? circuit.devices.find(d => d.id === hitDeviceId)?.function?.toLowerCase().includes('junction') ?? false
+          : false;
+        const preferWire = wireHit !== null && hitDeviceId !== null
+          && wireHit.distance <= WIRE_PRIORITY_THRESHOLD
+          && !hitDeviceIsJunction;
+
+        if (hitDeviceId && !preferWire) {
           setSelectedWireIndex(null);
 
           if (e.shiftKey) {
@@ -559,7 +575,6 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           return;
         }
 
-        const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
         if (hitWire !== null) {
           setSelectedDevices([]);
           if (hitWire !== selectedWireIndex) {
@@ -863,7 +878,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       // End endpoint dragging
       if (draggingEndpoint) {
-        const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
+        const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
         if (hitPin) {
           const isOriginalPin = hitPin.device === draggingEndpoint.originalPin.device &&
                                hitPin.pin === draggingEndpoint.originalPin.pin;
@@ -971,7 +986,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'wire': {
-            const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
+            const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
             if (hitPin) {
               if (!wireStart) {
                 setWireStart(hitPin);
@@ -983,7 +998,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
             } else if (wireStart) {
               // Check if clicking on an existing wire for T-junction
-              const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+              const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
               if (hitWire !== null) {
                 // Project click point onto the wire path so the junction
                 // aligns exactly on the wire (not just to the nearest grid point)
@@ -1011,8 +1026,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'select': {
-            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
-            const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+            const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
               const conn = sheetConnections[hitWire];
@@ -1282,10 +1297,22 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const allPositions = getAllPositions();
       const rect = canvas.getBoundingClientRect();
 
-      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms);
-      const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8, circuit.transforms);
+      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+      const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
+      const hitWire = wireHit?.index ?? null;
 
-      if (hitDeviceId) {
+      // Wire takes priority when click is very close to wire path (within ~4 screen-px)
+      if (wireHit !== null && hitDeviceId && wireHit.distance <= 4 / viewport.scale) {
+        setSelectedWireIndex(hitWire);
+        setContextMenu({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          worldX: world.x,
+          worldY: world.y,
+          target: 'wire',
+          wireIndex: hitWire,
+        });
+      } else if (hitDeviceId) {
         if (!selectedDevices.includes(hitDeviceId)) {
           setSelectedDevices([hitDeviceId]);
         }

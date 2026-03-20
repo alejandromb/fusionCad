@@ -778,13 +778,19 @@ export function autoLayoutLadder(
     updatedPositions[deviceId] = pos;
   }
 
-  // Set rotation = -90 for all devices on rungs so pins face left/right
+  // Set rotation = -90 for single-rung devices so pins face left/right
   // (pin "1"/top rotates to face left toward L1, pin "2"/bottom faces right toward L2)
+  // Multi-rung devices (PLC modules) stay upright — their pins already face right
   const updatedTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = {
     ...(circuit.transforms || {}),
   };
   for (const deviceId of Object.keys(result.positions)) {
-    updatedTransforms[deviceId] = { rotation: -90 };
+    if (result.multiRungDeviceIds.has(deviceId)) {
+      // PLC modules stay upright (no rotation) — DO pins face right toward coils
+      delete updatedTransforms[deviceId];
+    } else {
+      updatedTransforms[deviceId] = { rotation: -90 };
+    }
   }
 
   let deviceCount = 0;

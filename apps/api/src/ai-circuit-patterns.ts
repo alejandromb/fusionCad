@@ -246,14 +246,6 @@ function addSheet(circuit: CircuitData, name: string, size?: string): { circuit:
   };
 }
 
-function setTransform(
-  circuit: CircuitData, deviceId: string, rotation: number, mirrorH?: boolean,
-): CircuitData {
-  const transforms = { ...(circuit.transforms || {}) };
-  transforms[deviceId] = { rotation, ...(mirrorH !== undefined ? { mirrorH } : {}) };
-  return { ...circuit, transforms };
-}
-
 function addLadderBlock(
   circuit: CircuitData, sheetId: string, name: string,
   config?: Partial<LadderConfig>,
@@ -345,8 +337,6 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const retTerminalY = alignDeviceToPin('iec-terminal-single', '1', coilA2WorldY);
   const r1b = addDevice(circuit, 'iec-terminal-single', retTag, retX, retTerminalY, coilSheetId, '0V Return');
   circuit = r1b.circuit;
-  // Rotate return terminal 180° so pin faces left (toward the coil)
-  circuit = setTransform(circuit, r1b.deviceId, 180);
   circuit = addWireById(circuit, coilDeviceId, params.relayTag, '2', r1b.deviceId, retTag, '1');
 
   // 4. Place linked NO contact (same tag = linked device, HORIZONTAL orientation)
@@ -368,8 +358,6 @@ export function generateRelayOutput(circuit: CircuitData, params: RelayOutputPar
   const tbOutAlignedY = alignDeviceToPin('iec-terminal-single', '1', contactPin2WorldY);
   const r4 = addDevice(circuit, 'iec-terminal-single', tbOutTag, tbOutX, tbOutAlignedY, contactSheetId, `${params.relayTag} - OUT`);
   circuit = r4.circuit;
-  // Rotate right-side terminal 180° so pin faces left (toward the contact)
-  circuit = setTransform(circuit, r4.deviceId, 180);
 
   // 6. Wire by deviceId: TB-in pin 1 → NO contact pin 1; NO contact pin 2 → TB-out pin 1
   circuit = addWireById(circuit, r3.deviceId, tbInTag, '1', contactDeviceId, params.relayTag, '1');

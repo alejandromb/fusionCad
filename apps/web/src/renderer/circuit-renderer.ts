@@ -380,6 +380,61 @@ export function getWireAtPoint(
   return bestHitIndex;
 }
 
+/** Same as getWireAtPoint but also returns the distance to the closest wire */
+export function getWireHitWithDistance(
+  worldX: number, worldY: number,
+  connections: Connection[], devices: Device[], parts: Part[],
+  positions: Map<string, Point>, hitRadius = 8,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+): { index: number; distance: number } | null {
+  // Reuse getWireAtPoint logic but we need the distance too.
+  // For efficiency, call getWireAtPoint with a tight radius first, then loosen.
+  // Actually, do a simple segment-distance check for the found wire.
+  const idx = getWireAtPoint(worldX, worldY, connections, devices, parts, positions, hitRadius, transforms);
+  if (idx === null) return null;
+
+  // Compute actual distance to the matched wire
+  const conn = connections[idx];
+  const partMap = new Map<string, Part>();
+  for (const part of parts) partMap.set(part.id, part);
+
+  const fromDevice = resolveDevice(conn, 'from', devices);
+  const toDevice = resolveDevice(conn, 'to', devices);
+  if (!fromDevice || !toDevice) return { index: idx, distance: hitRadius };
+
+  const fromPos = positions.get(fromDevice.id);
+  const toPos = positions.get(toDevice.id);
+  if (!fromPos || !toPos) return { index: idx, distance: hitRadius };
+
+  const fromPart = fromDevice.partId ? partMap.get(fromDevice.partId) : null;
+  const toPart = toDevice.partId ? partMap.get(toDevice.partId) : null;
+  const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
+  const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
+  const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
+  const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
+  const fromPinPos = fromPinDef
+    ? getPinWorldPosition(fromPos, fromPinDef.position, fromGeometry, transforms?.[fromDevice.id])
+    : { x: fromPos.x + fromGeometry.width / 2, y: fromPos.y + fromGeometry.height / 2 };
+  const toPinPos = toPinDef
+    ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
+    : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
+
+  // Check waypoint path or straight line
+  let minDist = Infinity;
+  if (conn.waypoints && conn.waypoints.length > 0) {
+    const pts = [fromPinPos, ...conn.waypoints, toPinPos];
+    const path = toOrthogonalPath(pts);
+    for (let j = 0; j < path.length - 1; j++) {
+      const d = pointToSegmentDistance(worldX, worldY, path[j].x, path[j].y, path[j + 1].x, path[j + 1].y);
+      if (d < minDist) minDist = d;
+    }
+  } else {
+    minDist = pointToSegmentDistance(worldX, worldY, fromPinPos.x, fromPinPos.y, toPinPos.x, toPinPos.y);
+  }
+
+  return { index: idx, distance: minDist };
+}
+
 /**
  * Helper to create obstacles for hit testing (same as rendering)
  */

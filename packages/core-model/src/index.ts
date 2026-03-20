@@ -17,3 +17,8 @@ export * from './parts/index.js';
 export * from './motor-data/index.js';
 export { migrateToBlocks } from './migrations/migrate-blocks.js';
 export type { MigratableCircuit } from './migrations/migrate-blocks.js';
+export type {
+  Blueprint, BlueprintParam, BlueprintDevice, BlueprintPosition,
+  BlueprintWire, BlueprintPort, BlueprintLayout, BlueprintAnnotation,
+  BlueprintSheet, BlueprintRepeat, BlueprintChild, BlueprintPartAssignment,
+} from './blueprint/types.js';

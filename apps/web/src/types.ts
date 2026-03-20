@@ -79,8 +79,9 @@ export function getPinAtPoint(
   parts: Part[],
   positions: Map<string, Point>,
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+  viewportScale = 1,
 ): PinHit | null {
-  const HIT_RADIUS = 8;
+  const HIT_RADIUS = 8 / viewportScale;
   const partMap = new Map<string, Part>();
   for (const part of parts) {
     partMap.set(part.id, part);
@@ -119,6 +120,7 @@ export function getSymbolAtPoint(
   parts: Part[],
   positions: Map<string, Point>,
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+  viewportScale = 1,
 ): string | null {
   const partMap = new Map<string, Part>();
   for (const part of parts) {
@@ -138,17 +140,23 @@ export function getSymbolAtPoint(
     const effectiveWidth = (rotation % 180 !== 0) ? geometry.height : geometry.width;
     const effectiveHeight = (rotation % 180 !== 0) ? geometry.width : geometry.height;
 
+    // Shrink hit box by an inset to exclude pin stub areas at symbol edges.
+    // Inset is in screen-space (divided by scale) so it feels consistent at any zoom.
+    const HIT_INSET = 10 / viewportScale;
+    const insetW = Math.max(0, effectiveWidth - HIT_INSET * 2);
+    const insetH = Math.max(0, effectiveHeight - HIT_INSET * 2);
+
     // Center stays the same, but bounds shift with swapped dimensions
     const cx = pos.x + geometry.width / 2;
     const cy = pos.y + geometry.height / 2;
-    const minX = cx - effectiveWidth / 2;
-    const minY = cy - effectiveHeight / 2;
+    const minX = cx - insetW / 2;
+    const minY = cy - insetH / 2;
 
     if (
       worldX >= minX &&
-      worldX <= minX + effectiveWidth &&
+      worldX <= minX + insetW &&
       worldY >= minY &&
-      worldY <= minY + effectiveHeight
+      worldY <= minY + insetH
     ) {
       return device.id;
     }
