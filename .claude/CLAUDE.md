@@ -48,7 +48,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 25 (2026-03-20) — Blueprint architecture, multi-rung layout, wire selection fixes, AI tool integration
+**Last session:** 26 (2026-03-20) — Multi-select copy/paste, alignment tools, ghost paste preview
 
 ### P0 — Must Fix / Complete Before Launch
 
@@ -64,7 +64,7 @@ Before doing ANYTHING else:
 
 #### Manual Editing
 
-4. **Multi-select copy/paste broken (P1)** — Selecting multiple devices + Cmd+C/V only copies 1 device, no wires. Blocks manual editing workflow. Need: multi-device copy, wire copy, tag renumbering on paste.
+4. **~~Multi-select copy/paste~~** ✅ Fixed (Session 26) — Clipboard stores all selected devices, parts, connections, transforms. Paste remaps IDs/tags/wires. Ghost preview follows mouse on Cmd+V, click to commit. Alignment tools (6 directions) in toolbar + context menu. 6 E2E tests.
 5. **Contact pin numbering** — Relay contacts show generic "1"/"2" instead of real pins (13-14, 21-22). Need: editable pin IDs in properties panel + auto-populate from part catalog.
 
 #### AI Intelligence
@@ -132,7 +132,7 @@ Before doing ANYTHING else:
 - Auth: Cognito + Amplify, Google/GitHub OAuth
 - Cloud deployment ready: Dockerfile, migrations, Railway config, CORS, /health
 - ERC: hot-to-neutral short circuit detection (device classifier + BFS)
-- 125 E2E tests + 45 unit tests
+- 135 E2E tests + 45 unit tests
 
 **Architecture decisions:**
 - **Storage:** Cloud Postgres for everyone. Free tier: 3 projects, full editor, no AI. Paid: unlimited + AI.
@@ -172,7 +172,7 @@ The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for 
 
 ## 🧪 E2E TESTING (Playwright)
 
-125 E2E + 45 unit tests. Separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
+135 E2E + 45 unit tests. Separate ports (API 3003, Vite 5174) and test database (`fusion_cad_test`).
 
 ```bash
 npm run db:up              # ensure Docker Postgres is running

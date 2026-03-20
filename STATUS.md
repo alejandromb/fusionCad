@@ -6,6 +6,37 @@ This file is now a session log archive only.
 
 ---
 
+## Session 26 — 2026-03-20: Multi-Select Copy/Paste, Alignment, Ghost Paste
+
+**Duration**: Full session
+**Focus**: P1 copy/paste fix, alignment tools, paste UX improvement
+
+### Completed
+- **Multi-select copy/paste (P1 fix)** — Clipboard now stores all selected devices, parts, connections, and transforms. Paste remaps IDs, tags, connection references, and waypoints. Duplicate (Cmd+D) also handles multi-device with wires.
+- **Ghost paste preview** — Cmd+V enters preview mode with semi-transparent ghosts following cursor. Click to commit, Escape to cancel. Context menu paste remains instant.
+- **Alignment tools** — 6 directions (left, center-x, right, top, center-y, bottom) in Draw toolbar and device context menu. Appear when 2+ devices selected. Grid-snapped, undo-supported.
+- **Hit detection fix** — Inset capped at 25% of symbol size so small symbols remain clickable at low zoom levels.
+- **Transform copy** — Device rotation/mirror preserved during paste and duplicate.
+- **6 new E2E tests** — Multi-device copy, duplicate, wire preservation, 3 alignment tests. 135 total, all passing.
+
+### Files Created
+- `e2e/tests/multi-copy-paste.spec.ts` — 6 E2E tests
+
+### Files Modified
+- `apps/web/src/hooks/useClipboard.ts` — Multi-device clipboard, transform copy
+- `apps/web/src/hooks/useCircuitState.ts` — `alignSelectedDevices()` function
+- `apps/web/src/hooks/useCanvasInteraction.ts` — Paste preview mode, mouse tracking
+- `apps/web/src/renderer/circuit-renderer.ts` — Ghost paste rendering with transforms
+- `apps/web/src/components/Canvas.tsx` — ghostPaste prop, alignment context menu
+- `apps/web/src/components/MenuBar.tsx` — Alignment toolbar buttons + icons
+- `apps/web/src/App.tsx` — ghostPaste memo, alignment wiring
+- `apps/web/src/types.ts` — Hit detection inset cap
+- `e2e/tests/copy-paste.spec.ts` — Updated for paste preview flow
+
+**Tests**: 135 E2E + 7 blueprint unit tests, all passing
+
+---
+
 ## Session 25 — 2026-03-20: Blueprint Architecture + Manual Editing Fixes
 
 **Duration**: Full session
