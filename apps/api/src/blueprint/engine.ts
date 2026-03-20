@@ -248,55 +248,7 @@ export function instantiateBlueprint(blueprint: Blueprint, ctx: BlueprintContext
     }
   }
 
-  // ── Process repeats ──
-  if (blueprint.repeats) {
-    for (const repeat of blueprint.repeats) {
-      const count = parseInt(resolveTemplate(repeat.count, params), 10) || 0;
-      for (let i = 0; i < count; i++) {
-        const childBp = getBlueprintById(repeat.blueprint);
-        if (!childBp) { log.push(`Warning: blueprint "${repeat.blueprint}" not found`); break; }
-
-        const instanceParams: Record<string, any> = { ...params, _index: i };
-        if (repeat.params) {
-          for (const [k, v] of Object.entries(repeat.params)) {
-            instanceParams[k] = resolveTemplate(v, instanceParams);
-          }
-        }
-
-        // Determine which sheet each child device goes on
-        const childSheetId = sheetMap['outputs'] ?? primarySheetId;
-
-        const childResult = instantiateBlueprint(childBp, {
-          params: instanceParams, circuit, sheetId: childSheetId, origin,
-        });
-        circuit = childResult.circuit;
-
-        for (const [ref, id] of Object.entries(childResult.deviceMap)) {
-          deviceMap[`${repeat.ref}_${i}.${ref}`] = id;
-        }
-
-        // Wire repeat ports
-        if (repeat.wiring) {
-          for (const w of repeat.wiring) {
-            const portDef = childBp.ports.find(p => p.name === w.port);
-            if (!portDef) continue;
-            const fromId = childResult.deviceMap[portDef.ref];
-            const toId = deviceMap[w.toRef];
-            if (!fromId || !toId) continue;
-            const fromTag = circuit.devices.find((d: any) => d.id === fromId)?.tag;
-            const toTag = circuit.devices.find((d: any) => d.id === toId)?.tag;
-            const toPin = resolveTemplate(w.toPin, instanceParams);
-            if (fromTag && toTag) {
-              circuit = addWire(circuit, fromId, fromTag, portDef.pin, toId, toTag, toPin);
-            }
-          }
-        }
-      }
-      log.push(`${repeat.ref}: ${count} instances`);
-    }
-  }
-
-  // ── Place devices ──
+  // ── Place parent devices BEFORE repeats (repeats may wire to parent devices) ──
   for (const dev of blueprint.devices) {
     const tag = dev.tag ? resolveTemplate(dev.tag, params) : undefined;
     const func = dev.function ? resolveTemplate(dev.function, params) : undefined;
@@ -323,6 +275,52 @@ export function instantiateBlueprint(blueprint: Blueprint, ctx: BlueprintContext
       circuit = result.circuit;
       deviceMap[dev.ref] = result.deviceId;
       tagMap[dev.ref] = tag || 'D1';
+    }
+  }
+
+  // ── Process repeats (parent devices already exist for port wiring) ──
+  if (blueprint.repeats) {
+    for (const repeat of blueprint.repeats) {
+      const count = parseInt(resolveTemplate(repeat.count, params), 10) || 0;
+      for (let i = 0; i < count; i++) {
+        const childBp = getBlueprintById(repeat.blueprint);
+        if (!childBp) { log.push(`Warning: blueprint "${repeat.blueprint}" not found`); break; }
+
+        const instanceParams: Record<string, any> = { ...params, _index: i };
+        if (repeat.params) {
+          for (const [k, v] of Object.entries(repeat.params)) {
+            instanceParams[k] = resolveTemplate(v, instanceParams);
+          }
+        }
+
+        const childSheetId = sheetMap['outputs'] ?? primarySheetId;
+        const childResult = instantiateBlueprint(childBp, {
+          params: instanceParams, circuit, sheetId: childSheetId, origin,
+        });
+        circuit = childResult.circuit;
+
+        for (const [ref, id] of Object.entries(childResult.deviceMap)) {
+          deviceMap[`${repeat.ref}_${i}.${ref}`] = id;
+        }
+
+        // Wire repeat ports to parent devices
+        if (repeat.wiring) {
+          for (const w of repeat.wiring) {
+            const portDef = childBp.ports.find((p: any) => p.name === w.port);
+            if (!portDef) continue;
+            const fromId = childResult.deviceMap[portDef.ref];
+            const toId = deviceMap[w.toRef];
+            if (!fromId || !toId) continue;
+            const fromTag = circuit.devices.find((d: any) => d.id === fromId)?.tag;
+            const toTag = circuit.devices.find((d: any) => d.id === toId)?.tag;
+            const toPin = resolveTemplate(w.toPin, instanceParams);
+            if (fromTag && toTag) {
+              circuit = addWire(circuit, fromId, fromTag, portDef.pin, toId, toTag, toPin);
+            }
+          }
+        }
+      }
+      log.push(`${repeat.ref}: ${count} instances`);
     }
   }
 

@@ -20,6 +20,11 @@ import {
 import { generateRelayBank, generateRelayOutput, generatePowerSection } from './ai-circuit-patterns.js';
 import { runERC, type ERCReport, layoutLadder } from '@fusion-cad/core-engine';
 import type { LadderConfig, LadderBlock, Rung, AnyDiagramBlock } from '@fusion-cad/core-model';
+import { instantiateBlueprint } from './blueprint/engine.js';
+import { getBlueprintById, registerBuiltinBlueprints } from './blueprint/registry.js';
+
+// Register blueprints on module load
+registerBuiltinBlueprints();
 
 // Ensure symbols are registered
 registerBuiltinSymbols();
@@ -305,6 +310,22 @@ const TOOLS: Anthropic.Tool[] = [
         blockId: { type: 'string', description: 'Ladder block ID' },
       },
       required: ['blockId'],
+    },
+  },
+  // ---- BLUEPRINT SYSTEM ----
+  {
+    name: 'instantiate_blueprint',
+    description: 'Generate a circuit from a predefined blueprint template. PREFERRED over manual device placement. Available blueprints: "relay-bank" (PLC + N relay coils + contacts + terminals), "power-section" (breaker + PSU + fuse), "relay-output" (single relay output).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        blueprintId: { type: 'string', description: 'Blueprint ID: "relay-bank", "power-section", or "relay-output"' },
+        params: {
+          type: 'object',
+          description: 'Blueprint parameters. relay-bank: {relayCount, relayPrefix?, startIndex?, plcSymbolId?, controlVoltage?, includePowerSupply?}. power-section: {inputVoltage?, outputVoltage?}. relay-output: {relayTag, plcRef, doPin}.',
+        },
+      },
+      required: ['blueprintId', 'params'],
     },
   },
 ];
@@ -593,26 +614,30 @@ TAG CONVENTIONS (ANSI/NEMA style):
   OL1       = Overload Relay
 
 ═══════════════════════════════════════════════════
-TOOL SELECTION — USE HIGH-LEVEL TOOLS FIRST
+TOOL SELECTION — USE BLUEPRINTS FIRST
 ═══════════════════════════════════════════════════
 
-CRITICAL: Before placing individual devices, check if a high-level tool can do the job:
+CRITICAL: Use instantiate_blueprint as your PRIMARY circuit generation tool.
+It produces clean, properly laid out circuits from declarative templates.
 
-🔴 ALWAYS use generate_relay_bank when:
-  - User wants PLC DO outputs connected to relay coils (ANY quantity)
-  - User mentions "relay bank", "relay outputs", "PLC DO + coils/relays"
-  - User says "N relays" or "CR1-CRN" with a PLC
-  - Even for 1-4 relays — generate_relay_bank handles small counts correctly
-  → It creates proper ladder layout, wiring, contacts, and terminals automatically
+🔴 instantiate_blueprint with "relay-bank":
+  - PLC DO outputs + relay coils + contacts + terminals (ANY quantity)
+  - Params: { relayCount, relayPrefix?, startIndex?, plcSymbolId?, controlVoltage?, includePowerSupply? }
+  - Creates multiple sheets with proper ladder layout automatically
 
-🔴 ALWAYS use generate_power_section when:
-  - User wants a power supply circuit (breaker + PSU + fuse)
+🔴 instantiate_blueprint with "power-section":
+  - Circuit breaker + AC/DC power supply + fuse
+  - Params: { inputVoltage?, outputVoltage? }
 
-🔴 ALWAYS use generate_relay_output when:
-  - User wants to ADD a single relay to an EXISTING PLC (relay bank already exists)
+🔴 instantiate_blueprint with "relay-output":
+  - Single relay output added to existing circuit
+  - Params: { relayTag, plcRef, doPin }
+
+🟡 generate_relay_bank / generate_power_section / generate_relay_output:
+  - Legacy tools — still work but instantiate_blueprint is preferred
 
 🟡 Only use manual placement (place_device + create_wire + ladder tools) when:
-  - The circuit pattern doesn't match any high-level tool
+  - The circuit pattern doesn't match any blueprint
   - User explicitly asks for manual/custom placement
   - Building something the templates don't cover (e.g., custom interlocking logic)
 
@@ -975,6 +1000,26 @@ export async function aiChat(
             actionLog.push(result);
           } catch (e: any) {
             result = `Error in auto-layout: ${e.message}`;
+          }
+          break;
+        }
+        case 'instantiate_blueprint': {
+          if (!circuit) { result = 'Error: No project loaded'; break; }
+          try {
+            const bp = getBlueprintById(input.blueprintId);
+            if (!bp) { result = `Error: Blueprint "${input.blueprintId}" not found. Available: relay-bank, power-section, relay-output`; break; }
+            const sheetId = circuit.sheets?.[0]?.id || 'sheet-1';
+            const bpResult = instantiateBlueprint(bp, {
+              params: input.params || {},
+              circuit,
+              sheetId,
+            });
+            circuit = bpResult.circuit;
+            result = bpResult.summary;
+            actionsPerformed += Object.keys(bpResult.deviceMap).length;
+            actionLog.push(`Blueprint "${input.blueprintId}": ${result}`);
+          } catch (e: any) {
+            result = `Error instantiating blueprint: ${e.message}`;
           }
           break;
         }
