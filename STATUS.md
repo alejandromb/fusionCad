@@ -6,6 +6,57 @@ This file is now a session log archive only.
 
 ---
 
+## Session 25 — 2026-03-20: Blueprint Architecture + Manual Editing Fixes
+
+**Duration**: Full session
+**Focus**: Declarative blueprint system, layout fixes, wire selection improvements
+
+### Completed
+- **Blueprint Architecture (new)** — Declarative JSON template system replacing imperative generation functions
+  - Type definitions: `packages/core-model/src/blueprint/types.ts`
+  - Engine: `apps/api/src/blueprint/engine.ts` — `instantiateBlueprint()` orchestrates existing primitives
+  - Registry: `apps/api/src/blueprint/registry.ts` — loads built-in blueprints
+  - 3 built-in blueprints: `relay-output`, `relay-bank` (composes relay-output × N), `power-section`
+  - AI chat tool: `instantiate_blueprint` — primary circuit generation tool
+  - 7 unit tests (template resolution, relay-output, power-section, relay-bank composition)
+- **Multi-rung PLC layout** — `auto_layout_ladder` handles PLC modules spanning multiple rungs: centered vertically, stays upright (no -90° rotation)
+- **AI prompt TOOL SELECTION** — Prioritizes `instantiate_blueprint` > legacy tools > manual placement
+- **Terminal rotation hack removed** — Deleted 180° rotation on return/field terminals + dead `setTransform` function
+- **Wire selection priority** — Wire wins over device when click is within 4px of wire path. Junction exception (always prefer junction). Applied to left-click and right-click.
+- **Device hit box inset** — 10px inset shrinks device bounding boxes to exclude pin stub areas
+- **Screen-space constant hit radii** — All thresholds divided by `viewport.scale` for consistent feel at any zoom
+- **New `getWireHitWithDistance()`** — Returns wire index + distance for priority-based selection
+
+### Discovered Issues
+- **P1: Multi-select copy/paste broken** — Selecting 4 devices + Cmd+C/V copies only 1, no wires. Blocks manual editing workflow.
+- **P1: Contact pin numbering** — Relay contacts show generic "1"/"2" instead of real pins (13-14, 21-22). Need editable pin IDs + part-aware auto-population.
+- **Reference: gstack** — Garry Tan's Claude Code parallel sprint framework. Install alongside project for `/qa`, `/review`, `/ship` skills + Conductor multi-agent workflow.
+
+### Files Created
+- `packages/core-model/src/blueprint/types.ts` — Blueprint type system
+- `packages/core-model/src/blueprint/builtins/relay-output.json` — Relay output template
+- `packages/core-model/src/blueprint/builtins/relay-bank.json` — Composable relay bank
+- `packages/core-model/src/blueprint/builtins/power-section.json` — Power supply template
+- `apps/api/src/blueprint/engine.ts` — Blueprint instantiation engine
+- `apps/api/src/blueprint/registry.ts` — Blueprint registry
+- `apps/api/src/blueprint/engine.test.ts` — 7 unit tests
+- `apps/api/vitest.config.ts` — Vitest config for API package
+
+### Files Modified
+- `apps/api/src/ai-chat.ts` — `instantiate_blueprint` tool, system prompt, multi-rung transform fix
+- `apps/api/src/ai-circuit-patterns.ts` — Removed terminal rotation hack + dead code
+- `apps/api/src/ai-generate.ts` — Multi-rung transform fix
+- `apps/web/src/hooks/useCanvasInteraction.ts` — Wire selection priority, screen-space hit radii
+- `apps/web/src/renderer/circuit-renderer.ts` — `getWireHitWithDistance()`
+- `apps/web/src/types.ts` — Device hit box inset, viewport-scaled pin/symbol detection
+- `packages/core-engine/src/ladder-layout.ts` — Multi-rung device detection + positioning
+- `packages/core-model/src/index.ts` — Blueprint type exports
+- `packages/mcp-server/src/circuit-helpers.ts` — Multi-rung transform skip
+
+**Tests**: 129 E2E + 7 blueprint unit tests, all passing
+
+---
+
 ## Session 24 — 2026-03-19: Wiring Architecture Deep Dive
 
 **Duration**: Full session

@@ -48,7 +48,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 24 (2026-03-19) — Source/dest arrows, sheetId wiring fixes, group drag waypoints, junction snap-to-wire, L1/L2 rails
+**Last session:** 25 (2026-03-20) — Blueprint architecture, multi-rung layout, wire selection fixes, AI tool integration
 
 ### P0 — Must Fix / Complete Before Launch
 
@@ -62,11 +62,16 @@ Before doing ANYTHING else:
 2. **Cross-references (coil ↔ contact)** — Engine exists in `core-engine/src/cross-references.ts` but never called. Need: call generator, render annotations near devices, persist to DB.
 3. **~~Wire number persistence~~** ✅ Fixed (Session 24) — `wireNumber`, `sheetId`, `fromDeviceId`, `toDeviceId`, `waypoints` added to API `ConnectionData` type. Fields round-trip through jsonb.
 
+#### Manual Editing
+
+4. **Multi-select copy/paste broken (P1)** — Selecting multiple devices + Cmd+C/V only copies 1 device, no wires. Blocks manual editing workflow. Need: multi-device copy, wire copy, tag renumbering on paste.
+5. **Contact pin numbering** — Relay contacts show generic "1"/"2" instead of real pins (13-14, 21-22). Need: editable pin IDs in properties panel + auto-populate from part catalog.
+
 #### AI Intelligence
 
-4. **Enhanced AI system prompt** — Circuit completion rules, pin references, standard patterns, tag conventions. File: `ai-chat.ts` SYSTEM_PROMPT. (LOW effort, HIGHEST impact)
-5. **High-level template tools** — `generate_relay_output`, `generate_plc_relay_bank`, `run_erc_check` as AI-callable tools. File: `ai-circuit-patterns.ts`. (MEDIUM effort)
-6. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries). (MEDIUM effort)
+6. **~~Enhanced AI system prompt~~** ✅ Done (Session 25) — TOOL SELECTION section, blueprint priority, circuit rules, pin refs, ANSI preference.
+7. **~~High-level template tools~~** ✅ Done (Session 25) — Blueprint architecture: `instantiate_blueprint` tool with relay-bank, power-section, relay-output templates.
+8. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries). (MEDIUM effort)
 
 #### Production Readiness
 
@@ -107,6 +112,8 @@ Before doing ANYTHING else:
 - **Panel layout editor** — Physical layout editor, Phase 6-7
 - **Multi-tenancy** — org_id, team features
 - **Stripe payments** — Plan upgrades
+- **Blueprint editor UI** — Visual blueprint creation/editing
+- **gstack integration** — Parallel sprint workflow with Conductor for multi-agent development
 
 ---
 
