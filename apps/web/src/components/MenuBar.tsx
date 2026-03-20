@@ -47,6 +47,7 @@ interface MenuBarProps {
   setInteractionMode: (mode: InteractionMode) => void;
   rotateSelectedDevices: (dir: 'cw' | 'ccw') => void;
   mirrorDevice: (id: string) => void;
+  alignSelectedDevices: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
 
   // View
   zoomIn: () => void;
@@ -110,6 +111,12 @@ const icons = {
   symbolEditor: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   keyboard: <svg viewBox="0 0 24 24" width="18" height="18"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   fullscreen: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 3H5a2 2 0 00-2 2v3m18-5h-3a2 2 0 00-2 2v3m0 8v3a2 2 0 01-2 2h-3M3 16v3a2 2 0 002 2h3" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  alignLeft: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 3v18M8 7h12v4H8zM8 15h8v4H8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
+  alignCenterX: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3v18M6 7h12v4H6zM8 15h8v4H8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
+  alignRight: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 3v18M4 7h12v4H4zM8 15h8v4H8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
+  alignTop: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 4h18M7 8v12h4V8zM15 8v8h4V8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
+  alignCenterY: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 12h18M7 6v12h4V6zM15 8v8h4V8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
+  alignBottom: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 20h18M7 4v12h4V4zM15 8v8h4V8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
   info: <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/></svg>,
 };
 
@@ -146,6 +153,7 @@ export function MenuBar(props: MenuBarProps) {
   const hasWireSelection = props.selectedWireIndex !== null;
   const hasSelection = hasDeviceSelection || hasWireSelection;
   const hasSingleSelection = props.selectedDevices.length === 1;
+  const hasMultiSelection = props.selectedDevices.length >= 2;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -270,6 +278,19 @@ export function MenuBar(props: MenuBarProps) {
               <ToolBtn icon={icons.rotateCW} label="Rotate CW (R)" onClick={() => props.rotateSelectedDevices('cw')} disabled={!hasDeviceSelection} />
               <ToolBtn icon={icons.mirror} label="Mirror (F)" onClick={handleMirror} disabled={!hasSingleSelection} />
             </div>
+            {hasMultiSelection && (
+              <>
+                <Divider />
+                <div className="toolbar-group">
+                  <ToolBtn icon={icons.alignLeft} label="Align Left" onClick={() => props.alignSelectedDevices('left')} />
+                  <ToolBtn icon={icons.alignCenterX} label="Align Center (H)" onClick={() => props.alignSelectedDevices('center-x')} />
+                  <ToolBtn icon={icons.alignRight} label="Align Right" onClick={() => props.alignSelectedDevices('right')} />
+                  <ToolBtn icon={icons.alignTop} label="Align Top" onClick={() => props.alignSelectedDevices('top')} />
+                  <ToolBtn icon={icons.alignCenterY} label="Align Center (V)" onClick={() => props.alignSelectedDevices('center-y')} />
+                  <ToolBtn icon={icons.alignBottom} label="Align Bottom" onClick={() => props.alignSelectedDevices('bottom')} />
+                </div>
+              </>
+            )}
             <Divider />
             <div className="toolbar-group">
               <ToolBtn icon={icons.zoomOut} label="Zoom Out (-)" onClick={props.zoomOut} />

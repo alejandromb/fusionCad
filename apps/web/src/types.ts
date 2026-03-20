@@ -142,9 +142,12 @@ export function getSymbolAtPoint(
 
     // Shrink hit box by an inset to exclude pin stub areas at symbol edges.
     // Inset is in screen-space (divided by scale) so it feels consistent at any zoom.
-    const HIT_INSET = 10 / viewportScale;
-    const insetW = Math.max(0, effectiveWidth - HIT_INSET * 2);
-    const insetH = Math.max(0, effectiveHeight - HIT_INSET * 2);
+    // Cap inset to 25% of each dimension so small symbols remain clickable at low zoom.
+    const rawInset = 10 / viewportScale;
+    const insetX = Math.min(rawInset, effectiveWidth * 0.25);
+    const insetY = Math.min(rawInset, effectiveHeight * 0.25);
+    const insetW = effectiveWidth - insetX * 2;
+    const insetH = effectiveHeight - insetY * 2;
 
     // Center stays the same, but bounds shift with swapped dimensions
     const cx = pos.x + geometry.width / 2;

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import './App.css';
 import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
@@ -12,7 +12,7 @@ import { configureAmplify, useAuth } from './auth';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { MenuBar, type MenuTab } from './components/MenuBar';
-import { isSnapEnabled, setSnapEnabled } from './types';
+import { isSnapEnabled, setSnapEnabled, snapToGrid } from './types';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
 import { Canvas } from './components/Canvas';
@@ -258,13 +258,14 @@ function AppInner({
         historyIndex: circuitState.historyIndex,
         activeSheetId: circuitState.activeSheetId,
         sheets: circuitState.sheets,
+        alignSelectedDevices: circuitState.alignSelectedDevices,
       };
     }
   }, [project.circuit, project.devicePositions, interaction.interactionMode,
       circuitState.selectedDevices, circuitState.selectedWireIndex, interaction.sheetConnections,
       interaction.viewport, project.projectId, project.projectName, project.saveStatus,
       circuitState.history, circuitState.historyIndex,
-      circuitState.activeSheetId, circuitState.sheets]);
+      circuitState.activeSheetId, circuitState.sheets, circuitState.alignSelectedDevices]);
 
   // Global keydown listener for ? to show shortcuts help
   useEffect(() => {
@@ -306,6 +307,36 @@ function AppInner({
     };
     input.click();
   }, [project]);
+
+  // Build ghost paste preview from clipboard data + mouse position
+  const ghostPaste = useMemo(() => {
+    if (!interaction.pastePreview || !clipboardState.clipboard || !interaction.mouseWorldPos) return null;
+
+    const cb = clipboardState.clipboard;
+    // Compute centroid of clipboard positions
+    let cx = 0, cy = 0;
+    for (const pos of cb.positions.values()) { cx += pos.x; cy += pos.y; }
+    cx /= cb.positions.size;
+    cy /= cb.positions.size;
+
+    const mouseX = snapToGrid(interaction.mouseWorldPos.x);
+    const mouseY = snapToGrid(interaction.mouseWorldPos.y);
+
+    return cb.devices.map(device => {
+      const part = device.partId ? cb.parts.find(p => p.id === device.partId) : null;
+      const category = part?.symbolCategory || part?.category || 'unknown';
+      const origPos = cb.positions.get(device.id) || { x: cx, y: cy };
+      const transform = cb.transforms[device.id];
+      return {
+        category,
+        x: snapToGrid(mouseX + (origPos.x - cx)),
+        y: snapToGrid(mouseY + (origPos.y - cy)),
+        tag: device.tag,
+        rotation: transform?.rotation,
+        mirrorH: transform?.mirrorH,
+      };
+    });
+  }, [interaction.pastePreview, clipboardState.clipboard, interaction.mouseWorldPos]);
 
   return (
     <div className="app">
@@ -374,6 +405,7 @@ function AppInner({
         setInteractionMode={interaction.setInteractionMode}
         rotateSelectedDevices={circuitState.rotateSelectedDevices}
         mirrorDevice={circuitState.mirrorDevice}
+        alignSelectedDevices={circuitState.alignSelectedDevices}
         // View
         zoomIn={() => interaction.setViewport(prev => ({ ...prev, scale: Math.min(prev.scale * 1.25, 5) }))}
         zoomOut={() => interaction.setViewport(prev => ({ ...prev, scale: Math.max(prev.scale / 1.25, 0.1) }))}
@@ -446,6 +478,8 @@ function AppInner({
             sheetConnections={interaction.sheetConnections}
             renderHandleRef={interaction.renderHandleRef}
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
+            alignSelectedDevices={circuitState.alignSelectedDevices}
+            ghostPaste={ghostPaste}
           />
 
           <ZoomControls

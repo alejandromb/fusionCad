@@ -66,6 +66,9 @@ export interface UseCircuitStateReturn {
   rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceId: string) => void;
 
+  // Alignment
+  alignSelectedDevices: (direction: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
+
   // Annotations
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
@@ -882,6 +885,97 @@ export function useCircuitState(
     });
   }, [selectedDevices, circuit, getAllPositions, pushToHistory, setDevicePositions, setCircuit]);
 
+  const alignSelectedDevices = useCallback((direction: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => {
+    if (selectedDevices.length < 2 || !circuit) return;
+
+    pushToHistory();
+
+    const allPositions = getAllPositions();
+    const partMap = new Map<string, Part>();
+    for (const part of circuit.parts) partMap.set(part.id, part);
+
+    // Compute bounding info for each selected device
+    const deviceBounds = selectedDevices.map(deviceId => {
+      const pos = allPositions.get(deviceId) || { x: 0, y: 0 };
+      const device = circuit.devices.find(d => d.id === deviceId);
+      const part = device?.partId ? partMap.get(device.partId) : null;
+      const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
+      const transform = circuit.transforms?.[deviceId];
+      const rotation = transform?.rotation || 0;
+      const w = (rotation % 180 !== 0) ? geom.height : geom.width;
+      const h = (rotation % 180 !== 0) ? geom.width : geom.height;
+      const cx = pos.x + geom.width / 2;
+      const cy = pos.y + geom.height / 2;
+      return { deviceId, pos, w, h, cx, cy, geomW: geom.width, geomH: geom.height };
+    });
+
+    // Compute alignment target
+    let target: number;
+    switch (direction) {
+      case 'left':
+        target = Math.min(...deviceBounds.map(b => b.cx - b.w / 2));
+        break;
+      case 'right':
+        target = Math.max(...deviceBounds.map(b => b.cx + b.w / 2));
+        break;
+      case 'center-x': {
+        const minX = Math.min(...deviceBounds.map(b => b.cx - b.w / 2));
+        const maxX = Math.max(...deviceBounds.map(b => b.cx + b.w / 2));
+        target = (minX + maxX) / 2;
+        break;
+      }
+      case 'top':
+        target = Math.min(...deviceBounds.map(b => b.cy - b.h / 2));
+        break;
+      case 'bottom':
+        target = Math.max(...deviceBounds.map(b => b.cy + b.h / 2));
+        break;
+      case 'center-y': {
+        const minY = Math.min(...deviceBounds.map(b => b.cy - b.h / 2));
+        const maxY = Math.max(...deviceBounds.map(b => b.cy + b.h / 2));
+        target = (minY + maxY) / 2;
+        break;
+      }
+    }
+
+    setDevicePositions(prev => {
+      const next = new Map(prev);
+      for (const b of deviceBounds) {
+        const currentPos = allPositions.get(b.deviceId);
+        if (!currentPos) continue;
+        let newX = currentPos.x;
+        let newY = currentPos.y;
+
+        switch (direction) {
+          case 'left':
+            newX = currentPos.x + (target - (b.cx - b.w / 2));
+            break;
+          case 'right':
+            newX = currentPos.x + (target - (b.cx + b.w / 2));
+            break;
+          case 'center-x':
+            newX = currentPos.x + (target - b.cx);
+            break;
+          case 'top':
+            newY = currentPos.y + (target - (b.cy - b.h / 2));
+            break;
+          case 'bottom':
+            newY = currentPos.y + (target - (b.cy + b.h / 2));
+            break;
+          case 'center-y':
+            newY = currentPos.y + (target - b.cy);
+            break;
+        }
+
+        next.set(b.deviceId, {
+          x: snapToGrid(newX),
+          y: snapToGrid(newY),
+        });
+      }
+      return next;
+    });
+  }, [selectedDevices, circuit, getAllPositions, pushToHistory, setDevicePositions]);
+
   const deleteAnnotation = useCallback((annotationId: string) => {
     if (!circuit) return;
 
@@ -1129,6 +1223,7 @@ export function useCircuitState(
     rotateDevice,
     rotateSelectedDevices,
     mirrorDevice,
+    alignSelectedDevices,
     addAnnotation,
     updateAnnotation,
     deleteAnnotation,

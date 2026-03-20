@@ -13,10 +13,12 @@ test.describe('Copy and paste', () => {
     await canvasHelpers.pressShortcut(page, 'c', ['Meta']);
     await page.waitForTimeout(100);
 
-    // Move mouse to a new position then paste
+    // Move mouse to a new position, paste (enters preview), then click to commit
     const screen = await canvasHelpers.worldToScreen(page, 400, 300);
     await page.mouse.move(screen.x, screen.y);
     await canvasHelpers.pressShortcut(page, 'v', ['Meta']);
+    await page.waitForTimeout(100);
+    await canvasHelpers.clickCanvas(page, 400, 300);
     await canvasHelpers.waitForDeviceCount(page, 2);
 
     const state = await canvasHelpers.getState(page);

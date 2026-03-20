@@ -1,18 +1,52 @@
 /**
  * Clipboard hook - copy/paste/duplicate
+ * Supports multi-device copy with wire preservation
  */
 
 import { useState, useCallback } from 'react';
 import { generateId, type Device, type Part } from '@fusion-cad/core-model';
-import type { CircuitData } from '../renderer/circuit-renderer';
+import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { Point } from '../renderer/types';
 import { SYMBOL_CATEGORIES, snapToGrid } from '../types';
 
+interface DeviceTransform {
+  rotation: number;
+  mirrorH?: boolean;
+}
+
+interface ClipboardData {
+  devices: Device[];
+  parts: Part[];
+  connections: Connection[];
+  positions: Map<string, Point>;
+  transforms: Record<string, DeviceTransform>;
+}
+
 export interface UseClipboardReturn {
-  clipboard: { device: Device; part: Part | null; position: Point } | null;
+  clipboard: ClipboardData | null;
   copyDevice: () => void;
   pasteDevice: (worldX: number, worldY: number) => void;
   duplicateDevice: () => void;
+}
+
+/**
+ * Given a tag prefix and the current devices in the circuit,
+ * returns the next available tag number.
+ */
+function getNextTagNumber(prefix: string, devices: Device[]): number {
+  const existingNumbers = devices
+    .filter(d => d.tag.startsWith(prefix))
+    .map(d => parseInt(d.tag.slice(prefix.length)) || 0);
+  return Math.max(0, ...existingNumbers) + 1;
+}
+
+/**
+ * Determines the tag prefix for a device based on its part category or existing tag.
+ */
+function getTagPrefix(device: Device, part: Part | null | undefined): string {
+  const category = part?.category || 'unknown';
+  const categoryInfo = SYMBOL_CATEGORIES.find(c => c.id === category);
+  return categoryInfo?.prefix || device.tag.replace(/\d+$/, '') || 'D';
 }
 
 export function useClipboard(
@@ -24,25 +58,52 @@ export function useClipboard(
   getAllPositions: () => Map<string, Point>,
   pushToHistory: () => void
 ): UseClipboardReturn {
-  const [clipboard, setClipboard] = useState<{
-    device: Device;
-    part: Part | null;
-    position: Point;
-  } | null>(null);
+  const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
 
-  // selectedDevices contains device IDs
   const copyDevice = useCallback(() => {
     if (selectedDevices.length === 0 || !circuit) return;
 
-    const selectedDeviceId = selectedDevices[0];
-    const device = circuit.devices.find(d => d.id === selectedDeviceId);
-    if (!device) return;
-
-    const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
+    const selectedSet = new Set(selectedDevices);
     const allPositions = getAllPositions();
-    const position = allPositions.get(selectedDeviceId) || { x: 100, y: 100 };
 
-    setClipboard({ device, part: part || null, position });
+    // Collect all selected devices and their parts
+    const devices: Device[] = [];
+    const partIds = new Set<string>();
+    const positions = new Map<string, Point>();
+
+    for (const deviceId of selectedDevices) {
+      const device = circuit.devices.find(d => d.id === deviceId);
+      if (!device) continue;
+      devices.push(device);
+      if (device.partId) partIds.add(device.partId);
+      positions.set(deviceId, allPositions.get(deviceId) || { x: 100, y: 100 });
+    }
+
+    if (devices.length === 0) return;
+
+    const parts = circuit.parts.filter(p => partIds.has(p.id));
+
+    // Collect transforms for selected devices
+    const transforms: Record<string, DeviceTransform> = {};
+    for (const deviceId of selectedDevices) {
+      const t = circuit.transforms?.[deviceId];
+      if (t) transforms[deviceId] = { ...t };
+    }
+
+    // Collect connections where BOTH endpoints are in the selection
+    const connections = circuit.connections.filter(conn => {
+      const fromDevice = conn.fromDeviceId
+        ? circuit.devices.find(d => d.id === conn.fromDeviceId)
+        : circuit.devices.find(d => d.tag === conn.fromDevice);
+      const toDevice = conn.toDeviceId
+        ? circuit.devices.find(d => d.id === conn.toDeviceId)
+        : circuit.devices.find(d => d.tag === conn.toDevice);
+
+      return fromDevice && toDevice &&
+        selectedSet.has(fromDevice.id) && selectedSet.has(toDevice.id);
+    });
+
+    setClipboard({ devices, parts, connections, positions, transforms });
   }, [selectedDevices, circuit, getAllPositions]);
 
   const pasteDevice = useCallback((worldX: number, worldY: number) => {
@@ -54,115 +115,290 @@ export function useClipboard(
     const snappedY = snapToGrid(worldY);
     const now = Date.now();
 
-    const category = clipboard.part?.category || 'unknown';
-    const categoryInfo = SYMBOL_CATEGORIES.find(c => c.id === category);
-    const prefix = categoryInfo?.prefix || clipboard.device.tag.replace(/\d+$/, '') || 'D';
+    // Calculate centroid of copied positions to use as offset anchor
+    let centroidX = 0, centroidY = 0;
+    for (const pos of clipboard.positions.values()) {
+      centroidX += pos.x;
+      centroidY += pos.y;
+    }
+    centroidX /= clipboard.positions.size;
+    centroidY /= clipboard.positions.size;
 
-    const existingNumbers = circuit.devices
-      .filter(d => d.tag.startsWith(prefix))
-      .map(d => parseInt(d.tag.slice(prefix.length)) || 0);
-    const nextNum = Math.max(0, ...existingNumbers) + 1;
-    const newTag = `${prefix}${nextNum}`;
+    // Build ID remapping: old ID -> new ID
+    const deviceIdMap = new Map<string, string>();
+    const partIdMap = new Map<string, string>();
+    // Also remap tags: old tag -> new tag
+    const tagMap = new Map<string, string>();
 
-    const newPartId = generateId();
-    const newPart = clipboard.part ? {
-      ...clipboard.part,
-      id: newPartId,
-      createdAt: now,
-      modifiedAt: now,
-    } : null;
+    // Track all devices that will exist after paste (for tag numbering)
+    const allDevicesAfterPaste = [...circuit.devices];
 
-    const newDeviceId = generateId();
-    const newDevice: Device = {
-      ...clipboard.device,
-      id: newDeviceId,
-      tag: newTag,
-      partId: newPart ? newPartId : undefined,
-      createdAt: now,
-      modifiedAt: now,
-    };
+    // Create new parts
+    const newParts: Part[] = [];
+    for (const part of clipboard.parts) {
+      const newPartId = generateId();
+      partIdMap.set(part.id, newPartId);
+      newParts.push({
+        ...part,
+        id: newPartId,
+        createdAt: now,
+        modifiedAt: now,
+      });
+    }
+
+    // Create new devices with remapped IDs and unique tags
+    const newDevices: Device[] = [];
+    const newPositions = new Map<string, Point>();
+    const newDeviceIds: string[] = [];
+
+    for (const device of clipboard.devices) {
+      const newDeviceId = generateId();
+      deviceIdMap.set(device.id, newDeviceId);
+
+      const part = device.partId ? clipboard.parts.find(p => p.id === device.partId) : null;
+      const prefix = getTagPrefix(device, part);
+      const nextNum = getNextTagNumber(prefix, allDevicesAfterPaste);
+      const newTag = `${prefix}${nextNum}`;
+      tagMap.set(device.tag, newTag);
+
+      const newDevice: Device = {
+        ...device,
+        id: newDeviceId,
+        tag: newTag,
+        partId: device.partId ? partIdMap.get(device.partId) : undefined,
+        createdAt: now,
+        modifiedAt: now,
+      };
+
+      newDevices.push(newDevice);
+      // Also add to tracking array so subsequent tags increment correctly
+      allDevicesAfterPaste.push(newDevice);
+      newDeviceIds.push(newDeviceId);
+
+      // Position relative to centroid, offset to paste location
+      const origPos = clipboard.positions.get(device.id) || { x: centroidX, y: centroidY };
+      newPositions.set(newDeviceId, {
+        x: snapToGrid(snappedX + (origPos.x - centroidX)),
+        y: snapToGrid(snappedY + (origPos.y - centroidY)),
+      });
+    }
+
+    // Remap connections
+    const newConnections: Connection[] = [];
+    for (const conn of clipboard.connections) {
+      const fromDevice = conn.fromDeviceId
+        ? clipboard.devices.find(d => d.id === conn.fromDeviceId)
+        : clipboard.devices.find(d => d.tag === conn.fromDevice);
+      const toDevice = conn.toDeviceId
+        ? clipboard.devices.find(d => d.id === conn.toDeviceId)
+        : clipboard.devices.find(d => d.tag === conn.toDevice);
+
+      if (!fromDevice || !toDevice) continue;
+
+      const newFromId = deviceIdMap.get(fromDevice.id)!;
+      const newToId = deviceIdMap.get(toDevice.id)!;
+      const newFromTag = tagMap.get(fromDevice.tag) || conn.fromDevice;
+      const newToTag = tagMap.get(toDevice.tag) || conn.toDevice;
+
+      // Remap waypoints relative to paste offset
+      let waypoints: Point[] | undefined;
+      if (conn.waypoints && conn.waypoints.length > 0) {
+        waypoints = conn.waypoints.map(wp => ({
+          x: snapToGrid(wp.x - centroidX + snappedX),
+          y: snapToGrid(wp.y - centroidY + snappedY),
+        }));
+      }
+
+      newConnections.push({
+        ...conn,
+        fromDevice: newFromTag,
+        fromDeviceId: newFromId,
+        toDevice: newToTag,
+        toDeviceId: newToId,
+        netId: generateId(),
+        waypoints,
+      });
+    }
+
+    // Build remapped transforms
+    const newTransforms: Record<string, DeviceTransform> = {};
+    for (const device of clipboard.devices) {
+      const t = clipboard.transforms[device.id];
+      if (t) {
+        const newId = deviceIdMap.get(device.id)!;
+        newTransforms[newId] = { ...t };
+      }
+    }
 
     setCircuit(prev => {
       if (!prev) return prev;
       return {
         ...prev,
-        parts: newPart ? [...prev.parts, newPart] : prev.parts,
-        devices: [...prev.devices, newDevice],
+        parts: [...prev.parts, ...newParts],
+        devices: [...prev.devices, ...newDevices],
+        connections: [...prev.connections, ...newConnections],
+        transforms: { ...(prev.transforms || {}), ...newTransforms },
       };
     });
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(newDeviceId, { x: snappedX, y: snappedY });
+      for (const [id, pos] of newPositions) {
+        next.set(id, pos);
+      }
       return next;
     });
 
-    setSelectedDevices([newDeviceId]);
+    setSelectedDevices(newDeviceIds);
   }, [clipboard, circuit, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices]);
 
-  // selectedDevices contains device IDs
   const duplicateDevice = useCallback(() => {
     if (selectedDevices.length === 0 || !circuit) return;
 
-    const selectedDeviceId = selectedDevices[0];
-    const device = circuit.devices.find(d => d.id === selectedDeviceId);
-    if (!device) return;
-
     pushToHistory();
 
-    const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
+    const selectedSet = new Set(selectedDevices);
     const allPositions = getAllPositions();
-    const position = allPositions.get(selectedDeviceId) || { x: 100, y: 100 };
-
-    const offsetX = position.x + 40;
-    const offsetY = position.y + 40;
-
     const now = Date.now();
 
-    const category = part?.category || 'unknown';
-    const categoryInfo = SYMBOL_CATEGORIES.find(c => c.id === category);
-    const prefix = categoryInfo?.prefix || device.tag.replace(/\d+$/, '') || 'D';
+    // Collect selected devices, parts, connections (same as copy)
+    const devices: Device[] = [];
+    const partIds = new Set<string>();
+    const positions = new Map<string, Point>();
 
-    const existingNumbers = circuit.devices
-      .filter(d => d.tag.startsWith(prefix))
-      .map(d => parseInt(d.tag.slice(prefix.length)) || 0);
-    const nextNum = Math.max(0, ...existingNumbers) + 1;
-    const newTag = `${prefix}${nextNum}`;
+    for (const deviceId of selectedDevices) {
+      const device = circuit.devices.find(d => d.id === deviceId);
+      if (!device) continue;
+      devices.push(device);
+      if (device.partId) partIds.add(device.partId);
+      positions.set(deviceId, allPositions.get(deviceId) || { x: 100, y: 100 });
+    }
 
-    const newPartId = generateId();
-    const newPart = part ? {
-      ...part,
-      id: newPartId,
-      createdAt: now,
-      modifiedAt: now,
-    } : null;
+    if (devices.length === 0) return;
 
-    const newDeviceId = generateId();
-    const newDevice: Device = {
-      ...device,
-      id: newDeviceId,
-      tag: newTag,
-      partId: newPart ? newPartId : undefined,
-      createdAt: now,
-      modifiedAt: now,
-    };
+    const parts = circuit.parts.filter(p => partIds.has(p.id));
+
+    const connections = circuit.connections.filter(conn => {
+      const fromDevice = conn.fromDeviceId
+        ? circuit.devices.find(d => d.id === conn.fromDeviceId)
+        : circuit.devices.find(d => d.tag === conn.fromDevice);
+      const toDevice = conn.toDeviceId
+        ? circuit.devices.find(d => d.id === conn.toDeviceId)
+        : circuit.devices.find(d => d.tag === conn.toDevice);
+
+      return fromDevice && toDevice &&
+        selectedSet.has(fromDevice.id) && selectedSet.has(toDevice.id);
+    });
+
+    // Build ID remapping
+    const deviceIdMap = new Map<string, string>();
+    const partIdMap = new Map<string, string>();
+    const tagMap = new Map<string, string>();
+    const allDevicesAfterDup = [...circuit.devices];
+
+    const newParts: Part[] = [];
+    for (const part of parts) {
+      const newPartId = generateId();
+      partIdMap.set(part.id, newPartId);
+      newParts.push({ ...part, id: newPartId, createdAt: now, modifiedAt: now });
+    }
+
+    const newDevices: Device[] = [];
+    const newPositions = new Map<string, Point>();
+    const newDeviceIds: string[] = [];
+
+    for (const device of devices) {
+      const newDeviceId = generateId();
+      deviceIdMap.set(device.id, newDeviceId);
+
+      const part = device.partId ? parts.find(p => p.id === device.partId) : null;
+      const prefix = getTagPrefix(device, part);
+      const nextNum = getNextTagNumber(prefix, allDevicesAfterDup);
+      const newTag = `${prefix}${nextNum}`;
+      tagMap.set(device.tag, newTag);
+
+      const newDevice: Device = {
+        ...device,
+        id: newDeviceId,
+        tag: newTag,
+        partId: device.partId ? partIdMap.get(device.partId) : undefined,
+        createdAt: now,
+        modifiedAt: now,
+      };
+
+      newDevices.push(newDevice);
+      allDevicesAfterDup.push(newDevice);
+      newDeviceIds.push(newDeviceId);
+
+      // Offset by 40px from original position
+      const origPos = positions.get(device.id) || { x: 100, y: 100 };
+      newPositions.set(newDeviceId, {
+        x: snapToGrid(origPos.x + 40),
+        y: snapToGrid(origPos.y + 40),
+      });
+    }
+
+    // Remap connections with offset waypoints
+    const newConnections: Connection[] = [];
+    for (const conn of connections) {
+      const fromDevice = conn.fromDeviceId
+        ? devices.find(d => d.id === conn.fromDeviceId)
+        : devices.find(d => d.tag === conn.fromDevice);
+      const toDevice = conn.toDeviceId
+        ? devices.find(d => d.id === conn.toDeviceId)
+        : devices.find(d => d.tag === conn.toDevice);
+
+      if (!fromDevice || !toDevice) continue;
+
+      let waypoints: Point[] | undefined;
+      if (conn.waypoints && conn.waypoints.length > 0) {
+        waypoints = conn.waypoints.map(wp => ({
+          x: snapToGrid(wp.x + 40),
+          y: snapToGrid(wp.y + 40),
+        }));
+      }
+
+      newConnections.push({
+        ...conn,
+        fromDevice: tagMap.get(fromDevice.tag) || conn.fromDevice,
+        fromDeviceId: deviceIdMap.get(fromDevice.id)!,
+        toDevice: tagMap.get(toDevice.tag) || conn.toDevice,
+        toDeviceId: deviceIdMap.get(toDevice.id)!,
+        netId: generateId(),
+        waypoints,
+      });
+    }
+
+    // Build remapped transforms
+    const newTransforms: Record<string, DeviceTransform> = {};
+    for (const device of devices) {
+      const t = circuit.transforms?.[device.id];
+      if (t) {
+        const newId = deviceIdMap.get(device.id)!;
+        newTransforms[newId] = { ...t };
+      }
+    }
 
     setCircuit(prev => {
       if (!prev) return prev;
       return {
         ...prev,
-        parts: newPart ? [...prev.parts, newPart] : prev.parts,
-        devices: [...prev.devices, newDevice],
+        parts: [...prev.parts, ...newParts],
+        devices: [...prev.devices, ...newDevices],
+        connections: [...prev.connections, ...newConnections],
+        transforms: { ...(prev.transforms || {}), ...newTransforms },
       };
     });
 
     setDevicePositions(prev => {
       const next = new Map(prev);
-      next.set(newDeviceId, { x: snapToGrid(offsetX), y: snapToGrid(offsetY) });
+      for (const [id, pos] of newPositions) {
+        next.set(id, pos);
+      }
       return next;
     });
 
-    setSelectedDevices([newDeviceId]);
+    setSelectedDevices(newDeviceIds);
   }, [selectedDevices, circuit, getAllPositions, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices]);
 
   return {

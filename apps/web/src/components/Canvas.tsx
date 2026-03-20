@@ -47,6 +47,9 @@ interface CanvasProps {
   renderHandleRef?: React.MutableRefObject<CanvasRenderHandle | null>;
   /** Open Symbol Editor for a given symbolKey (dev-only context menu) */
   onEditSymbol?: (symbolKey: string) => void;
+  alignSelectedDevices?: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
+  /** Ghost paste preview data - built by parent from clipboard + mouse position */
+  ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
 }
 
 export function Canvas({
@@ -78,6 +81,8 @@ export function Canvas({
   sheetConnections,
   renderHandleRef,
   onEditSymbol,
+  alignSelectedDevices,
+  ghostPaste,
 }: CanvasProps) {
   const rafIdRef = useRef(0);
   const canvasSizeRef = useRef({ w: 0, h: 0 });
@@ -105,6 +110,7 @@ export function Canvas({
     marquee,
     showGrid: true,
     selectedAnnotationId,
+    ghostPaste,
   });
 
   // Full render + snapshot capture
@@ -179,7 +185,7 @@ export function Canvas({
     rafIdRef.current = requestAnimationFrame(() => doFullRender(viewport));
 
     return () => cancelAnimationFrame(rafIdRef.current);
-  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId, ghostPaste]);
 
   // Re-render on window resize (container size changed)
   useEffect(() => {
@@ -235,6 +241,17 @@ export function Canvas({
                     }}>Edit Symbol</button>
                   ) : null;
                 })()}
+                {selectedDevices.length >= 2 && alignSelectedDevices && (
+                  <>
+                    <div className="context-menu-separator" />
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('left'); setContextMenu(null); }}>Align Left</button>
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('center-x'); setContextMenu(null); }}>Align Center (H)</button>
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('right'); setContextMenu(null); }}>Align Right</button>
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('top'); setContextMenu(null); }}>Align Top</button>
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('center-y'); setContextMenu(null); }}>Align Center (V)</button>
+                    <button className="context-menu-item" onClick={() => { alignSelectedDevices('bottom'); setContextMenu(null); }}>Align Bottom</button>
+                  </>
+                )}
                 <div className="context-menu-separator" />
                 <button className="context-menu-item danger" onClick={() => {
                   if (deleteDevices) deleteDevices(selectedDevices.length > 0 ? selectedDevices : [contextMenu.deviceTag!]);

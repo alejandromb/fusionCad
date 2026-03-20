@@ -167,6 +167,8 @@ export interface RenderOptions {
   gridSize?: number;
   /** Selected annotation ID for highlight */
   selectedAnnotationId?: string | null;
+  /** Ghost paste preview - array of devices to render as semi-transparent ghosts */
+  ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
 }
 
 /**
@@ -1238,6 +1240,28 @@ export function renderCircuit(
   if (options?.ghostSymbol) {
     ctx.globalAlpha = 0.5;
     drawSymbol(ctx, options.ghostSymbol.category, options.ghostSymbol.x, options.ghostSymbol.y, '');
+    ctx.globalAlpha = 1.0;
+  }
+
+  // Draw ghost paste preview (multiple devices)
+  if (options?.ghostPaste && options.ghostPaste.length > 0) {
+    ctx.globalAlpha = 0.4;
+    for (const ghost of options.ghostPaste) {
+      if (ghost.rotation || ghost.mirrorH) {
+        const geom = getSymbolGeometry(ghost.category);
+        const cx = ghost.x + geom.width / 2;
+        const cy = ghost.y + geom.height / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (ghost.rotation) ctx.rotate((ghost.rotation * Math.PI) / 180);
+        if (ghost.mirrorH) ctx.scale(-1, 1);
+        ctx.translate(-cx, -cy);
+        drawSymbol(ctx, ghost.category, ghost.x, ghost.y, ghost.tag);
+        ctx.restore();
+      } else {
+        drawSymbol(ctx, ghost.category, ghost.x, ghost.y, ghost.tag);
+      }
+    }
     ctx.globalAlpha = 1.0;
   }
 

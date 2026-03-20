@@ -55,6 +55,8 @@ export interface UseCanvasInteractionReturn {
   zoomToFit: () => void;
   /** Ref for Canvas imperative render handle (zoom bypass) */
   renderHandleRef: React.MutableRefObject<import('../components/Canvas').CanvasRenderHandle | null>;
+  /** Whether paste ghost preview is active */
+  pastePreview: boolean;
   /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
   sheetConnections: SheetConnection[];
 }
@@ -279,6 +281,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [placementCategory, setPlacementCategory] = useState<SymbolCategory | null>(null);
   const [wireStart, setWireStart] = useState<PinHit | null>(null);
   const [mouseWorldPos, setMouseWorldPos] = useState<Point | null>(null);
+  const [pastePreview, setPastePreview] = useState(false);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -654,8 +657,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         y: (mouseY - viewport.offsetY) / viewport.scale,
       };
 
-      // Track mouse position for placement preview and wire preview
-      if (interactionMode === 'place' || interactionMode === 'wire') {
+      // Track mouse position for placement preview, wire preview, and paste preview
+      if (interactionMode === 'place' || interactionMode === 'wire' || pastePreview) {
         setMouseWorldPos(world);
       }
 
@@ -972,6 +975,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       marqueeStartRef.current = null;
 
+      // Handle paste preview commit on click
+      if (pastePreview && !hasDraggedRef.current) {
+        pasteDevice(snapToGrid(world.x), snapToGrid(world.y));
+        setPastePreview(false);
+        setMouseWorldPos(null);
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
+
       // Handle click actions
       if (!hasDraggedRef.current && isDraggingRef.current) {
         switch (interactionMode) {
@@ -1199,7 +1212,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       if (e.key === 'Escape') {
-        if (wireStart) {
+        if (pastePreview) {
+          setPastePreview(false);
+          setMouseWorldPos(null);
+        } else if (wireStart) {
           setWireStart(null);
         } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan') {
           setInteractionMode('select');
@@ -1260,12 +1276,15 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
         e.preventDefault();
+        setPastePreview(true);
+        // Set initial mouse position for ghost preview
         const rect = canvas.getBoundingClientRect();
         const mouseX = lastMousePosRef.current.x - rect.left;
         const mouseY = lastMousePosRef.current.y - rect.top;
-        const worldX = (mouseX - viewport.offsetX) / viewport.scale;
-        const worldY = (mouseY - viewport.offsetY) / viewport.scale;
-        pasteDevice(worldX, worldY);
+        setMouseWorldPos({
+          x: (mouseX - viewport.offsetX) / viewport.scale,
+          y: (mouseY - viewport.offsetY) / viewport.scale,
+        });
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'd' && selectedDevices.length > 0) {
@@ -1375,7 +1394,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, rotateSelectedDevices, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId]);
+  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, rotateSelectedDevices, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId, pastePreview]);
 
   return {
     canvasRef,
@@ -1393,6 +1412,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     marquee,
     contextMenu,
     setContextMenu,
+    pastePreview,
     zoomToFit,
     renderHandleRef,
     sheetConnections,
