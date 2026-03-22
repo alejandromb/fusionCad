@@ -94,8 +94,8 @@ export function generateMotorStarter(
   cd = x1_3.circuit;
 
   // Chain devices pin-to-pin: X1 pin1 → CB1 L1, CB1 T1 → K1 L1, etc.
-  const x1Pin1Y = getPinWorldY('iec-terminal-single', '1', POWER_START_Y);
-  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin1Y + POWER_GAP);
+  const x1Pin2Y = getPinWorldY('iec-terminal-single', '1', POWER_START_Y);
+  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin2Y + POWER_GAP);
   const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', POWER_X, cb1Y, powerSheetId, 'CB1');
   cd = cb1.circuit;
 
@@ -494,7 +494,7 @@ export function generateMotorStarterPanel(
 
   // Chain devices pin-to-pin
   const x1Pin2Y = getPinWorldY('iec-terminal-single', '1', POWER_START_Y);
-  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin1Y + POWER_GAP);
+  const cb1Y = alignDeviceToPin('iec-circuit-breaker-3p', 'L1', x1Pin2Y + POWER_GAP);
   const cb1 = placeDevice(cd, 'iec-circuit-breaker-3p', POWER_X, cb1Y, sheetId, 'CB1');
   cd = cb1.circuit;
 
@@ -970,11 +970,11 @@ export function generatePowerDistribution(
   const hasLight = options.cabinetLight !== false; // default true
   const hasFan = options.cabinetFan || false;
 
-  // Ladder config constants
+  // Ladder config constants — leave room for rung numbers on the left margin
   const RUNG_SPACING = 140;
   const FIRST_RUNG_Y = 100;
-  const RAIL_L1X = 100;
-  const RAIL_L2X = 900;
+  const RAIL_L1X = 200;
+  const RAIL_L2X = 1100;
   // Junction pin "1" is at position (0,0) relative to symbol origin — no offset needed
   const PIN_OFFSET = 0;
 
@@ -1272,6 +1272,136 @@ export function generatePowerDistribution(
 }
 
 // Import generateId — need to use the same ID generator
+/**
+ * Generate a relay output sheet with N relay coils driven by PLC outputs.
+ * Each relay gets 2 rungs: coil rung + contact rung.
+ * Full wiring: L1→coil→L2, L1→contact→L2, vertical rails.
+ */
+export function generateRelayOutputSheet(
+  circuit: CircuitData,
+  options: {
+    sheetName: string;
+    relayStartNumber: number;
+    relayCount: number;
+    voltage?: string;
+    railLabelL1?: string;
+    railLabelL2?: string;
+  },
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const voltage = options.voltage || '24VDC';
+  const railL1 = options.railLabelL1 || '+24V';
+  const railL2 = options.railLabelL2 || '0V';
+
+  const RUNG_SPACING = 140;
+  const FIRST_RUNG_Y = 100;
+  const RAIL_L1X = 200;
+  const RAIL_L2X = 1100;
+
+  // Create sheet + ladder block
+  const sheet = addSheet(cd, options.sheetName);
+  cd = sheet.circuit;
+  const sheetId = sheet.sheetId;
+
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    railLabelL1: railL1,
+    railLabelL2: railL2,
+    voltage,
+    rungSpacing: RUNG_SPACING,
+    firstRungY: FIRST_RUNG_Y,
+    railL1X: RAIL_L1X,
+    railL2X: RAIL_L2X,
+  }, undefined, options.sheetName);
+  cd = ladderBlock.circuit;
+  const blockId = ladderBlock.blockId;
+
+  const now = Date.now();
+  let rungNum = 1;
+
+  interface RungDef {
+    number: number;
+    deviceIds: string[];
+    description: string;
+  }
+  const rungDefs: RungDef[] = [];
+
+  // Place relay coils and contacts
+  for (let i = 0; i < options.relayCount; i++) {
+    const relayNum = options.relayStartNumber + i;
+    const coilTag = `CR${relayNum}`;
+    const contactTag = `CR${relayNum}-1`;
+
+    // Place coil
+    const coil = placeDevice(cd, 'iec-coil', 0, 0, sheetId, coilTag);
+    cd = coil.circuit;
+    cd = updateDeviceFunction(cd, coil.deviceId, `Output ${relayNum} Relay`);
+
+    // Place NO contact
+    const contact = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, contactTag);
+    cd = contact.circuit;
+    cd = updateDeviceFunction(cd, contact.deviceId, `Output ${relayNum} Contact`);
+
+    // Coil rung
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [coil.deviceId],
+      description: `OUTPUT ${relayNum} RELAY COIL`,
+    });
+
+    // Contact rung
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [contact.deviceId],
+      description: `OUTPUT ${relayNum} CONTACT`,
+    });
+
+    // Spacer rung between groups
+    if (i < options.relayCount - 1) {
+      rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
+    }
+  }
+
+  // Add a few empty rungs at the end for visual spacing
+  for (let i = 0; i < 2; i++) {
+    rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
+  }
+
+  // Build rung objects
+  for (const def of rungDefs) {
+    const rung = {
+      id: require_generateId(),
+      type: 'rung' as const,
+      number: def.number,
+      sheetId,
+      blockId,
+      deviceIds: def.deviceIds,
+      description: def.description || undefined,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    cd = { ...cd, rungs: [...(cd.rungs || []), rung] };
+  }
+
+  // Auto-layout positions
+  const layout = autoLayoutLadder(cd, sheetId, blockId);
+  cd = layout.circuit;
+
+  // Wire devices in series on each rung (pin 2 → pin 1)
+  for (const def of rungDefs) {
+    for (let i = 0; i < def.deviceIds.length - 1; i++) {
+      const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
+      const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id);
+    }
+  }
+
+  // Create L1/L2 rails (junctions + vertical wires + rung stubs)
+  cd = createLadderRails(cd, sheetId, blockId);
+
+  const summary = `Relay output sheet "${options.sheetName}": CR${options.relayStartNumber}-CR${options.relayStartNumber + options.relayCount - 1} with contacts, ${voltage}, fully wired`;
+  return { circuit: cd, summary };
+}
+
 import { generateId } from '@fusion-cad/core-model';
 function require_generateId(): string {
   return generateId();

@@ -42,6 +42,7 @@ export function renderLadderOverlay(
   // Sort rungs by number
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
 
+
   // Rail top position for label placement
   const railTopY = firstRungY - 40;
 
@@ -129,12 +130,12 @@ export function renderLadderOverlay(
       }
     }
 
-    // Rung number (left margin)
-    ctx.font = 'bold 14px monospace';
+    // Rung number (left margin — placed well left of L1 rail)
+    ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = t.ladderRungNumberColor;
-    ctx.fillText(String(displayNum), railL1X - 16, rungY);
+    ctx.fillText(String(displayNum), railL1X - 30, rungY);
 
     // Page-qualified rung number (right margin, far right)
     // Format: "page line" (e.g., "3 25")
@@ -144,11 +145,10 @@ export function renderLadderOverlay(
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = t.ladderRungNumberColor;
-      // Place after description column
       ctx.fillText(pageLineLabel, railL2X + 200, rungY);
     }
 
-    // Rung description (right margin, adjacent to L2)
+    // Rung description (right margin, adjacent to L2 rail)
     if (rung.description) {
       ctx.font = '12px monospace';
       ctx.textAlign = 'left';

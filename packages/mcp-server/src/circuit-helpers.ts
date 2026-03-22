@@ -221,6 +221,7 @@ export function createWire(
   toPin: string,
   fromDeviceId?: string,
   toDeviceId?: string,
+  waypoints?: Array<{ x: number; y: number }>,
 ): CircuitData {
   // Validate devices exist — use device ID when provided (needed for linked devices with same tag)
   const fromDev = fromDeviceId
@@ -282,7 +283,7 @@ export function createWire(
   // belongs to whichever sheet contains the "from" device.
   const wireSheetId = fromDev.sheetId || toDev.sheetId;
 
-  const newConnection: Connection = {
+  const newConnection: Connection & { waypoints?: Array<{ x: number; y: number }> } = {
     fromDevice,
     fromDeviceId: fromDev.id,
     fromPin,
@@ -291,6 +292,7 @@ export function createWire(
     toPin,
     netId: newNetId,
     ...(wireSheetId ? { sheetId: wireSheetId } : {}),
+    ...(waypoints && waypoints.length > 0 ? { waypoints } : {}),
   };
 
   return {
@@ -427,7 +429,7 @@ export function addSheet(circuit: CircuitData, name?: string): { circuit: Circui
       type: 'sheet',
       name: 'Sheet 1',
       number: 1,
-      size: 'A3',
+      size: 'Tabloid',
       createdAt: now,
       modifiedAt: now,
     } as Sheet];
@@ -441,7 +443,7 @@ export function addSheet(circuit: CircuitData, name?: string): { circuit: Circui
     type: 'sheet',
     name: name || `Sheet ${sheetNumber}`,
     number: sheetNumber,
-    size: 'A3',
+    size: 'Tabloid',
     createdAt: now,
     modifiedAt: now,
   };
@@ -589,7 +591,7 @@ export function setSheetType(
       type: 'sheet',
       name: 'Sheet 1',
       number: 1,
-      size: 'A3',
+      size: 'Tabloid',
       createdAt: now,
       modifiedAt: now,
     } as Sheet];
@@ -852,12 +854,16 @@ export function createLadderRails(
   const ox = blockOffset.x;
   const oy = blockOffset.y;
 
+  // Use block-unique prefix so junction tags don't collide across sheets
+  const existingJunctions = cd.devices.filter(d => d.tag.startsWith('JL') || d.tag.startsWith('JR'));
+  const jPrefix = existingJunctions.length > 0 ? `${Math.floor(existingJunctions.length / 2) + 1}_` : '';
+
   for (let ri = 0; ri < rungs.length; ri++) {
     const rung = rungs[ri];
     const rungY = config.firstRungY + ri * config.rungSpacing + oy;
 
     // L1 junction for every rung
-    const l1Tag = `JL${rung.number}`;
+    const l1Tag = `JL${jPrefix}${rung.number}`;
     const l1 = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);
     cd = l1.circuit;
     // Override position for precise rail alignment (bypass grid snapping)
@@ -872,7 +878,7 @@ export function createLadderRails(
 
     // L2 junction only for non-branch rungs
     if (!rung.branchOf) {
-      const l2Tag = `JR${rung.number}`;
+      const l2Tag = `JR${jPrefix}${rung.number}`;
       const l2 = placeDevice(cd, 'junction', 0, 0, sheetId, l2Tag);
       cd = l2.circuit;
       cd = {
@@ -900,8 +906,11 @@ export function createLadderRails(
     cd = createWire(cd, from.tag, '1', to.tag, '1', from.deviceId, to.deviceId);
   }
 
-  // Wire L1 junctions horizontally to first device on each rung
-  for (const rung of rungs) {
+  // Wire L1 junctions horizontally to first device on each rung.
+  // Waypoints force straight horizontal routing at the rung Y coordinate,
+  // preventing the auto-router from creating zigzag paths around devices.
+  for (let ri = 0; ri < rungs.length; ri++) {
+    const rung = rungs[ri];
     if (rung.deviceIds.length === 0) continue;
     const firstDeviceId = rung.deviceIds[0];
     const firstDevice = cd.devices.find(d => d.id === firstDeviceId);
@@ -910,11 +919,22 @@ export function createLadderRails(
     const l1J = l1Junctions.find(j => j.rungNumber === rung.number);
     if (!l1J) continue;
 
-    cd = createWire(cd, l1J.tag, '1', firstDevice.tag, '1', l1J.deviceId, firstDeviceId);
+    const rungY = config.firstRungY + ri * config.rungSpacing + oy;
+    const l1Pos = cd.positions[l1J.deviceId];
+    const devPos = cd.positions[firstDeviceId];
+
+    // Build waypoints for a clean horizontal path at rungY
+    const wp = (l1Pos && devPos) ? [
+      { x: l1Pos.x, y: rungY },
+      { x: devPos.x, y: rungY },
+    ] : undefined;
+
+    cd = createWire(cd, l1J.tag, '1', firstDevice.tag, '1', l1J.deviceId, firstDeviceId, wp);
   }
 
   // Wire last device on each non-branch rung to L2 junction
-  for (const rung of rungs) {
+  for (let ri = 0; ri < rungs.length; ri++) {
+    const rung = rungs[ri];
     if (rung.branchOf) continue;
     if (rung.deviceIds.length === 0) continue;
 
@@ -925,7 +945,16 @@ export function createLadderRails(
     const l2J = l2Junctions.find(j => j.rungNumber === rung.number);
     if (!l2J) continue;
 
-    cd = createWire(cd, lastDevice.tag, '2', l2J.tag, '1', lastDeviceId, l2J.deviceId);
+    const rungY = config.firstRungY + ri * config.rungSpacing + oy;
+    const devPos = cd.positions[lastDeviceId];
+    const l2Pos = cd.positions[l2J.deviceId];
+
+    const wp = (devPos && l2Pos) ? [
+      { x: devPos.x, y: rungY },
+      { x: l2Pos.x, y: rungY },
+    ] : undefined;
+
+    cd = createWire(cd, lastDevice.tag, '2', l2J.tag, '1', lastDeviceId, l2J.deviceId, wp);
   }
 
   return cd;

@@ -856,6 +856,43 @@ export function createServer(apiBase: string) {
   );
 
   // ================================================================
+  //  RELAY OUTPUT SHEET GENERATION
+  // ================================================================
+
+  server.tool(
+    'generate_relay_output_sheet',
+    'Generate a complete relay output sheet with N relay coils and contacts. Each relay gets 2 rungs (coil + contact), fully wired with L1/L2 rails. Use for PLC-driven relay banks.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      sheetName: z.string().describe('Sheet name (e.g., "Relay Outputs 1-5")'),
+      relayStartNumber: z.number().describe('Starting relay number (e.g., 1 for CR1)'),
+      relayCount: z.number().min(1).max(10).describe('Number of relays on this sheet'),
+      voltage: z.string().optional().describe('Rail voltage label (default: "24VDC")'),
+    },
+    async ({ projectId, sheetName, relayStartNumber, relayCount, voltage }) => {
+      const { generateRelayOutputSheet } = await import('./circuit-templates.js');
+
+      const project = await api.getProject(projectId);
+
+      const result = generateRelayOutputSheet(project.circuitData, {
+        sheetName,
+        relayStartNumber,
+        relayCount,
+        voltage,
+      });
+
+      await api.updateCircuitData(projectId, result.circuit);
+
+      return textResult({
+        generated: true,
+        deviceCount: result.circuit.devices.length,
+        wireCount: result.circuit.connections.length,
+        summary: result.summary,
+      });
+    },
+  );
+
+  // ================================================================
   //  TERMINAL BLOCK CALCULATION
   // ================================================================
 

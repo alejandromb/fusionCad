@@ -760,6 +760,7 @@ export function renderCircuit(
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
   const sheetBlocks = (circuit.blocks || []).filter(b => b.sheetId === activeSheetId);
 
+
   const sheetNum = activeSheet?.number ?? 1;
 
   for (const block of sheetBlocks) {

@@ -270,7 +270,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   });
 
   // Ref-based viewport for smooth zoom (bypasses React during wheel gestures)
-  const viewportRef = useRef<Viewport>({ offsetX: 0, offsetY: 0, scale: 1 });
+  // Default offset shifts the view right so world x=0 isn't hidden behind the sidebar
+  const viewportRef = useRef<Viewport>({ offsetX: 50, offsetY: 20, scale: 1 });
   const zoomSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keep ref in sync with React state
   useEffect(() => {
@@ -340,6 +341,26 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       minY = Math.min(minY, pos.y);
       maxX = Math.max(maxX, pos.x + geom.width);
       maxY = Math.max(maxY, pos.y + geom.height);
+    }
+
+    // Include ladder block bounds (rung numbers, rail labels, descriptions)
+    if (circuit.blocks) {
+      for (const block of circuit.blocks) {
+        if (block.blockType === 'ladder') {
+          const lb = block as any; // LadderBlock
+          const config = lb.ladderConfig;
+          if (config) {
+            const ox = block.position?.x ?? 0;
+            const oy = block.position?.y ?? 0;
+            // Rung numbers are drawn at railL1X - 24, so include margin
+            minX = Math.min(minX, (config.railL1X || 100) + ox - 60);
+            // Description text is right of railL2X
+            maxX = Math.max(maxX, (config.railL2X || 900) + ox + 60);
+            // Include rail labels above first rung
+            minY = Math.min(minY, (config.firstRungY || 100) + oy - 60);
+          }
+        }
+      }
     }
 
     if (!isFinite(minX)) return;
