@@ -259,13 +259,61 @@ function AppInner({
         activeSheetId: circuitState.activeSheetId,
         sheets: circuitState.sheets,
         alignSelectedDevices: circuitState.alignSelectedDevices,
+        // Layout report for development — structured render feedback
+        getLayoutReport: () => {
+          const c = project.circuit;
+          if (!c) return null;
+          const sheetId = circuitState.activeSheetId;
+          const sheet = circuitState.sheets.find(s => s.id === sheetId);
+          const SHEET_SIZES: Record<string, {width: number; height: number}> = {
+            'Tabloid': {width: 1632, height: 1056}, 'Letter': {width: 1056, height: 816},
+            'A3': {width: 1587, height: 1123}, 'A4': {width: 1123, height: 794},
+          };
+          const sheetPx = SHEET_SIZES[sheet?.size || 'Tabloid'] || {width: 1632, height: 1056};
+          const block = (c.blocks||[]).find(b => b.sheetId === sheetId && b.blockType === 'ladder') as any;
+          const rungs = block ? (c.rungs||[]).filter(r => r.blockId === block.id).sort((a: any,b: any) => a.number - b.number) : [];
+          const cfg = block?.ladderConfig;
+          const devices = c.devices.filter(d => d.sheetId === sheetId);
+          const positions = Object.fromEntries(project.devicePositions);
+
+          const deviceLayout = devices.map(d => {
+            const pos = positions[d.id];
+            const part = d.partId ? c.parts.find(p => p.id === d.partId) : null;
+            return { tag: d.tag, fn: d.function, symbol: (part as any)?.symbolCategory || (part as any)?.category, x: pos?.x, y: pos?.y };
+          });
+
+          const rungLayout = rungs.map((r: any, i: number) => {
+            const y = cfg ? cfg.firstRungY + i * cfg.rungSpacing : 0;
+            const devTags = r.deviceIds.map((id: string) => c.devices.find(d => d.id === id)?.tag).filter(Boolean);
+            return { num: r.number, y, insideSheet: y < sheetPx.height - 100, devTags, desc: r.description };
+          });
+
+          const wires = (c.connections||[]).filter(w => {
+            const fd = c.devices.find(d => d.id === w.fromDeviceId);
+            return fd && fd.sheetId === sheetId;
+          });
+
+          return {
+            sheet: { id: sheetId, name: sheet?.name, size: sheet?.size, px: sheetPx },
+            block: cfg ? { railL1X: cfg.railL1X, railL2X: cfg.railL2X, firstRungY: cfg.firstRungY, rungSpacing: cfg.rungSpacing, voltage: cfg.voltage } : null,
+            rungCount: rungs.length,
+            lastRungY: cfg ? cfg.firstRungY + (rungs.length - 1) * cfg.rungSpacing : 0,
+            fitsInSheet: cfg ? (cfg.firstRungY + (rungs.length - 1) * cfg.rungSpacing) < (sheetPx.height - 100) : true,
+            deviceCount: devices.length,
+            wireCount: wires.length,
+            wiresWithWaypoints: wires.filter(w => w.waypoints?.length > 0).length,
+            rungs: rungLayout,
+            devices: deviceLayout,
+          };
+        },
       };
     }
   }, [project.circuit, project.devicePositions, interaction.interactionMode,
       circuitState.selectedDevices, circuitState.selectedWireIndex, interaction.sheetConnections,
       interaction.viewport, project.projectId, project.projectName, project.saveStatus,
       circuitState.history, circuitState.historyIndex,
-      circuitState.activeSheetId, circuitState.sheets, circuitState.alignSelectedDevices]);
+      circuitState.activeSheetId, circuitState.sheets, circuitState.alignSelectedDevices,
+      project.circuit, project.devicePositions]);
 
   // Global keydown listener for ? to show shortcuts help
   useEffect(() => {

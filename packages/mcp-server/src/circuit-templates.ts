@@ -1293,8 +1293,10 @@ export function generateRelayOutputSheet(
   const railL1 = options.railLabelL1 || '+24V';
   const railL2 = options.railLabelL2 || '0V';
 
-  const RUNG_SPACING = 140;
-  const FIRST_RUNG_Y = 100;
+  // Tabloid usable height ~950px. Each relay = 2 rungs (coil + spacer).
+  const totalRungs = options.relayCount * 2;
+  const RUNG_SPACING = Math.min(120, Math.floor(900 / totalRungs));
+  const FIRST_RUNG_Y = 80;
   const RAIL_L1X = 200;
   const RAIL_L2X = 1100;
 
@@ -1325,44 +1327,25 @@ export function generateRelayOutputSheet(
   }
   const rungDefs: RungDef[] = [];
 
-  // Place relay coils and contacts
+  // Place relay coils — one per rung, clean ladder layout.
+  // Contacts are cross-referenced but placed where they're used (future: separate load sheet).
   for (let i = 0; i < options.relayCount; i++) {
     const relayNum = options.relayStartNumber + i;
     const coilTag = `CR${relayNum}`;
-    const contactTag = `CR${relayNum}-1`;
 
-    // Place coil
-    const coil = placeDevice(cd, 'iec-coil', 0, 0, sheetId, coilTag);
+    // Place coil (ANSI circle style)
+    const coil = placeDevice(cd, 'ansi-coil', 0, 0, sheetId, coilTag);
     cd = coil.circuit;
-    cd = updateDeviceFunction(cd, coil.deviceId, `Output ${relayNum} Relay`);
-
-    // Place NO contact
-    const contact = placeDevice(cd, 'iec-normally-open-contact', 0, 0, sheetId, contactTag);
-    cd = contact.circuit;
-    cd = updateDeviceFunction(cd, contact.deviceId, `Output ${relayNum} Contact`);
+    cd = updateDeviceFunction(cd, coil.deviceId, `OUTPUT ${relayNum}`);
 
     // Coil rung
     rungDefs.push({
       number: rungNum++,
       deviceIds: [coil.deviceId],
-      description: `OUTPUT ${relayNum} RELAY COIL`,
+      description: `OUTPUT ${relayNum}`,
     });
 
-    // Contact rung
-    rungDefs.push({
-      number: rungNum++,
-      deviceIds: [contact.deviceId],
-      description: `OUTPUT ${relayNum} CONTACT`,
-    });
-
-    // Spacer rung between groups
-    if (i < options.relayCount - 1) {
-      rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
-    }
-  }
-
-  // Add a few empty rungs at the end for visual spacing
-  for (let i = 0; i < 2; i++) {
+    // Spacer rung between relays for readability
     rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
   }
 
