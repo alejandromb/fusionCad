@@ -947,14 +947,26 @@ export function createLadderRails(
   }
 
   // Wire L1 junctions horizontally to first device on each rung.
-  // Waypoints force straight horizontal routing at the rung Y coordinate,
-  // preventing the auto-router from creating zigzag paths around devices.
+  // Waypoints force straight horizontal routing at the rung Y coordinate.
+  // Skip devices without standard pin "1" (e.g., PLC modules with named pins).
   for (let ri = 0; ri < rungs.length; ri++) {
     const rung = rungs[ri];
     if (rung.deviceIds.length === 0) continue;
     const firstDeviceId = rung.deviceIds[0];
     const firstDevice = cd.devices.find(d => d.id === firstDeviceId);
     if (!firstDevice) continue;
+
+    // Check if device has pin "1" — skip if not (e.g., PLC modules)
+    const firstPart = cd.parts.find(p => p.id === firstDevice.partId);
+    if (firstPart) {
+      const symKey = firstPart.symbolCategory || firstPart.category;
+      if (symKey) {
+        try {
+          const symDef = resolveSymbol(symKey);
+          if (!symDef.pins.some(p => p.id === '1')) continue;
+        } catch { /* skip validation if symbol not found */ }
+      }
+    }
 
     const l1J = l1Junctions.find(j => j.rungNumber === rung.number);
     if (!l1J) continue;
@@ -972,7 +984,8 @@ export function createLadderRails(
     cd = createWire(cd, l1J.tag, '1', firstDevice.tag, '1', l1J.deviceId, firstDeviceId, wp);
   }
 
-  // Wire last device on each non-branch rung to L2 junction
+  // Wire last device on each non-branch rung to L2 junction.
+  // Skip devices without standard pin "2" (e.g., PLC modules).
   for (let ri = 0; ri < rungs.length; ri++) {
     const rung = rungs[ri];
     if (rung.branchOf) continue;
@@ -981,6 +994,18 @@ export function createLadderRails(
     const lastDeviceId = rung.deviceIds[rung.deviceIds.length - 1];
     const lastDevice = cd.devices.find(d => d.id === lastDeviceId);
     if (!lastDevice) continue;
+
+    // Check if device has pin "2" — skip if not
+    const lastPart = cd.parts.find(p => p.id === lastDevice.partId);
+    if (lastPart) {
+      const symKey = lastPart.symbolCategory || lastPart.category;
+      if (symKey) {
+        try {
+          const symDef = resolveSymbol(symKey);
+          if (!symDef.pins.some(p => p.id === '2')) continue;
+        } catch { /* skip */ }
+      }
+    }
 
     const l2J = l2Junctions.find(j => j.rungNumber === rung.number);
     if (!l2J) continue;

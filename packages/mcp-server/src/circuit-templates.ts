@@ -1280,6 +1280,38 @@ export function generatePowerDistribution(
   // Populate title block
   cd = populateTitleBlock(cd, sheetId, 'Power Distribution', 'PWR-001');
 
+  // ================================================================
+  //  Source & Destination Arrows (voltage labels for inter-sheet reference)
+  // ================================================================
+  const arrowTopY = FIRST_RUNG_Y - 80;
+  const lastRungY = FIRST_RUNG_Y + (rungDefs.length - 1) * RUNG_SPACING;
+  const arrowBottomY = lastRungY + 120;
+
+  // Source arrow: incoming supply voltage at top of L1 rail
+  const sa1 = placeDevice(cd, 'source-arrow', 0, 0, sheetId, 'SA1');
+  cd = sa1.circuit;
+  cd = updateDeviceFunction(cd, sa1.deviceId, options.supplyVoltage);
+  cd = { ...cd, positions: { ...cd.positions, [sa1.deviceId]: { x: RAIL_L1X - 10, y: arrowTopY } } };
+
+  // Destination arrow: neutral return at bottom of L2 rail
+  const da1 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA1');
+  cd = da1.circuit;
+  cd = updateDeviceFunction(cd, da1.deviceId, options.supplyVoltage);
+  cd = { ...cd, positions: { ...cd.positions, [da1.deviceId]: { x: RAIL_L1X - 10, y: arrowBottomY } } };
+
+  // Destination arrow: +24VDC output (if PSU exists)
+  if (psCount >= 1) {
+    const da2 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA2');
+    cd = da2.circuit;
+    cd = updateDeviceFunction(cd, da2.deviceId, '+24VDC');
+    cd = { ...cd, positions: { ...cd.positions, [da2.deviceId]: { x: RAIL_L2X - 100, y: arrowBottomY } } };
+
+    const da3 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA3');
+    cd = da3.circuit;
+    cd = updateDeviceFunction(cd, da3.deviceId, '0V');
+    cd = { ...cd, positions: { ...cd.positions, [da3.deviceId]: { x: RAIL_L2X, y: arrowBottomY } } };
+  }
+
   return { circuit: cd, summary };
 }
 
@@ -1316,6 +1348,8 @@ function buildLadderSheet(
     railL2X?: number;
     rungDefs: RungDef[];
     titleBlock?: { title: string; drawingNumber: string };
+    /** Skip automatic device-to-device wiring (pin 2 → pin 1). Use when devices have non-standard pins (e.g., PLC modules). */
+    skipDeviceWiring?: boolean;
   },
 ): { circuit: CircuitData; sheetId: string; blockId: string } {
   let cd = circuit;
@@ -1362,20 +1396,23 @@ function buildLadderSheet(
   const layout = autoLayoutLadder(cd, sheetId, blockId);
   cd = layout.circuit;
 
-  // Wire devices in series on each rung (pin 2 → pin 1) with horizontal waypoints
-  for (let di = 0; di < options.rungDefs.length; di++) {
-    const def = options.rungDefs[di];
-    const rungY = FIRST_RUNG_Y + di * RUNG_SPACING;
-    for (let i = 0; i < def.deviceIds.length - 1; i++) {
-      const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
-      const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
-      const fromPos = cd.positions[fromDev.id];
-      const toPos = cd.positions[toDev.id];
-      const wp = (fromPos && toPos) ? [
-        { x: fromPos.x + 60, y: rungY },
-        { x: toPos.x, y: rungY },
-      ] : undefined;
-      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id, wp);
+  // Wire devices in series on each rung (pin 2 → pin 1) with horizontal waypoints.
+  // Skipped when devices have non-standard pins (e.g., PLC modules with DO0, DI0 pins).
+  if (!options.skipDeviceWiring) {
+    for (let di = 0; di < options.rungDefs.length; di++) {
+      const def = options.rungDefs[di];
+      const rungY = FIRST_RUNG_Y + di * RUNG_SPACING;
+      for (let i = 0; i < def.deviceIds.length - 1; i++) {
+        const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
+        const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
+        const fromPos = cd.positions[fromDev.id];
+        const toPos = cd.positions[toDev.id];
+        const wp = (fromPos && toPos) ? [
+          { x: fromPos.x + 60, y: rungY },
+          { x: toPos.x, y: rungY },
+        ] : undefined;
+        cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id, wp);
+      }
     }
   }
 
@@ -1462,6 +1499,150 @@ export function generateRelayOutputSheet(
   };
 
   const summary = `Relay output sheet "${options.sheetName}": CR${options.relayStartNumber}-CR${options.relayStartNumber + options.relayCount - 1}, ${voltage}, fully wired`;
+  return { circuit: cd, summary };
+}
+
+// ================================================================
+//  PLC + RELAY COILS SHEET GENERATOR
+// ================================================================
+
+/**
+ * Generate a PLC relay output sheet: Micro800 PLC on left, relay coils on right.
+ * Each rung: PLC DO pin → relay coil (ANSI circle style).
+ * Optionally adds input rungs for DI pins with terminal blocks.
+ */
+export function generatePLCRelaySheet(
+  circuit: CircuitData,
+  options: {
+    sheetName: string;
+    plcModel?: string;       // e.g., 'micro870' → ab-micro870-cpu
+    relayCount: number;      // DO0..DO(N-1) → CR1..CRN
+    relayStartNumber?: number;
+    inputCount?: number;     // DI0..DI(N-1) with terminal blocks
+    voltage?: string;
+  },
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const voltage = options.voltage || '24VDC';
+  const relayStart = options.relayStartNumber ?? 1;
+  const inputCount = options.inputCount ?? 0;
+  const plcSymbol = `ab-${options.plcModel || 'micro870'}-cpu`;
+
+  // Total rungs = relays + inputs + spacer between sections
+  const totalRungs = options.relayCount + inputCount + (inputCount > 0 ? 1 : 0);
+  const rungSpacing = Math.min(100, Math.floor(900 / Math.max(totalRungs, 1)));
+
+  const tempSheetId = '__temp__';
+  let rungNum = 1;
+  const rungDefs: RungDef[] = [];
+
+  // Place PLC device (multi-rung, left side)
+  const plc = placeDevice(cd, plcSymbol, 0, 0, tempSheetId, 'PLC1');
+  cd = plc.circuit;
+  cd = updateDeviceFunction(cd, plc.deviceId, `Micro800 ${(options.plcModel || 'L70E').toUpperCase()}`);
+
+  // Place relay coils and build relay rungs
+  for (let i = 0; i < options.relayCount; i++) {
+    const relayNum = relayStart + i;
+    const coilTag = `CR${relayNum}`;
+
+    const coil = placeDevice(cd, 'ansi-coil', 0, 0, tempSheetId, coilTag);
+    cd = coil.circuit;
+    cd = updateDeviceFunction(cd, coil.deviceId, `OUTPUT ${relayNum}`);
+
+    // PLC DO pin and coil on same rung
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [plc.deviceId, coil.deviceId],
+      description: `OUTPUT ${relayNum}`,
+    });
+  }
+
+  // Spacer between relay and input sections
+  if (inputCount > 0) {
+    rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
+  }
+
+  // Place input terminal blocks and build input rungs
+  for (let i = 0; i < inputCount; i++) {
+    const tbTag = `TB${i + 1}`;
+    const tb = placeDevice(cd, 'iec-terminal-single', 0, 0, tempSheetId, tbTag);
+    cd = tb.circuit;
+    cd = updateDeviceFunction(cd, tb.deviceId, `INPUT ${i + 1}`);
+
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [plc.deviceId, tb.deviceId],
+      description: `INPUT ${i + 1} (24VDC)`,
+    });
+  }
+
+  // Build the ladder sheet — skip automatic device wiring (PLC has non-standard pins)
+  const result = buildLadderSheet(cd, {
+    sheetName: options.sheetName,
+    voltage,
+    railLabelL1: '+24V',
+    railLabelL2: '0V',
+    rungSpacing,
+    firstRungY: 80,
+    rungDefs,
+    titleBlock: { title: options.sheetName, drawingNumber: 'PLC-001' },
+    skipDeviceWiring: true,
+  });
+  cd = result.circuit;
+
+  // Fix device sheetIds
+  cd = {
+    ...cd,
+    devices: cd.devices.map(d => d.sheetId === tempSheetId ? { ...d, sheetId: result.sheetId } : d),
+  };
+
+  // Custom PLC wiring: PLC DO pins → relay coils, PLC DI pins ← terminal blocks
+  let doIndex = 0;
+  let diIndex = 0;
+  const FIRST_RUNG_Y = 80;
+  for (let di = 0; di < rungDefs.length; di++) {
+    const def = rungDefs[di];
+    if (def.deviceIds.length < 2) continue; // spacer rung
+
+    const plcDev = cd.devices.find(d => d.id === def.deviceIds[0]);
+    const otherDev = cd.devices.find(d => d.id === def.deviceIds[1]);
+    if (!plcDev || !otherDev) continue;
+
+    const rungY = 80 + di * rungSpacing;
+    const plcPos = cd.positions[plcDev.id];
+    const otherPos = cd.positions[otherDev.id];
+
+    // Determine if this is a relay rung or input rung
+    const isRelay = otherDev.tag.startsWith('CR');
+    const isInput = otherDev.tag.startsWith('TB');
+
+    if (isRelay && doIndex < options.relayCount) {
+      // PLC DO → relay coil pin 1
+      const doPin = `DO${doIndex}`;
+      const wp = (plcPos && otherPos) ? [
+        { x: plcPos.x + 230, y: rungY },
+        { x: otherPos.x, y: rungY },
+      ] : undefined;
+      try {
+        cd = createWire(cd, plcDev.tag, doPin, otherDev.tag, '1', plcDev.id, otherDev.id, wp);
+      } catch { /* pin validation may fail — skip */ }
+      doIndex++;
+    } else if (isInput && diIndex < inputCount) {
+      // Terminal → PLC DI
+      const diPin = `DI${diIndex}`;
+      const wp = (plcPos && otherPos) ? [
+        { x: otherPos.x + 40, y: rungY },
+        { x: plcPos.x, y: rungY },
+      ] : undefined;
+      try {
+        cd = createWire(cd, otherDev.tag, '1', plcDev.tag, diPin, otherDev.id, plcDev.id, wp);
+      } catch { /* skip */ }
+      diIndex++;
+    }
+  }
+
+  const summary = `PLC relay sheet "${options.sheetName}": ${options.relayCount} relay outputs (CR${relayStart}-CR${relayStart + options.relayCount - 1}), ${inputCount} inputs, ${voltage}`;
   return { circuit: cd, summary };
 }
 
