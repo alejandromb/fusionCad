@@ -10,6 +10,8 @@
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { renderCircuit } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
+import { getTheme, setTheme, type ThemeData } from '../renderer/theme';
+import { SHEET_SIZES } from '../renderer/title-block';
 
 interface PDFExportOptions {
   /** Page width in mm (default 420 for A3) */
@@ -35,8 +37,8 @@ export async function exportToPDF(
   options: PDFExportOptions = {}
 ): Promise<void> {
   const {
-    pageWidth = PAPER_SIZES['Tabloid'].w,
-    pageHeight = PAPER_SIZES['Tabloid'].h,
+    pageWidth = 432,  // Tabloid width in mm (17")
+    pageHeight = 279,  // Tabloid height in mm (11")
     dpi = 150,
     deviceTransforms,
     title = 'fusionCad Drawing',
@@ -130,107 +132,151 @@ export async function exportToPDF(
 }
 
 /**
- * Print the current sheet via browser print dialog.
- * Opens a new window with the rendered canvas and triggers window.print().
+ * Create a print-friendly theme: white background, black symbols/wires.
  */
-export async function printSheet(
+function createPrintTheme(baseTheme: ThemeData): ThemeData {
+  return {
+    ...baseTheme,
+    canvasBg: '#ffffff',
+    gridDotColor: 'rgba(0,0,0,0)',
+    symbolStroke: '#000000',
+    symbolStrokeWidth: 2,
+    symbolTextFill: '#000000',
+    pinDotColor: '#333333',
+    pinDotRadius: 2,
+    pinLabelColor: '#444444',
+    tagColor: '#000000',
+    tagFont: 'bold 12px monospace',
+    partLabelColor: '#333333',
+    wireWidth: 1.5,
+    wireColors: ['#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000'],
+    wireLabelBg: 'rgba(255,255,255,0.9)',
+    wireLabelFont: '8px monospace',
+    wireEndpointColor: '#333333',
+    wireEndpointRadius: 2,
+    annotationColor: '#000000',
+    junctionFill: '#000000',
+    ladderRailLabelColor: '#000000',
+    ladderRailLineColor: '#000000',
+    ladderVoltageColor: '#000000',
+    ladderRungGuideColor: 'rgba(0,0,0,0.15)',
+    ladderRungNumberColor: '#000000',
+    ladderRungDescColor: '#333333',
+    titleBlockBg: '#ffffff',
+    titleBlockBorder: '#000000',
+    titleBlockDivider: '#000000',
+    titleBlockTitleColor: '#000000',
+    titleBlockFieldColor: '#333333',
+    titleBlockSheetColor: '#333333',
+  };
+}
+
+/**
+ * Render a single sheet to an offscreen canvas at the sheet's native size.
+ * Uses print theme (white bg, black lines) and includes title block/border.
+ */
+function renderSheetForPrint(
   circuit: CircuitData,
   positions: Map<string, Point>,
-  options: PDFExportOptions = {}
-): Promise<void> {
-  const {
-    pageWidth = PAPER_SIZES['Tabloid'].w,
-    pageHeight = PAPER_SIZES['Tabloid'].h,
-    dpi = 150,
-    deviceTransforms,
-    title = 'fusionCad Drawing',
-    activeSheetId,
-  } = options;
+  sheetId: string,
+  deviceTransforms?: Map<string, DeviceTransform>,
+  scaleFactor = 1.5,
+): HTMLCanvasElement | null {
+  const sheetSize = SHEET_SIZES[
+    circuit.sheets?.find(s => s.id === sheetId)?.size || 'Tabloid'
+  ] || SHEET_SIZES['Tabloid'];
 
-  const mmToInch = 1 / 25.4;
-  const pxWidth = Math.round(pageWidth * mmToInch * dpi);
-  const pxHeight = Math.round(pageHeight * mmToInch * dpi);
+  const pxWidth = Math.round(sheetSize.width * scaleFactor);
+  const pxHeight = Math.round(sheetSize.height * scaleFactor);
 
-  // Calculate content bounds (same as PDF export)
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const filteredDevices = activeSheetId
-    ? circuit.devices.filter(d => d.sheetId === activeSheetId)
-    : circuit.devices;
-
-  for (const device of filteredDevices) {
-    const pos = positions.get(device.id);
-    if (!pos) continue;
-    minX = Math.min(minX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxX = Math.max(maxX, pos.x + 100);
-    maxY = Math.max(maxY, pos.y + 100);
-  }
-
-  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
-
-  const padding = 40;
-  const contentW = maxX - minX + padding * 2;
-  const contentH = maxY - minY + padding * 2;
-  const scaleX = pxWidth / contentW;
-  const scaleY = pxHeight / contentH;
-  const scale = Math.min(scaleX, scaleY) * 0.9;
-
-  const viewport: Viewport = {
-    offsetX: (pxWidth - contentW * scale) / 2 - minX * scale + padding * scale,
-    offsetY: (pxHeight - contentH * scale) / 2 - minY * scale + padding * scale,
-    scale,
-  };
-
-  // Render to offscreen canvas
   const canvas = document.createElement('canvas');
   canvas.width = pxWidth;
   canvas.height = pxHeight;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) return null;
 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, pxWidth, pxHeight);
+  // Switch to print theme
+  const originalTheme = getTheme();
+  setTheme(createPrintTheme(originalTheme));
 
-  renderCircuit(ctx, circuit, viewport, false, positions, {
-    selectedDevices: [],
-    selectedWireIndex: null,
-    wireStart: null,
-    activeSheetId,
-    deviceTransforms,
-    showGrid: false,
-  });
+  try {
+    renderCircuit(ctx, circuit, { offsetX: 0, offsetY: 0, scale: scaleFactor }, false, positions, {
+      selectedDevices: [],
+      selectedWireIndex: null,
+      wireStart: null,
+      activeSheetId: sheetId,
+      deviceTransforms,
+      showGrid: false,
+    });
+  } finally {
+    setTheme(originalTheme);
+  }
 
-  // Open print window with the image
-  const imageData = canvas.toDataURL('image/png');
+  return canvas;
+}
+
+/**
+ * Print sheet(s) via browser print dialog.
+ * Renders with print theme (white background, black lines, title block).
+ *
+ * Options:
+ * - `allSheets: true` — print all sheets as separate pages
+ * - Default: prints the active sheet only
+ */
+export async function printSheet(
+  circuit: CircuitData,
+  positions: Map<string, Point>,
+  options: PDFExportOptions & { allSheets?: boolean } = {}
+): Promise<void> {
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets } = options;
+
+  const sheetIds = allSheets
+    ? (circuit.sheets || []).map(s => s.id)
+    : [activeSheetId || circuit.sheets?.[0]?.id || 'sheet-1'];
+
+  const images: string[] = [];
+  for (const sid of sheetIds) {
+    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms);
+    if (canvas) images.push(canvas.toDataURL('image/png'));
+  }
+
+  if (images.length === 0) return;
+
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>${title}</title>
-      <style>
-        @page { size: landscape; margin: 0.25in; }
-        body { margin: 0; display: flex; justify-content: center; align-items: center; }
-        img { max-width: 100%; max-height: 100vh; }
-      </style>
-    </head>
-    <body>
-      <img src="${imageData}" onload="window.print(); window.close();" />
-    </body>
-    </html>
-  `);
+  const pagesHtml = images.map(img =>
+    `<div class="page"><img src="${img}" /></div>`
+  ).join('\n');
+
+  printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    @page { size: landscape; margin: 0; }
+    @media print { .toolbar { display: none !important; } }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #888; }
+    .toolbar { background: #333; color: white; padding: 8px 16px; text-align: center; position: sticky; top: 0; z-index: 10; }
+    .toolbar button { padding: 6px 16px; margin: 0 4px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; }
+    .toolbar .print-btn { background: #2070B0; color: white; }
+    .toolbar .close-btn { background: #666; color: white; }
+    .page { background: white; margin: 8px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3); page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .page img { width: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="print-btn" onclick="window.print()">Print ${images.length} Sheet${images.length > 1 ? 's' : ''}</button>
+    <button class="close-btn" onclick="window.close()">Close</button>
+  </div>
+  ${pagesHtml}
+</body>
+</html>`);
   printWindow.document.close();
 }
-
-// Move PAPER_SIZES to module scope for reuse
-const PAPER_SIZES: Record<string, { w: number; h: number }> = {
-  'Tabloid': { w: 432, h: 279 },
-  'Letter': { w: 279, h: 216 },
-  'A3': { w: 420, h: 297 },
-  'A4': { w: 297, h: 210 },
-};
 
 /**
  * Generate a minimal PDF containing a single JPEG image.

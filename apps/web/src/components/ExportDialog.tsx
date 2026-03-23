@@ -123,7 +123,28 @@ export function ExportDialog({
             }}
             disabled={exporting || !circuit}
           >
-            Print
+            Print Sheet
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={async () => {
+              if (!circuit) return;
+              setExporting(true);
+              try {
+                await printSheet(circuit, positions, {
+                  deviceTransforms,
+                  title: projectName,
+                  allSheets: true,
+                });
+              } catch (err) {
+                console.error('Print failed:', err);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting || !circuit}
+          >
+            Print All
           </button>
           <button
             className="btn-primary"
