@@ -192,10 +192,20 @@ export function toOrthogonalPath(points: Point[]): Point[] {
     const prev = result[result.length - 1];
     const curr = points[i];
 
-    // If not already aligned, add intermediate point for orthogonal routing
+    // If not already aligned, add intermediate point for orthogonal routing.
+    // Choose direction based on which axis has the larger delta:
+    // - Larger horizontal delta → horizontal first (good for ladder rungs)
+    // - Larger vertical delta → vertical first (good for vertical feeds)
     if (prev.x !== curr.x && prev.y !== curr.y) {
-      // Horizontal first, then vertical
-      result.push({ x: curr.x, y: prev.y });
+      const dx = Math.abs(curr.x - prev.x);
+      const dy = Math.abs(curr.y - prev.y);
+      if (dx >= dy) {
+        // Horizontal first, then vertical
+        result.push({ x: curr.x, y: prev.y });
+      } else {
+        // Vertical first, then horizontal
+        result.push({ x: prev.x, y: curr.y });
+      }
     }
     result.push(curr);
   }
