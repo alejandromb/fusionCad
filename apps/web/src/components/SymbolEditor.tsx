@@ -25,7 +25,7 @@ import { SymbolPreview } from './SymbolPreview';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'polyline' | 'pin' | 'text';
+type EditorTool = 'select' | 'line' | 'rect' | 'circle' | 'arc' | 'polyline' | 'pin' | 'text';
 
 interface Point {
   x: number;
@@ -993,6 +993,11 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         ctx.beginPath();
         ctx.arc(currentPath.points[0].x, currentPath.points[0].y, currentPath.radius, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (currentPath.type === 'arc' && currentPath.radius) {
+        ctx.beginPath();
+        ctx.arc(currentPath.points[0].x, currentPath.points[0].y, currentPath.radius,
+          currentPath.startAngle ?? Math.PI, currentPath.endAngle ?? 0);
+        ctx.stroke();
       } else if (currentPath.type === 'polyline') {
         ctx.beginPath();
         ctx.moveTo(currentPath.points[0].x, currentPath.points[0].y);
@@ -1340,12 +1345,17 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     const newPath: EditorPath = {
       id: `path-${Date.now()}`,
-      type: selectedTool === 'polyline' ? 'polyline' : selectedTool as 'line' | 'rect' | 'circle',
+      type: selectedTool === 'polyline' ? 'polyline' : selectedTool === 'arc' ? 'arc' : selectedTool as 'line' | 'rect' | 'circle',
       points: [pos],
     };
 
-    if (selectedTool === 'circle') {
+    if (selectedTool === 'circle' || selectedTool === 'arc') {
       newPath.radius = 0;
+    }
+    if (selectedTool === 'arc') {
+      // Default to semicircle (top half): startAngle = π, endAngle = 0
+      newPath.startAngle = Math.PI;
+      newPath.endAngle = 0;
     }
 
     setCurrentPath(newPath);
@@ -1460,7 +1470,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         ...currentPath,
         points: [startPoint, pos],
       });
-    } else if (currentPath.type === 'circle') {
+    } else if (currentPath.type === 'circle' || currentPath.type === 'arc') {
       const dx = pos.x - startPoint.x;
       const dy = pos.y - startPoint.y;
       const radius = Math.sqrt(dx * dx + dy * dy);
@@ -1567,8 +1577,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     }
 
     const isValid =
-      (currentPath.type === 'circle' && currentPath.radius && currentPath.radius > 5) ||
-      (currentPath.type !== 'circle' && currentPath.points.length >= 2 &&
+      ((currentPath.type === 'circle' || currentPath.type === 'arc') && currentPath.radius && currentPath.radius > 5) ||
+      (currentPath.type !== 'circle' && currentPath.type !== 'arc' && currentPath.points.length >= 2 &&
         (Math.abs(currentPath.points[1].x - currentPath.points[0].x) > 2 ||
          Math.abs(currentPath.points[1].y - currentPath.points[0].y) > 2));
 
@@ -1938,6 +1948,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 title="Circle (C)"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+              </button>
+              <button
+                className={`tool-btn ${selectedTool === 'arc' ? 'active' : ''}`}
+                onClick={() => setSelectedTool('arc')}
+                title="Arc (A) - Click center, drag for radius. Default semicircle."
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 12 A 6 6 0 0 1 13 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
               </button>
               <button
                 className={`tool-btn ${selectedTool === 'polyline' ? 'active' : ''}`}

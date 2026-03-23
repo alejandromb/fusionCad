@@ -150,11 +150,21 @@ export function renderLadderOverlay(
 
     // Rung description (right margin, adjacent to L2 rail)
     if (rung.description) {
-      ctx.font = '12px monospace';
+      ctx.font = '11px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = t.ladderRungDescColor;
-      ctx.fillText(rung.description, railL2X + 16, rungY);
+      // Wrap long descriptions (max ~30 chars per line)
+      const desc = rung.description;
+      if (desc.length > 30) {
+        const mid = desc.lastIndexOf(' ', 30);
+        const line1 = mid > 0 ? desc.slice(0, mid) : desc.slice(0, 30);
+        const line2 = mid > 0 ? desc.slice(mid + 1) : desc.slice(30);
+        ctx.fillText(line1, railL2X + 16, rungY - 6);
+        ctx.fillText(line2, railL2X + 16, rungY + 6);
+      } else {
+        ctx.fillText(desc, railL2X + 16, rungY);
+      }
     }
   }
 

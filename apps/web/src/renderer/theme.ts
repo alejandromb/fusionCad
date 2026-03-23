@@ -256,7 +256,7 @@ const PROFESSIONAL: ThemeData = {
   ladderVoltageColor: '#D4A84D',
   ladderRungGuideColor: 'rgba(255, 255, 255, 0.06)',
   ladderRungNumberColor: '#aaaaaa',
-  ladderRungDescColor: '#888888',
+  ladderRungDescColor: '#aaaaaa',
   titleBlockBg: '#252525',
   titleBlockBorder: '#444',
   titleBlockDivider: '#555',
