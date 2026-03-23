@@ -1171,12 +1171,23 @@ export function renderCircuit(
         if (position) {
           const part = device.partId ? partMap.get(device.partId) : null;
           const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
+          const transform = getTransform(device.id);
+          const rotation = transform?.rotation || 0;
+
+          // Swap width/height for rotated devices (90° or 270°)
+          const isRotated90 = rotation % 180 !== 0;
+          const w = isRotated90 ? geometry.height : geometry.width;
+          const h = isRotated90 ? geometry.width : geometry.height;
+
+          // Center the selection box on the device center
+          const cx = position.x + geometry.width / 2;
+          const cy = position.y + geometry.height / 2;
 
           ctx.strokeRect(
-            position.x - 5,
-            position.y - 5,
-            geometry.width + 10,
-            geometry.height + 10
+            cx - w / 2 - 5,
+            cy - h / 2 - 5,
+            w + 10,
+            h + 10
           );
         }
       }
