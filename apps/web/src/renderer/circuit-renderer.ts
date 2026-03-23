@@ -1047,10 +1047,10 @@ export function renderCircuit(
       ctx.fill();
     }
 
-    // Wire number label (always visible)
-    {
-      // Use explicit wireNumber if set, otherwise auto-generate
-      const wireNumber = metadata.conn.wireNumber || `W${String(metadata.index + 1).padStart(3, '0')}`;
+    // Wire number label — only show explicit wire numbers, not auto-generated W### placeholders.
+    // Auto-generated numbers clutter the diagram; explicit ones are meaningful references.
+    if (metadata.conn.wireNumber) {
+      const wireNumber = metadata.conn.wireNumber;
 
       // Calculate label position along the longest segment
       let labelX = (metadata.fromX + metadata.toX) / 2;
