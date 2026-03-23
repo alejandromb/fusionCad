@@ -37,7 +37,7 @@ function loadStandard(): Standard {
     const raw = localStorage.getItem(STANDARD_KEY);
     if (raw && STANDARDS.includes(raw as Standard)) return raw as Standard;
   } catch { /* ignore */ }
-  return 'All';
+  return 'ANSI/NEMA';
 }
 
 interface RightPanelProps {
