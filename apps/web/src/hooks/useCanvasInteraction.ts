@@ -1030,12 +1030,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                 }
                 setWireStart(null);
               }
-            } else if (wireStart) {
-              // Check if clicking on an existing wire for T-junction
+            } else {
+              // No pin hit — check for wire hit (T-junction)
               const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
               if (hitWire !== null) {
-                // Project click point onto the wire path so the junction
-                // aligns exactly on the wire (not just to the nearest grid point)
                 const hitConn = sheetConnections[hitWire];
                 const { fromPinPos, toPinPos } = computeWirePinPositions(
                   hitConn, circuit.devices, circuit.parts, allPositions, circuit.transforms
@@ -1046,8 +1044,32 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   junctionX = projected.x;
                   junctionY = projected.y;
                 }
-                connectToWire(toGlobalIndex(hitWire), junctionX, junctionY, wireStart);
-                setWireStart(null);
+
+                if (wireStart) {
+                  // Click 2: connect wireStart to this wire via T-junction
+                  connectToWire(toGlobalIndex(hitWire), junctionX, junctionY, wireStart);
+                  setWireStart(null);
+                } else {
+                  // Click 1: start a wire FROM this wire.
+                  // Use the nearest endpoint device/pin on the wire as wireStart.
+                  // The user can then click a device pin to complete the connection.
+                  const fromDev = hitConn.fromDeviceId
+                    ? circuit.devices.find(d => d.id === hitConn.fromDeviceId)
+                    : circuit.devices.find(d => d.tag === hitConn.fromDevice);
+                  const toDev = hitConn.toDeviceId
+                    ? circuit.devices.find(d => d.id === hitConn.toDeviceId)
+                    : circuit.devices.find(d => d.tag === hitConn.toDevice);
+
+                  if (fromPinPos && toPinPos && fromDev && toDev) {
+                    const distFrom = Math.hypot(junctionX - fromPinPos.x, junctionY - fromPinPos.y);
+                    const distTo = Math.hypot(junctionX - toPinPos.x, junctionY - toPinPos.y);
+                    if (distFrom < distTo) {
+                      setWireStart({ device: fromDev.id, pin: hitConn.fromPin });
+                    } else {
+                      setWireStart({ device: toDev.id, pin: hitConn.toPin });
+                    }
+                  }
+                }
               }
             }
             break;
