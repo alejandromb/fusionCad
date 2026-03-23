@@ -373,6 +373,15 @@ function AppInner({
         circuit={project.circuit}
         onOpenReports={() => setShowReports(true)}
         onOpenExport={() => setShowExport(true)}
+        onPrint={async () => {
+          if (!project.circuit) return;
+          const { printSheet } = await import('./export/pdf-export');
+          await printSheet(project.circuit, project.devicePositions, {
+            deviceTransforms: circuitState.deviceTransforms,
+            title: project.projectName,
+            allSheets: true,
+          });
+        }}
         onOpenSymbols={() => setShowSymbolLibrary(true)}
         onOpenParts={() => setShowPartsCatalog(true)}
         onOpenERC={() => setShowERC(true)}
@@ -401,6 +410,15 @@ function AppInner({
         onExportBackup={project.exportProject}
         onImportBackup={triggerImport}
         onOpenExport={() => setShowExport(true)}
+        onPrint={async () => {
+          if (!project.circuit) return;
+          const { printSheet } = await import('./export/pdf-export');
+          await printSheet(project.circuit, project.devicePositions, {
+            deviceTransforms: circuitState.deviceTransforms,
+            title: project.projectName,
+            allSheets: true,
+          });
+        }}
         onOpenReports={() => setShowReports(true)}
         onSaveNow={project.saveNow}
         // Edit

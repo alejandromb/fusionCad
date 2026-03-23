@@ -24,6 +24,7 @@ interface MenuBarProps {
   onExportBackup: () => void;
   onImportBackup: () => void;
   onOpenExport: () => void;
+  onPrint: () => void;
   onOpenReports: () => void;
   onSaveNow: () => void;
 
@@ -82,6 +83,7 @@ const icons = {
   download: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   upload: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   export: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  print: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   report: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   rename: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   trash: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
@@ -215,7 +217,8 @@ export function MenuBar(props: MenuBarProps) {
             </div>
             <Divider />
             <div className="toolbar-group">
-              <ToolBtn icon={icons.export} label="Export (SVG/CSV)" onClick={props.onOpenExport} />
+              <ToolBtn icon={icons.export} label="Export (SVG/PDF)" onClick={props.onOpenExport} />
+              <ToolBtn icon={icons.print} label="Print" onClick={props.onPrint} />
               <ToolBtn icon={icons.report} label="Reports (BOM, Wire List)" onClick={props.onOpenReports} />
             </div>
             <Divider />
