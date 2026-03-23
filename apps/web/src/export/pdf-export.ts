@@ -9,7 +9,7 @@
 
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { renderCircuit } from '../renderer/circuit-renderer';
-import type { Point, Viewport, DeviceTransform } from '../renderer/types';
+import type { Point, DeviceTransform } from '../renderer/types';
 import { getTheme, setTheme, type ThemeData } from '../renderer/theme';
 import { SHEET_SIZES } from '../renderer/title-block';
 
@@ -34,92 +34,40 @@ interface PDFExportOptions {
 export async function exportToPDF(
   circuit: CircuitData,
   positions: Map<string, Point>,
-  options: PDFExportOptions = {}
+  options: PDFExportOptions & { allSheets?: boolean } = {}
 ): Promise<void> {
-  const {
-    pageWidth = 432,  // Tabloid width in mm (17")
-    pageHeight = 279,  // Tabloid height in mm (11")
-    dpi = 150,
-    deviceTransforms,
-    title = 'fusionCad Drawing',
-    activeSheetId,
-  } = options;
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets } = options;
 
-  // Convert mm to pixels at given DPI
-  const mmToInch = 1 / 25.4;
-  const pxWidth = Math.round(pageWidth * mmToInch * dpi);
-  const pxHeight = Math.round(pageHeight * mmToInch * dpi);
+  // Determine which sheets to export
+  const sheetIds = allSheets
+    ? (circuit.sheets || []).map(s => s.id)
+    : [activeSheetId || circuit.sheets?.[0]?.id || 'sheet-1'];
 
-  // Calculate content bounds
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const filteredDevices = activeSheetId
-    ? circuit.devices.filter(d => d.sheetId === activeSheetId)
-    : circuit.devices;
+  // Render each sheet with print theme using renderSheetForPrint
+  const pages: { imageData: string; width: number; height: number }[] = [];
 
-  for (const device of filteredDevices) {
-    const pos = positions.get(device.id);
-    if (!pos) continue;
-    minX = Math.min(minX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxX = Math.max(maxX, pos.x + 100); // Approximate max width
-    maxY = Math.max(maxY, pos.y + 100);
+  for (const sid of sheetIds) {
+    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, 2.0);
+    if (canvas) {
+      pages.push({
+        imageData: canvas.toDataURL('image/jpeg', 0.92),
+        width: canvas.width,
+        height: canvas.height,
+      });
+    }
   }
 
-  if (!isFinite(minX)) {
-    minX = 0; minY = 0; maxX = 800; maxY = 600;
-  }
+  if (pages.length === 0) return;
 
-  const padding = 40;
-  const contentW = maxX - minX + padding * 2;
-  const contentH = maxY - minY + padding * 2;
+  // Get page size in mm from first sheet
+  const firstSheet = circuit.sheets?.find(s => s.id === sheetIds[0]);
+  const sheetSize = SHEET_SIZES[firstSheet?.size || 'Tabloid'] || SHEET_SIZES['Tabloid'];
+  // Convert world px (96dpi) to mm
+  const pageWidthMm = Math.round(sheetSize.width / 96 * 25.4);
+  const pageHeightMm = Math.round(sheetSize.height / 96 * 25.4);
 
-  // Calculate scale to fit content in page
-  const scaleX = pxWidth / contentW;
-  const scaleY = pxHeight / contentH;
-  const scale = Math.min(scaleX, scaleY) * 0.9; // 90% to leave margin
-
-  const viewport: Viewport = {
-    offsetX: (pxWidth - contentW * scale) / 2 - minX * scale + padding * scale,
-    offsetY: (pxHeight - contentH * scale) / 2 - minY * scale + padding * scale,
-    scale,
-  };
-
-  // Create offscreen canvas
-  const canvas = document.createElement('canvas');
-  canvas.width = pxWidth;
-  canvas.height = pxHeight;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Failed to create canvas context');
-
-  // White background for print
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, pxWidth, pxHeight);
-
-  // Override render colors for print mode
-  // The renderer uses green on dark - we need to override this.
-  // For now, render normally and the SVG export handles print mode better.
-  // For PDF, we render the circuit then invert/adjust colors.
-
-  renderCircuit(ctx, circuit, viewport, false, positions, {
-    selectedDevices: [],
-    selectedWireIndex: null,
-    wireStart: null,
-    activeSheetId,
-    deviceTransforms,
-    showGrid: false,
-  });
-
-  // Add title text at top
-  ctx.fillStyle = '#000000';
-  ctx.font = `bold ${Math.round(16 * scale)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText(title, pxWidth / 2, 20 * scale);
-
-  // Convert canvas to JPEG data URL
-  const imageData = canvas.toDataURL('image/jpeg', 0.92);
-
-  // Generate minimal PDF
-  const pdf = generateMinimalPDF(imageData, pxWidth, pxHeight, pageWidth, pageHeight);
+  // Generate multi-page PDF
+  const pdf = generateMultiPagePDF(pages, pageWidthMm, pageHeightMm);
 
   // Download
   const blob = new Blob([pdf as unknown as ArrayBuffer], { type: 'application/pdf' });
@@ -279,9 +227,106 @@ export async function printSheet(
 }
 
 /**
- * Generate a minimal PDF containing a single JPEG image.
- * This avoids any external PDF library dependency.
+ * Generate a multi-page PDF with one JPEG image per page.
+ * No external dependencies — builds the PDF binary format directly.
  */
+function generateMultiPagePDF(
+  pages: { imageData: string; width: number; height: number }[],
+  pageWidthMm: number,
+  pageHeightMm: number
+): Uint8Array {
+  const mmToPoints = 72 / 25.4;
+  const pageW = Math.round(pageWidthMm * mmToPoints);
+  const pageH = Math.round(pageHeightMm * mmToPoints);
+
+  const encoder = new TextEncoder();
+  const parts: (Uint8Array | string)[] = [];
+  const offsets: number[] = [];
+  let currentOffset = 0;
+  let objNum = 1;
+
+  const addString = (s: string) => { parts.push(s); currentOffset += encoder.encode(s).length; };
+  const markObject = () => { offsets.push(currentOffset); return objNum++; };
+
+  // Header
+  addString('%PDF-1.4\n');
+
+  // Object 1: Catalog
+  const catalogObj = markObject();
+  addString(`${catalogObj} 0 obj\n<< /Type /Catalog /Pages ${catalogObj + 1} 0 R >>\nendobj\n`);
+
+  // Object 2: Pages (will reference all page objects)
+  const pagesObj = markObject();
+  const pageObjNums: number[] = [];
+
+  // Reserve object numbers for pages
+  // Each page needs: Page obj + Content stream obj + Image obj = 3 objects per page
+  const firstPageObj = objNum;
+  for (let i = 0; i < pages.length; i++) {
+    pageObjNums.push(firstPageObj + i * 3);
+  }
+
+  const kidsStr = pageObjNums.map(n => `${n} 0 R`).join(' ');
+  addString(`${pagesObj} 0 obj\n<< /Type /Pages /Kids [${kidsStr}] /Count ${pages.length} >>\nendobj\n`);
+
+  // Generate each page
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const base64 = page.imageData.split(',')[1];
+    const binaryString = atob(base64);
+    const imageBytes = new Uint8Array(binaryString.length);
+    for (let j = 0; j < binaryString.length; j++) {
+      imageBytes[j] = binaryString.charCodeAt(j);
+    }
+
+    // Page object
+    const pageObj = markObject();
+    const contentObj = pageObj + 1;
+    const imgObj = pageObj + 2;
+    addString(`${pageObj} 0 obj\n<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Contents ${contentObj} 0 R /Resources << /XObject << /Img${i} ${imgObj} 0 R >> >> >>\nendobj\n`);
+
+    // Content stream
+    const contentStream = `q\n${pageW} 0 0 ${pageH} 0 0 cm\n/Img${i} Do\nQ\n`;
+    markObject();
+    addString(`${contentObj} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream\nendobj\n`);
+
+    // Image XObject
+    markObject();
+    addString(`${imgObj} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`);
+    parts.push(imageBytes);
+    currentOffset += imageBytes.length;
+    addString('\nendstream\nendobj\n');
+  }
+
+  // Cross-reference table
+  const xrefOffset = currentOffset;
+  addString('xref\n');
+  addString(`0 ${offsets.length + 1}\n`);
+  addString('0000000000 65535 f \n');
+  for (const offset of offsets) {
+    addString(`${String(offset).padStart(10, '0')} 00000 n \n`);
+  }
+
+  // Trailer
+  addString('trailer\n');
+  addString(`<< /Size ${offsets.length + 1} /Root ${catalogObj} 0 R >>\n`);
+  addString('startxref\n');
+  addString(`${xrefOffset}\n`);
+  addString('%%EOF\n');
+
+  // Combine
+  let totalLength = 0;
+  const encoded: Uint8Array[] = parts.map(p => {
+    if (typeof p === 'string') { const e = encoder.encode(p); totalLength += e.length; return e; }
+    totalLength += p.length; return p;
+  });
+  const result = new Uint8Array(totalLength);
+  let pos = 0;
+  for (const chunk of encoded) { result.set(chunk, pos); pos += chunk.length; }
+  return result;
+}
+
+/** @deprecated Use generateMultiPagePDF instead */
 function generateMinimalPDF(
   jpegDataUrl: string,
   imgWidth: number,

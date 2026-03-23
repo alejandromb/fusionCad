@@ -47,6 +47,7 @@ export function ExportDialog({
           deviceTransforms,
           title: projectName,
           activeSheetId,
+          allSheets: true,
         });
       }
     } catch (err) {
