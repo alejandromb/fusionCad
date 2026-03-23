@@ -477,7 +477,8 @@ function renderPrimitives(
         const fontWeight = p.fontWeight ?? 'bold';
         ctx.fillStyle = t.symbolTextFill;
         ctx.font = `${fontWeight} ${fontSize}px monospace`;
-        ctx.textAlign = (p.textAnchor as CanvasTextAlign) || 'center';
+        const anchor = p.textAnchor === 'middle' ? 'center' : (p.textAnchor as CanvasTextAlign) || 'center';
+        ctx.textAlign = anchor;
         ctx.textBaseline = 'middle';
         ctx.fillText(p.content, x + p.x, y + p.y);
         break;
@@ -692,6 +693,15 @@ export function drawSymbol(
   partLabel?: string
 ): void {
   const def = lookupSymbol(idOrCategory);
+  if (!def.geometry) {
+    // Symbol missing geometry — draw placeholder
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(x, y, 40, 40);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '8px monospace';
+    ctx.fillText(tag || '?', x + 2, y + 20);
+    return;
+  }
 
   ctx.save();
 
