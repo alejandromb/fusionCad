@@ -48,7 +48,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 26 (2026-03-20) — Multi-select copy/paste, alignment tools, ghost paste preview, rung enumeration
+**Last session:** 27 (2026-03-22/23) — Schematic quality, wire branching UX (KiCad-inspired), auto-router bypass, symbol editor tests
 
 ### P0 — Must Fix / Complete Before Launch
 
@@ -132,7 +132,7 @@ Before doing ANYTHING else:
 - Auth: Cognito + Amplify, Google/GitHub OAuth
 - Cloud deployment ready: Dockerfile, migrations, Railway config, CORS, /health
 - ERC: hot-to-neutral short circuit detection (device classifier + BFS)
-- 135 E2E tests + 45 unit tests
+- 148 E2E tests + 45 unit tests
 
 **Architecture decisions:**
 - **Storage:** Cloud Postgres for everyone. Free tier: 3 projects, full editor, no AI. Paid: unlimited + AI.

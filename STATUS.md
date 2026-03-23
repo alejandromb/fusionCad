@@ -6,6 +6,42 @@ This file is now a session log archive only.
 
 ---
 
+## Session 27 — 2026-03-22/23: Schematic Quality, Wire UX, Symbol Editor
+
+**Duration**: Full session (marathon)
+**Focus**: Building real 10-relay control panel project, fixing rendering quality, wire routing UX, symbol editor
+
+### Completed
+- **Wire branching from existing wires** — KiCad-inspired: click wire → split at point → junction as wireStart → click device pin. Based on research of KiCad's BreakSegment approach.
+- **Auto-router bypass for manual wires** — Manually-drawn wires get empty waypoints, bypassing the auto-router entirely. Prevents the router from fighting user placement.
+- **Schematic rendering cleanup** — Single wire color (no rainbow), no auto-generated wire labels, smaller pin dots/labels, smaller wire endpoints.
+- **Device function text rendering** — Shows device function above tags (e.g., "PS1 Breaker", "OUTPUT 1").
+- **Title block population** — Templates auto-populate title, dwg#, revision, date, drawnBy.
+- **Empty rung junction elimination** — Spacer rungs no longer create unnecessary junction dots.
+- **ANSI coil orientation fix** — Horizontal symbols (pins left/right) skip -90° rotation in ladder layout.
+- **Selection box rotation** — Dashed selection highlight now rotates with the device.
+- **Symbol loading fix** — API symbols in raw format converted properly via loadSingleSymbol().
+- **getLayoutReport() dev tool** — Structured render feedback via state bridge for data-driven iteration.
+- **generateRelayOutputSheet MCP tool** — Complete relay coil sheets with wiring.
+- **13 symbol editor E2E tests** — Open/close, draw tools, pins, undo/redo, save/load, validation.
+- **ANSI thermal-magnetic CB symbol** — New symbol with arc + double circles.
+- **createWire() waypoints parameter** — Proper API for straight-line wire routing.
+
+### Discovered Issues
+- **Vite HMR unreliable for renderer modules** — Changes to circuit-renderer.ts and symbols.ts often require full Vite restart.
+- **Symbol editor save doesn't persist changes** — User reported edits not saving. Needs investigation.
+- **Symbol editor missing features** — No undo (partially works), no resize bounding box, no arc tool in editor.
+- **Auto-router still affects template-generated wires** — Wires without explicit waypoints still get routed.
+
+### Architecture Decisions
+- **Empty waypoints `[]` = user-drawn wire** — Bypasses auto-router, uses toOrthogonalPath instead.
+- **connectToWire() accepts optional startPin** — null = split only (no branch wire), returns junction ID.
+- **Horizontal symbols skip rotation** — Symbols with pins facing left/right don't get -90° rotation in ladder.
+
+**Tests**: 148 E2E + 7 blueprint unit tests, all passing
+
+---
+
 ## Session 26 — 2026-03-20: Multi-Select Copy/Paste, Alignment, Ghost Paste, Rung Enumeration
 
 **Duration**: Full session
