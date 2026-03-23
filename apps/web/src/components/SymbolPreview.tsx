@@ -54,6 +54,7 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
  */
 export function SymbolPreview({ symbol, strokeColor }: { symbol: SymbolDefinition; strokeColor?: string }) {
   const symStroke = strokeColor || getTheme().symbolStroke;
+  if (!symbol.geometry) return null;
   const { width, height } = symbol.geometry;
   const primitives = symbol.primitives;
   const paths = symbol.paths || [];
