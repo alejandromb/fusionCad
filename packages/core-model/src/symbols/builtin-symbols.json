@@ -408,6 +408,77 @@
       ]
     },
     {
+      "id": "ansi-circuit-breaker-thermal-magnetic",
+      "name": "Circuit Breaker Thermal/Magnetic (ANSI)",
+      "category": "Power",
+      "standard": "ANSI/IEEE",
+      "width": 120,
+      "height": 60,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 0,
+          "y": 30,
+          "direction": "left",
+          "pinType": "power"
+        },
+        {
+          "id": "2",
+          "name": "2",
+          "x": 120,
+          "y": 30,
+          "direction": "right",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "CB",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 0,
+          "y1": 30,
+          "x2": 25,
+          "y2": 30
+        },
+        {
+          "type": "arc",
+          "cx": 45,
+          "cy": 30,
+          "r": 20,
+          "startAngle": 3.14159,
+          "endAngle": 0
+        },
+        {
+          "type": "line",
+          "x1": 45,
+          "y1": 10,
+          "x2": 45,
+          "y2": 0
+        },
+        {
+          "type": "circle",
+          "cx": 75,
+          "cy": 37,
+          "r": 8
+        },
+        {
+          "type": "circle",
+          "cx": 90,
+          "cy": 37,
+          "r": 8
+        },
+        {
+          "type": "line",
+          "x1": 98,
+          "y1": 37,
+          "x2": 120,
+          "y2": 30
+        }
+      ]
+    },
+    {
       "id": "iec-disconnector-3p",
       "name": "Disconnector/Isolator 3P",
       "category": "Power",
