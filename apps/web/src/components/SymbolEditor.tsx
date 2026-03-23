@@ -16,7 +16,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { SymbolDefinition, SymbolPrimitive, PinDirection, PinType } from '@fusion-cad/core-model';
-import { generateId, registerSymbol, getSymbolById } from '@fusion-cad/core-model';
+import { generateId, registerSymbol, getSymbolById, loadSingleSymbol } from '@fusion-cad/core-model';
 import { validateSymbol, type SymbolValidationReport } from '@fusion-cad/core-engine';
 import type { StorageProvider } from '../storage/storage-provider';
 import { saveSymbol as saveSymbolApi } from '../api/symbols';
@@ -1844,6 +1844,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       width: symbolWidth,
       height: symbolHeight,
       svgPath: '',
+      // Include geometry wrapper for renderer compatibility
+      geometry: { width: symbolWidth, height: symbolHeight },
       primitives: primitivesList.length > 0 ? primitivesList : [],
       pins: pins.map(p => ({
         id: p.name || p.id,
@@ -1852,6 +1854,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         y: p.position.y,
         direction: p.direction,
         pinType: p.pinType,
+        // Also include position wrapper for renderer compatibility
+        position: { x: p.position.x, y: p.position.y },
       })),
       tagPrefix,
       standard: symbolStandard || undefined,
@@ -1865,7 +1869,9 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         body: JSON.stringify(builtinEntry),
       });
       if (!resp.ok) throw new Error(`Failed: ${resp.status}`);
-      setExportStatus('Saved to library');
+      // Also register in-memory so changes take effect immediately
+      loadSingleSymbol(builtinEntry as any);
+      setExportStatus('Saved to library ✓');
       setTimeout(() => setExportStatus(null), 2000);
     } catch (err: any) {
       setExportStatus(`Error: ${err.message}`);
