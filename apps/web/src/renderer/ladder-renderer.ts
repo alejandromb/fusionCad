@@ -135,7 +135,7 @@ export function renderLadderOverlay(
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = t.ladderRungNumberColor;
-    ctx.fillText(String(displayNum), railL1X - 30, rungY);
+    ctx.fillText(String(displayNum), railL1X - 20, rungY);
 
     // Page-qualified rung number (right margin, far right)
     // Format: "page line" (e.g., "3 25")

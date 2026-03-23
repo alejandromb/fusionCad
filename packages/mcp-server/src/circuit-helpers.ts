@@ -862,6 +862,9 @@ export function createLadderRails(
     const rung = rungs[ri];
     const rungY = config.firstRungY + ri * config.rungSpacing + oy;
 
+    // Skip junction creation for empty rungs (spacers)
+    if (rung.deviceIds.length === 0) continue;
+
     // L1 junction for every rung
     const l1Tag = `JL${jPrefix}${rung.number}`;
     const l1 = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);

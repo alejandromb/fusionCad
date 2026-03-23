@@ -801,7 +801,7 @@ export function renderCircuit(
     const part = device.partId ? partMap.get(device.partId) : null;
     const symbolKey = part?.symbolCategory || part?.category || 'unknown';
     const transform = getTransform(device.id);
-    const partLabel = part ? part.partNumber : undefined;
+    const partLabel = part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
     drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel);
 
@@ -845,6 +845,22 @@ export function renderCircuit(
       }
 
       ctx.restore();
+    }
+
+    // Render device function text for regular devices (not arrows, not junctions)
+    if (symbolKey !== 'source-arrow' && symbolKey !== 'destination-arrow' && symbolKey !== 'junction') {
+      const fn = device.function;
+      if (fn) {
+        const geometry = getSymbolGeometry(symbolKey);
+        ctx.save();
+        ctx.font = '9px monospace';
+        ctx.fillStyle = t.annotationColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        // Render above the device tag (which is above the symbol)
+        ctx.fillText(fn, position.x + geometry.width / 2, position.y - 4);
+        ctx.restore();
+      }
     }
   }
 

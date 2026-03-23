@@ -1268,6 +1268,9 @@ export function generatePowerDistribution(
     `  Devices: ${cd.devices.length}, Wires: ${cd.connections.length}`,
   ].join('\n');
 
+  // Populate title block
+  cd = populateTitleBlock(cd, sheetId, 'Power Distribution', 'PWR-001');
+
   return { circuit: cd, summary };
 }
 
@@ -1381,7 +1384,10 @@ export function generateRelayOutputSheet(
   // Create L1/L2 rails (junctions + vertical wires + rung stubs)
   cd = createLadderRails(cd, sheetId, blockId);
 
-  const summary = `Relay output sheet "${options.sheetName}": CR${options.relayStartNumber}-CR${options.relayStartNumber + options.relayCount - 1} with contacts, ${voltage}, fully wired`;
+  // Populate title block
+  cd = populateTitleBlock(cd, sheetId, options.sheetName, `RLY-${String(options.relayStartNumber).padStart(3, '0')}`);
+
+  const summary = `Relay output sheet "${options.sheetName}": CR${options.relayStartNumber}-CR${options.relayStartNumber + options.relayCount - 1}, ${voltage}, fully wired`;
   return { circuit: cd, summary };
 }
 
@@ -1394,4 +1400,29 @@ function updateDeviceFunction(circuit: CircuitData, deviceId: string, fn: string
   return { ...circuit, devices: circuit.devices.map(d =>
     d.id === deviceId ? { ...d, function: fn, modifiedAt: Date.now() } : d
   )};
+}
+
+function populateTitleBlock(
+  circuit: CircuitData,
+  sheetId: string,
+  title: string,
+  drawingNumber: string,
+  sheetNumber?: number,
+  totalSheets?: number,
+): CircuitData {
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    ...circuit,
+    sheets: (circuit.sheets || []).map(s => s.id === sheetId ? {
+      ...s,
+      titleBlock: {
+        title,
+        drawingNumber,
+        revision: 'A',
+        date: today,
+        drawnBy: 'fusionCad',
+        ...(totalSheets ? { sheetOf: `${sheetNumber} of ${totalSheets}` } : {}),
+      }
+    } : s),
+  };
 }
