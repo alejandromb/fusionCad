@@ -6,7 +6,7 @@ import { useState } from 'react';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
 import { exportToSVG, downloadSVG } from '../export/svg-export';
-import { exportToPDF } from '../export/pdf-export';
+import { exportToPDF, printSheet } from '../export/pdf-export';
 
 interface ExportDialogProps {
   circuit: CircuitData | null;
@@ -104,6 +104,27 @@ export function ExportDialog({
 
         <div className="dialog-footer">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-secondary"
+            onClick={async () => {
+              if (!circuit) return;
+              setExporting(true);
+              try {
+                await printSheet(circuit, positions, {
+                  deviceTransforms,
+                  title: projectName,
+                  activeSheetId,
+                });
+              } catch (err) {
+                console.error('Print failed:', err);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting || !circuit}
+          >
+            Print
+          </button>
           <button
             className="btn-primary"
             onClick={handleExport}

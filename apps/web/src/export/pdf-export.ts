@@ -35,8 +35,8 @@ export async function exportToPDF(
   options: PDFExportOptions = {}
 ): Promise<void> {
   const {
-    pageWidth = 420,
-    pageHeight = 297,
+    pageWidth = PAPER_SIZES['Tabloid'].w,
+    pageHeight = PAPER_SIZES['Tabloid'].h,
     dpi = 150,
     deviceTransforms,
     title = 'fusionCad Drawing',
@@ -55,7 +55,7 @@ export async function exportToPDF(
     : circuit.devices;
 
   for (const device of filteredDevices) {
-    const pos = positions.get(device.tag);
+    const pos = positions.get(device.id);
     if (!pos) continue;
     minX = Math.min(minX, pos.x);
     minY = Math.min(minY, pos.y);
@@ -128,6 +128,109 @@ export async function exportToPDF(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Print the current sheet via browser print dialog.
+ * Opens a new window with the rendered canvas and triggers window.print().
+ */
+export async function printSheet(
+  circuit: CircuitData,
+  positions: Map<string, Point>,
+  options: PDFExportOptions = {}
+): Promise<void> {
+  const {
+    pageWidth = PAPER_SIZES['Tabloid'].w,
+    pageHeight = PAPER_SIZES['Tabloid'].h,
+    dpi = 150,
+    deviceTransforms,
+    title = 'fusionCad Drawing',
+    activeSheetId,
+  } = options;
+
+  const mmToInch = 1 / 25.4;
+  const pxWidth = Math.round(pageWidth * mmToInch * dpi);
+  const pxHeight = Math.round(pageHeight * mmToInch * dpi);
+
+  // Calculate content bounds (same as PDF export)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const filteredDevices = activeSheetId
+    ? circuit.devices.filter(d => d.sheetId === activeSheetId)
+    : circuit.devices;
+
+  for (const device of filteredDevices) {
+    const pos = positions.get(device.id);
+    if (!pos) continue;
+    minX = Math.min(minX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxX = Math.max(maxX, pos.x + 100);
+    maxY = Math.max(maxY, pos.y + 100);
+  }
+
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
+
+  const padding = 40;
+  const contentW = maxX - minX + padding * 2;
+  const contentH = maxY - minY + padding * 2;
+  const scaleX = pxWidth / contentW;
+  const scaleY = pxHeight / contentH;
+  const scale = Math.min(scaleX, scaleY) * 0.9;
+
+  const viewport: Viewport = {
+    offsetX: (pxWidth - contentW * scale) / 2 - minX * scale + padding * scale,
+    offsetY: (pxHeight - contentH * scale) / 2 - minY * scale + padding * scale,
+    scale,
+  };
+
+  // Render to offscreen canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = pxWidth;
+  canvas.height = pxHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pxWidth, pxHeight);
+
+  renderCircuit(ctx, circuit, viewport, false, positions, {
+    selectedDevices: [],
+    selectedWireIndex: null,
+    wireStart: null,
+    activeSheetId,
+    deviceTransforms,
+    showGrid: false,
+  });
+
+  // Open print window with the image
+  const imageData = canvas.toDataURL('image/png');
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${title}</title>
+      <style>
+        @page { size: landscape; margin: 0.25in; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; }
+        img { max-width: 100%; max-height: 100vh; }
+      </style>
+    </head>
+    <body>
+      <img src="${imageData}" onload="window.print(); window.close();" />
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+// Move PAPER_SIZES to module scope for reuse
+const PAPER_SIZES: Record<string, { w: number; h: number }> = {
+  'Tabloid': { w: 432, h: 279 },
+  'Letter': { w: 279, h: 216 },
+  'A3': { w: 420, h: 297 },
+  'A4': { w: 297, h: 210 },
+};
 
 /**
  * Generate a minimal PDF containing a single JPEG image.
