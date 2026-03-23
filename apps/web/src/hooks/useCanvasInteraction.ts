@@ -1029,6 +1029,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               // In ladder diagrams, pins are on wires — without this priority,
               // clicking a wire always snaps to a nearby pin instead.
               if (hitWireIdx !== null) {
+                // KiCad approach: split wire at click point, creating a junction.
+                // The junction becomes the wireStart for the new branch.
+                // connectToWire(null) splits without creating a branch wire.
                 const hitConn = sheetConnections[hitWireIdx];
                 const { fromPinPos, toPinPos } = computeWirePinPositions(
                   hitConn, circuit.devices, circuit.parts, allPositions, circuit.transforms
@@ -1039,22 +1042,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   junctionX = projected.x;
                   junctionY = projected.y;
                 }
-                // Use the nearest endpoint of the wire as wireStart
-                const fromDev = hitConn.fromDeviceId
-                  ? circuit.devices.find(d => d.id === hitConn.fromDeviceId)
-                  : circuit.devices.find(d => d.tag === hitConn.fromDevice);
-                const toDev = hitConn.toDeviceId
-                  ? circuit.devices.find(d => d.id === hitConn.toDeviceId)
-                  : circuit.devices.find(d => d.tag === hitConn.toDevice);
-
-                if (fromPinPos && toPinPos && fromDev && toDev) {
-                  const distFrom = Math.hypot(junctionX - fromPinPos.x, junctionY - fromPinPos.y);
-                  const distTo = Math.hypot(junctionX - toPinPos.x, junctionY - toPinPos.y);
-                  if (distFrom < distTo) {
-                    setWireStart({ device: fromDev.id, pin: hitConn.fromPin });
-                  } else {
-                    setWireStart({ device: toDev.id, pin: hitConn.toPin });
-                  }
+                // Split wire at click point — creates junction, returns its device ID
+                const junctionId = connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, null);
+                if (junctionId) {
+                  setWireStart({ device: junctionId, pin: '1' });
                 }
               } else if (hitPin) {
                 // No wire hit — use pin

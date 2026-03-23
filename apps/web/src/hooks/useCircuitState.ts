@@ -57,7 +57,7 @@ export interface UseCircuitStateReturn {
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
 
   // T-Junction
-  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
+  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin?: PinHit | null) => string | null;
 
   // Rotation & mirror
   deviceTransforms: Map<string, DeviceTransform>;
@@ -997,8 +997,8 @@ export function useCircuitState(
   // The junction position comes from projectPointOntoWire() so it's exactly
   // on the target wire path. The entire mutation happens in one setCircuit
   // call to avoid stale-index issues.
-  const connectToWire = useCallback((connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => {
-    if (!circuit) return;
+  const connectToWire = useCallback((connectionIndex: number, worldX: number, worldY: number, startPin?: PinHit | null): string | null => {
+    if (!circuit) return null;
 
     pushToHistory();
 
@@ -1037,7 +1037,7 @@ export function useCircuitState(
     const junctionX = snapToGrid(worldX);
     const junctionY = snapToGrid(worldY);
 
-    const startDevice = circuit.devices.find(d => d.id === startPin.device);
+    const startDevice = startPin ? circuit.devices.find(d => d.id === startPin.device) : null;
 
     // Read the original connection INSIDE setCircuit to avoid stale references.
     // This is critical when multiple T-junctions are created rapidly.
@@ -1076,21 +1076,23 @@ export function useCircuitState(
         waypoints: [junctionWaypoint],
       };
 
-      // Branch wire: source pin → junction
-      const conn3: Connection = {
-        fromDevice: startDevice?.tag || startPin.device,
-        fromDeviceId: startPin.device,
-        fromPin: startPin.pin,
-        toDevice: junctionTag,
-        toDeviceId: junctionDeviceId,
-        toPin: '1',
-        netId: originalConn.netId,
-        sheetId: originalConn.sheetId || validActiveSheetId,
-      };
-
       const newConnections = [...prev.connections];
       newConnections.splice(connectionIndex, 1, conn1, conn2);
-      newConnections.push(conn3);
+
+      // Branch wire: source pin → junction (only when startPin is provided)
+      if (startPin) {
+        const conn3: Connection = {
+          fromDevice: startDevice?.tag || startPin.device,
+          fromDeviceId: startPin.device,
+          fromPin: startPin.pin,
+          toDevice: junctionTag,
+          toDeviceId: junctionDeviceId,
+          toPin: '1',
+          netId: originalConn.netId,
+          sheetId: originalConn.sheetId || validActiveSheetId,
+        };
+        newConnections.push(conn3);
+      }
 
       return {
         ...prev,
@@ -1105,6 +1107,8 @@ export function useCircuitState(
       next.set(junctionDeviceId, { x: junctionX, y: junctionY });
       return next;
     });
+
+    return junctionDeviceId;
   }, [circuit, pushToHistory, generateTag, setCircuit, setDevicePositions, validActiveSheetId]);
 
   // Assign a manufacturer part to a device (by device ID)
