@@ -290,19 +290,29 @@ export function captureRenderAudit(
   }
 
   // ---- Detect overlaps ----
+  // Skip: junctions (sit on wires), arrows (manual), and large multi-rung devices
+  // (PLC modules intentionally span multiple rungs and overlap with rung devices).
   const overlaps: OverlapIssue[] = [];
-  for (let i = 0; i < deviceAudits.length; i++) {
-    for (let j = i + 1; j < deviceAudits.length; j++) {
-      const a = deviceAudits[i].bounds;
-      const b = deviceAudits[j].bounds;
+  const MULTI_RUNG_HEIGHT_THRESHOLD = 200; // devices taller than this are multi-rung
+  const overlapCandidates = deviceAudits.filter(d =>
+    d.symbol !== 'junction' &&
+    d.symbol !== 'source-arrow' &&
+    d.symbol !== 'destination-arrow' &&
+    d.bounds.height < MULTI_RUNG_HEIGHT_THRESHOLD &&
+    d.bounds.width < MULTI_RUNG_HEIGHT_THRESHOLD
+  );
+  for (let i = 0; i < overlapCandidates.length; i++) {
+    for (let j = i + 1; j < overlapCandidates.length; j++) {
+      const a = overlapCandidates[i].bounds;
+      const b = overlapCandidates[j].bounds;
       const overlapX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
       const overlapY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
       const area = overlapX * overlapY;
-      if (area > 50) { // Significant overlap (>50 sq px)
+      if (area > 50) {
         overlaps.push({
           type: 'device-device',
-          a: deviceAudits[i].tag,
-          b: deviceAudits[j].tag,
+          a: overlapCandidates[i].tag,
+          b: overlapCandidates[j].tag,
           overlapArea: area,
         });
       }

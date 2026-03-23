@@ -1293,23 +1293,48 @@ export function generatePowerDistribution(
   cd = updateDeviceFunction(cd, sa1.deviceId, options.supplyVoltage);
   cd = { ...cd, positions: { ...cd.positions, [sa1.deviceId]: { x: RAIL_L1X - 10, y: arrowTopY } } };
 
-  // Destination arrow: neutral return at bottom of L2 rail
+  // Wire SA1 to first L1 junction (source feeds L1 rail)
+  const firstL1Junction = cd.devices.find(d => d.sheetId === sheetId && d.tag.startsWith('JL'));
+  if (firstL1Junction) {
+    cd = createWire(cd, sa1.tag, '1', firstL1Junction.tag, '1', sa1.deviceId, firstL1Junction.id);
+  }
+
+  // Destination arrow: neutral return at bottom of N rail
   const da1 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA1');
   cd = da1.circuit;
   cd = updateDeviceFunction(cd, da1.deviceId, options.supplyVoltage);
   cd = { ...cd, positions: { ...cd.positions, [da1.deviceId]: { x: RAIL_L1X - 10, y: arrowBottomY } } };
 
-  // Destination arrow: +24VDC output (if PSU exists)
+  // Wire last L1 junction to DA1
+  const l1Junctions = cd.devices.filter(d => d.sheetId === sheetId && d.tag.startsWith('JL'));
+  const lastL1Junction = l1Junctions[l1Junctions.length - 1];
+  if (lastL1Junction) {
+    cd = createWire(cd, lastL1Junction.tag, '1', da1.tag, '1', lastL1Junction.id, da1.deviceId);
+  }
+
+  // Destination arrows: +24VDC and 0V outputs (if PSU exists)
   if (psCount >= 1) {
     const da2 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA2');
     cd = da2.circuit;
     cd = updateDeviceFunction(cd, da2.deviceId, '+24VDC');
     cd = { ...cd, positions: { ...cd.positions, [da2.deviceId]: { x: RAIL_L2X - 100, y: arrowBottomY } } };
 
+    // Wire PSU X2:+ terminal to DA2
+    const xPlus = cd.devices.find(d => d.sheetId === sheetId && d.tag === 'X2:+');
+    if (xPlus) {
+      cd = createWire(cd, xPlus.tag, '1', da2.tag, '1', xPlus.id, da2.deviceId);
+    }
+
     const da3 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA3');
     cd = da3.circuit;
     cd = updateDeviceFunction(cd, da3.deviceId, '0V');
     cd = { ...cd, positions: { ...cd.positions, [da3.deviceId]: { x: RAIL_L2X, y: arrowBottomY } } };
+
+    // Wire PSU X2:- terminal to DA3
+    const xMinus = cd.devices.find(d => d.sheetId === sheetId && d.tag === 'X2:-');
+    if (xMinus) {
+      cd = createWire(cd, xMinus.tag, '1', da3.tag, '1', xMinus.id, da3.deviceId);
+    }
   }
 
   return { circuit: cd, summary };
@@ -1532,12 +1557,16 @@ export function generatePLCRelaySheet(
   const totalRungs = options.relayCount + inputCount + (inputCount > 0 ? 1 : 0);
   const rungSpacing = Math.min(100, Math.floor(900 / Math.max(totalRungs, 1)));
 
-  const tempSheetId = '__temp__';
+  // Create sheet FIRST so devices get the correct sheetId for auto-layout
+  const sheet = addSheet(cd, options.sheetName);
+  cd = sheet.circuit;
+  const sheetId = sheet.sheetId;
+
   let rungNum = 1;
   const rungDefs: RungDef[] = [];
 
   // Place PLC device (multi-rung, left side)
-  const plc = placeDevice(cd, plcSymbol, 0, 0, tempSheetId, 'PLC1');
+  const plc = placeDevice(cd, plcSymbol, 0, 0, sheetId, 'PLC1');
   cd = plc.circuit;
   cd = updateDeviceFunction(cd, plc.deviceId, `Micro800 ${(options.plcModel || 'L70E').toUpperCase()}`);
 
@@ -1546,7 +1575,7 @@ export function generatePLCRelaySheet(
     const relayNum = relayStart + i;
     const coilTag = `CR${relayNum}`;
 
-    const coil = placeDevice(cd, 'ansi-coil', 0, 0, tempSheetId, coilTag);
+    const coil = placeDevice(cd, 'ansi-coil', 0, 0, sheetId, coilTag);
     cd = coil.circuit;
     cd = updateDeviceFunction(cd, coil.deviceId, `OUTPUT ${relayNum}`);
 
@@ -1566,7 +1595,7 @@ export function generatePLCRelaySheet(
   // Place input terminal blocks and build input rungs
   for (let i = 0; i < inputCount; i++) {
     const tbTag = `TB${i + 1}`;
-    const tb = placeDevice(cd, 'iec-terminal-single', 0, 0, tempSheetId, tbTag);
+    const tb = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, tbTag);
     cd = tb.circuit;
     cd = updateDeviceFunction(cd, tb.deviceId, `INPUT ${i + 1}`);
 
@@ -1577,25 +1606,34 @@ export function generatePLCRelaySheet(
     });
   }
 
-  // Build the ladder sheet — skip automatic device wiring (PLC has non-standard pins)
-  const result = buildLadderSheet(cd, {
-    sheetName: options.sheetName,
-    voltage,
-    railLabelL1: '+24V',
-    railLabelL2: '0V',
-    rungSpacing,
-    firstRungY: 80,
-    rungDefs,
-    titleBlock: { title: options.sheetName, drawingNumber: 'PLC-001' },
-    skipDeviceWiring: true,
-  });
-  cd = result.circuit;
+  // Build the ladder — but we already created the sheet, so use buildLadderSheet
+  // which will create ANOTHER sheet. Instead, manually do the remaining steps.
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    railLabelL1: '+24V', railLabelL2: '0V', voltage,
+    rungSpacing, firstRungY: 80, railL1X: 200, railL2X: 1100,
+  }, undefined, options.sheetName);
+  cd = ladderBlock.circuit;
+  const blockId = ladderBlock.blockId;
 
-  // Fix device sheetIds
-  cd = {
-    ...cd,
-    devices: cd.devices.map(d => d.sheetId === tempSheetId ? { ...d, sheetId: result.sheetId } : d),
-  };
+  // Build rung objects
+  const now = Date.now();
+  for (const def of rungDefs) {
+    cd = { ...cd, rungs: [...(cd.rungs || []), {
+      id: require_generateId(), type: 'rung' as const, number: def.number,
+      sheetId, blockId, deviceIds: def.deviceIds,
+      description: def.description || undefined, createdAt: now, modifiedAt: now,
+    }] };
+  }
+
+  // Auto-layout — now devices have correct sheetId
+  const layout = autoLayoutLadder(cd, sheetId, blockId);
+  cd = layout.circuit;
+
+  // Create L1/L2 rails
+  cd = createLadderRails(cd, sheetId, blockId);
+
+  // Title block
+  cd = populateTitleBlock(cd, sheetId, options.sheetName, 'PLC-001');
 
   // Custom PLC wiring: PLC DO pins → relay coils, PLC DI pins ← terminal blocks
   let doIndex = 0;
