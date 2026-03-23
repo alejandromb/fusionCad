@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import './App.css';
-import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol } from '@fusion-cad/core-model';
+import { registerBuiltinSymbols, registerSymbol, loadSingleSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
 import { detectStorageProvider, IndexedDBStorageProvider, type StorageProvider, type StorageType } from './storage';
@@ -63,7 +63,16 @@ export function App() {
         try {
           const symbols = await fetchAllSymbols();
           for (const sym of symbols) {
-            registerSymbol(sym);
+            // API symbols may be in raw JSON format (width/height at top level)
+            // or converted format (geometry: {width, height}). Handle both.
+            if (sym.geometry) {
+              registerSymbol(sym);
+            } else if (sym.width != null && sym.height != null) {
+              // Raw format — convert through loadSingleSymbol which wraps geometry
+              loadSingleSymbol(sym);
+            } else {
+              registerSymbol(sym);
+            }
           }
           // Also register parametrically-generated PLC I/O defaults
           // (these aren't stored in the DB — they come from the generator)
