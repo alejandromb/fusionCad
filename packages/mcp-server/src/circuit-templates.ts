@@ -1135,12 +1135,21 @@ export function generatePowerDistribution(
 
   // ================================================================
   //  Wire devices in series on each rung (CB.pin2 → load.pin1)
+  //  Add horizontal waypoints at rung Y to force clean straight wires
   // ================================================================
-  for (const def of rungDefs) {
+  for (let di = 0; di < rungDefs.length; di++) {
+    const def = rungDefs[di];
+    const rungY = FIRST_RUNG_Y + di * RUNG_SPACING;
     for (let i = 0; i < def.deviceIds.length - 1; i++) {
       const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
       const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
-      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id);
+      const fromPos = cd.positions[fromDev.id];
+      const toPos = cd.positions[toDev.id];
+      const wp = (fromPos && toPos) ? [
+        { x: fromPos.x + 60, y: rungY },  // past the from device
+        { x: toPos.x, y: rungY },          // at the to device
+      ] : undefined;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id, wp);
     }
   }
 
@@ -1373,11 +1382,20 @@ export function generateRelayOutputSheet(
   cd = layout.circuit;
 
   // Wire devices in series on each rung (pin 2 → pin 1)
-  for (const def of rungDefs) {
+  // Add waypoints for clean horizontal routing
+  for (let di = 0; di < rungDefs.length; di++) {
+    const def = rungDefs[di];
+    const rungY = FIRST_RUNG_Y + di * RUNG_SPACING;
     for (let i = 0; i < def.deviceIds.length - 1; i++) {
       const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
       const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
-      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id);
+      const fromPos = cd.positions[fromDev.id];
+      const toPos = cd.positions[toDev.id];
+      const wp = (fromPos && toPos) ? [
+        { x: fromPos.x + 60, y: rungY },
+        { x: toPos.x, y: rungY },
+      ] : undefined;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id, wp);
     }
   }
 
