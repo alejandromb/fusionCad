@@ -578,6 +578,13 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         editorRedo();
         return;
       }
+      // Select All: Cmd/Ctrl+A
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        setSelectedPathIds(new Set(paths.map(p => p.id)));
+        setSelectedTool('select');
+        return;
+      }
       // Duplicate: Cmd/Ctrl+D
       if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
@@ -1977,6 +1984,53 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               </button>
               <button className="action-btn" onClick={editorRedo} disabled={editorHistoryIndex >= editorHistory.length - 1} title="Redo (Cmd+Shift+Z)">
                 Redo
+              </button>
+              <button className="action-btn" onClick={() => {
+                // Select all paths
+                setSelectedPathIds(new Set(paths.map(p => p.id)));
+                setSelectedTool('select');
+              }} disabled={paths.length === 0} title="Select All (Cmd+A)">
+                Select All
+              </button>
+              <button className="action-btn" onClick={() => {
+                if (paths.length === 0 && pins.length === 0) return;
+                pushEditorHistory();
+                // Compute bounding box of all paths and pins
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (const p of paths) {
+                  for (const pt of p.points) {
+                    minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y);
+                    maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y);
+                  }
+                  if (p.radius) {
+                    const cx = p.points[0]?.x ?? 0, cy = p.points[0]?.y ?? 0;
+                    minX = Math.min(minX, cx - p.radius); minY = Math.min(minY, cy - p.radius);
+                    maxX = Math.max(maxX, cx + p.radius); maxY = Math.max(maxY, cy + p.radius);
+                  }
+                }
+                for (const pin of pins) {
+                  minX = Math.min(minX, pin.position.x); minY = Math.min(minY, pin.position.y);
+                  maxX = Math.max(maxX, pin.position.x); maxY = Math.max(maxY, pin.position.y);
+                }
+                if (!isFinite(minX)) return;
+                const contentW = maxX - minX, contentH = maxY - minY;
+                const dx = (symbolWidth - contentW) / 2 - minX;
+                const dy = (symbolHeight - contentH) / 2 - minY;
+                // Snap offset to grid
+                const snapDx = Math.round(dx / 5) * 5;
+                const snapDy = Math.round(dy / 5) * 5;
+                // Move all paths
+                setPaths(prev => prev.map(p => ({
+                  ...p,
+                  points: p.points.map(pt => ({ x: pt.x + snapDx, y: pt.y + snapDy })),
+                })));
+                // Move all pins
+                setPins(prev => prev.map(p => ({
+                  ...p,
+                  position: { x: p.position.x + snapDx, y: p.position.y + snapDy },
+                })));
+              }} disabled={paths.length === 0 && pins.length === 0} title="Center all primitives and pins within the bounding box">
+                Center All
               </button>
               <button className="action-btn danger" onClick={handleClear}>
                 Clear All
