@@ -758,16 +758,32 @@ export function autoLayoutLadder(
 
   const devices = circuit.devices.filter(d => d.sheetId === sheetId);
 
-  // Build symbolHeights map: for each device, look up its symbol's height
-  // This allows layoutLadder to use dynamic PIN_CENTER_OFFSET per device
-  // (e.g., junction is 12px tall, standard contacts are 60px)
+  // Build symbolHeights map: for each device, compute the Y offset from device origin
+  // to where pin "1" sits. This allows layoutLadder to align pins with rung Y.
+  // For vertical symbols (IEC, rotated -90°): pin "1" is at top, offset = height/2
+  // For horizontal symbols (ANSI coil): pin "1" is at its actual Y position
   const symbolHeights: Record<string, number> = {};
   for (const device of devices) {
     const part = circuit.parts.find(p => p.id === device.partId);
     if (part) {
-      const symbolDef = getSymbolById(part.category);
-      if (symbolDef) {
-        symbolHeights[device.id] = symbolDef.geometry.height;
+      const symbolKey = part.symbolCategory || part.category;
+      try {
+        const symbolDef = resolveSymbol(symbolKey);
+        const pinDirs = symbolDef.pins.map(p => p.direction);
+        const isHorizontal = pinDirs.every(d => d === 'left' || d === 'right');
+
+        if (isHorizontal) {
+          // For horizontal symbols: use the pin Y position × 2 as "height"
+          // so that height/2 = actual pin Y offset
+          const pin1 = symbolDef.pins.find(p => p.id === '1');
+          const pinY = pin1?.position?.y ?? symbolDef.geometry.height / 2;
+          symbolHeights[device.id] = pinY * 2;
+        } else {
+          // For vertical symbols: use actual height (will be rotated -90°)
+          symbolHeights[device.id] = symbolDef.geometry.height;
+        }
+      } catch {
+        // Symbol not found — use default
       }
     }
   }
@@ -780,17 +796,38 @@ export function autoLayoutLadder(
     updatedPositions[deviceId] = pos;
   }
 
-  // Set rotation = -90 for single-rung devices so pins face left/right
-  // (pin "1"/top rotates to face left toward L1, pin "2"/bottom faces right toward L2)
-  // Multi-rung devices (PLC modules) stay upright — their pins already face right
+  // Set rotation = -90 for single-rung devices so pins face left/right.
+  // Skip rotation for symbols that are already horizontal (pins facing left/right),
+  // like the ANSI coil. These symbols don't need rotation for ladder orientation.
   const updatedTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = {
     ...(circuit.transforms || {}),
   };
   for (const deviceId of Object.keys(result.positions)) {
     if (result.multiRungDeviceIds.has(deviceId)) {
-      // PLC modules stay upright (no rotation) — DO pins face right toward coils
+      // PLC modules stay upright (no rotation) — their pins already face right
+      delete updatedTransforms[deviceId];
+      continue;
+    }
+
+    // Check if the symbol is already horizontal (pins face left/right)
+    const device = circuit.devices.find(d => d.id === deviceId);
+    const part = device?.partId ? circuit.parts.find(p => p.id === device.partId) : null;
+    const symbolKey = part?.symbolCategory || part?.category;
+    let isHorizontal = false;
+    if (symbolKey) {
+      try {
+        const symDef = resolveSymbol(symbolKey);
+        // A symbol is horizontal if its pins face left/right (not top/bottom)
+        const pinDirs = symDef.pins.map(p => p.direction);
+        isHorizontal = pinDirs.every(d => d === 'left' || d === 'right');
+      } catch { /* symbol not found — default to rotating */ }
+    }
+
+    if (isHorizontal) {
+      // Already horizontal — no rotation needed
       delete updatedTransforms[deviceId];
     } else {
+      // Vertical symbol (IEC style) — rotate -90° for horizontal ladder flow
       updatedTransforms[deviceId] = { rotation: -90 };
     }
   }
