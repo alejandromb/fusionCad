@@ -55,7 +55,15 @@ export interface Connection {
   sheetId?: string;
   /** Systematic wire number displayed on drawings */
   wireNumber?: string;
-  /** Manual waypoints for wire routing - if provided, wire routes through these points */
+  /**
+   * Wire routing waypoints. Three-state semantic:
+   * - `undefined`: Auto-routed wire (visibility graph + A* pathfinding every frame)
+   * - `[]` (empty array): User-drawn wire — bypasses auto-router, uses orthogonal path
+   * - `[...points]`: Template/manual waypoints — bypasses auto-router, routes through points
+   *
+   * Check `waypoints != null` to distinguish auto-routed vs manual/template.
+   * Check `waypoints?.length > 0` only when you need actual waypoint coordinates.
+   */
   waypoints?: Point[];
 }
 

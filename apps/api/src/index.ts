@@ -308,15 +308,32 @@ app.get('/api/symbols/:id', async (req, res) => {
 app.put('/api/symbols/:id', async (req, res) => {
   try {
     const symbolRepo = AppDataSource.getRepository(Symbol);
-    const definition = { ...req.body, id: req.params.id };
+    const raw = { ...req.body, id: req.params.id };
+
+    // Normalize to converted format (geometry wrapper + pin position wrapper).
+    // The API is the single normalization point — DB always stores converted format.
+    // This prevents the renderer crash when symbols lack geometry: {width, height}.
+    let definition: Record<string, unknown>;
+    if (raw.geometry && raw.geometry.width != null) {
+      // Already in converted format
+      definition = raw;
+    } else if (raw.width != null && raw.height != null) {
+      // Raw format from builtin-symbols.json or symbol editor "Save to Library"
+      // Convert using the same converter that handles builtin JSON loading
+      const converted = convertSymbol(raw as any);
+      definition = converted as any;
+    } else {
+      // Unknown format — store as-is (shouldn't happen)
+      definition = raw;
+    }
 
     const symbol = symbolRepo.create({
-      id: definition.id,
-      name: definition.name,
-      category: definition.category,
-      standard: definition.standard,
-      source: definition.source,
-      tagPrefix: definition.tagPrefix,
+      id: definition.id as string,
+      name: definition.name as string,
+      category: definition.category as string,
+      standard: definition.standard as string | undefined,
+      source: definition.source as string | undefined,
+      tagPrefix: definition.tagPrefix as string | undefined,
       definition,
     });
 

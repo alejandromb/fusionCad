@@ -18,6 +18,7 @@ import {
   addRung,
   autoLayoutLadder,
   createLadderRails,
+  createLadderBlock,
 } from './circuit-helpers.js';
 
 function emptyCircuit(): CircuitData {
@@ -599,5 +600,112 @@ describe('createLadderRails', () => {
 
     // Should have 2 horizontal wires (JL1→S1, K1→JR1)
     expect(cd.connections.length).toBe(2);
+  });
+
+  it('creates junctions and vertical rail wires for 3+ rungs', () => {
+    let cd = emptyCircuit();
+    const block = createLadderBlock(cd, 'sheet-1');
+    cd = block.circuit;
+
+    for (let i = 1; i <= 3; i++) {
+      const d = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', `K${i}`);
+      cd = d.circuit;
+      const rung = addRung(cd, 'sheet-1', i, [`K${i}`], undefined, block.blockId);
+      cd = rung.circuit;
+    }
+
+    const layout = autoLayoutLadder(cd, 'sheet-1', block.blockId);
+    cd = layout.circuit;
+    cd = createLadderRails(cd, 'sheet-1', block.blockId);
+
+    // 3 rungs × 2 junctions = 6 junction devices
+    const junctions = cd.devices.filter(d => d.tag.startsWith('JL') || d.tag.startsWith('JR'));
+    expect(junctions.length).toBe(6);
+
+    // Vertical rail wires: 2 L1 chain + 2 L2 chain + 3 L1→device + 3 device→L2 = 10
+    expect(cd.connections.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('skips junctions for empty rungs', () => {
+    let cd = emptyCircuit();
+    const block = createLadderBlock(cd, 'sheet-1');
+    cd = block.circuit;
+
+    // Rung 1: has device, Rung 2: empty spacer
+    const d = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K1');
+    cd = d.circuit;
+    const r1 = addRung(cd, 'sheet-1', 1, ['K1'], undefined, block.blockId);
+    cd = r1.circuit;
+    const r2 = addRung(cd, 'sheet-1', 2, [], undefined, block.blockId);
+    cd = r2.circuit;
+
+    const layout = autoLayoutLadder(cd, 'sheet-1', block.blockId);
+    cd = layout.circuit;
+    cd = createLadderRails(cd, 'sheet-1', block.blockId);
+
+    // Only 2 junctions (for rung 1), not 4 (rung 2 is empty)
+    const junctions = cd.devices.filter(d => d.tag.startsWith('JL') || d.tag.startsWith('JR'));
+    expect(junctions.length).toBe(2);
+  });
+
+  it('does not crash when called twice with block-scoped tags', () => {
+    let cd = emptyCircuit();
+    const block1 = createLadderBlock(cd, 'sheet-1');
+    cd = block1.circuit;
+    const block2 = createLadderBlock(cd, 'sheet-1');
+    cd = block2.circuit;
+
+    const d1 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K1');
+    cd = d1.circuit;
+    const r1 = addRung(cd, 'sheet-1', 1, ['K1'], undefined, block1.blockId);
+    cd = r1.circuit;
+
+    const d2 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K2');
+    cd = d2.circuit;
+    const r2 = addRung(cd, 'sheet-1', 1, ['K2'], undefined, block2.blockId);
+    cd = r2.circuit;
+
+    const layout1 = autoLayoutLadder(cd, 'sheet-1', block1.blockId);
+    cd = layout1.circuit;
+    cd = createLadderRails(cd, 'sheet-1', block1.blockId);
+
+    const layout2 = autoLayoutLadder(cd, 'sheet-1', block2.blockId);
+    cd = layout2.circuit;
+
+    // Should NOT throw duplicate tag error
+    expect(() => {
+      cd = createLadderRails(cd, 'sheet-1', block2.blockId);
+    }).not.toThrow();
+  });
+});
+
+describe('createWire with waypoints', () => {
+  it('persists waypoints on the connection', () => {
+    let cd = emptyCircuit();
+    const d1 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K1');
+    cd = d1.circuit;
+    const d2 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K2');
+    cd = d2.circuit;
+
+    const wp = [{ x: 100, y: 200 }, { x: 300, y: 200 }];
+    cd = createWire(cd, 'K1', '2', 'K2', '1', d1.deviceId, d2.deviceId, wp);
+
+    const conn = cd.connections[cd.connections.length - 1];
+    expect(conn.waypoints).toBeDefined();
+    expect(conn.waypoints).toHaveLength(2);
+    expect(conn.waypoints![0]).toEqual({ x: 100, y: 200 });
+  });
+
+  it('omits waypoints field when none provided', () => {
+    let cd = emptyCircuit();
+    const d1 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K1');
+    cd = d1.circuit;
+    const d2 = placeDevice(cd, 'iec-coil', 0, 0, 'sheet-1', 'K2');
+    cd = d2.circuit;
+
+    cd = createWire(cd, 'K1', '2', 'K2', '1', d1.deviceId, d2.deviceId);
+
+    const conn = cd.connections[cd.connections.length - 1];
+    expect(conn.waypoints).toBeUndefined();
   });
 });

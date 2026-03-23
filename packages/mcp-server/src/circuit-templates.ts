@@ -1283,34 +1283,47 @@ export function generatePowerDistribution(
   return { circuit: cd, summary };
 }
 
-// Import generateId — need to use the same ID generator
+// ================================================================
+//  SHARED LADDER TEMPLATE BUILDER
+// ================================================================
+
 /**
- * Generate a relay output sheet with N relay coils driven by PLC outputs.
- * Each relay gets 2 rungs: coil rung + contact rung.
- * Full wiring: L1→coil→L2, L1→contact→L2, vertical rails.
+ * Rung definition for the ladder template builder.
  */
-export function generateRelayOutputSheet(
+interface RungDef {
+  number: number;
+  deviceIds: string[];
+  description: string;
+}
+
+/**
+ * Build a complete ladder sheet from rung definitions.
+ * Handles the shared boilerplate: create sheet → ladder block → rung objects →
+ * auto-layout → device-to-device wiring with waypoints → L1/L2 rails → title block.
+ *
+ * Templates call this after placing devices and building rungDefs.
+ */
+function buildLadderSheet(
   circuit: CircuitData,
   options: {
     sheetName: string;
-    relayStartNumber: number;
-    relayCount: number;
-    voltage?: string;
+    voltage: string;
     railLabelL1?: string;
     railLabelL2?: string;
+    rungSpacing?: number;
+    firstRungY?: number;
+    railL1X?: number;
+    railL2X?: number;
+    rungDefs: RungDef[];
+    titleBlock?: { title: string; drawingNumber: string };
   },
-): { circuit: CircuitData; summary: string } {
+): { circuit: CircuitData; sheetId: string; blockId: string } {
   let cd = circuit;
-  const voltage = options.voltage || '24VDC';
-  const railL1 = options.railLabelL1 || '+24V';
-  const railL2 = options.railLabelL2 || '0V';
-
-  // Tabloid usable height ~950px. Each relay = 2 rungs (coil + spacer).
-  const totalRungs = options.relayCount * 2;
-  const RUNG_SPACING = Math.min(120, Math.floor(900 / totalRungs));
-  const FIRST_RUNG_Y = 80;
-  const RAIL_L1X = 200;
-  const RAIL_L2X = 1100;
+  const RUNG_SPACING = options.rungSpacing ?? 140;
+  const FIRST_RUNG_Y = options.firstRungY ?? 100;
+  const RAIL_L1X = options.railL1X ?? 200;
+  const RAIL_L2X = options.railL2X ?? 1100;
+  const now = Date.now();
 
   // Create sheet + ladder block
   const sheet = addSheet(cd, options.sheetName);
@@ -1318,9 +1331,9 @@ export function generateRelayOutputSheet(
   const sheetId = sheet.sheetId;
 
   const ladderBlock = createLadderBlock(cd, sheetId, {
-    railLabelL1: railL1,
-    railLabelL2: railL2,
-    voltage,
+    railLabelL1: options.railLabelL1 ?? 'L1',
+    railLabelL2: options.railLabelL2 ?? 'N',
+    voltage: options.voltage,
     rungSpacing: RUNG_SPACING,
     firstRungY: FIRST_RUNG_Y,
     railL1X: RAIL_L1X,
@@ -1329,40 +1342,8 @@ export function generateRelayOutputSheet(
   cd = ladderBlock.circuit;
   const blockId = ladderBlock.blockId;
 
-  const now = Date.now();
-  let rungNum = 1;
-
-  interface RungDef {
-    number: number;
-    deviceIds: string[];
-    description: string;
-  }
-  const rungDefs: RungDef[] = [];
-
-  // Place relay coils — one per rung, clean ladder layout.
-  // Contacts are cross-referenced but placed where they're used (future: separate load sheet).
-  for (let i = 0; i < options.relayCount; i++) {
-    const relayNum = options.relayStartNumber + i;
-    const coilTag = `CR${relayNum}`;
-
-    // Place coil (ANSI circle style)
-    const coil = placeDevice(cd, 'ansi-coil', 0, 0, sheetId, coilTag);
-    cd = coil.circuit;
-    cd = updateDeviceFunction(cd, coil.deviceId, `OUTPUT ${relayNum}`);
-
-    // Coil rung
-    rungDefs.push({
-      number: rungNum++,
-      deviceIds: [coil.deviceId],
-      description: `OUTPUT ${relayNum}`,
-    });
-
-    // Spacer rung between relays for readability
-    rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
-  }
-
   // Build rung objects
-  for (const def of rungDefs) {
+  for (const def of options.rungDefs) {
     const rung = {
       id: require_generateId(),
       type: 'rung' as const,
@@ -1377,14 +1358,13 @@ export function generateRelayOutputSheet(
     cd = { ...cd, rungs: [...(cd.rungs || []), rung] };
   }
 
-  // Auto-layout positions
+  // Auto-layout: positions all rung devices
   const layout = autoLayoutLadder(cd, sheetId, blockId);
   cd = layout.circuit;
 
-  // Wire devices in series on each rung (pin 2 → pin 1)
-  // Add waypoints for clean horizontal routing
-  for (let di = 0; di < rungDefs.length; di++) {
-    const def = rungDefs[di];
+  // Wire devices in series on each rung (pin 2 → pin 1) with horizontal waypoints
+  for (let di = 0; di < options.rungDefs.length; di++) {
+    const def = options.rungDefs[di];
     const rungY = FIRST_RUNG_Y + di * RUNG_SPACING;
     for (let i = 0; i < def.deviceIds.length - 1; i++) {
       const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
@@ -1403,7 +1383,83 @@ export function generateRelayOutputSheet(
   cd = createLadderRails(cd, sheetId, blockId);
 
   // Populate title block
-  cd = populateTitleBlock(cd, sheetId, options.sheetName, `RLY-${String(options.relayStartNumber).padStart(3, '0')}`);
+  if (options.titleBlock) {
+    cd = populateTitleBlock(cd, sheetId, options.titleBlock.title, options.titleBlock.drawingNumber);
+  }
+
+  return { circuit: cd, sheetId, blockId };
+}
+
+// ================================================================
+//  RELAY OUTPUT SHEET GENERATOR
+// ================================================================
+
+/**
+ * Generate a relay output sheet with N relay coils driven by PLC outputs.
+ * Each relay gets 2 rungs: coil rung + contact rung.
+ * Full wiring: L1→coil→L2, L1→contact→L2, vertical rails.
+ */
+export function generateRelayOutputSheet(
+  circuit: CircuitData,
+  options: {
+    sheetName: string;
+    relayStartNumber: number;
+    relayCount: number;
+    voltage?: string;
+    railLabelL1?: string;
+    railLabelL2?: string;
+  },
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const voltage = options.voltage || '24VDC';
+
+  // Tabloid usable height ~950px. Each relay = 2 rungs (coil + spacer).
+  const totalRungs = options.relayCount * 2;
+  const rungSpacing = Math.min(120, Math.floor(900 / totalRungs));
+
+  // Determine sheetId for device placement (will be created by buildLadderSheet)
+  // Place devices first with temporary sheetId, buildLadderSheet will set correct one
+  const tempSheetId = '__temp__';
+  let rungNum = 1;
+  const rungDefs: RungDef[] = [];
+
+  // Place relay coils — one per rung, clean ladder layout.
+  for (let i = 0; i < options.relayCount; i++) {
+    const relayNum = options.relayStartNumber + i;
+    const coilTag = `CR${relayNum}`;
+
+    const coil = placeDevice(cd, 'ansi-coil', 0, 0, tempSheetId, coilTag);
+    cd = coil.circuit;
+    cd = updateDeviceFunction(cd, coil.deviceId, `OUTPUT ${relayNum}`);
+
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [coil.deviceId],
+      description: `OUTPUT ${relayNum}`,
+    });
+
+    // Spacer rung between relays
+    rungDefs.push({ number: rungNum++, deviceIds: [], description: '' });
+  }
+
+  // Build the ladder sheet (handles all boilerplate)
+  const result = buildLadderSheet(cd, {
+    sheetName: options.sheetName,
+    voltage,
+    railLabelL1: options.railLabelL1 || '+24V',
+    railLabelL2: options.railLabelL2 || '0V',
+    rungSpacing,
+    firstRungY: 80,
+    rungDefs,
+    titleBlock: { title: options.sheetName, drawingNumber: `RLY-${String(options.relayStartNumber).padStart(3, '0')}` },
+  });
+  cd = result.circuit;
+
+  // Fix device sheetIds (were placed with tempSheetId)
+  cd = {
+    ...cd,
+    devices: cd.devices.map(d => d.sheetId === tempSheetId ? { ...d, sheetId: result.sheetId } : d),
+  };
 
   const summary = `Relay output sheet "${options.sheetName}": CR${options.relayStartNumber}-CR${options.relayStartNumber + options.relayCount - 1}, ${voltage}, fully wired`;
   return { circuit: cd, summary };

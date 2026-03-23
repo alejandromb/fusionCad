@@ -891,9 +891,9 @@ export function createLadderRails(
   const ox = blockOffset.x;
   const oy = blockOffset.y;
 
-  // Use block-unique prefix so junction tags don't collide across sheets
-  const existingJunctions = cd.devices.filter(d => d.tag.startsWith('JL') || d.tag.startsWith('JR'));
-  const jPrefix = existingJunctions.length > 0 ? `${Math.floor(existingJunctions.length / 2) + 1}_` : '';
+  // Use block ID suffix for unique junction tags — prevents collisions across sheets/blocks.
+  // Block ID is a ULID, last 4 chars are unique enough for tag disambiguation.
+  const blockSuffix = blockId ? blockId.slice(-4) : '';
 
   for (let ri = 0; ri < rungs.length; ri++) {
     const rung = rungs[ri];
@@ -902,8 +902,8 @@ export function createLadderRails(
     // Skip junction creation for empty rungs (spacers)
     if (rung.deviceIds.length === 0) continue;
 
-    // L1 junction for every rung
-    const l1Tag = `JL${jPrefix}${rung.number}`;
+    // L1 junction for every rung — tag includes block suffix for uniqueness
+    const l1Tag = blockSuffix ? `JL_${blockSuffix}_${ri + 1}` : `JL${rung.number}`;
     const l1 = placeDevice(cd, 'junction', 0, 0, sheetId, l1Tag);
     cd = l1.circuit;
     // Override position for precise rail alignment (bypass grid snapping)
@@ -918,7 +918,7 @@ export function createLadderRails(
 
     // L2 junction only for non-branch rungs
     if (!rung.branchOf) {
-      const l2Tag = `JR${jPrefix}${rung.number}`;
+      const l2Tag = blockSuffix ? `JR_${blockSuffix}_${ri + 1}` : `JR${rung.number}`;
       const l2 = placeDevice(cd, 'junction', 0, 0, sheetId, l2Tag);
       cd = l2.circuit;
       cd = {
