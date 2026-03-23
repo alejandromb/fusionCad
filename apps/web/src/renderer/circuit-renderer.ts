@@ -292,7 +292,7 @@ export function getWireAtPoint(
     const toY = toPinPos.y;
 
     // For wires with manual waypoints, use the orthogonal path directly
-    if (conn.waypoints && conn.waypoints.length > 0) {
+    if (conn.waypoints != null) {
       const rawPoints: Point[] = [{ x: fromX, y: fromY }];
       rawPoints.push(...conn.waypoints);
       rawPoints.push({ x: toX, y: toY });
@@ -423,7 +423,7 @@ export function getWireHitWithDistance(
 
   // Check waypoint path or straight line
   let minDist = Infinity;
-  if (conn.waypoints && conn.waypoints.length > 0) {
+  if (conn.waypoints != null) {
     const pts = [fromPinPos, ...conn.waypoints, toPinPos];
     const path = toOrthogonalPath(pts);
     for (let j = 0; j < path.length - 1; j++) {
@@ -973,14 +973,15 @@ export function renderCircuit(
         { x: metadata.fromX, y: metadata.fromY },
         { x: metadata.toX, y: metadata.toY },
       ];
-    } else if (metadata.conn.waypoints && metadata.conn.waypoints.length > 0) {
-      // If connection has manual waypoints, use them with orthogonal routing
+    } else if (metadata.conn.waypoints != null) {
+      // Connection has explicit waypoints (even empty = "user-drawn, no routing").
+      // Use orthogonal path through waypoints, bypassing the auto-router entirely.
+      // This prevents the router from re-routing manually drawn wires.
       const rawPoints = [
         { x: metadata.fromX, y: metadata.fromY },
         ...metadata.conn.waypoints,
         { x: metadata.toX, y: metadata.toY },
       ];
-      // Convert to orthogonal path (no diagonals)
       pathPoints = toOrthogonalPath(rawPoints);
     } else if (routeResult.success && routeResult.path.segments.length > 0) {
       // Use auto-routed path (already orthogonal)

@@ -555,6 +555,9 @@ export function useCircuitState(
       toPin: toPin.pin,
       netId: newNetId,
       sheetId: validActiveSheetId,
+      // Empty waypoints array signals "user-drawn wire" — bypasses auto-router.
+      // The renderer uses toOrthogonalPath([start, end]) for clean H/V routing.
+      waypoints: [],
     };
 
     setCircuit(prev => {
