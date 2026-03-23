@@ -1684,6 +1684,107 @@ export function generatePLCRelaySheet(
   return { circuit: cd, summary };
 }
 
+// ================================================================
+//  LOAD CIRCUIT SHEET GENERATOR (relay contacts → loads)
+// ================================================================
+
+/**
+ * Generate a load circuit sheet with relay contacts switching loads.
+ * Each rung: L1 → NO contact (CRn-1) → load terminal → L2
+ * The contacts cross-reference the coils on the PLC relay sheet.
+ */
+export function generateLoadCircuitSheet(
+  circuit: CircuitData,
+  options: {
+    sheetName: string;
+    relayStartNumber: number;
+    relayCount: number;
+    voltage?: string;
+    loadDescriptions?: string[];  // e.g., ["COMPRESSOR 1", "COND FAN 1", ...]
+  },
+): { circuit: CircuitData; summary: string } {
+  let cd = circuit;
+  const voltage = options.voltage || '120VAC';
+
+  const sheet = addSheet(cd, options.sheetName);
+  cd = sheet.circuit;
+  const sheetId = sheet.sheetId;
+
+  let rungNum = 1;
+  const rungDefs: RungDef[] = [];
+
+  // Place relay contacts and load terminals
+  for (let i = 0; i < options.relayCount; i++) {
+    const relayNum = options.relayStartNumber + i;
+    const contactTag = `CR${relayNum}-1`;
+    const loadTag = `LOAD${relayNum}`;
+    const loadDesc = options.loadDescriptions?.[i] || `OUTPUT ${relayNum}`;
+
+    // Place NO contact (ANSI style)
+    const contact = placeDevice(cd, 'ansi-normally-open-contact', 0, 0, sheetId, contactTag);
+    cd = contact.circuit;
+    cd = updateDeviceFunction(cd, contact.deviceId, `CR${relayNum} CONTACT`);
+
+    // Place load terminal
+    const load = placeDevice(cd, 'iec-terminal-single', 0, 0, sheetId, loadTag);
+    cd = load.circuit;
+    cd = updateDeviceFunction(cd, load.deviceId, loadDesc);
+
+    // Rung: contact → load
+    rungDefs.push({
+      number: rungNum++,
+      deviceIds: [contact.deviceId, load.deviceId],
+      description: loadDesc,
+    });
+  }
+
+  // Build the ladder sheet
+  const totalRungs = options.relayCount;
+  const rungSpacing = Math.min(120, Math.floor(900 / Math.max(totalRungs, 1)));
+
+  const ladderBlock = createLadderBlock(cd, sheetId, {
+    railLabelL1: 'L1', railLabelL2: 'N', voltage,
+    rungSpacing, firstRungY: 80, railL1X: 200, railL2X: 1100,
+  }, undefined, options.sheetName);
+  cd = ladderBlock.circuit;
+  const blockId = ladderBlock.blockId;
+
+  const now = Date.now();
+  for (const def of rungDefs) {
+    cd = { ...cd, rungs: [...(cd.rungs || []), {
+      id: require_generateId(), type: 'rung' as const, number: def.number,
+      sheetId, blockId, deviceIds: def.deviceIds,
+      description: def.description || undefined, createdAt: now, modifiedAt: now,
+    }] };
+  }
+
+  const layout = autoLayoutLadder(cd, sheetId, blockId);
+  cd = layout.circuit;
+
+  // Wire devices in series (contact pin 2 → load pin 1)
+  for (let di = 0; di < rungDefs.length; di++) {
+    const def = rungDefs[di];
+    const rungY = 80 + di * rungSpacing;
+    for (let i = 0; i < def.deviceIds.length - 1; i++) {
+      const fromDev = cd.devices.find(d => d.id === def.deviceIds[i])!;
+      const toDev = cd.devices.find(d => d.id === def.deviceIds[i + 1])!;
+      const fromPos = cd.positions[fromDev.id];
+      const toPos = cd.positions[toDev.id];
+      const wp = (fromPos && toPos) ? [
+        { x: fromPos.x + 60, y: rungY },
+        { x: toPos.x, y: rungY },
+      ] : undefined;
+      cd = createWire(cd, fromDev.tag, '2', toDev.tag, '1', fromDev.id, toDev.id, wp);
+    }
+  }
+
+  cd = createLadderRails(cd, sheetId, blockId);
+  cd = populateTitleBlock(cd, sheetId, options.sheetName, `LOAD-${String(options.relayStartNumber).padStart(3, '0')}`);
+
+  const summary = `Load circuit sheet "${options.sheetName}": ${options.relayCount} relay contacts (CR${options.relayStartNumber}-1 to CR${options.relayStartNumber + options.relayCount - 1}-1) with load terminals, ${voltage}`;
+  return { circuit: cd, summary };
+}
+
 import { generateId } from '@fusion-cad/core-model';
 function require_generateId(): string {
   return generateId();
