@@ -822,22 +822,36 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             return next;
           });
 
-          // Move waypoints on wires where BOTH endpoints are in the moved set.
-          // Without this, manual waypoints stay in place while devices move.
+          // KiCad-style "drag with wires": update wire paths when endpoints move.
           if (circuit && (dx !== 0 || dy !== 0)) {
             const movedSet = new Set(devicesToMove);
             for (let ci = 0; ci < circuit.connections.length; ci++) {
               const conn = circuit.connections[ci];
-              if (!conn.waypoints || conn.waypoints.length === 0) continue;
 
               const fromId = conn.fromDeviceId || circuit.devices.find(d => d.tag === conn.fromDevice)?.id;
               const toId = conn.toDeviceId || circuit.devices.find(d => d.tag === conn.toDevice)?.id;
-              if (fromId && toId && movedSet.has(fromId) && movedSet.has(toId)) {
-                const shifted = conn.waypoints.map(wp => ({
-                  x: snapToGrid(wp.x + dx),
-                  y: snapToGrid(wp.y + dy),
-                }));
-                replaceWaypoints(ci, shifted);
+              if (!fromId || !toId) continue;
+
+              const fromMoved = movedSet.has(fromId);
+              const toMoved = movedSet.has(toId);
+
+              if (fromMoved && toMoved) {
+                // BOTH endpoints moving: shift all waypoints by (dx, dy)
+                if (conn.waypoints && conn.waypoints.length > 0) {
+                  const shifted = conn.waypoints.map(wp => ({
+                    x: snapToGrid(wp.x + dx),
+                    y: snapToGrid(wp.y + dy),
+                  }));
+                  replaceWaypoints(ci, shifted);
+                }
+              } else if (fromMoved || toMoved) {
+                // ONE endpoint moving: wire rubber-bands to follow.
+                // Reset waypoints to empty [] so the orthogonal path
+                // recomputes from the new pin positions on each render.
+                // Only reset if waypoints have actual coordinates (avoid no-op state updates).
+                if (conn.waypoints && conn.waypoints.length > 0) {
+                  replaceWaypoints(ci, []);
+                }
               }
             }
           }
