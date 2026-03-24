@@ -6,43 +6,52 @@ This file is now a session log archive only.
 
 ---
 
-## Session 28 — 2026-03-23: Architecture Hardening, Complete Project, Print/PDF
+## Session 28 — 2026-03-23: Architecture Hardening, Complete Project, Print/PDF, Manual Editing
 
-**Duration**: Full session
-**Focus**: Architecture fixes, 4-sheet project generation, print/PDF export, NEMA symbols
+**Duration**: Full session (marathon)
+**Focus**: Architecture fixes, 4-sheet project, print/PDF, manual editing UX, NEMA symbols, verification discipline
 
 ### Architecture Hardening
-- **Symbol format normalization** — API PUT normalizes to converted format before storing. ONE format everywhere.
-- **Shared ladder template builder** (`buildLadderSheet`) — eliminated 53 lines of duplication across templates
+- **Symbol format normalization** — API PUT normalizes to converted format. ONE format everywhere.
+- **Shared ladder template builder** (`buildLadderSheet`) — eliminated 53 lines of duplication
 - **Junction tag safety** — block-scoped tags (`JL_{blockId}_N`) replace fragile prefix hack
-- **Waypoint semantics documented** — three-state semantic (undefined/[]/[...]) on Connection type
-- **Pin safety in createLadderRails** — skip devices without standard pin 1/2 (PLC modules)
-- **5 new unit tests** — multi-rung rails, empty rungs, re-call safety, waypoint persistence
+- **Waypoint semantics documented** — three-state semantic on Connection type
+- **Pin safety in createLadderRails** — skip devices without standard pin 1/2
+- **VERIFICATION rules added to CLAUDE.md** — never assume, always check. Tools table for verification.
+- **5 new unit tests** — multi-rung rails, empty rungs, re-call safety, waypoints
 
 ### New Features
-- **generatePLCRelaySheet** — Micro870 PLC + 10 relay coils + 2 inputs on one sheet
+- **KiCad-style drag with wires** — dragging a device rubber-bands connected wires
+- **Net Label symbol** — connect distant wires by name (rectangular flag)
+- **Power symbols** — +VDC (upward arrow) and Ground (three lines)
+- **generatePLCRelaySheet** — Micro870 PLC + 10 relay coils + 2 inputs
 - **generateLoadCircuitSheet** — relay contacts → load terminals
-- **Print capability** — dedicated Print icon in File toolbar, print theme (white/black), multi-sheet
+- **Print capability** — dedicated Print icon, print theme (white/black), multi-sheet
 - **PDF multi-page export** — all sheets in one PDF with print theme
-- **Render audit system** — captures wire paths, device bounds, overlaps, unconnected devices
-- **Arc tool in symbol editor** — click center, drag radius, default semicircle
+- **Render audit system** — wire paths, device bounds, overlaps, unconnected devices
+- **Arc tool in symbol editor** — click center, drag radius
+- **Select All + Center All** in symbol editor
 - **NEMA/ANSI as default** symbol palette tab
-- **ANSI NO/NC contacts redesigned** — proper NEMA style (parallel vertical lines)
+- **ANSI NO/NC contacts redesigned** — proper NEMA style
 - **Smarter orthogonal routing** — direction based on axis delta
-- **Rung descriptions** — brighter, word-wrapped, visible
+- **Rung descriptions** — brighter, word-wrapped
+- **Junction dots fixed** — removed hardcoded green, now discrete dots matching wire color
 
 ### Complete 4-Sheet Project
 - Sheet 1: Power Distribution (120VAC → 24VDC, source/destination arrows wired)
 - Sheet 2: PLC & Relay Outputs (Micro870 DO0-DO9 → CR1-CR10, DI0-DI1 inputs)
 - Sheet 3: Load Circuits 1-5 (CR1-1 to CR5-1 contacts → load terminals)
 - Sheet 4: Load Circuits 6-10 (CR6-1 to CR10-1 contacts → load terminals)
-- 87 devices, 89 wires, all connected, 0 overlaps on PLC sheet
 
 ### KiCad Research
-- 12 features identified for adoption (drag vs move, net labels, power symbols, no-connect flags)
-- Saved to memory/reference_kicad_features.md
+- 12 features identified (drag vs move ✅, net labels ✅, power symbols ✅, no-connect flags, etc.)
 
-**Tests**: 154 E2E + 60 unit tests
+### Key Lessons
+- **Never declare done without verification** — junction green bug, Vite HMR unreliable
+- **Check at the right layer** — theme vs primitive vs DB vs rendered output
+- **Hardcoded values override themes** — always check symbol primitives too
+
+**Tests**: 154 E2E + 60 unit tests, 80 built-in symbols
 
 ---
 

@@ -76,7 +76,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 28 (2026-03-23) — Architecture hardening, 4-sheet project, print/PDF, NEMA default, render audit
+**Last session:** 28 (2026-03-23) — Architecture hardening, drag-with-wires, net/power symbols, print/PDF, render audit, verification rules
 
 ### P0 — Must Fix / Complete Before Launch
 
