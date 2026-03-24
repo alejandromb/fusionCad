@@ -13,6 +13,34 @@ You are a **senior software developer**. Act accordingly:
 - **Just fetch and research.** Never ask permission to fetch URLs, web pages, documentation, or research papers. Just do it — it's an obvious part of the workflow.
 - **Minimize back-and-forth.** Be concise. Don't narrate every step. Don't summarize what you just did unless the user asks. Act, don't talk about acting.
 
+## 🔴 VERIFICATION — NEVER ASSUME, ALWAYS CHECK
+
+**This is the #1 rule. Violations have repeatedly caused bugs, wasted time, and broken trust.**
+
+- **NEVER say "done" without verification.** After ANY change:
+  1. Confirm the change is actually being served (Vite HMR is unreliable — check via `curl` or browser console import)
+  2. Run the render audit (`getRenderAudit()`) for visual/rendering changes
+  3. Run E2E tests for functional changes
+  4. Take a screenshot or read audit data for visual changes
+- **Verify at the RIGHT layer.** Theme changes? Check `getTheme()` in browser console. Symbol changes? Check the API response AND the rendered output. Wire changes? Check connection data AND the render audit.
+- **Hardcoded values override themes.** Always check symbol primitives, not just theme config. The junction `#00ff00` bug happened because a hardcoded fill in the symbol primitive overrode the theme color.
+- **Restart services after rebuilding.** MCP server changes require: `npm run build` → restart API → re-seed symbols. Vite changes may need full restart (HMR doesn't always work for renderer modules).
+- **Check BOTH the code AND the running app.** `curl` the served file to verify Vite is serving your changes. `getTheme()` in console to verify theme. `getRenderAudit()` to verify rendering.
+- **If you can't verify, say so.** "I made the change but can't confirm it's being served — please reload" is honest. "Done" without checking is not.
+
+## 🛠️ TOOLS FOR VERIFICATION
+
+| What changed | How to verify |
+|---|---|
+| Theme/colors | `import('/src/renderer/theme.ts').then(m => console.log(m.getTheme().fieldName))` |
+| Symbol data | `curl -s http://localhost:3001/api/symbols/SYMBOL_ID` |
+| Rendering | `window.__fusionCadState.getRenderAudit()` in browser console |
+| Wire routing | Check audit: `audit.wires.map(w => w.pathType + ' ' + w.isHorizontal)` |
+| Device positions | Check audit: `audit.devices.map(d => d.tag + ': ' + JSON.stringify(d.bounds))` |
+| Overlaps | Check audit: `audit.overlaps` |
+| Unconnected | Check audit: `audit.stats.unconnectedDevices` |
+| Vite serving changes | `curl -s http://localhost:5173/src/path/to/file.ts \| grep "UNIQUE_STRING"` |
+
 ---
 
 ## 🚢 PORT ASSIGNMENTS (DO NOT CONFLICT)
