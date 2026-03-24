@@ -4180,14 +4180,7 @@
         }
       ],
       "tagPrefix": "J",
-      "primitives": [
-        {
-          "type": "circle",
-          "cx": 0,
-          "cy": 0,
-          "r": 6
-        }
-      ]
+      "primitives": []
     },
     {
       "id": "ansi-normally-open-contact",

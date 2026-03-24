@@ -859,7 +859,7 @@ function drawJunction(
   const cy = y + def.geometry.height / 2;
   ctx.fillStyle = t.junctionFill;
   ctx.beginPath();
-  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
