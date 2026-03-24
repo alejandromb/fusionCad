@@ -6,6 +6,46 @@ This file is now a session log archive only.
 
 ---
 
+## Session 28 — 2026-03-23: Architecture Hardening, Complete Project, Print/PDF
+
+**Duration**: Full session
+**Focus**: Architecture fixes, 4-sheet project generation, print/PDF export, NEMA symbols
+
+### Architecture Hardening
+- **Symbol format normalization** — API PUT normalizes to converted format before storing. ONE format everywhere.
+- **Shared ladder template builder** (`buildLadderSheet`) — eliminated 53 lines of duplication across templates
+- **Junction tag safety** — block-scoped tags (`JL_{blockId}_N`) replace fragile prefix hack
+- **Waypoint semantics documented** — three-state semantic (undefined/[]/[...]) on Connection type
+- **Pin safety in createLadderRails** — skip devices without standard pin 1/2 (PLC modules)
+- **5 new unit tests** — multi-rung rails, empty rungs, re-call safety, waypoint persistence
+
+### New Features
+- **generatePLCRelaySheet** — Micro870 PLC + 10 relay coils + 2 inputs on one sheet
+- **generateLoadCircuitSheet** — relay contacts → load terminals
+- **Print capability** — dedicated Print icon in File toolbar, print theme (white/black), multi-sheet
+- **PDF multi-page export** — all sheets in one PDF with print theme
+- **Render audit system** — captures wire paths, device bounds, overlaps, unconnected devices
+- **Arc tool in symbol editor** — click center, drag radius, default semicircle
+- **NEMA/ANSI as default** symbol palette tab
+- **ANSI NO/NC contacts redesigned** — proper NEMA style (parallel vertical lines)
+- **Smarter orthogonal routing** — direction based on axis delta
+- **Rung descriptions** — brighter, word-wrapped, visible
+
+### Complete 4-Sheet Project
+- Sheet 1: Power Distribution (120VAC → 24VDC, source/destination arrows wired)
+- Sheet 2: PLC & Relay Outputs (Micro870 DO0-DO9 → CR1-CR10, DI0-DI1 inputs)
+- Sheet 3: Load Circuits 1-5 (CR1-1 to CR5-1 contacts → load terminals)
+- Sheet 4: Load Circuits 6-10 (CR6-1 to CR10-1 contacts → load terminals)
+- 87 devices, 89 wires, all connected, 0 overlaps on PLC sheet
+
+### KiCad Research
+- 12 features identified for adoption (drag vs move, net labels, power symbols, no-connect flags)
+- Saved to memory/reference_kicad_features.md
+
+**Tests**: 154 E2E + 60 unit tests
+
+---
+
 ## Session 27 — 2026-03-22/23: Schematic Quality, Wire UX, Symbol Editor
 
 **Duration**: Full session (marathon)
