@@ -6016,6 +6016,163 @@
           "strokeWidth": 2
         }
       ]
+    },
+    {
+      "id": "net-label",
+      "name": "Net Label",
+      "category": "Connectors",
+      "standard": "common",
+      "width": 80,
+      "height": 30,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 0,
+          "y": 15,
+          "direction": "left",
+          "pinType": "passive"
+        }
+      ],
+      "tagPrefix": "NET",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 0,
+          "y1": 15,
+          "x2": 15,
+          "y2": 15
+        },
+        {
+          "type": "line",
+          "x1": 15,
+          "y1": 0,
+          "x2": 80,
+          "y2": 0
+        },
+        {
+          "type": "line",
+          "x1": 15,
+          "y1": 30,
+          "x2": 80,
+          "y2": 30
+        },
+        {
+          "type": "line",
+          "x1": 15,
+          "y1": 0,
+          "x2": 15,
+          "y2": 30
+        },
+        {
+          "type": "line",
+          "x1": 80,
+          "y1": 0,
+          "x2": 80,
+          "y2": 30
+        }
+      ]
+    },
+    {
+      "id": "power-vdc",
+      "name": "Power +VDC",
+      "category": "Power",
+      "standard": "common",
+      "width": 40,
+      "height": 40,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 40,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "PWR",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 20,
+          "y1": 40,
+          "x2": 20,
+          "y2": 20
+        },
+        {
+          "type": "line",
+          "x1": 12,
+          "y1": 20,
+          "x2": 20,
+          "y2": 8
+        },
+        {
+          "type": "line",
+          "x1": 28,
+          "y1": 20,
+          "x2": 20,
+          "y2": 8
+        },
+        {
+          "type": "line",
+          "x1": 8,
+          "y1": 20,
+          "x2": 32,
+          "y2": 20
+        }
+      ]
+    },
+    {
+      "id": "power-gnd",
+      "name": "Ground",
+      "category": "Power",
+      "standard": "common",
+      "width": 40,
+      "height": 40,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 20,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "GND",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 20,
+          "y1": 0,
+          "x2": 20,
+          "y2": 20
+        },
+        {
+          "type": "line",
+          "x1": 6,
+          "y1": 20,
+          "x2": 34,
+          "y2": 20
+        },
+        {
+          "type": "line",
+          "x1": 10,
+          "y1": 26,
+          "x2": 30,
+          "y2": 26
+        },
+        {
+          "type": "line",
+          "x1": 14,
+          "y1": 32,
+          "x2": 26,
+          "y2": 32
+        }
+      ]
     }
   ]
 }
