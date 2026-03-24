@@ -250,7 +250,7 @@ const PROFESSIONAL: ThemeData = {
   dragEndpointColor: '#5B9BD5',
   annotationColor: '#e0e0e0',
   annotationSelectionColor: '#5B9BD5',
-  junctionFill: '#8899AA',
+  junctionFill: '#667788',
   ladderRailLabelColor: '#ffffff',
   ladderRailLineColor: '#888888',
   ladderVoltageColor: '#D4A84D',
