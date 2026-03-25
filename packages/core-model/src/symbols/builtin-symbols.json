@@ -3842,30 +3842,12 @@
         {
           "type": "polyline",
           "points": [
-            {
-              "x": 20,
-              "y": 0
-            },
-            {
-              "x": 40,
-              "y": 10
-            },
-            {
-              "x": 40,
-              "y": 30
-            },
-            {
-              "x": 20,
-              "y": 40
-            },
-            {
-              "x": 0,
-              "y": 30
-            },
-            {
-              "x": 0,
-              "y": 10
-            }
+            { "x": 20, "y": 0 },
+            { "x": 37.3, "y": 10 },
+            { "x": 37.3, "y": 30 },
+            { "x": 20, "y": 40 },
+            { "x": 2.7, "y": 30 },
+            { "x": 2.7, "y": 10 }
           ],
           "closed": true
         }
@@ -3880,98 +3862,28 @@
       "height": 40,
       "svgPath": "",
       "pins": [
-        {
-          "id": "1",
-          "name": "1",
-          "x": 20,
-          "y": 0,
-          "direction": "top",
-          "pinType": "passive"
-        },
-        {
-          "id": "2",
-          "name": "2",
-          "x": 20,
-          "y": 40,
-          "direction": "bottom",
-          "pinType": "passive"
-        }
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "pe" },
+        { "id": "2", "name": "2", "x": 20, "y": 40, "direction": "bottom", "pinType": "pe" }
       ],
-      "tagPrefix": "X",
+      "tagPrefix": "PE",
       "primitives": [
-        {
-          "type": "line",
-          "x1": 20,
-          "y1": 0,
-          "x2": 20,
-          "y2": 8
-        },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 6 },
         {
           "type": "polyline",
           "points": [
-            {
-              "x": 20,
-              "y": 8
-            },
-            {
-              "x": 29,
-              "y": 10.7
-            },
-            {
-              "x": 32,
-              "y": 16
-            },
-            {
-              "x": 29,
-              "y": 24
-            },
-            {
-              "x": 20,
-              "y": 26.7
-            },
-            {
-              "x": 11,
-              "y": 24
-            },
-            {
-              "x": 8,
-              "y": 16
-            },
-            {
-              "x": 11,
-              "y": 10.7
-            }
+            { "x": 20, "y": 6 },
+            { "x": 32.1, "y": 13 },
+            { "x": 32.1, "y": 27 },
+            { "x": 20, "y": 34 },
+            { "x": 7.9, "y": 27 },
+            { "x": 7.9, "y": 13 }
           ],
           "closed": true
         },
-        {
-          "type": "line",
-          "x1": 13,
-          "y1": 15.1,
-          "x2": 28,
-          "y2": 15.1
-        },
-        {
-          "type": "line",
-          "x1": 16,
-          "y1": 18.7,
-          "x2": 25,
-          "y2": 18.7
-        },
-        {
-          "type": "line",
-          "x1": 19,
-          "y1": 23.1,
-          "x2": 22,
-          "y2": 23.1
-        },
-        {
-          "type": "line",
-          "x1": 20,
-          "y1": 26.7,
-          "x2": 20,
-          "y2": 40
-        }
+        { "type": "line", "x1": 12, "y1": 16, "x2": 28, "y2": 16 },
+        { "type": "line", "x1": 14, "y1": 20, "x2": 26, "y2": 20 },
+        { "type": "line", "x1": 16, "y1": 24, "x2": 24, "y2": 24 },
+        { "type": "line", "x1": 20, "y1": 34, "x2": 20, "y2": 40 }
       ]
     },
     {
@@ -3983,91 +3895,27 @@
       "height": 40,
       "svgPath": "",
       "pins": [
-        {
-          "id": "1",
-          "name": "1",
-          "x": 20,
-          "y": 0,
-          "direction": "top",
-          "pinType": "passive"
-        },
-        {
-          "id": "2",
-          "name": "2",
-          "x": 20,
-          "y": 40,
-          "direction": "bottom",
-          "pinType": "passive"
-        }
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 40, "direction": "bottom", "pinType": "passive" }
       ],
       "tagPrefix": "X",
       "primitives": [
-        {
-          "type": "line",
-          "x1": 20,
-          "y1": 0,
-          "x2": 20,
-          "y2": 8
-        },
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 6 },
         {
           "type": "polyline",
           "points": [
-            {
-              "x": 20,
-              "y": 8
-            },
-            {
-              "x": 29,
-              "y": 10.7
-            },
-            {
-              "x": 32,
-              "y": 16
-            },
-            {
-              "x": 29,
-              "y": 24
-            },
-            {
-              "x": 20,
-              "y": 26.7
-            },
-            {
-              "x": 11,
-              "y": 24
-            },
-            {
-              "x": 8,
-              "y": 16
-            },
-            {
-              "x": 11,
-              "y": 10.7
-            }
+            { "x": 20, "y": 6 },
+            { "x": 32.1, "y": 13 },
+            { "x": 32.1, "y": 27 },
+            { "x": 20, "y": 34 },
+            { "x": 7.9, "y": 27 },
+            { "x": 7.9, "y": 13 }
           ],
           "closed": true
         },
-        {
-          "type": "rect",
-          "x": 14,
-          "y": 12.4,
-          "width": 12,
-          "height": 8
-        },
-        {
-          "type": "line",
-          "x1": 14,
-          "y1": 16,
-          "x2": 26,
-          "y2": 16
-        },
-        {
-          "type": "line",
-          "x1": 20,
-          "y1": 26.7,
-          "x2": 20,
-          "y2": 40
-        }
+        { "type": "rect", "x": 14, "y": 16, "width": 12, "height": 8 },
+        { "type": "line", "x1": 14, "y1": 20, "x2": 26, "y2": 20 },
+        { "type": "line", "x1": 20, "y1": 34, "x2": 20, "y2": 40 }
       ]
     },
     {
@@ -4181,6 +4029,53 @@
       ],
       "tagPrefix": "J",
       "primitives": []
+    },
+    {
+      "id": "no-connect-flag",
+      "name": "No Connect",
+      "category": "No-Connect",
+      "standard": "common",
+      "width": 20,
+      "height": 20,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 0,
+          "y": 10,
+          "direction": "left",
+          "pinType": "passive",
+          "position": {
+            "x": 0,
+            "y": 10
+          }
+        }
+      ],
+      "tagPrefix": "NC",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 0,
+          "y1": 10,
+          "x2": 6,
+          "y2": 10
+        },
+        {
+          "type": "line",
+          "x1": 6,
+          "y1": 2,
+          "x2": 18,
+          "y2": 18
+        },
+        {
+          "type": "line",
+          "x1": 18,
+          "y1": 2,
+          "x2": 6,
+          "y2": 18
+        }
+      ]
     },
     {
       "id": "ansi-normally-open-contact",
@@ -4797,6 +4692,113 @@
           "x2": 34,
           "y2": 33.3
         }
+      ]
+    },
+    {
+      "id": "ansi-push-button-no",
+      "name": "Push Button NO (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 50,
+      "height": 80,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 25, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 25, "y": 80, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "PB",
+      "primitives": [
+        { "type": "line", "x1": 25, "y1": 0, "x2": 25, "y2": 25 },
+        { "type": "circle", "cx": 25, "cy": 28, "r": 3 },
+        { "type": "line", "x1": 25, "y1": 52, "x2": 13, "y2": 28 },
+        { "type": "circle", "cx": 25, "cy": 52, "r": 3 },
+        { "type": "line", "x1": 25, "y1": 52, "x2": 25, "y2": 80 },
+        { "type": "line", "x1": 10, "y1": 28, "x2": 40, "y2": 28, "strokeWidth": 2 },
+        { "type": "line", "x1": 25, "y1": 28, "x2": 25, "y2": 18 }
+      ]
+    },
+    {
+      "id": "ansi-push-button-nc",
+      "name": "Push Button NC (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 50,
+      "height": 80,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 25, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 25, "y": 80, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "PB",
+      "primitives": [
+        { "type": "line", "x1": 25, "y1": 0, "x2": 25, "y2": 25 },
+        { "type": "circle", "cx": 25, "cy": 28, "r": 3 },
+        { "type": "line", "x1": 25, "y1": 52, "x2": 37, "y2": 28 },
+        { "type": "circle", "cx": 25, "cy": 52, "r": 3 },
+        { "type": "line", "x1": 25, "y1": 52, "x2": 25, "y2": 80 },
+        { "type": "line", "x1": 10, "y1": 40, "x2": 40, "y2": 40, "strokeWidth": 2 },
+        { "type": "line", "x1": 25, "y1": 40, "x2": 25, "y2": 30 }
+      ]
+    },
+    {
+      "id": "ansi-pilot-light",
+      "name": "Pilot Light (ANSI)",
+      "category": "Output",
+      "standard": "ANSI/NEMA",
+      "width": 40,
+      "height": 80,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 20, "y": 0, "direction": "top", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 20, "y": 80, "direction": "bottom", "pinType": "passive" }
+      ],
+      "tagPrefix": "PL",
+      "primitives": [
+        { "type": "line", "x1": 20, "y1": 0, "x2": 20, "y2": 25 },
+        { "type": "circle", "cx": 20, "cy": 40, "r": 15 },
+        { "type": "line", "x1": 9, "y1": 29, "x2": 31, "y2": 51 },
+        { "type": "line", "x1": 31, "y1": 29, "x2": 9, "y2": 51 },
+        { "type": "line", "x1": 20, "y1": 55, "x2": 20, "y2": 80 }
+      ]
+    },
+    {
+      "id": "ansi-timer-on-delay",
+      "name": "Timer On-Delay TON (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 60,
+      "height": 40,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 0, "y": 20, "direction": "left", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 60, "y": 20, "direction": "right", "pinType": "passive" }
+      ],
+      "tagPrefix": "TR",
+      "primitives": [
+        { "type": "circle", "cx": 30, "cy": 20, "r": 18 },
+        { "type": "line", "x1": 0, "y1": 20, "x2": 12, "y2": 20 },
+        { "type": "line", "x1": 48, "y1": 20, "x2": 60, "y2": 20 },
+        { "type": "text", "x": 30, "y": 22, "content": "TON", "fontSize": 10, "fontWeight": "bold", "textAnchor": "middle" }
+      ]
+    },
+    {
+      "id": "ansi-timer-off-delay",
+      "name": "Timer Off-Delay TOF (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 60,
+      "height": 40,
+      "svgPath": "",
+      "pins": [
+        { "id": "1", "name": "1", "x": 0, "y": 20, "direction": "left", "pinType": "passive" },
+        { "id": "2", "name": "2", "x": 60, "y": 20, "direction": "right", "pinType": "passive" }
+      ],
+      "tagPrefix": "TR",
+      "primitives": [
+        { "type": "circle", "cx": 30, "cy": 20, "r": 18 },
+        { "type": "line", "x1": 0, "y1": 20, "x2": 12, "y2": 20 },
+        { "type": "line", "x1": 48, "y1": 20, "x2": 60, "y2": 20 },
+        { "type": "text", "x": 30, "y": 22, "content": "TOF", "fontSize": 10, "fontWeight": "bold", "textAnchor": "middle" }
       ]
     },
     {

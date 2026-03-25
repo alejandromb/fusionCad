@@ -76,6 +76,7 @@ export function classifyByKeyword(id: string): DeviceRole {
   if (s.includes('terminal')) return 'passive';
   if (s.includes('junction')) return 'passive';
   if (s.includes('ground') || s.includes('earth')) return 'passive';
+  if (s.includes('no-connect') || s.includes('no_connect') || s.includes('noconnect')) return 'passive';
   if (s.includes('resistor')) return 'load';
   if (s.includes('capacitor')) return 'passive';
   if (s.includes('inductor')) return 'load';

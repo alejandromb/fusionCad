@@ -62,9 +62,9 @@ export async function exportToPDF(
   // Get page size in mm from first sheet
   const firstSheet = circuit.sheets?.find(s => s.id === sheetIds[0]);
   const sheetSize = SHEET_SIZES[firstSheet?.size || 'Tabloid'] || SHEET_SIZES['Tabloid'];
-  // Convert world px (96dpi) to mm
-  const pageWidthMm = Math.round(sheetSize.width / 96 * 25.4);
-  const pageHeightMm = Math.round(sheetSize.height / 96 * 25.4);
+  // Sheet sizes are already in mm
+  const pageWidthMm = sheetSize.width;
+  const pageHeightMm = sheetSize.height;
 
   // Generate multi-page PDF
   const pdf = generateMultiPagePDF(pages, pageWidthMm, pageHeightMm);

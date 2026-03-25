@@ -10,6 +10,7 @@ export { allenBradleyParts } from './allen-bradley.js';
 export { schneiderElectricParts } from './schneider-electric.js';
 export { schneiderMotorCatalogParts } from './schneider-motor-catalog.js';
 export { schneiderPushbuttonParts } from './schneider-pushbuttons.js';
+export { getContactPinAliases, STANDARD_CONTACT_PINS } from './relay-pin-config.js';
 
 /** All manufacturer parts combined */
 export const ALL_MANUFACTURER_PARTS: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>[] = [

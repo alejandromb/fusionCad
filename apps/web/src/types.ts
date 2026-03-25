@@ -3,7 +3,7 @@
  */
 
 import type { Device, Part } from '@fusion-cad/core-model';
-import { getAllSymbolCategories, findCategoryDef } from '@fusion-cad/core-model';
+import { getAllSymbolCategories, findCategoryDef, GRID_MM, MM_TO_PX } from '@fusion-cad/core-model';
 import type { CircuitData } from './renderer/circuit-renderer';
 import { getSymbolGeometry } from './renderer/symbols';
 import type { Point } from './renderer/types';
@@ -16,7 +16,12 @@ export const SYMBOL_CATEGORIES = getAllSymbolCategories();
 
 export { findCategoryDef };
 
-export const GRID_SIZE = 20;
+/**
+ * Grid size in mm. All coordinates are in mm.
+ * Screen rendering multiplies by MM_TO_PX (4px/mm at 1x zoom).
+ * @deprecated Use GRID_MM from @fusion-cad/core-model directly.
+ */
+export const GRID_SIZE = GRID_MM;
 export const AUTO_SAVE_DELAY = 1000;
 export const MAX_HISTORY_SIZE = 50;
 
@@ -81,7 +86,7 @@ export function getPinAtPoint(
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
   viewportScale = 1,
 ): PinHit | null {
-  const HIT_RADIUS = 8 / viewportScale;
+  const HIT_RADIUS = 8 / (viewportScale * MM_TO_PX);
   const partMap = new Map<string, Part>();
   for (const part of parts) {
     partMap.set(part.id, part);
@@ -143,7 +148,7 @@ export function getSymbolAtPoint(
     // Shrink hit box by an inset to exclude pin stub areas at symbol edges.
     // Inset is in screen-space (divided by scale) so it feels consistent at any zoom.
     // Cap inset to 25% of each dimension so small symbols remain clickable at low zoom.
-    const rawInset = 10 / viewportScale;
+    const rawInset = 10 / (viewportScale * MM_TO_PX);
     const insetX = Math.min(rawInset, effectiveWidth * 0.25);
     const insetY = Math.min(rawInset, effectiveHeight * 0.25);
     const insetW = effectiveWidth - insetX * 2;

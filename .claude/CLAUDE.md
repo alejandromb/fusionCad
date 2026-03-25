@@ -76,62 +76,47 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 28 (2026-03-23) — Architecture hardening, drag-with-wires, net/power symbols, print/PDF, render audit, verification rules
+**Last session:** 29 (2026-03-24) — No-connect flags, cross-refs, wire numbers, symbol editor resize, NEMA symbols, G/M drag keys, contact pin numbering, terminal hexagon fix, metric migration infrastructure, session skill consolidation
+**Tests:** 154 E2E + 75 unit, 86 symbols
+**Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`.
 
-### P0 — Must Fix / Complete Before Launch
+### Next Up (Session 30)
 
-#### Critical Bugs
+1. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
+2. **Symbol proportion audit** — Convert all 86 symbols to mm using `SYMBOL_SIZES_MM` ratios. Terminal=10×10, Contact=10×20, Coil=10×10, CB=10×25.
+3. **Metric migration cleanup** — Fix remaining hardcoded px offsets in circuit-renderer.ts (annotation rendering, wire endpoints, theme constants). Test end-to-end with fresh project.
+4. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries).
+5. **Print/PDF verification** — Test all paper sizes with new mm coordinates.
 
-**0. ~~Wire selection index mismatch~~** ✅ Fixed (Session 23) — Shared `filterConnectionsBySheet()` function, `SheetConnection` type with `_globalIndex`. All hit detection uses sheet-filtered connections. 3 E2E tests added (`wire-selection.spec.ts`).
+### P0 — Must Fix Before Launch
 
-#### Schematic Quality
-
-1. **~~L1/L2 vertical rail rendering~~** ✅ Fixed (Session 24) — Bold vertical lines at railL1X/railL2X in `renderLadderOverlay()`. Theme color `ladderRailLineColor` added to all presets.
-2. **Cross-references (coil ↔ contact)** — Engine exists in `core-engine/src/cross-references.ts` but never called. Need: call generator, render annotations near devices, persist to DB.
-3. **~~Wire number persistence~~** ✅ Fixed (Session 24) — `wireNumber`, `sheetId`, `fromDeviceId`, `toDeviceId`, `waypoints` added to API `ConnectionData` type. Fields round-trip through jsonb.
-
-#### Manual Editing
-
-4. **~~Multi-select copy/paste~~** ✅ Fixed (Session 26) — Clipboard stores all selected devices, parts, connections, transforms. Paste remaps IDs/tags/wires. Ghost preview follows mouse on Cmd+V, click to commit. Alignment tools (6 directions) in toolbar + context menu. 6 E2E tests.
-5. **Contact pin numbering** — Relay contacts show generic "1"/"2" instead of real pins (13-14, 21-22). Need: editable pin IDs in properties panel + auto-populate from part catalog.
-
-#### AI Intelligence
-
-6. **~~Enhanced AI system prompt~~** ✅ Done (Session 25) — TOOL SELECTION section, blueprint priority, circuit rules, pin refs, ANSI preference.
-7. **~~High-level template tools~~** ✅ Done (Session 25) — Blueprint architecture: `instantiate_blueprint` tool with relay-bank, power-section, relay-output templates.
-8. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries). (MEDIUM effort)
-
-#### Production Readiness
-
-7. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
-8. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
-9. **Print/PDF output** — Verify Letter, Tabloid, A4, A3 paper sizes, margins, scale-to-fit, title block positioning.
-10. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
-11. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
+6. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
+7. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
+8. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
+9. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
 
 ### P1 — Should Have Before Launch
 
-12. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
-13. **ANSI/IEC awareness in AI** — Default to ANSI symbols (ansi-coil, CR not K). System prompt addition.
-14. **Usage dashboard** — Show users their AI generation count, remaining quota.
-15. **Stripe/payment integration** — Connect billing to plan tiers.
-16. **Deploy to AWS** — Lambda + CDK, managed Postgres (RDS).
-17. **CORS locked down** — Currently allows all origins in dev.
-18. **Error monitoring** — Sentry or similar for production error tracking.
-19. **Find/Replace** — Search and replace device tags, net names, annotations across drawing.
+14. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
+15. **Usage dashboard** — Show users their AI generation count, remaining quota.
+16. **Stripe/payment integration** — Connect billing to plan tiers.
+17. **Deploy to AWS** — Lambda + CDK, managed Postgres (RDS).
+18. **CORS locked down** — Currently allows all origins in dev.
+19. **Error monitoring** — Sentry or similar for production error tracking.
+20. **Find/Replace** — Search and replace device tags, net names, annotations across drawing.
 
 ### P2 — Nice to Have at Launch
 
-20. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
-21. **Template caching** — Cache common patterns to skip AI entirely.
-22. **CDN for static assets** — CloudFront for the web app.
-23. **Analytics** — Usage patterns, feature tracking, generation success rate.
-24. **AI cost tracking** — Log token usage per request.
-25. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
-26. **Grid toggle on/off** — Show/hide snap grid on canvas.
-27. **Grid size setting** — Change snap grid from default 20px.
-28. **Pin label visibility toggle** — Show/hide pin name labels.
-29. **Settings panel** — Centralized settings dialog.
+21. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
+22. **Template caching** — Cache common patterns to skip AI entirely.
+23. **CDN for static assets** — CloudFront for the web app.
+24. **Analytics** — Usage patterns, feature tracking, generation success rate.
+25. **AI cost tracking** — Log token usage per request.
+26. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
+27. **Grid toggle on/off** — Show/hide snap grid on canvas.
+28. **Grid size setting** — Change snap grid from default 20px.
+29. **Pin label visibility toggle** — Show/hide pin name labels.
+30. **Settings panel** — Centralized settings dialog.
 
 ### Future Phases (Post-Launch)
 
@@ -150,7 +135,7 @@ Before doing ANYTHING else:
 **What's done (Phase 0, 1, 2):**
 - Monorepo (npm workspaces, TypeScript, ESM), CLI ("fcad"), golden circuit (3-wire motor starter)
 - Canvas: symbol rendering, wire routing (visibility graph + A* + nudging + direction constraints), pan/zoom, snap-to-grid, multi-select/marquee, copy/paste, undo/redo, wire bend points, segment dragging, wire reconnection
-- 55 IEC JSON symbols, insert dialog, symbol editor (draw tools, resize handles, vertex editing, duplicate)
+- 86 symbols (IEC + ANSI/NEMA), insert dialog, symbol editor (draw tools, resize handles, vertex editing, bbox resize, duplicate)
 - Persistence: Postgres + TypeORM, auto-save, project management
 - MCP server: 30 tools for AI-driven circuit manipulation
 - AI panel: natural language → motor starter design (Claude API backend)

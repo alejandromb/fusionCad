@@ -261,12 +261,25 @@ function getVertexHandles(path: EditorPath): { id: string; pos: Point; cursor: s
 }
 
 type HandleInfo = {
-  type: 'resize' | 'vertex';
+  type: 'resize' | 'vertex' | 'bbox';
   handleId: string;
   pathId: string;
   position: Point;
   cursor: string;
 };
+
+function getBoundingBoxHandles(w: number, h: number): { id: string; pos: Point; cursor: string }[] {
+  return [
+    { id: 'nw', pos: { x: 0, y: 0 }, cursor: 'nw-resize' },
+    { id: 'n', pos: { x: w / 2, y: 0 }, cursor: 'n-resize' },
+    { id: 'ne', pos: { x: w, y: 0 }, cursor: 'ne-resize' },
+    { id: 'e', pos: { x: w, y: h / 2 }, cursor: 'e-resize' },
+    { id: 'se', pos: { x: w, y: h }, cursor: 'se-resize' },
+    { id: 's', pos: { x: w / 2, y: h }, cursor: 's-resize' },
+    { id: 'sw', pos: { x: 0, y: h }, cursor: 'sw-resize' },
+    { id: 'w', pos: { x: 0, y: h / 2 }, cursor: 'w-resize' },
+  ];
+}
 
 function getHandleAtPoint(
   worldPos: Point,
@@ -922,6 +935,19 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     ctx.strokeRect(0, 0, symbolWidth, symbolHeight);
     ctx.setLineDash([]);
 
+    // Draw bounding box resize handles when no path/pin is selected and select tool is active
+    if (selectedTool === 'select' && selectedPathIds.size === 0 && !selectedPinId) {
+      const bboxHandles = getBoundingBoxHandles(symbolWidth, symbolHeight);
+      const handleSize = 6 / scale;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ff8800';
+      ctx.lineWidth = 1.5 / scale;
+      for (const h of bboxHandles) {
+        ctx.fillRect(h.pos.x - handleSize / 2, h.pos.y - handleSize / 2, handleSize, handleSize);
+        ctx.strokeRect(h.pos.x - handleSize / 2, h.pos.y - handleSize / 2, handleSize, handleSize);
+      }
+    }
+
     // Draw paths
     ctx.lineWidth = 2 / scale;
     ctx.lineCap = 'round';
@@ -1249,6 +1275,20 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       const hitRadius = 6 / viewport.scale;
       const isShift = e.shiftKey;
 
+      // Check for bounding box resize handles first (when nothing is selected)
+      if (selectedPathIds.size === 0 && !selectedPinId) {
+        const bboxHandles = getBoundingBoxHandles(symbolWidth, symbolHeight);
+        const bboxHitRadius = 8 / viewport.scale;
+        for (const h of bboxHandles) {
+          if (Math.abs(worldPos.x - h.pos.x) < bboxHitRadius && Math.abs(worldPos.y - h.pos.y) < bboxHitRadius) {
+            pushEditorHistory();
+            setActiveHandle({ type: 'bbox', handleId: h.id, pathId: '', position: h.pos, cursor: h.cursor });
+            dragStartRef.current = pos;
+            return;
+          }
+        }
+      }
+
       // Check for handle interaction (resize/vertex) before anything else
       if (selectedPathIds.size === 1) {
         const handle = getHandleAtPoint(worldPos, selectedPathIds, paths, viewport.scale);
@@ -1378,6 +1418,18 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
     const pos = getMousePos(e);
 
+    // Handle bounding box resize drag
+    if (activeHandle && activeHandle.type === 'bbox' && dragStartRef.current) {
+      const h = activeHandle.handleId;
+      // Resize from right/bottom edges (origin stays at 0,0)
+      const snappedX = snapToGrid(pos.x, snapEnabled);
+      const snappedY = snapToGrid(pos.y, snapEnabled);
+      if (h === 'e' || h === 'ne' || h === 'se') setSymbolWidth(Math.max(10, snappedX));
+      if (h === 's' || h === 'sw' || h === 'se') setSymbolHeight(Math.max(10, snappedY));
+      dragStartRef.current = pos;
+      return;
+    }
+
     // Handle resize/vertex drag
     if (activeHandle && dragStartRef.current) {
       const path = paths.find(p => p.id === activeHandle.pathId);
@@ -1456,9 +1508,23 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       return;
     }
 
-    // Hover detection for handle cursors
+    // Hover detection for handle cursors (bbox + path handles)
     if (selectedTool === 'select' && !isDraggingPath && !isDraggingPin && !marqueeStart) {
       const worldPos = getWorldPos(e);
+
+      // Check bbox handles first when nothing is selected
+      if (selectedPathIds.size === 0 && !selectedPinId) {
+        const bboxHandles = getBoundingBoxHandles(symbolWidth, symbolHeight);
+        const bboxHitRadius = 8 / viewport.scale;
+        const bboxHit = bboxHandles.find(h =>
+          Math.abs(worldPos.x - h.pos.x) < bboxHitRadius && Math.abs(worldPos.y - h.pos.y) < bboxHitRadius
+        );
+        if (bboxHit) {
+          setHoveredHandle(bboxHit.cursor);
+          return;
+        }
+      }
+
       const handle = getHandleAtPoint(worldPos, selectedPathIds, paths, viewport.scale);
       setHoveredHandle(handle?.cursor ?? null);
     }

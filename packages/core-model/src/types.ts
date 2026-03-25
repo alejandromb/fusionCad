@@ -70,6 +70,12 @@ export interface Device extends Entity {
    * Only meaningful when terminalId is set.
    */
   terminalLevel?: number;
+  /**
+   * Per-device pin label overrides. Maps symbol pin ID → display label.
+   * E.g., { '1': '13', '2': '14' } for a NO contact with real relay pin numbers.
+   * Connections still reference the symbol pin ID internally; this only affects display.
+   */
+  pinAliases?: Record<string, string>;
 }
 
 /**

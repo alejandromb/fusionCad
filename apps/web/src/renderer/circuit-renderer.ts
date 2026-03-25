@@ -5,9 +5,10 @@
  */
 
 import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBlock, LadderBlock } from '@fusion-cad/core-model';
+import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
-import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
+import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
 import { renderTitleBlock } from './title-block';
@@ -739,9 +740,12 @@ export function renderCircuit(
   ctx.fillStyle = t.canvasBg;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  // Apply viewport transform
+  // Apply viewport transform (mm → screen pixels)
+  // MM_TO_PX converts mm coordinates to base screen pixels,
+  // then viewport.scale applies user zoom on top.
+  const mmScale = viewport.scale * MM_TO_PX;
   ctx.translate(viewport.offsetX, viewport.offsetY);
-  ctx.scale(viewport.scale, viewport.scale);
+  ctx.scale(mmScale, mmScale);
 
   // Round caps/joins for smoother, more polished lines
   ctx.lineCap = 'round';
@@ -749,14 +753,14 @@ export function renderCircuit(
 
   // Render visible grid with adaptive density
   if (options?.showGrid !== false) {
-    const baseGridSize = options?.gridSize || 20;
+    const baseGridSize = options?.gridSize || GRID_MM;
     // Adaptive grid: coarsen when dots would be < 8px apart on screen
     let gridSize = baseGridSize;
-    while (gridSize * viewport.scale < 8) {
+    while (gridSize * mmScale < 8) {
       gridSize *= 5;
     }
 
-    const invScale = 1 / viewport.scale;
+    const invScale = 1 / mmScale;
     const startX = Math.floor((-viewport.offsetX * invScale) / gridSize) * gridSize;
     const startY = Math.floor((-viewport.offsetY * invScale) / gridSize) * gridSize;
     const endX = startX + (ctx.canvas.width * invScale) + gridSize;
@@ -821,7 +825,7 @@ export function renderCircuit(
     const transform = getTransform(device.id);
     const partLabel = part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
-    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases);
 
     // Source/Destination arrow special rendering:
     // Show voltage label and cross-reference text around the arrow symbol
@@ -837,13 +841,13 @@ export function renderCircuit(
       if (symbolKey === 'source-arrow') {
         // Source: voltage label ABOVE the triangle, cross-ref below pin
         ctx.fillStyle = t.tagColor;
-        ctx.font = 'bold 11px monospace';
+        ctx.font = 'bold 2.75px monospace';
         ctx.textBaseline = 'bottom';
         ctx.fillText(voltageLabel, centerX, position.y - 2);
 
         if (crossRef) {
           ctx.fillStyle = t.annotationColor;
-          ctx.font = '9px monospace';
+          ctx.font = '2.25px monospace';
           ctx.textBaseline = 'top';
           ctx.fillText(crossRef, centerX, position.y + geometry.height + 14);
         }
@@ -851,13 +855,13 @@ export function renderCircuit(
         // Destination: cross-ref above pin, voltage label BELOW the triangle
         if (crossRef) {
           ctx.fillStyle = t.annotationColor;
-          ctx.font = '9px monospace';
+          ctx.font = '2.25px monospace';
           ctx.textBaseline = 'bottom';
           ctx.fillText(crossRef, centerX, position.y - 14);
         }
 
         ctx.fillStyle = t.tagColor;
-        ctx.font = 'bold 11px monospace';
+        ctx.font = 'bold 2.75px monospace';
         ctx.textBaseline = 'top';
         ctx.fillText(voltageLabel, centerX, position.y + geometry.height + 2);
       }
@@ -871,7 +875,7 @@ export function renderCircuit(
       if (fn) {
         const geometry = getSymbolGeometry(symbolKey);
         ctx.save();
-        ctx.font = '9px monospace';
+        ctx.font = '2.25px monospace';
         ctx.fillStyle = t.annotationColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
@@ -879,6 +883,43 @@ export function renderCircuit(
         ctx.fillText(fn, position.x + geometry.width / 2, position.y - 18);
         ctx.restore();
       }
+    }
+  }
+
+  // Render cross-reference annotations (e.g., "/2, /3" next to devices appearing on multiple sheets)
+  if (circuit.sheets && circuit.sheets.length > 1 && activeSheetId) {
+    const crossRefDevices = circuit.devices.map(d => {
+      const p = d.partId ? partMap.get(d.partId) : null;
+      return { tag: d.tag, sheetId: d.sheetId, category: p?.symbolCategory || p?.category };
+    });
+    const crossRefSheets = circuit.sheets.map(s => ({ id: s.id, name: s.name, number: s.number ?? 0 }));
+    const crossRefs = generateCrossReferences(crossRefDevices, crossRefSheets);
+
+    if (crossRefs.length > 0) {
+      ctx.save();
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = t.annotationColor;
+      ctx.textBaseline = 'top';
+
+      for (const device of devices) {
+        const refText = formatCrossRefText(device.tag, activeSheetId, crossRefs);
+        if (!refText) continue;
+
+        const position = positions.get(device.id);
+        if (!position) continue;
+
+        const part = device.partId ? partMap.get(device.partId) : null;
+        const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
+
+        // Place cross-ref text to the right of the device, slightly below center
+        const xRefX = position.x + geometry.width + 4;
+        const xRefY = position.y + geometry.height / 2 + 2;
+
+        ctx.textAlign = 'left';
+        ctx.fillText(refText, xRefX, xRefY);
+      }
+
+      ctx.restore();
     }
   }
 
@@ -959,6 +1000,31 @@ export function renderCircuit(
 
   // Route all wires together with nudging
   const routeResults = routeWires(routeRequests, obstacles, 5, 8); // 5px padding, 8px spacing
+
+  // Auto-compute wire numbers for connections that don't have them
+  const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
+  const wireAssignments = autoAssignWireNumbers(
+    connections.map(c => ({
+      fromDevice: c.fromDevice,
+      fromDeviceId: c.fromDeviceId,
+      fromPin: c.fromPin,
+      toDevice: c.toDevice,
+      toDeviceId: c.toDeviceId,
+      toPin: c.toPin,
+      netId: c.netId,
+      sheetId: c.sheetId,
+      wireNumber: c.wireNumber,
+    })),
+    circuit.nets,
+    sheetRungs.map(r => ({ number: r.number, sheetId: r.sheetId, deviceIds: r.deviceIds })),
+    activeSheetId,
+  );
+  const autoWireNumbers = new Map<number, string>();
+  for (const a of wireAssignments) {
+    if (!a.isManual) {
+      autoWireNumbers.set(a.index, a.wireNumber);
+    }
+  }
 
   // SECOND: Render connections (wires) ON TOP - use visibility graph routing with nudging
   ctx.lineWidth = t.wireWidth;
@@ -1066,10 +1132,12 @@ export function renderCircuit(
       ctx.fill();
     }
 
-    // Wire number label — only show explicit wire numbers, not auto-generated W### placeholders.
-    // Auto-generated numbers clutter the diagram; explicit ones are meaningful references.
-    if (metadata.conn.wireNumber) {
-      const wireNumber = metadata.conn.wireNumber;
+    // Wire number label — show manual wire numbers and rung-based auto-numbers.
+    // Skip generic W### placeholders (sequential fallback) to avoid clutter.
+    const effectiveWireNumber = metadata.conn.wireNumber || autoWireNumbers.get(metadata.index);
+    const isAutoPlaceholder = effectiveWireNumber?.startsWith('W') && /^W\d{3}$/.test(effectiveWireNumber);
+    if (effectiveWireNumber && !isAutoPlaceholder) {
+      const wireNumber = effectiveWireNumber;
 
       // Calculate label position along the longest segment
       let labelX = (metadata.fromX + metadata.toX) / 2;
@@ -1127,7 +1195,7 @@ export function renderCircuit(
       const labelColor = wireColors[metadata.index % wireColors.length];
 
       // Endpoint labels (device:pin)
-      ctx.font = '10px monospace';
+      ctx.font = '2.5px monospace';
 
       // From endpoint
       const fromLabel = `${metadata.conn.fromDevice}:${metadata.conn.fromPin}`;
@@ -1161,7 +1229,7 @@ export function renderCircuit(
 
       // Net name near wire midpoint
       const netLabel = `(${netName})`;
-      ctx.font = '9px monospace';
+      ctx.font = '2.25px monospace';
       const netMetrics = ctx.measureText(netLabel);
       const midX = (metadata.fromX + metadata.toX) / 2;
       const midY = (metadata.fromY + metadata.toY) / 2;
@@ -1400,7 +1468,7 @@ export function renderCircuit(
     const h = Math.abs(endY - startY);
 
     ctx.strokeStyle = mode === 'window' ? t.marqueeWindowColor : t.marqueeCrossingColor;
-    ctx.lineWidth = 1 / viewport.scale;
+    ctx.lineWidth = 1 / mmScale;
 
     if (mode === 'window') {
       // Window select: solid border, light fill
@@ -1408,7 +1476,7 @@ export function renderCircuit(
       ctx.fillStyle = t.marqueeWindowFill;
     } else {
       // Crossing select: dashed border, light fill
-      ctx.setLineDash([6 / viewport.scale, 3 / viewport.scale]);
+      ctx.setLineDash([6 / mmScale, 3 / mmScale]);
       ctx.fillStyle = t.marqueeCrossingFill;
     }
 

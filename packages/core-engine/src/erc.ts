@@ -156,11 +156,17 @@ function checkUnconnectedPins(circuit: ERCCircuitData, addViolation: AddViolatio
     partMap.set(part.id, part);
   }
 
+  // Build set of pins suppressed by no-connect flags
+  const noConnectSuppressed = buildNoConnectSuppressedPins(circuit, partMap);
+
   for (const device of circuit.devices) {
     // Determine the symbol category for this device
     const part = device.partId ? partMap.get(device.partId) : undefined;
     const category = part?.category || part?.symbolCategory;
     if (!category) continue;
+
+    // Skip no-connect flags themselves
+    if (isNoConnectCategory(category)) continue;
 
     // Get the symbol definition to know what pins this device has
     const symbolDef = getSymbolDefinition(category);
@@ -171,7 +177,7 @@ function checkUnconnectedPins(circuit: ERCCircuitData, addViolation: AddViolatio
 
     for (const pin of symbolDef.pins) {
       const key = `${device.tag}::${pin.id}`;
-      if (!connectedPins.has(key)) {
+      if (!connectedPins.has(key) && !noConnectSuppressed.has(key)) {
         unconnectedPinNames.push(pin.name || pin.id);
         unconnectedPinIds.push(pin.id);
       }
@@ -209,9 +215,13 @@ function checkMissingParts(circuit: ERCCircuitData, addViolation: AddViolationFn
     if (device.partId) {
       const part = partMap.get(device.partId);
       if (part && part.category.toLowerCase() === 'junction') continue;
+      // Skip no-connect flag devices — they're ERC markers, not physical parts
+      if (part && isNoConnectCategory(part.category)) continue;
     }
     // Skip devices whose tag starts with J followed by L or R (ladder junctions: JL1, JR1)
     if (/^J[LR]\d+$/.test(device.tag)) continue;
+    // Skip no-connect flag devices by tag pattern
+    if (/^NC\d+$/.test(device.tag)) continue;
 
     if (!device.partId) {
       addViolation(
@@ -499,6 +509,49 @@ function checkOrphanParts(circuit: ERCCircuitData, addViolation: AddViolationFn)
  * Rule: Wire Without Net (warning)
  * Connections that reference a netId that doesn't exist in the nets array.
  */
+/**
+ * Check if a category represents a no-connect flag.
+ */
+function isNoConnectCategory(category: string): boolean {
+  const lower = category.toLowerCase();
+  return lower === 'no-connect' || lower === 'noconnect' || lower === 'no_connect';
+}
+
+/**
+ * Build set of device::pin keys that are suppressed by no-connect flags.
+ * A pin is suppressed if it's wired to a no-connect flag device.
+ */
+function buildNoConnectSuppressedPins(
+  circuit: ERCCircuitData,
+  partMap: Map<string, Part>,
+): Set<string> {
+  // Find all no-connect device tags
+  const noConnectTags = new Set<string>();
+  for (const device of circuit.devices) {
+    const part = device.partId ? partMap.get(device.partId) : undefined;
+    const category = part?.category || part?.symbolCategory;
+    if (category && isNoConnectCategory(category)) {
+      noConnectTags.add(device.tag);
+    }
+    // Also detect by tag pattern (NC1, NC2, etc.) when no part assigned
+    if (!device.partId && /^NC\d+$/.test(device.tag)) {
+      noConnectTags.add(device.tag);
+    }
+  }
+
+  // For each connection involving a no-connect device, suppress the OTHER endpoint's pin
+  const suppressed = new Set<string>();
+  for (const conn of circuit.connections) {
+    if (noConnectTags.has(conn.fromDevice)) {
+      suppressed.add(`${conn.toDevice}::${conn.toPin}`);
+    }
+    if (noConnectTags.has(conn.toDevice)) {
+      suppressed.add(`${conn.fromDevice}::${conn.fromPin}`);
+    }
+  }
+  return suppressed;
+}
+
 function checkWireWithoutNet(circuit: ERCCircuitData, addViolation: AddViolationFn): void {
   const netIds = new Set<string>();
   for (const net of circuit.nets) {

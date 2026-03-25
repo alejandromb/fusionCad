@@ -81,16 +81,16 @@ export function generateMotorStarter(
   //  Pin-based alignment: each device's input pin aligns with the
   //  previous device's output pin. No hardcoded Y offsets.
   // ================================================================
-  const POWER_X = 100;       // center column X
-  const POWER_START_Y = 40;  // starting Y for supply terminals
-  const POWER_GAP = 20;      // vertical gap between output pin and next input pin
+  const POWER_X = 25;        // center column X (mm)
+  const POWER_START_Y = 10;  // starting Y for supply terminals (mm)
+  const POWER_GAP = 5;       // vertical gap between output pin and next input pin (mm)
 
   // Supply terminals (strip X1) — panel boundary for incoming cables
-  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, POWER_START_Y, powerSheetId, 'X1:1');
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 10, POWER_START_Y, powerSheetId, 'X1:1');
   cd = x1_1.circuit;
   const x1_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, POWER_START_Y, powerSheetId, 'X1:2');
   cd = x1_2.circuit;
-  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, POWER_START_Y, powerSheetId, 'X1:3');
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 10, POWER_START_Y, powerSheetId, 'X1:3');
   cd = x1_3.circuit;
 
   // Chain devices pin-to-pin: X1 pin1 → CB1 L1, CB1 T1 → K1 L1, etc.
@@ -112,11 +112,11 @@ export function generateMotorStarter(
   // Motor output terminals (strip X2) — panel boundary for motor leads
   const f1T1Y = getPinWorldY('iec-thermal-overload-relay-3p', 'T1', f1Y);
   const x2Y = alignDeviceToPin('iec-terminal-single', '1', f1T1Y + POWER_GAP);
-  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, x2Y, powerSheetId, 'X2:1');
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 10, x2Y, powerSheetId, 'X2:1');
   cd = x2_1.circuit;
   const x2_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, x2Y, powerSheetId, 'X2:2');
   cd = x2_2.circuit;
-  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, x2Y, powerSheetId, 'X2:3');
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 10, x2Y, powerSheetId, 'X2:3');
   cd = x2_3.circuit;
 
   const x2Pin1Y = getPinWorldY('iec-terminal-single', '1', x2Y);
@@ -125,7 +125,7 @@ export function generateMotorStarter(
   cd = m1.circuit;
 
   // Ground terminal (PE) — beside motor
-  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 100, m1Y, powerSheetId, 'PE1');
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 25, m1Y, powerSheetId, 'PE1');
   cd = pe1.circuit;
 
   // Wire 15 phase connections (3 phases × 5 hops through terminals)
@@ -480,16 +480,16 @@ export function generateMotorStarterPanel(
   // ================================================================
   //  Power Section (top of sheet, pin-based alignment)
   // ================================================================
-  const POWER_X = 100;
-  const POWER_START_Y = 40;
-  const POWER_GAP = 20;
+  const POWER_X = 25;        // mm
+  const POWER_START_Y = 10;  // mm
+  const POWER_GAP = 5;       // mm
 
   // Supply terminals (strip X1)
-  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, POWER_START_Y, sheetId, 'X1:1');
+  const x1_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 10, POWER_START_Y, sheetId, 'X1:1');
   cd = x1_1.circuit;
   const x1_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, POWER_START_Y, sheetId, 'X1:2');
   cd = x1_2.circuit;
-  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, POWER_START_Y, sheetId, 'X1:3');
+  const x1_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 10, POWER_START_Y, sheetId, 'X1:3');
   cd = x1_3.circuit;
 
   // Chain devices pin-to-pin
@@ -510,11 +510,11 @@ export function generateMotorStarterPanel(
 
   const f1T1Y = getPinWorldY('iec-thermal-overload-relay-3p', 'T1', f1Y);
   const x2Y = alignDeviceToPin('iec-terminal-single', '1', f1T1Y + POWER_GAP);
-  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 40, x2Y, sheetId, 'X2:1');
+  const x2_1 = placeDevice(cd, 'iec-terminal-single', POWER_X - 10, x2Y, sheetId, 'X2:1');
   cd = x2_1.circuit;
   const x2_2 = placeDevice(cd, 'iec-terminal-single', POWER_X, x2Y, sheetId, 'X2:2');
   cd = x2_2.circuit;
-  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 40, x2Y, sheetId, 'X2:3');
+  const x2_3 = placeDevice(cd, 'iec-terminal-single', POWER_X + 10, x2Y, sheetId, 'X2:3');
   cd = x2_3.circuit;
 
   const x2Pin1Y = getPinWorldY('iec-terminal-single', '1', x2Y);
@@ -522,7 +522,7 @@ export function generateMotorStarterPanel(
   const m1 = placeDevice(cd, 'iec-motor-3ph', POWER_X, m1Y, sheetId, 'M1');
   cd = m1.circuit;
 
-  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 100, m1Y, sheetId, 'PE1');
+  const pe1 = placeDevice(cd, 'iec-terminal-ground', POWER_X + 25, m1Y, sheetId, 'PE1');
   cd = pe1.circuit;
 
   // Wire 15 phase connections (3 phases × 5 hops through terminals)
@@ -549,7 +549,7 @@ export function generateMotorStarterPanel(
   //  Control Section (ladder block below power section)
   // ================================================================
   // Position ladder below last power device with gap
-  const motorBottomY = m1Y + 83 + POWER_GAP; // motor height (83) + gap
+  const motorBottomY = m1Y + 20 + POWER_GAP; // motor height (mm) + gap
   const ladderStartY = Math.ceil(motorBottomY / 20) * 20; // snap to grid
   const ladderBlock = createLadderBlock(cd, sheetId, {
     voltage: controlVoltage,
@@ -970,11 +970,11 @@ export function generatePowerDistribution(
   const hasLight = options.cabinetLight !== false; // default true
   const hasFan = options.cabinetFan || false;
 
-  // Ladder config constants — leave room for rung numbers on the left margin
-  const RUNG_SPACING = 140;
-  const FIRST_RUNG_Y = 100;
-  const RAIL_L1X = 200;
-  const RAIL_L2X = 1100;
+  // Ladder config constants (mm) — leave room for rung numbers on the left margin
+  const RUNG_SPACING = 35;
+  const FIRST_RUNG_Y = 25;
+  const RAIL_L1X = 50;
+  const RAIL_L2X = 275;
   // Junction pin "1" is at position (0,0) relative to symbol origin — no offset needed
   const PIN_OFFSET = 0;
 
@@ -1283,15 +1283,15 @@ export function generatePowerDistribution(
   // ================================================================
   //  Source & Destination Arrows (voltage labels for inter-sheet reference)
   // ================================================================
-  const arrowTopY = FIRST_RUNG_Y - 80;
+  const arrowTopY = FIRST_RUNG_Y - 20;   // mm above first rung
   const lastRungY = FIRST_RUNG_Y + (rungDefs.length - 1) * RUNG_SPACING;
-  const arrowBottomY = lastRungY + 120;
+  const arrowBottomY = lastRungY + 30;   // mm below last rung
 
   // Source arrow: incoming supply voltage at top of L1 rail
   const sa1 = placeDevice(cd, 'source-arrow', 0, 0, sheetId, 'SA1');
   cd = sa1.circuit;
   cd = updateDeviceFunction(cd, sa1.deviceId, options.supplyVoltage);
-  cd = { ...cd, positions: { ...cd.positions, [sa1.deviceId]: { x: RAIL_L1X - 10, y: arrowTopY } } };
+  cd = { ...cd, positions: { ...cd.positions, [sa1.deviceId]: { x: RAIL_L1X - 2.5, y: arrowTopY } } };
 
   // Wire SA1 to first L1 junction (source feeds L1 rail)
   const firstL1Junction = cd.devices.find(d => d.sheetId === sheetId && d.tag.startsWith('JL'));
@@ -1303,7 +1303,7 @@ export function generatePowerDistribution(
   const da1 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA1');
   cd = da1.circuit;
   cd = updateDeviceFunction(cd, da1.deviceId, options.supplyVoltage);
-  cd = { ...cd, positions: { ...cd.positions, [da1.deviceId]: { x: RAIL_L1X - 10, y: arrowBottomY } } };
+  cd = { ...cd, positions: { ...cd.positions, [da1.deviceId]: { x: RAIL_L1X - 2.5, y: arrowBottomY } } };
 
   // Wire last L1 junction to DA1
   const l1Junctions = cd.devices.filter(d => d.sheetId === sheetId && d.tag.startsWith('JL'));
@@ -1317,7 +1317,7 @@ export function generatePowerDistribution(
     const da2 = placeDevice(cd, 'destination-arrow', 0, 0, sheetId, 'DA2');
     cd = da2.circuit;
     cd = updateDeviceFunction(cd, da2.deviceId, '+24VDC');
-    cd = { ...cd, positions: { ...cd.positions, [da2.deviceId]: { x: RAIL_L2X - 100, y: arrowBottomY } } };
+    cd = { ...cd, positions: { ...cd.positions, [da2.deviceId]: { x: RAIL_L2X - 25, y: arrowBottomY } } };
 
     // Wire PSU X2:+ terminal to DA2
     const xPlus = cd.devices.find(d => d.sheetId === sheetId && d.tag === 'X2:+');
@@ -1378,10 +1378,10 @@ function buildLadderSheet(
   },
 ): { circuit: CircuitData; sheetId: string; blockId: string } {
   let cd = circuit;
-  const RUNG_SPACING = options.rungSpacing ?? 140;
-  const FIRST_RUNG_Y = options.firstRungY ?? 100;
-  const RAIL_L1X = options.railL1X ?? 200;
-  const RAIL_L2X = options.railL2X ?? 1100;
+  const RUNG_SPACING = options.rungSpacing ?? 35;   // mm
+  const FIRST_RUNG_Y = options.firstRungY ?? 25;    // mm
+  const RAIL_L1X = options.railL1X ?? 50;            // mm
+  const RAIL_L2X = options.railL2X ?? 275;           // mm
   const now = Date.now();
 
   // Create sheet + ladder block
@@ -1638,7 +1638,7 @@ export function generatePLCRelaySheet(
   // Custom PLC wiring: PLC DO pins → relay coils, PLC DI pins ← terminal blocks
   let doIndex = 0;
   let diIndex = 0;
-  const FIRST_RUNG_Y = 80;
+  const FIRST_RUNG_Y = 20; // mm
   for (let di = 0; di < rungDefs.length; di++) {
     const def = rungDefs[di];
     if (def.deviceIds.length < 2) continue; // spacer rung

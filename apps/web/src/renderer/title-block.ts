@@ -3,24 +3,15 @@
  */
 
 import type { Sheet } from '@fusion-cad/core-model';
+import { SHEET_SIZES_MM, LAYOUT_MM } from '@fusion-cad/core-model';
 import { getTheme } from './theme';
 
-// Sheet dimensions in pixels (at 1:1 scale)
-// Standard engineering drawing sizes
-export const SHEET_SIZES: Record<string, { width: number; height: number }> = {
-  'A4': { width: 1123, height: 794 },      // 297mm x 210mm
-  'A3': { width: 1587, height: 1123 },     // 420mm x 297mm
-  'A2': { width: 2245, height: 1587 },     // 594mm x 420mm
-  'A1': { width: 3179, height: 2245 },     // 841mm x 594mm
-  'A0': { width: 4494, height: 3179 },     // 1189mm x 841mm
-  'Letter': { width: 1056, height: 816 },  // 11" x 8.5"
-  'Tabloid': { width: 1632, height: 1056 }, // 17" x 11"
-  'ANSI-D': { width: 2592, height: 1728 }, // 34" x 22"
-};
+// Sheet dimensions in mm (metric coordinates)
+export const SHEET_SIZES: Record<string, { width: number; height: number }> = SHEET_SIZES_MM;
 
-const BORDER_MARGIN = 20;
-const TITLE_BLOCK_HEIGHT = 80;
-const TITLE_BLOCK_WIDTH = 400;
+const BORDER_MARGIN = LAYOUT_MM.borderMargin;        // 5mm
+const TITLE_BLOCK_HEIGHT = LAYOUT_MM.titleBlockHeight; // 20mm
+const TITLE_BLOCK_WIDTH = LAYOUT_MM.titleBlockWidth;   // 100mm
 
 /**
  * Render sheet border and title block

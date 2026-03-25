@@ -13,6 +13,7 @@
  */
 
 import type { Device, LadderConfig, Rung } from '@fusion-cad/core-model';
+import { DEFAULT_LADDER_MM } from '@fusion-cad/core-model';
 
 export interface RailConnection {
   deviceId: string;
@@ -28,12 +29,12 @@ export interface LadderLayoutResult {
   multiRungDeviceIds: Set<string>;
 }
 
-/** Default ladder configuration values */
+/** Default ladder configuration values (mm) */
 export const DEFAULT_LADDER_CONFIG: LadderConfig = {
-  railL1X: 100,
-  railL2X: 900,
-  firstRungY: 100,
-  rungSpacing: 120,
+  railL1X: DEFAULT_LADDER_MM.railL1X,
+  railL2X: DEFAULT_LADDER_MM.railL2X,
+  firstRungY: DEFAULT_LADDER_MM.firstRungY,
+  rungSpacing: DEFAULT_LADDER_MM.rungSpacing,
   railLabelL1: 'L1',
   railLabelL2: 'L2',
 };
@@ -99,7 +100,7 @@ export function layoutLadder(
   // ── Position multi-rung devices (e.g., PLC modules) ──
   // Place on L1 side, vertically centered across their rung range.
   // These devices stay upright (no rotation) so their pins face right toward the coils.
-  const MULTI_RUNG_X_MARGIN = 60; // px inset from L1 rail
+  const MULTI_RUNG_X_MARGIN = 15; // mm inset from L1 rail for PLC modules
   for (const deviceId of multiRungDeviceIds) {
     const rungNums = deviceRungNumbers.get(deviceId)!;
     const minRung = Math.min(...rungNums);
@@ -119,7 +120,7 @@ export function layoutLadder(
   }
 
   // ── Position single-rung devices per rung ──
-  const DEFAULT_SYMBOL_HEIGHT = 60;
+  const DEFAULT_SYMBOL_HEIGHT = 15; // mm default symbol height for centering
 
   for (let ri = 0; ri < sortedRungs.length; ri++) {
     const rung = sortedRungs[ri];

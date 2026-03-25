@@ -5,11 +5,11 @@
  * that operate on CircuitData without React dependencies.
  */
 
-import { generateId, getSymbolById, resolveSymbol, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, GRID_MM, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
 import { layoutLadder, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from './api-client.js';
 
-const GRID_SIZE = 20;
+const GRID_SIZE = GRID_MM; // 5mm grid — all coordinates are in mm
 
 /**
  * Resolve a symbol by ID, using the full 4-tier resolution (exact → alias → generator → fallback).

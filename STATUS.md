@@ -6,6 +6,56 @@ This file is now a session log archive only.
 
 ---
 
+## Session 29 — 2026-03-24: Schematic Features, Metric Migration, Session Tooling
+
+**Duration**: Full session (marathon)
+**Focus**: Complete all 6 Next Up items, contact pin numbering, terminal symmetry fix, metric coordinate migration, session skill consolidation
+
+### Completed — Schematic Features (all 6 Next Up items)
+- **No-connect flags** — `no-connect-flag` symbol, ERC suppression (checkUnconnectedPins + checkMissingParts skip NC devices), BOM exclusion, 4 unit tests
+- **Cross-references (coil ↔ contact)** — Wired existing engine into renderer, auto-computes "/2, /3" text next to multi-sheet devices, 6 unit tests
+- **Wire numbers (rung-based)** — Rewrote autoAssignWireNumbers with rung-based numbering, power nets keep names, renderer auto-computes, 5 unit tests
+- **Symbol editor resize bounding box** — 8 handles (corners + edges), orange styling, drag to resize width/height
+- **NEMA symbol accuracy** — 5 new ANSI symbols: Push Button NO/NC, Pilot Light, Timer TON/TOF
+- **Drag vs Move keys** — G = grab with wires, M = move detach, Shift+G = snap toggle
+
+### Completed — Contact Pin Numbering (P0)
+- `Device.pinAliases` field in core-model
+- `drawSymbol`/`drawPins`/`drawTransformedPins` use pinAliases for display
+- `relay-pin-config.ts` utility (NO: 13-14, NC: 11-12, etc.)
+- Renderer passes device.pinAliases through to symbol rendering
+
+### Completed — Terminal Hexagon Fix
+- All 3 terminal symbols (single, ground, fuse) converted to mathematically regular hexagons
+- Verified side lengths equal (≤0.2% error from decimal rounding)
+- Removed dual/triple terminal symbols — multi-level uses linked single-terminal devices
+- Updated both builtin-symbols.json AND terminal-symbols.ts
+- Pushed updates to DB via API PUT
+
+### Completed — Metric Migration (Infrastructure)
+- `units.ts` in core-model: M=2.5mm, GRID_MM=5, MM_TO_PX=4, SHEET_SIZES_MM, DEFAULT_LADDER_MM, SYMBOL_SIZES_MM, LAYOUT_MM
+- Renderer: `mmScale = viewport.scale * MM_TO_PX` baked into canvas transform
+- Grid, hit detection, font sizes, pin offsets all converted to mm
+- Ladder renderer: all offsets and fonts in mm
+- Sheet sizes: direct mm values (no more 96 DPI conversion)
+- PDF export: uses mm sheet sizes directly
+- MCP server + templates: grid and placement constants in mm
+
+### Completed — Session Tooling
+- Consolidated CLAUDE.md as single source of truth (removed STATUS.md as priority source)
+- Updated all 4 session skills (session-start, session-end, session-update, update-status) to read CLAUDE.md only
+
+### Key Decisions
+- Coordinate system is now millimeters, not pixels. MM_TO_PX=4 at render boundary.
+- IEC 60617 module M=2.5mm as base unit. Grid=2M=5mm. Pin pitch=5mm.
+- Terminal symbols stay as hexagons (fusionCad signature), not IEC circles
+- SVG/DXF as import formats for manufacturer symbols (SVG preferred, DXF backup)
+- Manufacturer CAD downloads are panel layout symbols, NOT schematic — schematic symbols come from datasheets or EPLAN macro libraries
+
+**Tests**: 154 E2E + 75 unit (15 new), 86 symbols (6 new)
+
+---
+
 ## Session 28 — 2026-03-23: Architecture Hardening, Complete Project, Print/PDF, Manual Editing
 
 **Duration**: Full session (marathon)

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import './App.css';
-import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol } from '@fusion-cad/core-model';
+import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol, MM_TO_PX } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
 import { useProjectPersistence } from './hooks/useProjectPersistence';
 import { detectStorageProvider, IndexedDBStorageProvider, type StorageProvider, type StorageType } from './storage';
@@ -302,8 +302,9 @@ function AppInner({
   const pasteAtCenter = useCallback(() => {
     const canvas = interaction.canvasRef.current;
     if (canvas) {
-      const centerX = (canvas.width / 2 - interaction.viewport.offsetX) / interaction.viewport.scale;
-      const centerY = (canvas.height / 2 - interaction.viewport.offsetY) / interaction.viewport.scale;
+      const mmScale = interaction.viewport.scale * MM_TO_PX;
+      const centerX = (canvas.width / 2 - interaction.viewport.offsetX) / mmScale;
+      const centerY = (canvas.height / 2 - interaction.viewport.offsetY) / mmScale;
       clipboardState.pasteDevice(centerX, centerY);
     }
   }, [interaction.canvasRef, interaction.viewport, clipboardState]);

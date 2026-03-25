@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
+import { MM_TO_PX } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { getWireAtPoint, getWireHitWithDistance, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
 import type { Connection, SheetConnection } from '../renderer/circuit-renderer';
@@ -291,6 +292,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [draggingDevice, setDraggingDevice] = useState<string | null>(null);
   const dragOffsetRef = useRef<Point | null>(null);
   const dragHistoryPushedRef = useRef(false);
+  /** 'drag' = G key (move with wires), 'move' = M key (detach wires) */
+  const dragModeRef = useRef<'drag' | 'move'>('drag');
 
   // Waypoint dragging state
   const [draggingWaypoint, setDraggingWaypoint] = useState<{
@@ -385,13 +388,15 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     const canvas = canvasRef.current;
     if (!canvas || !circuit) return;
 
+    /** Convert screen mouse position to world coordinates (mm). */
     const getWorldCoords = (e: MouseEvent): Point => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
+      const mmScale = viewport.scale * MM_TO_PX;
       return {
-        x: (mouseX - viewport.offsetX) / viewport.scale,
-        y: (mouseY - viewport.offsetY) / viewport.scale,
+        x: (mouseX - viewport.offsetX) / mmScale,
+        y: (mouseY - viewport.offsetY) / mmScale,
       };
     };
 
@@ -552,8 +557,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
 
         // Hit radii are screen-space constant (divided by zoom scale)
-        const wireHitRadius = 8 / viewport.scale;
-        const wirePriorityRadius = 4 / viewport.scale;
+        const wireHitRadius = 8 / (viewport.scale * MM_TO_PX);
+        const wirePriorityRadius = 4 / (viewport.scale * MM_TO_PX);
 
         const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
         const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, wireHitRadius, circuit.transforms);
@@ -587,6 +592,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
 
           setDraggingDevice(hitDeviceId);
+          dragModeRef.current = 'drag'; // Mouse-initiated drag always uses drag-with-wires
           dragHistoryPushedRef.current = false;
           const symbolPos = allPositions.get(hitDeviceId);
           if (symbolPos) {
@@ -673,9 +679,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
+      const mmScale = viewport.scale * MM_TO_PX;
       const world: Point = {
-        x: (mouseX - viewport.offsetX) / viewport.scale,
-        y: (mouseY - viewport.offsetY) / viewport.scale,
+        x: (mouseX - viewport.offsetX) / mmScale,
+        y: (mouseY - viewport.offsetY) / mmScale,
       };
 
       // Track mouse position for placement preview, wire preview, and paste preview
@@ -822,8 +829,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             return next;
           });
 
-          // KiCad-style "drag with wires": update wire paths when endpoints move.
-          if (circuit && (dx !== 0 || dy !== 0)) {
+          // KiCad-style "drag with wires" (G key): update wire paths when endpoints move.
+          // "Move" mode (M key): skip wire updates, detaching device from wires.
+          if (circuit && (dx !== 0 || dy !== 0) && dragModeRef.current === 'drag') {
             const movedSet = new Set(devicesToMove);
             for (let ci = 0; ci < circuit.connections.length; ci++) {
               const conn = circuit.connections[ci];
@@ -1035,7 +1043,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
           case 'wire': {
             const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
-            const hitWireIdx = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
+            const hitWireIdx = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
 
             if (!wireStart) {
               // === CLICK 1: Starting a new wire ===
@@ -1100,7 +1108,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
           case 'select': {
             const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
-            const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
+            const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
               const conn = sheetConnections[hitWire];
@@ -1317,8 +1325,42 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
-      // G = toggle snap to grid
-      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey) {
+      // G = grab/drag with wires (KiCad style) — initiate drag on selected device
+      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        if (selectedDevices.length > 0 && !draggingDevice) {
+          e.preventDefault();
+          dragModeRef.current = 'drag';
+          const deviceId = selectedDevices[0];
+          const allPositions = getAllPositions();
+          const pos = allPositions.get(deviceId);
+          if (pos) {
+            pushToHistoryRef.current();
+            dragHistoryPushedRef.current = true;
+            setDraggingDevice(deviceId);
+            dragOffsetRef.current = { x: 0, y: 0 };
+          }
+        }
+      }
+
+      // M = move (detach from wires) — initiate move on selected device
+      if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
+        if (selectedDevices.length > 0 && !draggingDevice) {
+          e.preventDefault();
+          dragModeRef.current = 'move';
+          const deviceId = selectedDevices[0];
+          const allPositions = getAllPositions();
+          const pos = allPositions.get(deviceId);
+          if (pos) {
+            pushToHistoryRef.current();
+            dragHistoryPushedRef.current = true;
+            setDraggingDevice(deviceId);
+            dragOffsetRef.current = { x: 0, y: 0 };
+          }
+        }
+      }
+
+      // Shift+G = toggle snap to grid (moved from G)
+      if ((e.key === 'G') && e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setSnapEnabled(!isSnapEnabled());
         window.dispatchEvent(new CustomEvent('snap-toggled'));
@@ -1341,9 +1383,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const rect = canvas.getBoundingClientRect();
         const mouseX = lastMousePosRef.current.x - rect.left;
         const mouseY = lastMousePosRef.current.y - rect.top;
+        const mmScalePaste = viewport.scale * MM_TO_PX;
         setMouseWorldPos({
-          x: (mouseX - viewport.offsetX) / viewport.scale,
-          y: (mouseY - viewport.offsetY) / viewport.scale,
+          x: (mouseX - viewport.offsetX) / mmScalePaste,
+          y: (mouseY - viewport.offsetY) / mmScalePaste,
         });
       }
 
@@ -1377,11 +1420,11 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const rect = canvas.getBoundingClientRect();
 
       const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
-      const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / viewport.scale, circuit.transforms);
+      const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
       const hitWire = wireHit?.index ?? null;
 
       // Wire takes priority when click is very close to wire path (within ~4 screen-px)
-      if (wireHit !== null && hitDeviceId && wireHit.distance <= 4 / viewport.scale) {
+      if (wireHit !== null && hitDeviceId && wireHit.distance <= 4 / (viewport.scale * MM_TO_PX)) {
         setSelectedWireIndex(hitWire);
         setContextMenu({
           x: e.clientX - rect.left,

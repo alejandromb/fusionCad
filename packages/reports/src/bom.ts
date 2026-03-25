@@ -55,11 +55,13 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
   for (const device of devices) {
     if (device.terminalId) continue;
     if (warnedTags.has(device.tag)) continue;
-    // Skip junction devices
+    // Skip junction and no-connect devices
     if (/^J[LR]\d+$/.test(device.tag)) continue;
+    if (/^NC\d+$/.test(device.tag)) continue;
     if (device.partId) {
       const part = partMap.get(device.partId);
       if (part && part.category.toLowerCase() === 'junction') continue;
+      if (part && isNoConnectCategory(part.category)) continue;
     }
 
     if (!device.partId) {
@@ -84,9 +86,10 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     if (device.terminalId) continue;
     if (!device.partId) continue;
 
-    // Skip junction devices (internal wiring nodes, not physical parts)
+    // Skip junction and no-connect devices (internal wiring nodes / ERC markers, not physical parts)
     const part = partMap.get(device.partId);
     if (part && part.category.toLowerCase() === 'junction') continue;
+    if (part && isNoConnectCategory(part.category)) continue;
 
     // Skip placeholder parts — they go in warnings only
     if (part && isPlaceholderPart(part)) continue;
@@ -190,6 +193,11 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
 /**
  * Check if a part is a placeholder (auto-created by placeDevice, not a real catalog part).
  */
+function isNoConnectCategory(category: string): boolean {
+  const lower = category.toLowerCase();
+  return lower === 'no-connect' || lower === 'noconnect' || lower === 'no_connect';
+}
+
 function isPlaceholderPart(part: Part): boolean {
   return part.partNumber === 'TBD' || part.manufacturer === 'Unassigned';
 }

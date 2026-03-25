@@ -43,8 +43,8 @@ export function renderLadderOverlay(
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
 
 
-  // Rail top position for label placement
-  const railTopY = firstRungY - 40;
+  // Rail top position for label placement (mm)
+  const railTopY = firstRungY - 10;
 
   ctx.save();
 
@@ -56,19 +56,20 @@ export function renderLadderOverlay(
   }
 
   // ---- Rail labels ----
-  ctx.font = 'bold 16px monospace';
+  // Font sizes are in mm (canvas is scaled by MM_TO_PX at render time)
+  ctx.font = 'bold 4px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = t.ladderRailLabelColor;
-  ctx.fillText(labelL1, railL1X, railTopY - 8);
-  ctx.fillText(labelL2, railL2X, railTopY - 8);
+  ctx.fillText(labelL1, railL1X, railTopY - 2);
+  ctx.fillText(labelL2, railL2X, railTopY - 2);
 
   // ---- Vertical power rail lines (bold) ----
   if (sortedRungs.length > 0) {
     const firstY = firstRungY;
     const lastY = firstRungY + (sortedRungs.length - 1) * rungSpacing;
     ctx.strokeStyle = t.ladderRailLineColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 0.75; // mm
     ctx.setLineDash([]);
     // L1 rail
     ctx.beginPath();
@@ -84,26 +85,24 @@ export function renderLadderOverlay(
 
   // ---- Voltage label (centered between rails at top) ----
   if (voltage) {
-    ctx.font = 'bold 14px monospace';
+    ctx.font = 'bold 3.5px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = t.ladderVoltageColor;
     const centerX = (railL1X + railL2X) / 2;
-    ctx.fillText(voltage, centerX, railTopY - 8);
+    ctx.fillText(voltage, centerX, railTopY - 2);
   }
 
   // ---- Rung guide lines, numbers, and descriptions ----
   for (let ri = 0; ri < sortedRungs.length; ri++) {
     const rung = sortedRungs[ri];
-    // Y position is based on sequential index, not rung.number
-    // (rung.number may be a display number like 100, 200, etc.)
     const rungY = firstRungY + ri * rungSpacing;
 
     // Horizontal rung guide line (very subtle dots, hidden during wire mode)
     if (!hideRungGuides) {
       ctx.strokeStyle = t.ladderRungGuideColor;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 4]);
+      ctx.lineWidth = 0.25; // mm
+      ctx.setLineDash([0.5, 1]);
       ctx.beginPath();
       ctx.moveTo(railL1X, rungY);
       ctx.lineTo(railL2X, rungY);
@@ -112,8 +111,6 @@ export function renderLadderOverlay(
     }
 
     // Compute display rung number based on numbering scheme
-    // rung.number is the stored value — used directly for 'sequential'
-    // For other schemes, compute from the rung's index (ri) within the block
     let displayNum: number;
     if (cfg.firstRungNumber != null) {
       displayNum = cfg.firstRungNumber + ri;
@@ -125,45 +122,43 @@ export function renderLadderOverlay(
         case 'page-tens':
           displayNum = pageNum * 100 + ri * 10;
           break;
-        default: // 'sequential'
+        default:
           displayNum = rung.number;
       }
     }
 
-    // Rung number (left margin — placed well left of L1 rail)
-    ctx.font = 'bold 16px monospace';
+    // Rung number (left margin)
+    ctx.font = 'bold 4px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = t.ladderRungNumberColor;
-    ctx.fillText(String(displayNum), railL1X - 20, rungY);
+    ctx.fillText(String(displayNum), railL1X - 5, rungY);
 
     // Page-qualified rung number (right margin, far right)
-    // Format: "page line" (e.g., "3 25")
     if (scheme !== 'sequential') {
       const pageLineLabel = `${pageNum} ${String(displayNum).padStart(2)}`;
-      ctx.font = '12px monospace';
+      ctx.font = '3px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = t.ladderRungNumberColor;
-      ctx.fillText(pageLineLabel, railL2X + 200, rungY);
+      ctx.fillText(pageLineLabel, railL2X + 50, rungY);
     }
 
     // Rung description (right margin, adjacent to L2 rail)
     if (rung.description) {
-      ctx.font = '11px monospace';
+      ctx.font = '2.75px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = t.ladderRungDescColor;
-      // Wrap long descriptions (max ~30 chars per line)
       const desc = rung.description;
       if (desc.length > 30) {
         const mid = desc.lastIndexOf(' ', 30);
         const line1 = mid > 0 ? desc.slice(0, mid) : desc.slice(0, 30);
         const line2 = mid > 0 ? desc.slice(mid + 1) : desc.slice(30);
-        ctx.fillText(line1, railL2X + 16, rungY - 6);
-        ctx.fillText(line2, railL2X + 16, rungY + 6);
+        ctx.fillText(line1, railL2X + 4, rungY - 1.5);
+        ctx.fillText(line2, railL2X + 4, rungY + 1.5);
       } else {
-        ctx.fillText(desc, railL2X + 16, rungY);
+        ctx.fillText(desc, railL2X + 4, rungY);
       }
     }
   }

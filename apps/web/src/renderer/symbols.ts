@@ -586,11 +586,12 @@ function drawPins(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  def: SymbolDefinition
+  def: SymbolDefinition,
+  pinAliases?: Record<string, string>
 ): void {
   const t = getTheme();
   ctx.fillStyle = t.pinDotColor;
-  ctx.font = '10px monospace';
+  ctx.font = '2.5px monospace';
 
   for (const pin of def.pins) {
     const pinX = x + pin.position.x;
@@ -605,25 +606,25 @@ function drawPins(
     ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
-    const pinLabel = pin.name || pin.id;
+    const pinLabel = pinAliases?.[pin.id] || pin.name || pin.id;
     switch (pin.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pinLabel, pinX - 8, pinY);
+        ctx.fillText(pinLabel, pinX - 2, pinY);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pinLabel, pinX + 8, pinY);
+        ctx.fillText(pinLabel, pinX + 2, pinY);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pinLabel, pinX, pinY - 8);
+        ctx.fillText(pinLabel, pinX, pinY - 2);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pinLabel, pinX, pinY + 8);
+        ctx.fillText(pinLabel, pinX, pinY + 2);
         break;
     }
 
@@ -690,7 +691,8 @@ export function drawSymbol(
   y: number,
   tag: string,
   transform?: DeviceTransform,
-  partLabel?: string
+  partLabel?: string,
+  pinAliases?: Record<string, string>
 ): void {
   const def = lookupSymbol(idOrCategory);
   if (!def.geometry) {
@@ -698,7 +700,7 @@ export function drawSymbol(
     ctx.fillStyle = '#ff0000';
     ctx.fillRect(x, y, 40, 40);
     ctx.fillStyle = '#ffffff';
-    ctx.font = '8px monospace';
+    ctx.font = '2px monospace';
     ctx.fillText(tag || '?', x + 2, y + 20);
     return;
   }
@@ -759,9 +761,9 @@ export function drawSymbol(
 
   // Draw pins at their transformed positions
   if (rotation !== 0 || mirrorH) {
-    drawTransformedPins(ctx, x, y, def, rotation, mirrorH);
+    drawTransformedPins(ctx, x, y, def, rotation, mirrorH, pinAliases);
   } else {
-    drawPins(ctx, x, y, def);
+    drawPins(ctx, x, y, def, pinAliases);
   }
 }
 
@@ -795,12 +797,13 @@ function drawTransformedPins(
   y: number,
   def: SymbolDefinition,
   rotation: number,
-  mirrorH: boolean
+  mirrorH: boolean,
+  pinAliases?: Record<string, string>
 ): void {
   const t = getTheme();
   const { width, height } = def.geometry;
   ctx.fillStyle = t.pinDotColor;
-  ctx.font = '10px monospace';
+  ctx.font = '2.5px monospace';
 
   for (const pin of def.pins) {
     const transformed = transformPinPosition(
@@ -821,24 +824,25 @@ function drawTransformedPins(
     ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
+    const pinLabel = pinAliases?.[pin.id] || pin.name || pin.id;
     switch (transformed.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pin.id, pinX - 8, pinY);
+        ctx.fillText(pinLabel, pinX - 2, pinY);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pin.id, pinX + 8, pinY);
+        ctx.fillText(pinLabel, pinX + 2, pinY);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pin.id, pinX, pinY - 8);
+        ctx.fillText(pinLabel, pinX, pinY - 2);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pin.id, pinX, pinY + 8);
+        ctx.fillText(pinLabel, pinX, pinY + 2);
         break;
     }
   }
