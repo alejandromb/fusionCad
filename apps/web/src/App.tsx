@@ -475,6 +475,8 @@ function AppInner({
           onDeleteSheet={circuitState.deleteSheet}
           activeSheet={circuitState.sheets.find(s => s.id === circuitState.activeSheetId) || null}
           onUpdateSheet={circuitState.updateSheet}
+          sheetLayout={circuitState.getSheetLayout(circuitState.activeSheetId)}
+          onSetSheetLayout={circuitState.setSheetLayout}
           themeId={theme.themeId}
           setThemeId={theme.setThemeId}
           customColors={theme.customColors}
@@ -554,6 +556,7 @@ function AppInner({
           }}
           interactionMode={interaction.interactionMode}
           placementCategory={interaction.placementCategory}
+          sheetContext="schematic"
           wireStart={interaction.wireStart}
           selectedDevices={circuitState.selectedDevices}
           selectedWireIndex={circuitState.selectedWireIndex}

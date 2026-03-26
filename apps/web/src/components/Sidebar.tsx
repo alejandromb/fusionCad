@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import type { Sheet } from '@fusion-cad/core-model';
+import type { Sheet, SheetLadderLayout } from '@fusion-cad/core-model';
 import { ThemePicker } from './ThemePicker';
 import { SHEET_SIZES } from '../renderer/title-block';
 import type { ThemeId, CustomThemeInput } from '../renderer/theme';
@@ -17,6 +17,8 @@ interface SidebarProps {
   onDeleteSheet: (sheetId: string) => void;
   activeSheet: Sheet | null;
   onUpdateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
+  sheetLayout: SheetLadderLayout;
+  onSetSheetLayout: (sheetId: string, layout: SheetLadderLayout) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
   customColors: CustomThemeInput;
@@ -34,6 +36,8 @@ export function Sidebar({
   onDeleteSheet,
   activeSheet,
   onUpdateSheet,
+  sheetLayout,
+  onSetSheetLayout,
   themeId,
   setThemeId,
   customColors,
@@ -179,6 +183,18 @@ export function Sidebar({
                 {Object.keys(SHEET_SIZES).map(size => (
                   <option key={size} value={size}>{size}</option>
                 ))}
+              </select>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Layout</span>
+              <select
+                className="property-input"
+                value={sheetLayout}
+                onChange={e => onSetSheetLayout(activeSheet.id, e.target.value as SheetLadderLayout)}
+              >
+                <option value="single-column">Ladder (1 col)</option>
+                <option value="dual-column">Ladder (2 col)</option>
+                <option value="no-rungs">Plain</option>
               </select>
             </div>
           </div>

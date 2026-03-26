@@ -38,6 +38,7 @@ import {
   autoLayoutLadder,
   createLadderBlock,
   deleteBlock,
+  setupSheetLayout,
 } from './circuit-helpers.js';
 
 // Register built-in symbols so getSymbolById works
@@ -515,6 +516,35 @@ export function createServer(apiBase: string) {
       const result = createLadderBlock(project.circuitData, targetSheet, ladderConfig, position, name);
       await api.updateCircuitData(projectId, result.circuit);
       return textResult({ created: true, blockId: result.blockId, sheetId: targetSheet, position: position || { x: 0, y: 0 } });
+    },
+  );
+
+  server.tool(
+    'setup_sheet_layout',
+    'Configure a sheet\'s ladder layout. Single-column: standard one-rail layout. Dual-column: two side-by-side ladder blocks (for dense control pages). No-rungs: for panel layout pages. Removes existing ladder blocks and creates fresh ones.',
+    {
+      projectId: z.string().describe('Project UUID'),
+      sheetId: z.string().optional().describe('Sheet ID (defaults to first sheet)'),
+      layout: z.enum(['single-column', 'dual-column', 'no-rungs']).describe('Layout preset'),
+      voltage: z.string().optional().describe('Voltage label (e.g., "120VAC", "24VDC")'),
+      numberingScheme: z.enum(['sequential', 'page-based', 'page-tens']).optional().describe('Rung numbering scheme (default: page-based)'),
+      rungSpacing: z.number().optional().describe('Rung spacing in mm (default: 12.5)'),
+    },
+    async ({ projectId, sheetId, layout, voltage, numberingScheme, rungSpacing }) => {
+      const project = await api.getProject(projectId);
+      const targetSheet = sheetId || getDefaultSheetId(project.circuitData);
+      const result = setupSheetLayout(project.circuitData, targetSheet, layout, {
+        voltage,
+        numberingScheme,
+        rungSpacing,
+      });
+      await api.updateCircuitData(projectId, result.circuit);
+      return textResult({
+        layout,
+        sheetId: targetSheet,
+        blockIds: result.blockIds,
+        columnCount: result.blockIds.length,
+      });
     },
   );
 

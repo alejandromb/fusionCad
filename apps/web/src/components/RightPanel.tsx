@@ -40,10 +40,21 @@ function loadStandard(): Standard {
   return 'ANSI/NEMA';
 }
 
+// Categories to hide on schematic/ladder sheets (layout-only symbols)
+const LAYOUT_ONLY_CATEGORIES = new Set(['Panel']);
+
+// Categories to hide on panel-layout sheets (schematic-only symbols)
+const SCHEMATIC_ONLY_CATEGORIES = new Set([
+  'Control', 'Power', 'Field', 'Motor', 'Meter', 'Passive',
+  'Ground', 'Terminal', 'PLC', 'Junction', 'No-Connect', 'Output', 'Connectors',
+]);
+
 interface RightPanelProps {
   onSelectSymbol: (symbolId: string, category: string) => void;
   interactionMode: InteractionMode;
   placementCategory: SymbolCategory | null;
+  /** 'panel-layout' hides schematic symbols, anything else hides Panel symbols */
+  sheetContext?: 'schematic' | 'panel-layout';
   // Properties tab props
   wireStart: PinHit | null;
   selectedDevices: string[];
@@ -67,6 +78,7 @@ export function RightPanel({
   onSelectSymbol,
   interactionMode,
   placementCategory,
+  sheetContext,
   wireStart,
   selectedDevices,
   selectedWireIndex,
@@ -168,6 +180,14 @@ export function RightPanel({
   const filteredSymbols = useMemo(() => {
     let symbols = allSymbols;
 
+    // Sheet context filter: hide layout symbols on schematic sheets and vice versa
+    if (sheetContext === 'panel-layout') {
+      symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category));
+    } else {
+      // Default: schematic context — hide Panel category
+      symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category));
+    }
+
     // Standard filter
     if (selectedStandard !== 'All') {
       symbols = symbols.filter(s =>
@@ -189,7 +209,7 @@ export function RightPanel({
     }
 
     return symbols;
-  }, [allSymbols, selectedCategory, selectedStandard, searchQuery]);
+  }, [allSymbols, selectedCategory, selectedStandard, searchQuery, sheetContext]);
 
   const favoriteSymbols = useMemo(() => {
     return allSymbols.filter(s => favorites.has(s.id));

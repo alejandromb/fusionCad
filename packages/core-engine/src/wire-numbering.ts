@@ -5,9 +5,11 @@
  * Falls back to sequential numbering for non-ladder wires.
  *
  * Industry standard: wire numbers match the rung they belong to.
- * Rung 100 → wires 100, 101, 102; Rung 110 → wires 110, 111, 112.
+ * Page-based: page 1 rung 1 → 101 → wires 1011, 1012, 1013.
  * Power nets keep their net name (L1, N, +24V, 0V).
  */
+
+import type { LadderConfig } from '@fusion-cad/core-model';
 
 export interface WireNumberingConnection {
   fromDevice: string;
@@ -29,8 +31,33 @@ export interface WireNumberingNet {
 
 export interface WireNumberingRung {
   number: number;
+  /** Display number (computed from numbering scheme). If omitted, uses number. */
+  displayNumber?: number;
   sheetId: string;
   deviceIds: string[];
+}
+
+/**
+ * Compute the display rung number based on the ladder numbering scheme.
+ * This ensures consistent numbering between the renderer and wire numbering.
+ */
+export function computeRungDisplayNumber(
+  rungIndex: number,
+  storedNumber: number,
+  pageNumber: number,
+  config?: Pick<LadderConfig, 'numberingScheme' | 'firstRungNumber'>,
+): number {
+  if (config?.firstRungNumber != null) {
+    return config.firstRungNumber + rungIndex;
+  }
+  switch (config?.numberingScheme) {
+    case 'page-based':
+      return pageNumber * 100 + rungIndex + 1;
+    case 'page-tens':
+      return pageNumber * 100 + (rungIndex + 1) * 10;
+    default:
+      return storedNumber;
+  }
 }
 
 export interface WireNumberAssignment {
@@ -62,13 +89,14 @@ export function autoAssignWireNumbers(
     netMap.set(net.id, net);
   }
 
-  // Build device-to-rung lookup (deviceId → rung number)
+  // Build device-to-rung lookup (deviceId → display rung number)
   const deviceIdToRung = new Map<string, number>();
   const deviceTagToRung = new Map<string, number>();
   if (rungs) {
     for (const rung of rungs) {
+      const rungNum = rung.displayNumber ?? rung.number;
       for (const deviceId of rung.deviceIds) {
-        deviceIdToRung.set(deviceId, rung.number);
+        deviceIdToRung.set(deviceId, rungNum);
       }
     }
   }

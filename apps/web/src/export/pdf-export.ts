@@ -12,6 +12,7 @@ import { renderCircuit } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
 import { getTheme, setTheme, type ThemeData } from '../renderer/theme';
 import { SHEET_SIZES } from '../renderer/title-block';
+import { MM_TO_PX } from '@fusion-cad/core-model';
 
 interface PDFExportOptions {
   /** Page width in mm (default 420 for A3) */
@@ -83,31 +84,27 @@ export async function exportToPDF(
  * Create a print-friendly theme: white background, black symbols/wires.
  */
 function createPrintTheme(baseTheme: ThemeData): ThemeData {
+  // Override only colors for print — sizes/fonts are already mm-based in the base theme
+  const blackWires = new Array(11).fill('#000000');
   return {
     ...baseTheme,
     canvasBg: '#ffffff',
     gridDotColor: 'rgba(0,0,0,0)',
     symbolStroke: '#000000',
-    symbolStrokeWidth: 2,
     symbolTextFill: '#000000',
     pinDotColor: '#333333',
-    pinDotRadius: 2,
     pinLabelColor: '#444444',
     tagColor: '#000000',
-    tagFont: 'bold 12px monospace',
     partLabelColor: '#333333',
-    wireWidth: 1.5,
-    wireColors: ['#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000','#000000'],
+    wireColors: blackWires,
     wireLabelBg: 'rgba(255,255,255,0.9)',
-    wireLabelFont: '8px monospace',
     wireEndpointColor: '#333333',
-    wireEndpointRadius: 2,
     annotationColor: '#000000',
     junctionFill: '#000000',
     ladderRailLabelColor: '#000000',
     ladderRailLineColor: '#000000',
     ladderVoltageColor: '#000000',
-    ladderRungGuideColor: 'rgba(0,0,0,0.15)',
+    ladderRungGuideColor: 'rgba(0,0,0,0)',
     ladderRungNumberColor: '#000000',
     ladderRungDescColor: '#333333',
     titleBlockBg: '#ffffff',
@@ -134,8 +131,10 @@ function renderSheetForPrint(
     circuit.sheets?.find(s => s.id === sheetId)?.size || 'Tabloid'
   ] || SHEET_SIZES['Tabloid'];
 
-  const pxWidth = Math.round(sheetSize.width * scaleFactor);
-  const pxHeight = Math.round(sheetSize.height * scaleFactor);
+  // Canvas size = mm * MM_TO_PX * scaleFactor
+  // renderCircuit internally applies: viewport.scale * MM_TO_PX as the canvas scale
+  const pxWidth = Math.round(sheetSize.width * MM_TO_PX * scaleFactor);
+  const pxHeight = Math.round(sheetSize.height * MM_TO_PX * scaleFactor);
 
   const canvas = document.createElement('canvas');
   canvas.width = pxWidth;

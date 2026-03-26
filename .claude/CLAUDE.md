@@ -76,17 +76,19 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 29 (2026-03-24) — No-connect flags, cross-refs, wire numbers, symbol editor resize, NEMA symbols, G/M drag keys, contact pin numbering, terminal hexagon fix, metric migration infrastructure, session skill consolidation
+**Last session:** 31 (2026-03-25) — Rung numbers on ladder diagrams, layout dropdown (single/dual/plain), print/PDF mm fixes, symbol preview stroke fixes, ANSI coil cleanup
 **Tests:** 154 E2E + 75 unit, 86 symbols
-**Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`.
+**Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
-### Next Up (Session 30)
+### Next Up (Session 32)
 
-1. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
-2. **Symbol proportion audit** — Convert all 86 symbols to mm using `SYMBOL_SIZES_MM` ratios. Terminal=10×10, Contact=10×20, Coil=10×10, CB=10×25.
-3. **Metric migration cleanup** — Fix remaining hardcoded px offsets in circuit-renderer.ts (annotation rendering, wire endpoints, theme constants). Test end-to-end with fresh project.
+1. **Auto wire numbering from rungs** — Wire numbers = rung number + L-to-R node index (e.g., 1031, 1032, 1033). Walk each rung left-to-right, count nodes.
+2. **Symbol audit** — Check all 86 symbols for rendering artifacts from mm conversion (spurious arcs, wrong stroke widths). Some symbols may still have issues like the ANSI coil did.
+3. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
 4. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries).
-5. **Print/PDF verification** — Test all paper sizes with new mm coordinates.
+5. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
+6. **Page thumbnails** — Sheet navigation with thumbnail previews (P2).
+7. **Continuous placement mode** — Hold Ctrl (or key) while placing symbols to keep placing same symbol on each click (AutoCAD-style). Release key to stop.
 
 ### P0 — Must Fix Before Launch
 

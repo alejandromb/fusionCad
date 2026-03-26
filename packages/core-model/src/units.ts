@@ -41,10 +41,10 @@ export const SHEET_SIZES_MM: Record<string, { width: number; height: number }> =
  * Default ladder diagram configuration in mm.
  */
 export const DEFAULT_LADDER_MM = {
-  railL1X: 25,        // Left rail X (mm)
-  railL2X: 225,       // Right rail X (mm) — 200mm ladder width
-  firstRungY: 25,     // First rung Y (mm)
-  rungSpacing: 30,    // Vertical spacing between rungs (mm) = 6M
+  railL1X: 20,        // Left rail X (mm) — leaves 15mm for rung numbers
+  railL2X: 395,       // Right rail X (mm) — 375mm ladder width, fills Tabloid page
+  firstRungY: 20,     // First rung Y (mm)
+  rungSpacing: 12.5,  // Vertical spacing between rungs (mm) = 5M
 };
 
 /**
@@ -63,6 +63,31 @@ export const SYMBOL_SIZES_MM = {
   pushButton:     { width: 10, height: 20 },    // 2M × 4M
   pilotLight:     { width: 10, height: 20 },    // 2M × 4M
   timer:          { width: 15, height: 10 },    // 3M × 2M (horizontal)
+};
+
+/**
+ * Sheet ladder layout presets.
+ * Single-column: one set of L1/L2 rails (standard).
+ * Dual-column: two sets of L1/L2 rails side by side (for dense control pages).
+ * Each preset defines the rail positions for a Tabloid (432×279mm) sheet.
+ * For other sheet sizes, scale railL2X proportionally.
+ */
+export type SheetLadderLayout = 'single-column' | 'dual-column' | 'no-rungs';
+
+export const LADDER_LAYOUT_PRESETS: Record<Exclude<SheetLadderLayout, 'no-rungs'>, {
+  columns: Array<{ railL1X: number; railL2X: number; blockOffsetX: number }>;
+}> = {
+  'single-column': {
+    columns: [
+      { railL1X: 20, railL2X: 395, blockOffsetX: 0 },
+    ],
+  },
+  'dual-column': {
+    columns: [
+      { railL1X: 15, railL2X: 195, blockOffsetX: 0 },
+      { railL1X: 15, railL2X: 195, blockOffsetX: 215 },
+    ],
+  },
 };
 
 /**

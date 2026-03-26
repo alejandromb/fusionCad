@@ -10,16 +10,22 @@ import { getAllSymbols, getSymbolCategories } from '@fusion-cad/core-model';
 import type { SymbolDefinition } from '@fusion-cad/core-model';
 import { SymbolPreview } from './SymbolPreview';
 
+// Categories to hide on schematic/ladder sheets (layout-only symbols)
+const LAYOUT_ONLY_CATEGORIES = new Set(['Panel']);
+
 interface InsertSymbolDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectSymbol: (symbolId: string, category: string) => void;
+  /** 'panel-layout' shows only Panel symbols, anything else hides them */
+  sheetContext?: 'schematic' | 'panel-layout';
 }
 
 export function InsertSymbolDialog({
   isOpen,
   onClose,
   onSelectSymbol,
+  sheetContext,
 }: InsertSymbolDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -28,9 +34,14 @@ export function InsertSymbolDialog({
   const allSymbols = useMemo(() => getAllSymbols(), []);
   const categories = useMemo(() => getSymbolCategories(), []);
 
-  // Filter symbols based on search and category
+  // Filter symbols based on search, category, and sheet context
   const filteredSymbols = useMemo(() => {
     let symbols = allSymbols;
+
+    // Sheet context filter: hide layout symbols on schematic sheets
+    if (sheetContext !== 'panel-layout') {
+      symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category));
+    }
 
     // Filter by category
     if (selectedCategory) {
@@ -48,7 +59,7 @@ export function InsertSymbolDialog({
     }
 
     return symbols;
-  }, [allSymbols, selectedCategory, searchQuery]);
+  }, [allSymbols, selectedCategory, searchQuery, sheetContext]);
 
   // Group symbols by category for display
   const symbolsByCategory = useMemo(() => {

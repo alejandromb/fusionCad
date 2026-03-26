@@ -13,7 +13,7 @@ export function renderPrimitiveToSVG(p: SymbolPrimitive, i: number): JSX.Element
   const themeStroke = getTheme().symbolStroke;
   const stroke = ('stroke' in p && p.stroke) || themeStroke;
   const fill = ('fill' in p && p.fill) || 'none';
-  const sw = ('strokeWidth' in p && p.strokeWidth) || 2;
+  const sw = ('strokeWidth' in p && p.strokeWidth) || 0.5;
   const dash = ('strokeDash' in p && p.strokeDash) ? p.strokeDash.join(' ') : undefined;
 
   switch (p.type) {
@@ -77,7 +77,7 @@ export function SymbolPreview({ symbol, strokeColor }: { symbol: SymbolDefinitio
             d={path.d}
             fill={path.fill ? symStroke : 'none'}
             stroke={symStroke}
-            strokeWidth={path.strokeWidth || 2}
+            strokeWidth={path.strokeWidth || 0.5}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -88,7 +88,7 @@ export function SymbolPreview({ symbol, strokeColor }: { symbol: SymbolDefinitio
           key={pin.id}
           cx={pin.position.x}
           cy={pin.position.y}
-          r={2}
+          r={0.5}
           fill={symStroke}
         />
       ))}

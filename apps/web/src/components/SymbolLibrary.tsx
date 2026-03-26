@@ -313,7 +313,7 @@ function renderPrimitivesToCanvas(
   for (const p of primitives) {
     const strokeColor = ('stroke' in p && p.stroke) || t.symbolStroke;
     const fillColor = ('fill' in p && p.fill) || 'none';
-    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 2;
+    const lineWidth = ('strokeWidth' in p && p.strokeWidth) || 0.5;
 
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor !== 'none' ? fillColor : t.symbolStroke;

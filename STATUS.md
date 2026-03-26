@@ -141,6 +141,33 @@ This file is now a session log archive only.
 
 ---
 
+## Session 31 — 2026-03-25: Rung Numbers, Layout Toggle, Print/PDF Fixes
+
+**Duration**: ~3 hours
+**Focus**: Visible rung numbering on ladder diagrams, per-sheet layout control, print/export mm migration fixes
+
+### Completed
+- Rung numbers render on ladder sheets even with no devices (rungCount config, default 18)
+- New projects auto-create Sheet 1 with a ladder block
+- Fixed render order: title block was painting over ladder overlay
+- Full-page ladder layout (L1=20mm, L2=395mm fills Tabloid)
+- Layout dropdown in sidebar: "Ladder (1 col)", "Ladder (2 col)", "Plain"
+- Simplified ladder overlay to just rung numbers + guide lines (no rail lines/labels)
+- Fixed print/PDF canvas sizing for mm coordinates (MM_TO_PX factor was missing)
+- Print theme now only overrides colors, inherits mm-based sizes from screen theme
+- Removed dashed guide lines from print output
+- Fixed symbol preview stroke widths (2→0.5 for mm-based symbols)
+- Fixed ANSI coil symbol (removed spurious arcs inside circle)
+
+### Key Decisions
+- Ladder overlay = just rung numbers, no vertical rail lines (user preference — rails aren't real wires)
+- Print theme inherits sizes from base theme, only overrides colors (avoids px/mm mismatch)
+- Layout is a smart block object per sheet, not a simple flag (supports future wiring integration)
+
+**Tests**: 154 E2E + 75 unit, 86 symbols
+
+---
+
 ## Session 26 — 2026-03-20: Multi-Select Copy/Paste, Alignment, Ghost Paste, Rung Enumeration
 
 **Duration**: Full session

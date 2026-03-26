@@ -575,7 +575,7 @@ function drawGenericSymbol(
   ctx.font = t.tagFont;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(tag, x + 2, y + 2);
+  ctx.fillText(tag, x + 0.5, y + 0.5);
 }
 
 // ---------------------------------------------------------------------------
@@ -610,21 +610,21 @@ function drawPins(
     switch (pin.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pinLabel, pinX - 2, pinY);
+        ctx.fillText(pinLabel, pinX - 0.5, pinY);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pinLabel, pinX + 2, pinY);
+        ctx.fillText(pinLabel, pinX + 0.5, pinY);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pinLabel, pinX, pinY - 2);
+        ctx.fillText(pinLabel, pinX, pinY - 0.5);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pinLabel, pinX, pinY + 2);
+        ctx.fillText(pinLabel, pinX, pinY + 0.5);
         break;
     }
 
@@ -651,11 +651,11 @@ function drawTag(
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y + height + 15);
+    ctx.fillText(tag, x + width / 2, y + height + 3.75);
     if (partLabel) {
       ctx.fillStyle = t.partLabelColor;
       ctx.font = t.partLabelFont;
-      ctx.fillText(partLabel, x + width / 2, y + height + 27);
+      ctx.fillText(partLabel, x + width / 2, y + height + 6.75);
     }
   } else {
     // Tag above the symbol
@@ -663,14 +663,14 @@ function drawTag(
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y - 3);
+    ctx.fillText(tag, x + width / 2, y - 0.75);
     // Part label below the symbol
     if (partLabel) {
       ctx.fillStyle = t.partLabelColor;
       ctx.font = t.partLabelFont;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(partLabel, x + width / 2, y + height + 3);
+      ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
     }
   }
 }
@@ -698,10 +698,10 @@ export function drawSymbol(
   if (!def.geometry) {
     // Symbol missing geometry — draw placeholder
     ctx.fillStyle = '#ff0000';
-    ctx.fillRect(x, y, 40, 40);
+    ctx.fillRect(x, y, 10, 10);
     ctx.fillStyle = '#ffffff';
     ctx.font = '2px monospace';
-    ctx.fillText(tag || '?', x + 2, y + 20);
+    ctx.fillText(tag || '?', x + 0.5, y + 5);
     return;
   }
 

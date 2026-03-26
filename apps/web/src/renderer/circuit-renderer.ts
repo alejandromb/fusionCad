@@ -8,7 +8,7 @@ import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBl
 import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
-import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers } from '@fusion-cad/core-engine';
+import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
 import { renderTitleBlock } from './title-block';
@@ -769,7 +769,7 @@ export function renderCircuit(
     ctx.fillStyle = t.gridDotColor;
     for (let gx = startX; gx < endX; gx += gridSize) {
       for (let gy = startY; gy < endY; gy += gridSize) {
-        ctx.fillRect(gx - 0.5, gy - 0.5, 1, 1);
+        ctx.fillRect(gx - 0.125, gy - 0.125, 0.25, 0.25);
       }
     }
   }
@@ -778,13 +778,16 @@ export function renderCircuit(
   const deviceTransforms = options?.deviceTransforms;
   const persistedTransforms = circuit.transforms;
 
-  // Render ladder overlays from blocks on this sheet
   const activeSheet = circuit.sheets?.find(s => s.id === activeSheetId);
   const sheetBlocks = (circuit.blocks || []).filter(b => b.sheetId === activeSheetId);
-
-
   const sheetNum = activeSheet?.number ?? 1;
 
+  // Render title block FIRST (sheet background + border) so ladder overlay draws on top
+  if (activeSheet) {
+    renderTitleBlock(ctx, activeSheet);
+  }
+
+  // Render ladder overlays from blocks on this sheet
   for (const block of sheetBlocks) {
     if (block.blockType === 'ladder') {
       const ladderBlock = block as LadderBlock;
@@ -798,11 +801,6 @@ export function renderCircuit(
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
     const fallbackConfig = activeSheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
     renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart, sheetNum);
-  }
-
-  // Render title block (sheet border + title block in bottom-right)
-  if (activeSheet) {
-    renderTitleBlock(ctx, activeSheet);
   }
 
   /** Resolve the effective transform for a device (runtime overrides persisted) */
@@ -843,13 +841,13 @@ export function renderCircuit(
         ctx.fillStyle = t.tagColor;
         ctx.font = 'bold 2.75px monospace';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(voltageLabel, centerX, position.y - 2);
+        ctx.fillText(voltageLabel, centerX, position.y - 0.5);
 
         if (crossRef) {
           ctx.fillStyle = t.annotationColor;
           ctx.font = '2.25px monospace';
           ctx.textBaseline = 'top';
-          ctx.fillText(crossRef, centerX, position.y + geometry.height + 14);
+          ctx.fillText(crossRef, centerX, position.y + geometry.height + 3.5);
         }
       } else {
         // Destination: cross-ref above pin, voltage label BELOW the triangle
@@ -857,13 +855,13 @@ export function renderCircuit(
           ctx.fillStyle = t.annotationColor;
           ctx.font = '2.25px monospace';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(crossRef, centerX, position.y - 14);
+          ctx.fillText(crossRef, centerX, position.y - 3.5);
         }
 
         ctx.fillStyle = t.tagColor;
         ctx.font = 'bold 2.75px monospace';
         ctx.textBaseline = 'top';
-        ctx.fillText(voltageLabel, centerX, position.y + geometry.height + 2);
+        ctx.fillText(voltageLabel, centerX, position.y + geometry.height + 0.5);
       }
 
       ctx.restore();
@@ -879,8 +877,8 @@ export function renderCircuit(
         ctx.fillStyle = t.annotationColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        // Render above the device tag (tag is at y-3, so function goes at y-18)
-        ctx.fillText(fn, position.x + geometry.width / 2, position.y - 18);
+        // Render above the device tag (tag is at y-0.75, so function goes at y-4.5)
+        ctx.fillText(fn, position.x + geometry.width / 2, position.y - 4.5);
         ctx.restore();
       }
     }
@@ -897,7 +895,7 @@ export function renderCircuit(
 
     if (crossRefs.length > 0) {
       ctx.save();
-      ctx.font = 'bold 9px monospace';
+      ctx.font = 'bold 2.25px monospace';
       ctx.fillStyle = t.annotationColor;
       ctx.textBaseline = 'top';
 
@@ -912,8 +910,8 @@ export function renderCircuit(
         const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
         // Place cross-ref text to the right of the device, slightly below center
-        const xRefX = position.x + geometry.width + 4;
-        const xRefY = position.y + geometry.height / 2 + 2;
+        const xRefX = position.x + geometry.width + 1;
+        const xRefY = position.y + geometry.height / 2 + 0.5;
 
         ctx.textAlign = 'left';
         ctx.fillText(refText, xRefX, xRefY);
@@ -1003,6 +1001,13 @@ export function renderCircuit(
 
   // Auto-compute wire numbers for connections that don't have them
   const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
+
+  // Resolve ladder config for display number computation
+  const ladderBlock = sheetBlocks.find(b => b.blockType === 'ladder') as LadderBlock | undefined;
+  const ladderConfig = ladderBlock?.ladderConfig ?? activeSheet?.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+
+  // Sort rungs and compute display numbers based on numbering scheme
+  const sortedRungs = [...sheetRungs].sort((a, b) => a.number - b.number);
   const wireAssignments = autoAssignWireNumbers(
     connections.map(c => ({
       fromDevice: c.fromDevice,
@@ -1016,7 +1021,12 @@ export function renderCircuit(
       wireNumber: c.wireNumber,
     })),
     circuit.nets,
-    sheetRungs.map(r => ({ number: r.number, sheetId: r.sheetId, deviceIds: r.deviceIds })),
+    sortedRungs.map((r, i) => ({
+      number: r.number,
+      displayNumber: computeRungDisplayNumber(i, r.number, sheetNum, ladderConfig),
+      sheetId: r.sheetId,
+      deviceIds: r.deviceIds,
+    })),
     activeSheetId,
   );
   const autoWireNumbers = new Map<number, string>();
@@ -1202,30 +1212,30 @@ export function renderCircuit(
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       const fromMetrics = ctx.measureText(fromLabel);
       ctx.fillRect(
-        metadata.fromX - fromMetrics.width / 2 - 2,
-        metadata.fromY - 18,
-        fromMetrics.width + 4,
-        12
+        metadata.fromX - fromMetrics.width / 2 - 0.5,
+        metadata.fromY - 4.5,
+        fromMetrics.width + 1,
+        3
       );
       ctx.fillStyle = labelColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(fromLabel, metadata.fromX, metadata.fromY - 6);
+      ctx.fillText(fromLabel, metadata.fromX, metadata.fromY - 1.5);
 
       // To endpoint
       const toLabel = `${metadata.conn.toDevice}:${metadata.conn.toPin}`;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       const toMetrics = ctx.measureText(toLabel);
       ctx.fillRect(
-        metadata.toX - toMetrics.width / 2 - 2,
-        metadata.toY + 6,
-        toMetrics.width + 4,
-        12
+        metadata.toX - toMetrics.width / 2 - 0.5,
+        metadata.toY + 1.5,
+        toMetrics.width + 1,
+        3
       );
       ctx.fillStyle = labelColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(toLabel, metadata.toX, metadata.toY + 6);
+      ctx.fillText(toLabel, metadata.toX, metadata.toY + 1.5);
 
       // Net name near wire midpoint
       const netLabel = `(${netName})`;
@@ -1234,11 +1244,11 @@ export function renderCircuit(
       const midX = (metadata.fromX + metadata.toX) / 2;
       const midY = (metadata.fromY + metadata.toY) / 2;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(midX - netMetrics.width / 2 - 2, midY + 8, netMetrics.width + 4, 12);
+      ctx.fillRect(midX - netMetrics.width / 2 - 0.5, midY + 2, netMetrics.width + 1, 3);
       ctx.fillStyle = labelColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(netLabel, midX, midY + 8);
+      ctx.fillText(netLabel, midX, midY + 2);
 
       ctx.restore();
     }
@@ -1447,12 +1457,12 @@ export function renderCircuit(
         const textHeight = fontSize * 1.2;
         ctx.strokeStyle = t.annotationSelectionColor;
         ctx.lineWidth = t.selectionWidth;
-        ctx.setLineDash([6, 3]);
+        ctx.setLineDash(t.selectionDash);
         ctx.strokeRect(
-          annotation.position.x - 3,
-          annotation.position.y - 3,
-          textWidth + 6,
-          textHeight + 6
+          annotation.position.x - 0.75,
+          annotation.position.y - 0.75,
+          textWidth + 1.5,
+          textHeight + 1.5
         );
         ctx.setLineDash([]);
       }

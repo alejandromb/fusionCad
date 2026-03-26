@@ -37,6 +37,8 @@ export const DEFAULT_LADDER_CONFIG: LadderConfig = {
   rungSpacing: DEFAULT_LADDER_MM.rungSpacing,
   railLabelL1: 'L1',
   railLabelL2: 'L2',
+  numberingScheme: 'page-based',
+  rungCount: 18,
 };
 
 /**

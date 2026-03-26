@@ -5,7 +5,7 @@
  * that operate on CircuitData without React dependencies.
  */
 
-import { generateId, getSymbolById, resolveSymbol, GRID_MM, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, GRID_MM, LADDER_LAYOUT_PRESETS, DEFAULT_LADDER_MM, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock, type SheetLadderLayout } from '@fusion-cad/core-model';
 import { layoutLadder, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from './api-client.js';
 
@@ -655,6 +655,61 @@ export function createLadderBlock(
 
   const blocks: AnyDiagramBlock[] = [...(circuit.blocks || []), block];
   return { circuit: { ...circuit, blocks }, blockId };
+}
+
+/**
+ * Set up a sheet with a ladder layout preset.
+ * 'single-column': one set of L1/L2 rails.
+ * 'dual-column': two sets of L1/L2 rails side by side.
+ * 'no-rungs': removes all ladder blocks from the sheet.
+ *
+ * Deletes existing ladder blocks on the sheet first, then creates new ones.
+ */
+export function setupSheetLayout(
+  circuit: CircuitData,
+  sheetId: string,
+  layout: 'single-column' | 'dual-column' | 'no-rungs',
+  options?: {
+    voltage?: string;
+    numberingScheme?: 'sequential' | 'page-based' | 'page-tens';
+    rungSpacing?: number;
+  },
+): { circuit: CircuitData; blockIds: string[] } {
+  // Remove existing ladder blocks on this sheet
+  let cd = circuit;
+  const existingBlocks = (cd.blocks || []).filter(b => b.sheetId === sheetId && b.blockType === 'ladder');
+  for (const block of existingBlocks) {
+    cd = deleteBlock(cd, block.id);
+  }
+
+  if (layout === 'no-rungs') {
+    return { circuit: cd, blockIds: [] };
+  }
+
+  const preset = LADDER_LAYOUT_PRESETS[layout];
+  const blockIds: string[] = [];
+  const scheme = options?.numberingScheme ?? 'page-based';
+  const spacing = options?.rungSpacing ?? DEFAULT_LADDER_MM.rungSpacing;
+
+  for (let col = 0; col < preset.columns.length; col++) {
+    const colDef = preset.columns[col];
+    const suffix = preset.columns.length > 1 ? ` (Col ${col + 1})` : '';
+    const sheet = (cd.sheets || []).find(s => s.id === sheetId);
+
+    const result = createLadderBlock(cd, sheetId, {
+      railL1X: colDef.railL1X,
+      railL2X: colDef.railL2X,
+      firstRungY: DEFAULT_LADDER_MM.firstRungY,
+      rungSpacing: spacing,
+      voltage: options?.voltage,
+      numberingScheme: scheme,
+    }, { x: colDef.blockOffsetX, y: 0 }, `${sheet?.name ?? 'Sheet'} Ladder${suffix}`);
+
+    cd = result.circuit;
+    blockIds.push(result.blockId);
+  }
+
+  return { circuit: cd, blockIds };
 }
 
 /**

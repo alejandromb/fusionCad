@@ -3,7 +3,8 @@
  */
 
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { generateId, getSymbolById, resolveSymbol, type Device, type Sheet, type Annotation, type Part } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, type Device, type Sheet, type Annotation, type Part, type LadderBlock, type AnyDiagramBlock, LADDER_LAYOUT_PRESETS, DEFAULT_LADDER_MM, type SheetLadderLayout } from '@fusion-cad/core-model';
+import { DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { Point, DeviceTransform } from '../renderer/types';
 import { getSymbolGeometry } from '../renderer/symbols';
@@ -29,6 +30,8 @@ export interface UseCircuitStateReturn {
   renameSheet: (sheetId: string, newName: string) => void;
   deleteSheet: (sheetId: string) => void;
   updateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
+  setSheetLayout: (sheetId: string, layout: 'single-column' | 'dual-column' | 'no-rungs') => void;
+  getSheetLayout: (sheetId: string) => 'single-column' | 'dual-column' | 'no-rungs';
 
   // History
   history: HistorySnapshot[];
@@ -287,6 +290,63 @@ export function useCircuitState(
             : s
         ),
       };
+    });
+  }, [setCircuit]);
+
+  const getSheetLayout = useCallback((sheetId: string): SheetLadderLayout => {
+    if (!circuit) return 'no-rungs';
+    const blocks = (circuit.blocks || []).filter(b => b.sheetId === sheetId && b.blockType === 'ladder');
+    if (blocks.length === 0) return 'no-rungs';
+    if (blocks.length >= 2) return 'dual-column';
+    return 'single-column';
+  }, [circuit]);
+
+  const setSheetLayout = useCallback((sheetId: string, layout: SheetLadderLayout) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const now = Date.now();
+      // Remove existing ladder blocks for this sheet
+      const otherBlocks = (prev.blocks || []).filter(
+        b => !(b.sheetId === sheetId && b.blockType === 'ladder')
+      );
+
+      if (layout === 'no-rungs') {
+        // Also update sheet diagramType
+        const sheets = (prev.sheets || []).map(s =>
+          s.id === sheetId ? { ...s, diagramType: undefined as any, modifiedAt: now } : s
+        );
+        return { ...prev, blocks: otherBlocks, sheets };
+      }
+
+      // Update sheet diagramType to 'ladder'
+      const sheets = (prev.sheets || []).map(s =>
+        s.id === sheetId ? { ...s, diagramType: 'ladder' as const, modifiedAt: now } : s
+      );
+
+      const preset = LADDER_LAYOUT_PRESETS[layout];
+      const sheet = (prev.sheets || []).find(s => s.id === sheetId);
+      const sheetName = sheet?.name ?? 'Sheet';
+
+      const newBlocks: AnyDiagramBlock[] = preset.columns.map((col, idx) => {
+        const suffix = preset.columns.length > 1 ? ` (Col ${idx + 1})` : '';
+        return {
+          id: generateId(),
+          type: 'block' as const,
+          blockType: 'ladder' as const,
+          sheetId,
+          name: `${sheetName} Ladder${suffix}`,
+          position: { x: col.blockOffsetX, y: 0 },
+          ladderConfig: {
+            ...DEFAULT_LADDER_CONFIG,
+            railL1X: col.railL1X,
+            railL2X: col.railL2X,
+          },
+          createdAt: now,
+          modifiedAt: now,
+        } as LadderBlock;
+      });
+
+      return { ...prev, blocks: [...otherBlocks, ...newBlocks], sheets };
     });
   }, [setCircuit]);
 
@@ -1202,6 +1262,8 @@ export function useCircuitState(
     renameSheet,
     deleteSheet,
     updateSheet,
+    setSheetLayout,
+    getSheetLayout,
     history,
     historyIndex,
     pushToHistory,

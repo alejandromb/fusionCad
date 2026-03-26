@@ -16,17 +16,16 @@
 import type { SymbolDefinition, SymbolPin, SymbolPrimitive, PinType, PinDirection } from '../types.js';
 
 // ---------------------------------------------------------------------------
-// Constants for industrial-convention PLC symbols
+// Constants for industrial-convention PLC symbols (all values in mm)
 // ---------------------------------------------------------------------------
 
-// All dimensions at 1.5x scale for Tabloid (11x17) paper
-const WIDTH = 150;
-const BODY_INSET = 22;           // body rect starts at x=22
-const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // 106px
-const HEADER_HEIGHT = 80;        // space for module type text at top (grid-aligned)
-const FOOTER_HEIGHT = 30;        // bottom padding
-const DIGITAL_PIN_SPACING = 60;  // px between digital pins (fits 8ch on tabloid)
-const ANALOG_PIN_SPACING = 45;   // px between analog pins
+const WIDTH = 37.5;              // 150px / 4
+const BODY_INSET = 5.5;          // body rect starts at x=5.5mm
+const BODY_WIDTH = WIDTH - 2 * BODY_INSET; // ~26.5mm
+const HEADER_HEIGHT = 20;        // space for module type text at top (mm)
+const FOOTER_HEIGHT = 7.5;       // bottom padding (mm)
+const DIGITAL_PIN_SPACING = 15;  // mm between digital pins
+const ANALOG_PIN_SPACING = 11.25; // mm between analog pins
 
 // ---------------------------------------------------------------------------
 // PLC Digital I/O Generator (DI-N, DO-N)
@@ -95,19 +94,19 @@ export function generatePLCDigitalSymbol(type: PLCDigitalType, channels: number)
   // Body rectangle
   primitives.push({
     type: 'rect',
-    x: BODY_INSET, y: 5,
-    width: BODY_WIDTH, height: height - 10,
+    x: BODY_INSET, y: 1.25,
+    width: BODY_WIDTH, height: height - 2.5,
   });
 
   // Header labels (module type + channel count)
   const centerX = WIDTH / 2;
   primitives.push({
-    type: 'text', x: centerX, y: 20,
-    content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle',
+    type: 'text', x: centerX, y: 5,
+    content: type, fontSize: 3.5, fontWeight: 'bold', textAnchor: 'middle',
   });
   primitives.push({
-    type: 'text', x: centerX, y: 36,
-    content: `${channels}-Ch`, fontSize: 10, fontWeight: 'normal', textAnchor: 'middle',
+    type: 'text', x: centerX, y: 9,
+    content: `${channels}-Ch`, fontSize: 2.5, fontWeight: 'normal', textAnchor: 'middle',
   });
 
   // Pin stubs + terminal number + channel label inside body
@@ -124,19 +123,19 @@ export function generatePLCDigitalSymbol(type: PLCDigitalType, channels: number)
     }
 
     // Terminal number (near the pin side, inside body)
-    const termX = isInput ? BODY_INSET + 4 : WIDTH - BODY_INSET - 4;
+    const termX = isInput ? BODY_INSET + 1 : WIDTH - BODY_INSET - 1;
     const termAnchor = isInput ? 'start' : 'end';
     primitives.push({
       type: 'text', x: termX, y: py,
-      content: `${termNum}`, fontSize: 8, fontWeight: 'normal', textAnchor: termAnchor,
+      content: `${termNum}`, fontSize: 2, fontWeight: 'normal', textAnchor: termAnchor,
     });
 
     // Channel label (center-ish, inside body)
-    const labelX = isInput ? WIDTH - BODY_INSET - 4 : BODY_INSET + 4;
+    const labelX = isInput ? WIDTH - BODY_INSET - 1 : BODY_INSET + 1;
     const labelAnchor = isInput ? 'end' : 'start';
     primitives.push({
       type: 'text', x: labelX, y: py,
-      content: pin.name, fontSize: 8, fontWeight: 'normal', textAnchor: labelAnchor,
+      content: pin.name, fontSize: 2, fontWeight: 'normal', textAnchor: labelAnchor,
     });
   }
 
@@ -213,19 +212,19 @@ export function generatePLCAnalogSymbol(type: PLCAnalogType, channels: number): 
   // Body rectangle
   primitives.push({
     type: 'rect',
-    x: BODY_INSET, y: 5,
-    width: BODY_WIDTH, height: height - 10,
+    x: BODY_INSET, y: 1.25,
+    width: BODY_WIDTH, height: height - 2.5,
   });
 
   // Header labels
   const centerX = WIDTH / 2;
   primitives.push({
-    type: 'text', x: centerX, y: 20,
-    content: type, fontSize: 14, fontWeight: 'bold', textAnchor: 'middle',
+    type: 'text', x: centerX, y: 5,
+    content: type, fontSize: 3.5, fontWeight: 'bold', textAnchor: 'middle',
   });
   primitives.push({
-    type: 'text', x: centerX, y: 36,
-    content: `${channels}-Ch`, fontSize: 10, fontWeight: 'normal', textAnchor: 'middle',
+    type: 'text', x: centerX, y: 9,
+    content: `${channels}-Ch`, fontSize: 2.5, fontWeight: 'normal', textAnchor: 'middle',
   });
 
   // Pin stubs + terminal number + channel label inside body
@@ -242,19 +241,19 @@ export function generatePLCAnalogSymbol(type: PLCAnalogType, channels: number): 
     }
 
     // Terminal number (near the pin side, inside body)
-    const termX = isInput ? BODY_INSET + 4 : WIDTH - BODY_INSET - 4;
+    const termX = isInput ? BODY_INSET + 1 : WIDTH - BODY_INSET - 1;
     const termAnchor = isInput ? 'start' : 'end';
     primitives.push({
       type: 'text', x: termX, y: py,
-      content: `${termNum}`, fontSize: 8, fontWeight: 'normal', textAnchor: termAnchor,
+      content: `${termNum}`, fontSize: 2, fontWeight: 'normal', textAnchor: termAnchor,
     });
 
     // Channel label (opposite side, inside body)
-    const labelX = isInput ? WIDTH - BODY_INSET - 4 : BODY_INSET + 4;
+    const labelX = isInput ? WIDTH - BODY_INSET - 1 : BODY_INSET + 1;
     const labelAnchor = isInput ? 'end' : 'start';
     primitives.push({
       type: 'text', x: labelX, y: py,
-      content: pin.name, fontSize: 8, fontWeight: 'normal', textAnchor: labelAnchor,
+      content: pin.name, fontSize: 2, fontWeight: 'normal', textAnchor: labelAnchor,
     });
   }
 
@@ -305,12 +304,12 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
   const config = MICRO800_MODELS[modelKey.toLowerCase()];
   if (!config) return null;
 
-  // Micro800 at 1.5x scale for Tabloid
-  const PIN_SPACING = 38;
-  const BODY_X = 30;
-  const BODY_R = 195;   // body right edge
-  const TOTAL_W = 225;
-  const HEADER_H = 90;
+  // Micro800 — all dimensions in mm
+  const PIN_SPACING = 9.5;
+  const BODY_X = 7.5;
+  const BODY_R = 48.75;   // body right edge
+  const TOTAL_W = 56.25;
+  const HEADER_H = 22.5;
 
   // Calculate left side pin count (DI + AI + COM pins)
   const diComCount = Math.ceil(config.diCount / 8);
@@ -328,20 +327,20 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
   const primitives: SymbolPrimitive[] = [];
 
   // Body rectangle
-  primitives.push({ type: 'rect', x: BODY_X, y: 5, width: BODY_R - BODY_X, height: bodyBottom - 5 });
+  primitives.push({ type: 'rect', x: BODY_X, y: 1.25, width: BODY_R - BODY_X, height: bodyBottom - 1.25 });
 
   // Header text
   const centerX = TOTAL_W / 2;
-  primitives.push({ type: 'text', x: centerX, y: 18, content: config.model, fontSize: 12, fontWeight: 'bold', textAnchor: 'middle' });
+  primitives.push({ type: 'text', x: centerX, y: 4.5, content: config.model, fontSize: 3, fontWeight: 'bold', textAnchor: 'middle' });
   if (config.catalogNumber) {
-    primitives.push({ type: 'text', x: centerX, y: 32, content: config.catalogNumber, fontSize: 8, textAnchor: 'middle' });
+    primitives.push({ type: 'text', x: centerX, y: 8, content: config.catalogNumber, fontSize: 2, textAnchor: 'middle' });
   }
   // Separator line under header
-  primitives.push({ type: 'line', x1: BODY_X, y1: 40, x2: BODY_R, y2: 40 });
+  primitives.push({ type: 'line', x1: BODY_X, y1: 10, x2: BODY_R, y2: 10 });
 
   // Section labels
-  primitives.push({ type: 'text', x: BODY_X + 5, y: 53, content: 'INPUTS', fontSize: 7, fontWeight: 'bold', textAnchor: 'start' });
-  primitives.push({ type: 'text', x: BODY_R - 5, y: 53, content: 'OUTPUTS', fontSize: 7, fontWeight: 'bold', textAnchor: 'end' });
+  primitives.push({ type: 'text', x: BODY_X + 1.25, y: 13.25, content: 'INPUTS', fontSize: 1.75, fontWeight: 'bold', textAnchor: 'start' });
+  primitives.push({ type: 'text', x: BODY_R - 1.25, y: 13.25, content: 'OUTPUTS', fontSize: 1.75, fontWeight: 'bold', textAnchor: 'end' });
 
   // --- Left side: DI pins with COM groups ---
   let leftY = HEADER_H;
@@ -352,14 +351,14 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
       const comId = diComCount === 1 ? 'DC_COM' : `DC_COM${diGroup}`;
       pins.push({ id: comId, name: comId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'power' });
       primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
-      primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: comId, fontSize: 7, textAnchor: 'start' });
+      primitives.push({ type: 'text', x: BODY_X + 0.75, y: leftY, content: comId, fontSize: 1.75, textAnchor: 'start' });
       leftY += PIN_SPACING;
       diGroup++;
     }
     const pinId = `DI${i}`;
     pins.push({ id: pinId, name: pinId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'input' });
     primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
-    primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: pinId, fontSize: 7, textAnchor: 'start' });
+    primitives.push({ type: 'text', x: BODY_X + 0.75, y: leftY, content: pinId, fontSize: 1.75, textAnchor: 'start' });
     leftY += PIN_SPACING;
   }
   // Final DI COM
@@ -367,18 +366,18 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
   if (!pins.find(p => p.id === lastDiCom)) {
     pins.push({ id: lastDiCom, name: lastDiCom, position: { x: 0, y: leftY }, direction: 'left', pinType: 'power' });
     primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
-    primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: lastDiCom, fontSize: 7, textAnchor: 'start' });
+    primitives.push({ type: 'text', x: BODY_X + 0.75, y: leftY, content: lastDiCom, fontSize: 1.75, textAnchor: 'start' });
     leftY += PIN_SPACING;
   }
 
   // Embedded AI pins
   if (config.aiCount) {
-    primitives.push({ type: 'line', x1: BODY_X + 5, y1: leftY - 8, x2: centerX - 10, y2: leftY - 8, strokeDash: [2, 2] });
+    primitives.push({ type: 'line', x1: BODY_X + 1.25, y1: leftY - 2, x2: centerX - 2.5, y2: leftY - 2, strokeDash: [0.5, 0.5] });
     for (let i = 0; i < config.aiCount; i++) {
       const pinId = `AI${i}`;
       pins.push({ id: pinId, name: pinId, position: { x: 0, y: leftY }, direction: 'left', pinType: 'input' });
       primitives.push({ type: 'line', x1: 0, y1: leftY, x2: BODY_X, y2: leftY });
-      primitives.push({ type: 'text', x: BODY_X + 3, y: leftY, content: pinId, fontSize: 7, textAnchor: 'start' });
+      primitives.push({ type: 'text', x: BODY_X + 0.75, y: leftY, content: pinId, fontSize: 1.75, textAnchor: 'start' });
       leftY += PIN_SPACING;
     }
   }
@@ -391,14 +390,14 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
       const comId = doComCount === 1 ? 'DO_COM' : `DO_COM${doGroup}`;
       pins.push({ id: comId, name: comId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'power' });
       primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
-      primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: comId, fontSize: 7, textAnchor: 'end' });
+      primitives.push({ type: 'text', x: BODY_R - 0.75, y: rightY, content: comId, fontSize: 1.75, textAnchor: 'end' });
       rightY += PIN_SPACING;
       doGroup++;
     }
     const pinId = `DO${i}`;
     pins.push({ id: pinId, name: pinId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'output' });
     primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
-    primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: pinId, fontSize: 7, textAnchor: 'end' });
+    primitives.push({ type: 'text', x: BODY_R - 0.75, y: rightY, content: pinId, fontSize: 1.75, textAnchor: 'end' });
     rightY += PIN_SPACING;
   }
   // Final DO COM
@@ -406,18 +405,18 @@ export function generateMicro800Symbol(modelKey: string): SymbolDefinition | nul
   if (!pins.find(p => p.id === lastDoCom)) {
     pins.push({ id: lastDoCom, name: lastDoCom, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'power' });
     primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
-    primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: lastDoCom, fontSize: 7, textAnchor: 'end' });
+    primitives.push({ type: 'text', x: BODY_R - 0.75, y: rightY, content: lastDoCom, fontSize: 1.75, textAnchor: 'end' });
     rightY += PIN_SPACING;
   }
 
   // Embedded AO pins
   if (config.aoCount) {
-    primitives.push({ type: 'line', x1: centerX + 10, y1: rightY - 8, x2: BODY_R - 5, y2: rightY - 8, strokeDash: [2, 2] });
+    primitives.push({ type: 'line', x1: centerX + 2.5, y1: rightY - 2, x2: BODY_R - 1.25, y2: rightY - 2, strokeDash: [0.5, 0.5] });
     for (let i = 0; i < config.aoCount; i++) {
       const pinId = `AO${i}`;
       pins.push({ id: pinId, name: pinId, position: { x: TOTAL_W, y: rightY }, direction: 'right', pinType: 'output' });
       primitives.push({ type: 'line', x1: BODY_R, y1: rightY, x2: TOTAL_W, y2: rightY });
-      primitives.push({ type: 'text', x: BODY_R - 3, y: rightY, content: pinId, fontSize: 7, textAnchor: 'end' });
+      primitives.push({ type: 'text', x: BODY_R - 0.75, y: rightY, content: pinId, fontSize: 1.75, textAnchor: 'end' });
       rightY += PIN_SPACING;
     }
   }
@@ -502,28 +501,28 @@ export function generateSmartFallback(category: string): SymbolDefinition {
     .replace(/\b\w/g, c => c.toUpperCase())
     .substring(0, 12); // truncate long labels
 
-  const width = 50;
-  const height = 50;
+  const width = 12.5;  // 50px / 4
+  const height = 12.5;
 
   const pins: SymbolPin[] = [
-    { id: '1', name: '1', position: { x: 0, y: 15 }, direction: 'left', pinType: 'passive' },
-    { id: '2', name: '2', position: { x: 0, y: 35 }, direction: 'left', pinType: 'passive' },
-    { id: '3', name: '3', position: { x: width, y: 15 }, direction: 'right', pinType: 'passive' },
-    { id: '4', name: '4', position: { x: width, y: 35 }, direction: 'right', pinType: 'passive' },
+    { id: '1', name: '1', position: { x: 0, y: 3.75 }, direction: 'left', pinType: 'passive' },
+    { id: '2', name: '2', position: { x: 0, y: 8.75 }, direction: 'left', pinType: 'passive' },
+    { id: '3', name: '3', position: { x: width, y: 3.75 }, direction: 'right', pinType: 'passive' },
+    { id: '4', name: '4', position: { x: width, y: 8.75 }, direction: 'right', pinType: 'passive' },
   ];
 
   const primitives: SymbolPrimitive[] = [
     // Body with dashed outline to signal "placeholder"
-    { type: 'rect', x: 5, y: 2, width: width - 10, height: height - 4, strokeDash: [4, 3] },
+    { type: 'rect', x: 1.25, y: 0.5, width: width - 2.5, height: height - 1, strokeDash: [1, 0.75] },
     // Category label
-    { type: 'text', x: width / 2, y: 18, content: label, fontSize: 8, fontWeight: 'normal', textAnchor: 'middle' },
+    { type: 'text', x: width / 2, y: 4.5, content: label, fontSize: 2, fontWeight: 'normal', textAnchor: 'middle' },
     // "?" indicator
-    { type: 'text', x: width / 2, y: 36, content: '?', fontSize: 16, fontWeight: 'bold', textAnchor: 'middle' },
+    { type: 'text', x: width / 2, y: 9, content: '?', fontSize: 4, fontWeight: 'bold', textAnchor: 'middle' },
     // Pin stubs
-    { type: 'line', x1: 0, y1: 15, x2: 5, y2: 15 },
-    { type: 'line', x1: 0, y1: 35, x2: 5, y2: 35 },
-    { type: 'line', x1: width - 5, y1: 15, x2: width, y2: 15 },
-    { type: 'line', x1: width - 5, y1: 35, x2: width, y2: 35 },
+    { type: 'line', x1: 0, y1: 3.75, x2: 1.25, y2: 3.75 },
+    { type: 'line', x1: 0, y1: 8.75, x2: 1.25, y2: 8.75 },
+    { type: 'line', x1: width - 1.25, y1: 3.75, x2: width, y2: 3.75 },
+    { type: 'line', x1: width - 1.25, y1: 8.75, x2: width, y2: 8.75 },
   ];
 
   return {

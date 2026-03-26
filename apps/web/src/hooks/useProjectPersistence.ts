@@ -3,8 +3,9 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Device, Net, Part } from '@fusion-cad/core-model';
-import { migrateToBlocks } from '@fusion-cad/core-model';
+import type { Device, Net, Part, Sheet, LadderBlock } from '@fusion-cad/core-model';
+import { migrateToBlocks, generateId } from '@fusion-cad/core-model';
+import { DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import { createGoldenCircuitMotorStarter } from '@fusion-cad/project-io';
 import type { CircuitData, Connection } from '../renderer/circuit-renderer';
 import type { ProjectSummary } from '../api/projects';
@@ -164,13 +165,42 @@ export function useProjectPersistence(
 
     setIsLoading(true);
     try {
-      const project = await storage.createProject(name, '', {
+      // Create a default sheet with a ladder block so rung numbers are visible immediately
+      const now = Date.now();
+      const sheetId = generateId();
+      const blockId = generateId();
+      const defaultSheet: Sheet = {
+        id: sheetId,
+        type: 'sheet',
+        name: 'Sheet 1',
+        number: 1,
+        size: 'Tabloid',
+        diagramType: 'ladder',
+        createdAt: now,
+        modifiedAt: now,
+      };
+      const defaultBlock: LadderBlock = {
+        id: blockId,
+        type: 'block',
+        blockType: 'ladder',
+        sheetId,
+        name: 'Sheet 1 Ladder',
+        position: { x: 0, y: 0 },
+        ladderConfig: { ...DEFAULT_LADDER_CONFIG },
+        createdAt: now,
+        modifiedAt: now,
+      };
+      const initialCircuit = {
         devices: [],
         nets: [],
         parts: [],
         connections: [],
         positions: {},
-      });
+        sheets: [defaultSheet],
+        blocks: [defaultBlock],
+      };
+
+      const project = await storage.createProject(name, '', initialCircuit);
 
       setProjectId(project.id);
       setProjectName(project.name);
@@ -180,6 +210,8 @@ export function useProjectPersistence(
         nets: [],
         parts: [],
         connections: [],
+        sheets: [defaultSheet],
+        blocks: [defaultBlock],
       });
 
       window.history.replaceState({}, '', `?project=${project.id}`);

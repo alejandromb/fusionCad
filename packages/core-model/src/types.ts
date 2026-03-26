@@ -421,6 +421,8 @@ export interface LadderConfig {
    */
   numberingScheme?: 'sequential' | 'page-based' | 'page-tens';
   firstRungNumber?: number; // Override starting rung number (default: derived from scheme)
+  /** Number of rung slots to display (default: 10). Guide lines + numbers shown even without devices. */
+  rungCount?: number;
 }
 
 /**
