@@ -24,7 +24,7 @@ You are a **senior software developer**. Act accordingly:
   4. Take a screenshot or read audit data for visual changes
 - **Verify at the RIGHT layer.** Theme changes? Check `getTheme()` in browser console. Symbol changes? Check the API response AND the rendered output. Wire changes? Check connection data AND the render audit.
 - **Hardcoded values override themes.** Always check symbol primitives, not just theme config. The junction `#00ff00` bug happened because a hardcoded fill in the symbol primitive overrode the theme color.
-- **Restart services after rebuilding.** MCP server changes require: `npm run build` → restart API → re-seed symbols. Vite changes may need full restart (HMR doesn't always work for renderer modules).
+- **Restart services after rebuilding.** MCP server changes require: `npm run build` → restart API. Symbols auto-sync on startup (upsert, only writes changes). Vite changes may need full restart (HMR doesn't always work for renderer modules).
 - **Check BOTH the code AND the running app.** `curl` the served file to verify Vite is serving your changes. `getTheme()` in console to verify theme. `getRenderAudit()` to verify rendering.
 - **If you can't verify, say so.** "I made the change but can't confirm it's being served — please reload" is honest. "Done" without checking is not.
 
@@ -76,19 +76,17 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 31 (2026-03-25) — Rung numbers on ladder diagrams, layout dropdown (single/dual/plain), print/PDF mm fixes, symbol preview stroke fixes, ANSI coil cleanup
-**Tests:** 154 E2E + 75 unit, 86 symbols
+**Last session:** 32 (2026-03-26) — Symbol audit (86 symbols, fixed hardcoded colors), auto wire numbering (rungNum×10+nodeIndex), ladder config merging, rungSpacing default 30mm, wire label rendering above wire
+**Tests:** 121 E2E + 82 unit, 86 symbols
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
-### Next Up (Session 32)
+### Next Up (Session 33)
 
-1. **Auto wire numbering from rungs** — Wire numbers = rung number + L-to-R node index (e.g., 1031, 1032, 1033). Walk each rung left-to-right, count nodes.
-2. **Symbol audit** — Check all 86 symbols for rendering artifacts from mm conversion (spurious arcs, wrong stroke widths). Some symbols may still have issues like the ANSI coil did.
-3. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
-4. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries).
-5. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
-6. **Page thumbnails** — Sheet navigation with thumbnail previews (P2).
-7. **Continuous placement mode** — Hold Ctrl (or key) while placing symbols to keep placing same symbol on each click (AutoCAD-style). Release key to stop.
+1. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
+2. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries).
+3. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
+4. **Page thumbnails** — Sheet navigation with thumbnail previews (P2).
+5. **Continuous placement mode** — Hold Ctrl (or key) while placing symbols to keep placing same symbol on each click (AutoCAD-style). Release key to stop.
 
 ### P0 — Must Fix Before Launch
 

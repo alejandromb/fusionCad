@@ -390,14 +390,22 @@ async function seedBuiltinSymbols(force = false): Promise<{ seeded: number; upda
 
     if (existing) {
       if (force) {
-        existing.name = definition.name;
-        existing.category = definition.category;
-        existing.standard = definition.standard;
-        existing.source = definition.source;
-        existing.tagPrefix = definition.tagPrefix;
-        existing.definition = definition;
-        await symbolRepo.save(existing);
-        updated++;
+        // Only write to DB if the definition actually changed
+        const existingJson = JSON.stringify(existing.definition);
+        const newJson = JSON.stringify(definition);
+        if (existingJson !== newJson || existing.name !== definition.name ||
+            existing.category !== definition.category || existing.tagPrefix !== definition.tagPrefix) {
+          existing.name = definition.name;
+          existing.category = definition.category;
+          existing.standard = definition.standard;
+          existing.source = definition.source;
+          existing.tagPrefix = definition.tagPrefix;
+          existing.definition = definition;
+          await symbolRepo.save(existing);
+          updated++;
+        } else {
+          skipped++;
+        }
       } else {
         skipped++;
       }
@@ -514,16 +522,10 @@ AppDataSource.initialize()
   .then(async () => {
     console.log('Database connected successfully');
 
-    // Seed symbols if table is empty
-    const symbolRepo = AppDataSource.getRepository(Symbol);
-    const count = await symbolRepo.count();
-    if (count === 0) {
-      console.log('Seeding builtin symbols...');
-      const result = await seedBuiltinSymbols();
-      console.log(`Symbols seeded: ${result.seeded} new, ${result.skipped} skipped`);
-    } else {
-      console.log(`Symbols table has ${count} symbols`);
-    }
+    // Sync builtin symbols: insert new, update existing with latest JSON definitions
+    console.log('Syncing builtin symbols...');
+    const result = await seedBuiltinSymbols(true);
+    console.log(`Symbols synced: ${result.seeded} new, ${result.updated} updated, ${result.skipped} unchanged`);
 
     app.listen(PORT, () => {
       console.log(`fusionCad API running on http://localhost:${PORT}`);

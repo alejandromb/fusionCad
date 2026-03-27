@@ -792,7 +792,8 @@ export function renderCircuit(
     if (block.blockType === 'ladder') {
       const ladderBlock = block as LadderBlock;
       const blockRungs = (circuit.rungs || []).filter(r => r.blockId === block.id);
-      renderLadderOverlay(ctx, ladderBlock.ladderConfig, blockRungs, block.position, !!options?.wireStart, sheetNum);
+      const mergedConfig = { ...DEFAULT_LADDER_CONFIG, ...ladderBlock.ladderConfig };
+      renderLadderOverlay(ctx, mergedConfig, blockRungs, block.position, !!options?.wireStart, sheetNum);
     }
   }
 
@@ -1004,10 +1005,48 @@ export function renderCircuit(
 
   // Resolve ladder config for display number computation
   const ladderBlock = sheetBlocks.find(b => b.blockType === 'ladder') as LadderBlock | undefined;
-  const ladderConfig = ladderBlock?.ladderConfig ?? activeSheet?.ladderConfig ?? DEFAULT_LADDER_CONFIG;
+  const ladderConfig = { ...DEFAULT_LADDER_CONFIG, ...(activeSheet?.ladderConfig), ...(ladderBlock?.ladderConfig) };
 
   // Sort rungs and compute display numbers based on numbering scheme
   const sortedRungs = [...sheetRungs].sort((a, b) => a.number - b.number);
+
+  // Enrich rung device lists with position-based assignment.
+  // Devices placed near a rung's Y (e.g., junctions, manually placed devices) get
+  // included even if they're not in rung.deviceIds, so wire numbering is correct.
+  const blockOffset = ladderBlock?.position ?? { x: 0, y: 0 };
+  const enrichedRungs = sortedRungs.map((r, i) => {
+    const rungY = ladderConfig.firstRungY + i * ladderConfig.rungSpacing + blockOffset.y;
+    const halfSpacing = ladderConfig.rungSpacing / 2;
+    const knownIds = new Set(r.deviceIds);
+
+    // Find sheet devices positioned within this rung's Y band
+    for (const dev of devices) {
+      if (knownIds.has(dev.id)) continue;
+      const pos = positions.get(dev.id);
+      if (!pos) continue;
+      // Use device center Y (pos.y is top-left, typical symbol height ~15-25mm)
+      const devCenterY = pos.y + 10; // approximate center
+      if (Math.abs(devCenterY - rungY) < halfSpacing) {
+        knownIds.add(dev.id);
+      }
+    }
+
+    // Sort all device IDs by X position (left-to-right) for correct wire numbering
+    const allIds = [...knownIds];
+    allIds.sort((a, b) => {
+      const posA = positions.get(a);
+      const posB = positions.get(b);
+      return (posA?.x ?? 0) - (posB?.x ?? 0);
+    });
+
+    return {
+      number: r.number,
+      displayNumber: computeRungDisplayNumber(i, r.number, sheetNum, ladderConfig),
+      sheetId: r.sheetId,
+      deviceIds: allIds,
+    };
+  });
+
   const wireAssignments = autoAssignWireNumbers(
     connections.map(c => ({
       fromDevice: c.fromDevice,
@@ -1021,13 +1060,9 @@ export function renderCircuit(
       wireNumber: c.wireNumber,
     })),
     circuit.nets,
-    sortedRungs.map((r, i) => ({
-      number: r.number,
-      displayNumber: computeRungDisplayNumber(i, r.number, sheetNum, ladderConfig),
-      sheetId: r.sheetId,
-      deviceIds: r.deviceIds,
-    })),
+    enrichedRungs,
     activeSheetId,
+    positions,
   );
   const autoWireNumbers = new Map<number, string>();
   for (const a of wireAssignments) {
@@ -1176,23 +1211,27 @@ export function renderCircuit(
       const labelColor = wireColors[metadata.index % wireColors.length];
       ctx.font = t.wireLabelFont;
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textBaseline = 'bottom';
+
+      // Offset label above the wire so it doesn't visually interrupt it
+      const labelOffsetY = labelY - 1.5;
 
       const metrics = ctx.measureText(wireNumber);
-      const padding = 3;
+      const padding = 1;
+      const textHeight = 3.5; // approximate font height in mm
 
-      // Background
+      // Background — tight, semi-transparent so wire shows through
       ctx.fillStyle = t.wireLabelBg;
       ctx.fillRect(
         labelX - metrics.width / 2 - padding,
-        labelY - 7,
+        labelOffsetY - textHeight,
         metrics.width + padding * 2,
-        14
+        textHeight + 0.5
       );
 
       // Text
       ctx.fillStyle = labelColor;
-      ctx.fillText(wireNumber, labelX, labelY);
+      ctx.fillText(wireNumber, labelX, labelOffsetY);
       ctx.restore();
     }
 

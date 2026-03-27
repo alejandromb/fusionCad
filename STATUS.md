@@ -1683,3 +1683,25 @@ These are our end-to-end test cases. Each must always validate and export correc
 2. Update roadmap table status (🟢 Complete)
 3. Move to next phase (🔴 Current)
 4. Update ROADMAP.md current phase indicator
+
+## Session 32 — 2026-03-26: Symbol Audit + Auto Wire Numbering
+
+**Duration**: ~3 hours
+**Focus**: Symbol audit for mm conversion artifacts, auto wire numbering from rungs
+
+### Completed
+- **Symbol audit (86 symbols)**: Fixed hardcoded `#00ff00` fills on 4 symbols (iec-diode, iec-led, iec-chassis-ground, ansi-manual-switch), removed invalid `stroke="stroke"` on source/destination arrows, hardened renderer `stroke` property handling
+- **Symbol DB auto-sync**: API now upserts all builtin symbols on startup (compares JSON vs DB, only writes changes). No more forgotten syncs after editing builtin-symbols.json
+- **Synced all 86 symbols to DB** including ANSI coil spurious arcs fix from Session 31
+- **Auto wire numbering**: Wire number = rungDisplayNumber × 10 + L-to-R node index (e.g., rung 101 → wires 1011, 1012, 1013). Position-based rung enrichment includes nearby devices. Power nets keep names (L1, L2, +24V). 7 unit tests.
+- **Ladder config merging**: Partial block configs now merge with DEFAULT_LADDER_CONFIG instead of replacing entirely — was causing missing railL1X/railL2X/firstRungY
+- **Default rungSpacing**: Increased from 12.5mm to 30mm to prevent symbol overlap between rungs
+- **Wire label rendering**: Labels now sit above wire instead of on top with opaque background, no longer visually interrupting the wire
+
+### Key Decisions
+- Wire numbering formula: `rungNum * 10 + nodeIndex` (industry standard, prevents bleed into next rung's number space)
+- Wire numbering is automatic during render — no manual trigger needed
+- Position-based rung enrichment uses device Y position within halfSpacing of rung Y
+- L-to-R wire ordering uses actual X positions of endpoint devices, not array index
+
+**Tests**: 121 E2E + 82 unit, 86 symbols

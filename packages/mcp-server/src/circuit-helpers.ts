@@ -794,7 +794,7 @@ export function autoLayoutLadder(
     if (block.blockType !== 'ladder') {
       throw new Error(`Block "${block.name}" is not a ladder block (type: ${block.blockType})`);
     }
-    config = (block as LadderBlock).ladderConfig;
+    config = { ...DEFAULT_LADDER_CONFIG, ...(block as LadderBlock).ladderConfig };
     rungs = (circuit.rungs || []).filter(r => r.blockId === blockId);
     blockOffset = block.position;
   } else {
@@ -921,7 +921,7 @@ export function createLadderRails(
   if (blockId) {
     const block = (cd.blocks || []).find(b => b.id === blockId);
     if (!block || block.blockType !== 'ladder') return cd;
-    config = (block as LadderBlock).ladderConfig;
+    config = { ...DEFAULT_LADDER_CONFIG, ...(block as LadderBlock).ladderConfig };
     rungs = (cd.rungs || []).filter(r => r.blockId === blockId)
       .sort((a, b) => a.number - b.number);
     blockOffset = block.position;

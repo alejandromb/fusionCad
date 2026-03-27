@@ -403,9 +403,10 @@ function renderPrimitives(
 ): void {
   const t = getTheme();
   for (const p of primitives) {
-    const strokeColor = ('stroke' in p && p.stroke) || t.symbolStroke;
+    const rawStroke = ('stroke' in p && p.stroke) || t.symbolStroke;
+    // "stroke" is a special value meaning "use the current theme stroke color"
+    const strokeColor = rawStroke === 'stroke' ? t.symbolStroke : rawStroke;
     const rawFill = ('fill' in p && p.fill) || 'none';
-    // "stroke" is a special fill value meaning "use the current theme stroke color"
     const fillColor = rawFill === 'stroke' ? t.symbolStroke : rawFill;
     const lineWidth = ('strokeWidth' in p && p.strokeWidth) || t.symbolStrokeWidth;
 

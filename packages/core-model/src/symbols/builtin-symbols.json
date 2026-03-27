@@ -3528,7 +3528,7 @@
             }
           ],
           "closed": true,
-          "fill": "#00ff00"
+          "fill": "stroke"
         },
         {
           "type": "line",
@@ -3598,7 +3598,7 @@
             }
           ],
           "closed": true,
-          "fill": "#00ff00"
+          "fill": "stroke"
         },
         {
           "type": "line",
@@ -3815,7 +3815,7 @@
             }
           ],
           "closed": true,
-          "fill": "#00ff00"
+          "fill": "none"
         }
       ]
     },
@@ -4782,7 +4782,7 @@
           "cx": 10,
           "cy": 10.55,
           "r": 0.75,
-          "fill": "#00ff00"
+          "fill": "stroke"
         },
         {
           "type": "line",
@@ -4796,7 +4796,7 @@
           "cx": 10,
           "cy": 15,
           "r": 0.75,
-          "fill": "#00ff00"
+          "fill": "stroke"
         },
         {
           "type": "line",
@@ -6291,7 +6291,6 @@
             }
           ],
           "closed": true,
-          "stroke": "stroke",
           "fill": "stroke",
           "strokeWidth": 0.5
         },
@@ -6301,7 +6300,6 @@
           "y1": 8.75,
           "x2": 5,
           "y2": 15,
-          "stroke": "stroke",
           "strokeWidth": 0.5
         }
       ]
@@ -6336,7 +6334,6 @@
           "y1": 0,
           "x2": 5,
           "y2": 6.25,
-          "stroke": "stroke",
           "strokeWidth": 0.5
         },
         {
@@ -6356,7 +6353,6 @@
             }
           ],
           "closed": true,
-          "stroke": "stroke",
           "fill": "stroke",
           "strokeWidth": 0.5
         }
