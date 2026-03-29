@@ -6,6 +6,23 @@ import { useState, useRef, useCallback } from 'react';
 import { importSvg, importDxf, finalizeImportedSymbol, type ImportedSymbol, type PinCandidate } from '@fusion-cad/core-engine';
 import { registerSymbol } from '@fusion-cad/core-model';
 
+const SYMBOL_CATEGORIES = [
+  { value: 'PLC', label: 'PLC' },
+  { value: 'Control', label: 'Control' },
+  { value: 'Power', label: 'Power' },
+  { value: 'Motor', label: 'Motor' },
+  { value: 'Field', label: 'Field Devices' },
+  { value: 'Connectors', label: 'Connectors' },
+  { value: 'Terminal', label: 'Terminal' },
+  { value: 'Ground', label: 'Ground' },
+  { value: 'Meter', label: 'Meter' },
+  { value: 'Passive', label: 'Passive' },
+  { value: 'Output', label: 'Output' },
+  { value: 'Panel', label: 'Panel' },
+  { value: 'Junction', label: 'Junction' },
+  { value: 'custom', label: 'Custom' },
+];
+
 interface SymbolImportDialogProps {
   onClose: () => void;
 }
@@ -162,7 +179,11 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
                 <span>ID</span>
                 <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolId} onChange={e => setSymbolId(e.target.value)} />
                 <span>Category</span>
-                <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={category} onChange={e => setCategory(e.target.value)} />
+                <select className="property-input" style={{ width: '100%' }} value={category} onChange={e => setCategory(e.target.value)}>
+                  {SYMBOL_CATEGORIES.map(c => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
                 <span>Tag prefix</span>
                 <input className="property-input" style={{ width: '60px', textAlign: 'left' }} value={tagPrefix} onChange={e => setTagPrefix(e.target.value)} />
                 <span>Width (mm)</span>
