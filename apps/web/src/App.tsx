@@ -143,6 +143,7 @@ function AppInner({
   const [showERC, setShowERC] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showSymbolImport, setShowSymbolImport] = useState(false);
+  const [symbolLibVersion, setSymbolLibVersion] = useState(0);
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
@@ -578,6 +579,7 @@ function AppInner({
           interactionMode={interaction.interactionMode}
           placementCategory={interaction.placementCategory}
           sheetContext={circuitState.getSheetLayout(circuitState.activeSheetId) === 'panel-layout' ? 'panel-layout' : 'schematic'}
+          symbolLibVersion={symbolLibVersion}
           wireStart={interaction.wireStart}
           selectedDevices={circuitState.selectedDevices}
           selectedWireIndex={circuitState.selectedWireIndex}
@@ -644,7 +646,10 @@ function AppInner({
       )}
 
       {showSymbolImport && (
-        <SymbolImportDialog onClose={() => setShowSymbolImport(false)} />
+        <SymbolImportDialog
+          onClose={() => setShowSymbolImport(false)}
+          onSymbolRegistered={() => setSymbolLibVersion(v => v + 1)}
+        />
       )}
 
       {showFindReplace && (

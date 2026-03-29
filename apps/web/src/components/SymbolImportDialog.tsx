@@ -25,9 +25,10 @@ const SYMBOL_CATEGORIES = [
 
 interface SymbolImportDialogProps {
   onClose: () => void;
+  onSymbolRegistered?: () => void;
 }
 
-export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
+export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImportDialogProps) {
   const [imported, setImported] = useState<ImportedSymbol | null>(null);
   const [fileName, setFileName] = useState('');
   const [symbolName, setSymbolName] = useState('');
@@ -97,6 +98,7 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
 
     registerSymbol(symbolDef);
     setSaved(true);
+    onSymbolRegistered?.();
   }, [imported, pins, symbolId, symbolName, category, tagPrefix]);
 
   const removePin = (idx: number) => {

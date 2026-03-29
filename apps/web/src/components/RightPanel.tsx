@@ -55,6 +55,8 @@ interface RightPanelProps {
   placementCategory: SymbolCategory | null;
   /** 'panel-layout' hides schematic symbols, anything else hides Panel symbols */
   sheetContext?: 'schematic' | 'panel-layout';
+  /** Increments when symbols are registered (triggers palette refresh) */
+  symbolLibVersion?: number;
   // Properties tab props
   wireStart: PinHit | null;
   selectedDevices: string[];
@@ -79,6 +81,7 @@ export function RightPanel({
   interactionMode,
   placementCategory,
   sheetContext,
+  symbolLibVersion,
   wireStart,
   selectedDevices,
   selectedWireIndex,
@@ -142,8 +145,8 @@ export function RightPanel({
     document.addEventListener('pointerup', handleUp);
   }, []);
 
-  const allSymbols = useMemo(() => getAllSymbols(), []);
-  const categories = useMemo(() => getSymbolCategories(), []);
+  const allSymbols = useMemo(() => getAllSymbols(), [symbolLibVersion]);
+  const categories = useMemo(() => getSymbolCategories(), [symbolLibVersion]);
 
   // Auto-switch to Properties tab when something is selected
   const hasSelection = selectedDevices.length > 0 || selectedWireIndex !== null || selectedAnnotationId !== null;
