@@ -28,3 +28,6 @@ export * from './symbol-validator.js';
 
 // Terminal block calculation
 export * from './terminal-calculator.js';
+
+// Symbol importers (SVG, DXF)
+export * from './symbol-importer.js';
