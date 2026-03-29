@@ -10,6 +10,8 @@
  */
 
 import type { SymbolDefinition, SymbolPrimitive, SymbolPin, PinDirection } from '@fusion-cad/core-model';
+import { parse as parseSvg } from 'svg-parser';
+import DxfParser from 'dxf-parser';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,11 +57,7 @@ interface SvgNode {
  * @param targetWidthMm Desired width in mm (scales the SVG to fit)
  */
 export function importSvg(svgString: string, targetWidthMm?: number): ImportedSymbol {
-  // Dynamic import workaround: svg-parser is CJS, import at call time
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { parse } = require('svg-parser') as { parse: (svg: string) => SvgNode };
-
-  const ast = parse(svgString);
+  const ast = parseSvg(svgString) as unknown as SvgNode;
   const primitives: SymbolPrimitive[] = [];
   const allEndpoints: Array<{ x: number; y: number }> = [];
   const smallCircles: Array<{ x: number; y: number; r: number }> = [];
@@ -244,9 +242,7 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
  * @param targetWidthMm Desired width in mm (optional, auto-detects from DXF units)
  */
 export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSymbol {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const DxfParser = require('dxf-parser') as any;
-  const parser = new DxfParser();
+  const parser = new (DxfParser as any)();
   const dxf = parser.parseSync(dxfString);
 
   const primitives: SymbolPrimitive[] = [];
