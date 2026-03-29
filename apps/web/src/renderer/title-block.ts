@@ -1,5 +1,14 @@
 /**
  * Title block and sheet border renderer
+ *
+ * Full-width title block at the bottom of the sheet, similar to
+ * professional industrial schematics (NFPA 79, IEC 61082).
+ *
+ * Layout (left to right):
+ * ┌──────────────┬──────────────────────────────┬──────────────────┐
+ * │   Company    │   Title / Drawing Number      │   Rev / Sheet    │
+ * │   Drawn By   │   Date                        │                  │
+ * └──────────────┴──────────────────────────────┴──────────────────┘
  */
 
 import type { Sheet } from '@fusion-cad/core-model';
@@ -9,12 +18,11 @@ import { getTheme } from './theme';
 // Sheet dimensions in mm (metric coordinates)
 export const SHEET_SIZES: Record<string, { width: number; height: number }> = SHEET_SIZES_MM;
 
-const BORDER_MARGIN = LAYOUT_MM.borderMargin;        // 5mm
-const TITLE_BLOCK_HEIGHT = LAYOUT_MM.titleBlockHeight; // 20mm
-const TITLE_BLOCK_WIDTH = LAYOUT_MM.titleBlockWidth;   // 100mm
+const BORDER_MARGIN = LAYOUT_MM.borderMargin;          // 5mm
+const TITLE_BLOCK_HEIGHT = LAYOUT_MM.titleBlockHeight;  // 20mm
 
 /**
- * Render sheet border and title block
+ * Render sheet border and full-width title block
  */
 export function renderTitleBlock(
   ctx: CanvasRenderingContext2D,
@@ -32,65 +40,102 @@ export function renderTitleBlock(
   ctx.lineWidth = 0.25;
   ctx.strokeRect(BORDER_MARGIN, BORDER_MARGIN, size.width - BORDER_MARGIN * 2, size.height - BORDER_MARGIN * 2);
 
-  // Draw title block in bottom-right corner
-  const tbX = size.width - BORDER_MARGIN - TITLE_BLOCK_WIDTH;
+  // Full-width title block at bottom of sheet
+  const tbX = BORDER_MARGIN;
+  const tbWidth = size.width - BORDER_MARGIN * 2;
   const tbY = size.height - BORDER_MARGIN - TITLE_BLOCK_HEIGHT;
 
+  // Title block outer border
   ctx.strokeStyle = t.titleBlockDivider;
   ctx.lineWidth = 0.25;
-  ctx.strokeRect(tbX, tbY, TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT);
+  ctx.strokeRect(tbX, tbY, tbWidth, TITLE_BLOCK_HEIGHT);
 
-  // Horizontal dividers — title block is 20mm tall, divide into 3 rows
-  const row1Y = tbY + 7.5;   // below title row
-  const row2Y = tbY + 13.75; // below fields row
+  // Column widths: left (company) ~25%, center (title/info) ~50%, right (rev/sheet) ~25%
+  const col1W = tbWidth * 0.22;
+  const col3W = tbWidth * 0.22;
+  const col2W = tbWidth - col1W - col3W;
+  const col1X = tbX;
+  const col2X = tbX + col1W;
+  const col3X = tbX + col1W + col2W;
+
+  // Vertical dividers
   ctx.beginPath();
-  ctx.moveTo(tbX, row1Y);
-  ctx.lineTo(tbX + TITLE_BLOCK_WIDTH, row1Y);
-  ctx.moveTo(tbX, row2Y);
-  ctx.lineTo(tbX + TITLE_BLOCK_WIDTH, row2Y);
+  ctx.moveTo(col2X, tbY);
+  ctx.lineTo(col2X, tbY + TITLE_BLOCK_HEIGHT);
+  ctx.moveTo(col3X, tbY);
+  ctx.lineTo(col3X, tbY + TITLE_BLOCK_HEIGHT);
   ctx.stroke();
 
-  // Vertical divider (middle column)
+  // Horizontal divider in center column (split into title row + info row)
+  const midY = tbY + TITLE_BLOCK_HEIGHT * 0.5;
   ctx.beginPath();
-  ctx.moveTo(tbX + TITLE_BLOCK_WIDTH / 2, row1Y);
-  ctx.lineTo(tbX + TITLE_BLOCK_WIDTH / 2, row2Y);
+  ctx.moveTo(col2X, midY);
+  ctx.lineTo(col3X, midY);
+  // Also split left and right columns
+  ctx.moveTo(col1X, midY);
+  ctx.lineTo(col2X, midY);
+  ctx.moveTo(col3X, midY);
+  ctx.lineTo(col3X + col3W, midY);
   ctx.stroke();
 
   const titleBlock = sheet.titleBlock;
   ctx.textBaseline = 'middle';
 
-  // Title row (top)
+  // ---- LEFT COLUMN: Company + Drawn By ----
   ctx.fillStyle = t.titleBlockTitleColor;
-  ctx.font = 'bold 3.5px monospace';
+  ctx.font = 'bold 3px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    titleBlock?.company || '',
+    col1X + col1W / 2,
+    tbY + TITLE_BLOCK_HEIGHT * 0.25
+  );
+
+  ctx.fillStyle = t.titleBlockFieldColor;
+  ctx.font = '2.5px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Drawn: ${titleBlock?.drawnBy || '---'}`, col1X + 2, tbY + TITLE_BLOCK_HEIGHT * 0.75);
+
+  // ---- CENTER COLUMN: Title (top) + Drawing #, Date (bottom) ----
+  // Title — large, centered
+  ctx.fillStyle = t.titleBlockTitleColor;
+  ctx.font = 'bold 4px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(
     titleBlock?.title || sheet.name,
-    tbX + TITLE_BLOCK_WIDTH / 2,
-    tbY + 3.75
+    col2X + col2W / 2,
+    tbY + TITLE_BLOCK_HEIGHT * 0.25
   );
 
-  // Drawing number + revision
-  ctx.font = '2.75px monospace';
+  // Bottom row: Dwg # left, Date right
   ctx.fillStyle = t.titleBlockFieldColor;
+  ctx.font = '2.5px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(`Dwg: ${titleBlock?.drawingNumber || '---'}`, tbX + 2, tbY + 10.5);
-  ctx.fillText(`Rev: ${titleBlock?.revision || '---'}`, tbX + TITLE_BLOCK_WIDTH / 2 + 2, tbY + 10.5);
+  ctx.fillText(`Dwg: ${titleBlock?.drawingNumber || '---'}`, col2X + 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
+  ctx.textAlign = 'right';
+  ctx.fillText(`Date: ${titleBlock?.date || '---'}`, col3X - 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
 
-  // Date + drawn by
-  ctx.fillText(`Date: ${titleBlock?.date || '---'}`, tbX + 2, tbY + 16.75);
-  ctx.fillText(`By: ${titleBlock?.drawnBy || '---'}`, tbX + TITLE_BLOCK_WIDTH / 2 + 2, tbY + 16.75);
+  // ---- RIGHT COLUMN: Revision (top) + Sheet # (bottom) ----
+  ctx.fillStyle = t.titleBlockFieldColor;
+  ctx.font = 'bold 3px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    `Rev: ${titleBlock?.revision || '---'}`,
+    col3X + col3W / 2,
+    tbY + TITLE_BLOCK_HEIGHT * 0.25
+  );
 
-  // Sheet number in bottom-right
+  // Sheet number
+  ctx.font = '2.5px monospace';
+  ctx.fillStyle = t.titleBlockSheetColor;
+  ctx.textAlign = 'center';
   if (titleBlock?.sheetOf) {
-    ctx.font = '2.5px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = t.titleBlockSheetColor;
-    ctx.fillText(`Sheet ${titleBlock.sheetOf}`, tbX + TITLE_BLOCK_WIDTH - 2, tbY + TITLE_BLOCK_HEIGHT - 2);
+    ctx.fillText(`Sheet ${titleBlock.sheetOf}`, col3X + col3W / 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
   }
 }
 
 /**
- * Get the drawable area inside the border (for centering content)
+ * Get the drawable area inside the border (above the title block)
  */
 export function getDrawableArea(sheetSize: string): { x: number; y: number; width: number; height: number } {
   const size = SHEET_SIZES[sheetSize] || SHEET_SIZES['Letter'];

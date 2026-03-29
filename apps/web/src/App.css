@@ -636,6 +636,28 @@
   border-color: var(--fc-accent);
 }
 
+/* Range slider — match sidebar dark theme */
+input[type="range"].sidebar-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--fc-border-strong);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"].sidebar-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fc-text-secondary);
+  border: 1px solid var(--fc-border-strong);
+  cursor: pointer;
+}
+input[type="range"].sidebar-range::-webkit-slider-thumb:hover {
+  background: var(--fc-accent);
+}
+
 .delete-btn {
   margin-top: 0.5rem;
   padding: 0.5rem;

@@ -29,6 +29,7 @@ export function renderLadderOverlay(
   blockPosition?: { x: number; y: number },
   hideRungGuides?: boolean,
   sheetNumber?: number,
+  pageHeight?: number,
 ): void {
   const cfg = config ?? DEFAULT_LADDER_CONFIG;
   const t = getTheme();
@@ -38,8 +39,11 @@ export function renderLadderOverlay(
   const scheme = cfg.numberingScheme ?? 'sequential';
   const pageNum = sheetNumber ?? 1;
 
-  // Determine how many rung slots to draw (always show at least rungCount guide lines)
-  const rungCount = cfg.rungCount ?? 10;
+  // Auto-calculate how many rungs fit the page (leave room for title block + margin)
+  const titleBlockReserve = 25; // 20mm title block + 5mm margin
+  const availableHeight = (pageHeight ?? 279) - firstRungY - titleBlockReserve;
+  const maxRungs = Math.max(1, Math.floor(availableHeight / rungSpacing));
+  const rungCount = cfg.rungCount ? Math.min(cfg.rungCount, maxRungs) : maxRungs;
   const sortedRungs = [...rungs].sort((a, b) => a.number - b.number);
   // Build a map of rung index → Rung data (for descriptions, etc.)
   const rungByIndex = new Map<number, (typeof sortedRungs)[number]>();

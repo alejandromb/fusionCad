@@ -80,43 +80,46 @@ Before doing ANYTHING else:
 **Tests:** 121 E2E + 82 unit, 86 symbols
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
-### Next Up (Session 33)
+### P0 — MVP Features
 
-1. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF downloads. Build parser → fusionCad symbol JSON converter.
-2. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back for self-correction (max 3 retries).
-3. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
-4. **Page thumbnails** — Sheet navigation with thumbnail previews (P2).
-5. **Continuous placement mode** — Hold Ctrl (or key) while placing symbols to keep placing same symbol on each click (AutoCAD-style). Release key to stop.
+1. **Continuous placement mode** — Ctrl+click to keep placing same symbol (AutoCAD-style).
+2. **Find/Replace** — Search and replace device tags, net names, annotations across drawing.
+3. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF.
+4. **Page thumbnails** — Sheet navigation with thumbnail previews.
+5. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
+6. **Template caching** — Cache common patterns to skip AI entirely.
+7. **CDN for static assets** — CloudFront for the web app.
+8. **Analytics** — Usage patterns, feature tracking, generation success rate.
+9. **Grid toggle on/off** — Show/hide snap grid on canvas.
+10. **Grid size setting** — Change snap grid from default 20px.
+11. **Pin label visibility toggle** — Show/hide pin name labels.
+12. **Settings panel** — Centralized settings dialog.
 
-### P0 — Must Fix Before Launch
+### P1 — Core Product Quality
 
-6. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
-7. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
-8. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
-9. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
-
-### P1 — Should Have Before Launch
-
-14. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
-15. **Usage dashboard** — Show users their AI generation count, remaining quota.
-16. **Stripe/payment integration** — Connect billing to plan tiers.
-17. **Deploy to AWS** — Lambda + CDK, managed Postgres (RDS).
-18. **CORS locked down** — Currently allows all origins in dev.
+13. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking (warn if DO missing), AI always places full set, BOM groups as one item.
+14. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries).
+15. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics.
+16. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
+17. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
+18. **AI-assisted symbol creation** — Load symbol-creation-rules.md into AI chat, add `create_custom_symbol` MCP tool. User describes a part → AI generates the symbol.
 19. **Error monitoring** — Sentry or similar for production error tracking.
-20. **Find/Replace** — Search and replace device tags, net names, annotations across drawing.
 
-### P2 — Nice to Have at Launch
+### P2 — Infrastructure & Security
 
-21. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
-22. **Template caching** — Cache common patterns to skip AI entirely.
-23. **CDN for static assets** — CloudFront for the web app.
-24. **Analytics** — Usage patterns, feature tracking, generation success rate.
-25. **AI cost tracking** — Log token usage per request.
-26. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
-27. **Grid toggle on/off** — Show/hide snap grid on canvas.
-28. **Grid size setting** — Change snap grid from default 20px.
-29. **Pin label visibility toggle** — Show/hide pin name labels.
-30. **Settings panel** — Centralized settings dialog.
+19. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
+20. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
+21. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions.
+22. **CORS locked down** — Currently allows all origins in dev.
+23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
+24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
+
+### P3 — Business & Revenue
+
+25. **Stripe/payment integration** — Connect billing to plan tiers.
+26. **Usage dashboard** — Show users their AI generation count, remaining quota.
+27. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
+28. **AI cost tracking** — Log token usage per request.
 
 ### Future Phases (Post-Launch)
 
@@ -124,7 +127,6 @@ Before doing ANYTHING else:
 - **Automatic terminal block calculation** — Phase 3-4
 - **Panel layout editor** — Physical layout editor, Phase 6-7
 - **Multi-tenancy** — org_id, team features
-- **Stripe payments** — Plan upgrades
 - **Blueprint editor UI** — Visual blueprint creation/editing
 - **gstack integration** — Parallel sprint workflow with Conductor for multi-agent development
 

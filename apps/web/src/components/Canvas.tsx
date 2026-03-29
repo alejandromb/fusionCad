@@ -50,6 +50,9 @@ interface CanvasProps {
   alignSelectedDevices?: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
   /** Ghost paste preview data - built by parent from clipboard + mouse position */
   ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
+  showGrid?: boolean;
+  showPinLabels?: boolean;
+  showDescriptions?: boolean;
 }
 
 export function Canvas({
@@ -83,6 +86,9 @@ export function Canvas({
   onEditSymbol,
   alignSelectedDevices,
   ghostPaste,
+  showGrid = true,
+  showPinLabels = true,
+  showDescriptions = true,
 }: CanvasProps) {
   const rafIdRef = useRef(0);
   const canvasSizeRef = useRef({ w: 0, h: 0 });
@@ -108,7 +114,9 @@ export function Canvas({
     activeSheetId,
     deviceTransforms,
     marquee,
-    showGrid: true,
+    showGrid,
+    showPinLabels,
+    showDescriptions,
     selectedAnnotationId,
     ghostPaste,
   });

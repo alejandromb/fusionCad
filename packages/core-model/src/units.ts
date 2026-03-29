@@ -44,7 +44,7 @@ export const DEFAULT_LADDER_MM = {
   railL1X: 20,        // Left rail X (mm) — leaves 15mm for rung numbers
   railL2X: 395,       // Right rail X (mm) — 375mm ladder width, fills Tabloid page
   firstRungY: 20,     // First rung Y (mm)
-  rungSpacing: 30,    // Vertical spacing between rungs (mm) — fits rotated symbols (25mm tall)
+  rungSpacing: 15,    // Vertical spacing between rungs (mm) — matches PLC pin spacing (15mm)
 };
 
 /**

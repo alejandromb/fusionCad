@@ -1034,10 +1034,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           case 'place': {
             if (placementCategory) {
               placeSymbol(world.x, world.y, placementCategory, pendingPartData || undefined);
-              // Exit placement mode after placing
-              setInteractionMode('select');
-              setPlacementCategory(null);
-              clearPendingPartData();
+              // Stay in placement mode — press Escape or V to exit (CAD-style continuous placement)
+              // Shift+click = single placement (exits after one)
+              if (e.shiftKey) {
+                setInteractionMode('select');
+                setPlacementCategory(null);
+                clearPendingPartData();
+              }
             }
             break;
           }

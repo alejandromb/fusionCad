@@ -19,6 +19,14 @@ interface SidebarProps {
   onUpdateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
   sheetLayout: SheetLadderLayout;
   onSetSheetLayout: (sheetId: string, layout: SheetLadderLayout) => void;
+  rungSpacing: number;
+  onSetRungSpacing: (spacing: number) => void;
+  showGrid: boolean;
+  setShowGrid: (show: boolean) => void;
+  showPinLabels: boolean;
+  setShowPinLabels: (show: boolean) => void;
+  showDescriptions: boolean;
+  setShowDescriptions: (show: boolean) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
   customColors: CustomThemeInput;
@@ -38,6 +46,14 @@ export function Sidebar({
   onUpdateSheet,
   sheetLayout,
   onSetSheetLayout,
+  rungSpacing,
+  onSetRungSpacing,
+  showGrid,
+  setShowGrid,
+  showPinLabels,
+  setShowPinLabels,
+  showDescriptions,
+  setShowDescriptions,
   themeId,
   setThemeId,
   customColors,
@@ -197,9 +213,46 @@ export function Sidebar({
                 <option value="no-rungs">Plain</option>
               </select>
             </div>
+            {sheetLayout !== 'no-rungs' && (
+              <div className="property-row">
+                <span className="property-label">Rung Gap</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1 }}>
+                  <input
+                    type="range"
+                    className="sidebar-range"
+                    min="15"
+                    max="50"
+                    step="2.5"
+                    value={rungSpacing}
+                    onChange={e => onSetRungSpacing(parseFloat(e.target.value))}
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: '0.7rem', minWidth: '2.5rem', textAlign: 'right', opacity: 0.7 }}>
+                    {rungSpacing}mm
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}
+
+      {/* Display Options */}
+      <section className="sidebar-section">
+        <h4 className="section-title">DISPLAY</h4>
+        <label className="debug-toggle">
+          <input type="checkbox" checked={showGrid} onChange={e => setShowGrid(e.target.checked)} />
+          <span>Show grid</span>
+        </label>
+        <label className="debug-toggle">
+          <input type="checkbox" checked={showPinLabels} onChange={e => setShowPinLabels(e.target.checked)} />
+          <span>Pin labels</span>
+        </label>
+        <label className="debug-toggle">
+          <input type="checkbox" checked={showDescriptions} onChange={e => setShowDescriptions(e.target.checked)} />
+          <span>Descriptions</span>
+        </label>
+      </section>
 
       {/* Theme & Debug Footer */}
       <section className="sidebar-section sidebar-footer">

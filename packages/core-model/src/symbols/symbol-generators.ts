@@ -450,6 +450,214 @@ export function tryGenerateMicro800Symbol(category: string): SymbolDefinition | 
 }
 
 // ---------------------------------------------------------------------------
+// Allen-Bradley 2080-LC50-24QBB — Separate Input/Output Terminal Blocks
+// Exact pin mapping from datasheet (14 DI + 10 DO)
+// ---------------------------------------------------------------------------
+
+interface TerminalPin {
+  id: string;       // Pin ID used in connections (e.g., 'I-00', 'COM0')
+  name: string;     // Display label
+  pinType: PinType;
+}
+
+/**
+ * Generate a PLC module symbol with signal pins on one side and power/common
+ * pins on the opposite side. This matches industrial convention and keeps
+ * the symbol compact (height driven by signal pin count, not total pins).
+ *
+ * - Signal side: I/O pins (inputs left, outputs right)
+ * - Power side: +V near top, commons middle, ground/- near bottom
+ */
+function generateDualSideModuleSymbol(
+  id: string,
+  name: string,
+  headerLabel: string,
+  subLabel: string,
+  signalPins: TerminalPin[],
+  powerPins: TerminalPin[],
+  signalSide: 'left' | 'right',
+): SymbolDefinition {
+  const PIN_SPACING = 15; // match standard digital pin spacing (mm) — fits coils/contacts
+  const MOD_WIDTH = 40;   // grid-aligned width (multiple of 5mm grid)
+  const MOD_INSET = 5;    // body inset from pin edge (grid-aligned)
+  const MOD_BODY_W = MOD_WIDTH - 2 * MOD_INSET; // 30mm
+  const powerSide: 'left' | 'right' = signalSide === 'left' ? 'right' : 'left';
+  const signalX = signalSide === 'left' ? 0 : MOD_WIDTH;
+  const powerX = powerSide === 'left' ? 0 : MOD_WIDTH;
+
+  // Height driven by whichever side has more pins
+  const maxPins = Math.max(signalPins.length, powerPins.length);
+  const lastPinY = HEADER_HEIGHT + (maxPins - 1) * PIN_SPACING;
+  const height = lastPinY + FOOTER_HEIGHT;
+
+  const pins: SymbolPin[] = [];
+  const primitives: SymbolPrimitive[] = [];
+
+  // Body rectangle (grid-aligned)
+  primitives.push({
+    type: 'rect',
+    x: MOD_INSET, y: 0,
+    width: MOD_BODY_W, height: height,
+  });
+
+  // Header labels
+  const centerX = MOD_WIDTH / 2;
+  primitives.push({
+    type: 'text', x: centerX, y: 5,
+    content: headerLabel, fontSize: 3, fontWeight: 'bold', textAnchor: 'middle',
+  });
+  primitives.push({
+    type: 'text', x: centerX, y: 9,
+    content: subLabel, fontSize: 2, fontWeight: 'normal', textAnchor: 'middle',
+  });
+
+  // Helper to add a pin with stub + labels
+  const addPin = (t: TerminalPin, py: number, side: 'left' | 'right', termNum: string) => {
+    const px = side === 'left' ? 0 : MOD_WIDTH;
+    const isLeft = side === 'left';
+
+    pins.push({
+      id: t.id,
+      name: t.name,
+      position: { x: px, y: py },
+      direction: side as PinDirection,
+      pinType: t.pinType,
+    });
+
+    // Pin stub line
+    if (isLeft) {
+      primitives.push({ type: 'line', x1: 0, y1: py, x2: MOD_INSET, y2: py });
+    } else {
+      primitives.push({ type: 'line', x1: MOD_WIDTH - MOD_INSET, y1: py, x2: MOD_WIDTH, y2: py });
+    }
+
+    // Terminal number (near pin, inside body)
+    const termX = isLeft ? MOD_INSET + 1 : MOD_WIDTH - MOD_INSET - 1;
+    primitives.push({
+      type: 'text', x: termX, y: py,
+      content: termNum, fontSize: 2, fontWeight: 'normal', textAnchor: isLeft ? 'start' : 'end',
+    });
+
+    // Channel label (away from pin, inside body)
+    const labelX = isLeft ? centerX - 1 : centerX + 1;
+    primitives.push({
+      type: 'text', x: labelX, y: py,
+      content: t.name, fontSize: 2, fontWeight: 'normal', textAnchor: isLeft ? 'end' : 'start',
+    });
+  };
+
+  // Signal pins — evenly spaced on signal side
+  for (let i = 0; i < signalPins.length; i++) {
+    const py = HEADER_HEIGHT + i * PIN_SPACING;
+    addPin(signalPins[i], py, signalSide, `${i + 1}`);
+  }
+
+  // Power pins — distributed on opposite side:
+  // Spread evenly across the symbol height to avoid clustering
+  const powerSpacing = powerPins.length > 1
+    ? (signalPins.length - 1) * PIN_SPACING / (powerPins.length - 1)
+    : 0;
+  for (let i = 0; i < powerPins.length; i++) {
+    const py = HEADER_HEIGHT + i * powerSpacing;
+    addPin(powerPins[i], py, powerSide, '');
+  }
+
+  return {
+    id,
+    type: 'symbol-definition',
+    name,
+    category: 'PLC',
+    geometry: { width: MOD_WIDTH, height },
+    pins,
+    primitives,
+    tagPrefix: 'PLC',
+    source: 'generated',
+    standard: 'common',
+    createdAt: 0,
+    modifiedAt: 0,
+  };
+}
+
+/**
+ * 2080-LC50-24QBB Input Terminal Block
+ * Left side: 14 DI (I-00 to I-13)
+ * Right side: COM0 (top), COM1 (bottom)
+ */
+export function generateLC50_24_Input(): SymbolDefinition {
+  const signalPins: TerminalPin[] = [
+    { id: 'I-00', name: 'I-00', pinType: 'input' },
+    { id: 'I-01', name: 'I-01', pinType: 'input' },
+    { id: 'I-02', name: 'I-02', pinType: 'input' },
+    { id: 'I-03', name: 'I-03', pinType: 'input' },
+    { id: 'I-04', name: 'I-04', pinType: 'input' },
+    { id: 'I-05', name: 'I-05', pinType: 'input' },
+    { id: 'I-06', name: 'I-06', pinType: 'input' },
+    { id: 'I-07', name: 'I-07', pinType: 'input' },
+    { id: 'I-08', name: 'I-08', pinType: 'input' },
+    { id: 'I-09', name: 'I-09', pinType: 'input' },
+    { id: 'I-10', name: 'I-10', pinType: 'input' },
+    { id: 'I-11', name: 'I-11', pinType: 'input' },
+    { id: 'I-12', name: 'I-12', pinType: 'input' },
+    { id: 'I-13', name: 'I-13', pinType: 'input' },
+  ];
+
+  const powerPins: TerminalPin[] = [
+    { id: 'COM0', name: 'COM0', pinType: 'power' },
+    { id: 'COM1', name: 'COM1', pinType: 'power' },
+  ];
+
+  return generateDualSideModuleSymbol(
+    'ab-2080-lc50-24-input',
+    '2080-LC50-24 Input (14 DI)',
+    '2080-LC50',
+    'Input 14 DI',
+    signalPins,
+    powerPins,
+    'left',
+  );
+}
+
+/**
+ * 2080-LC50-24QBB Output Terminal Block
+ * Right side: 10 DO (O-00 to O-09)
+ * Left side: +DC24 (top), +CM0, +CM1 (middle), -DC24, -CM0, -CM1 (bottom)
+ */
+export function generateLC50_24_Output(): SymbolDefinition {
+  const signalPins: TerminalPin[] = [
+    { id: 'O-00', name: 'O-00', pinType: 'output' },
+    { id: 'O-01', name: 'O-01', pinType: 'output' },
+    { id: 'O-02', name: 'O-02', pinType: 'output' },
+    { id: 'O-03', name: 'O-03', pinType: 'output' },
+    { id: 'O-04', name: 'O-04', pinType: 'output' },
+    { id: 'O-05', name: 'O-05', pinType: 'output' },
+    { id: 'O-06', name: 'O-06', pinType: 'output' },
+    { id: 'O-07', name: 'O-07', pinType: 'output' },
+    { id: 'O-08', name: 'O-08', pinType: 'output' },
+    { id: 'O-09', name: 'O-09', pinType: 'output' },
+  ];
+
+  // Power pins: +V top, commons middle, grounds bottom
+  const powerPins: TerminalPin[] = [
+    { id: '+DC24', name: '+DC24', pinType: 'power' },
+    { id: '+CM0',  name: '+CM0',  pinType: 'power' },
+    { id: '+CM1',  name: '+CM1',  pinType: 'power' },
+    { id: '-CM0',  name: '-CM0',  pinType: 'power' },
+    { id: '-CM1',  name: '-CM1',  pinType: 'power' },
+    { id: '-DC24', name: '-DC24', pinType: 'power' },
+  ];
+
+  return generateDualSideModuleSymbol(
+    'ab-2080-lc50-24-output',
+    '2080-LC50-24 Output (10 DO)',
+    '2080-LC50',
+    'Output 10 DO',
+    signalPins,
+    powerPins,
+    'right',
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Category parser — extract type + channels from category strings
 // ---------------------------------------------------------------------------
 

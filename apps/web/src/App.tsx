@@ -477,6 +477,14 @@ function AppInner({
           onUpdateSheet={circuitState.updateSheet}
           sheetLayout={circuitState.getSheetLayout(circuitState.activeSheetId)}
           onSetSheetLayout={circuitState.setSheetLayout}
+          rungSpacing={circuitState.getRungSpacing(circuitState.activeSheetId)}
+          onSetRungSpacing={(spacing: number) => circuitState.setRungSpacing(circuitState.activeSheetId, spacing)}
+          showGrid={circuitState.showGrid}
+          setShowGrid={circuitState.setShowGrid}
+          showPinLabels={circuitState.showPinLabels}
+          setShowPinLabels={circuitState.setShowPinLabels}
+          showDescriptions={circuitState.showDescriptions}
+          setShowDescriptions={circuitState.setShowDescriptions}
           themeId={theme.themeId}
           setThemeId={theme.setThemeId}
           customColors={theme.customColors}
@@ -518,6 +526,9 @@ function AppInner({
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
             alignSelectedDevices={circuitState.alignSelectedDevices}
             ghostPaste={ghostPaste}
+            showGrid={circuitState.showGrid}
+            showPinLabels={circuitState.showPinLabels}
+            showDescriptions={circuitState.showDescriptions}
           />
 
           <ZoomControls

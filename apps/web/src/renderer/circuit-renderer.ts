@@ -11,7 +11,7 @@ import type { Point, Viewport, DeviceTransform } from './types';
 import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
-import { renderTitleBlock } from './title-block';
+import { renderTitleBlock, SHEET_SIZES } from './title-block';
 import { getTheme } from './theme';
 
 /**
@@ -174,6 +174,10 @@ export interface RenderOptions {
   showGrid?: boolean;
   /** Grid size in pixels */
   gridSize?: number;
+  /** Show pin labels on devices (default true) */
+  showPinLabels?: boolean;
+  /** Show device function/description text above symbols (default true) */
+  showDescriptions?: boolean;
   /** Selected annotation ID for highlight */
   selectedAnnotationId?: string | null;
   /** Ghost paste preview - array of devices to render as semi-transparent ghosts */
@@ -787,13 +791,17 @@ export function renderCircuit(
     renderTitleBlock(ctx, activeSheet);
   }
 
+  // Sheet height for rung count calculation
+  const sheetSizeMM = SHEET_SIZES[activeSheet?.size || 'Tabloid'] || SHEET_SIZES['Tabloid'];
+  const sheetHeight = sheetSizeMM.height;
+
   // Render ladder overlays from blocks on this sheet
   for (const block of sheetBlocks) {
     if (block.blockType === 'ladder') {
       const ladderBlock = block as LadderBlock;
       const blockRungs = (circuit.rungs || []).filter(r => r.blockId === block.id);
       const mergedConfig = { ...DEFAULT_LADDER_CONFIG, ...ladderBlock.ladderConfig };
-      renderLadderOverlay(ctx, mergedConfig, blockRungs, block.position, !!options?.wireStart, sheetNum);
+      renderLadderOverlay(ctx, mergedConfig, blockRungs, block.position, !!options?.wireStart, sheetNum, sheetHeight);
     }
   }
 
@@ -801,7 +809,7 @@ export function renderCircuit(
   if (sheetBlocks.length === 0 && activeSheet?.diagramType === 'ladder') {
     const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
     const fallbackConfig = activeSheet.ladderConfig ?? DEFAULT_LADDER_CONFIG;
-    renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart, sheetNum);
+    renderLadderOverlay(ctx, fallbackConfig, sheetRungs, { x: 0, y: 0 }, !!options?.wireStart, sheetNum, sheetHeight);
   }
 
   /** Resolve the effective transform for a device (runtime overrides persisted) */
@@ -824,7 +832,7 @@ export function renderCircuit(
     const transform = getTransform(device.id);
     const partLabel = part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
-    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels);
 
     // Source/Destination arrow special rendering:
     // Show voltage label and cross-reference text around the arrow symbol
@@ -869,7 +877,7 @@ export function renderCircuit(
     }
 
     // Render device function text for regular devices (not arrows, not junctions)
-    if (symbolKey !== 'source-arrow' && symbolKey !== 'destination-arrow' && symbolKey !== 'junction') {
+    if (options?.showDescriptions !== false && symbolKey !== 'source-arrow' && symbolKey !== 'destination-arrow' && symbolKey !== 'junction') {
       const fn = device.function;
       if (fn) {
         const geometry = getSymbolGeometry(symbolKey);
@@ -1082,8 +1090,8 @@ export function renderCircuit(
     const metadata = connectionMetadata[i];
     const isSelected = options?.selectedWireIndex === metadata.index;
 
-    // Set unique color for this wire (brighter if selected)
-    const baseColor = wireColors[i % wireColors.length];
+    // Single wire color (first from palette); selected wires highlight white
+    const baseColor = wireColors[0];
     ctx.strokeStyle = isSelected ? '#ffffff' : baseColor;
     ctx.lineWidth = isSelected ? t.wireWidthSelected : t.wireWidth;
 
@@ -1208,7 +1216,7 @@ export function renderCircuit(
       }
 
       ctx.save();
-      const labelColor = wireColors[metadata.index % wireColors.length];
+      const labelColor = wireColors[0];
       ctx.font = t.wireLabelFont;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -1241,7 +1249,7 @@ export function renderCircuit(
       const netName = net?.name || 'unknown';
 
       ctx.save();
-      const labelColor = wireColors[metadata.index % wireColors.length];
+      const labelColor = wireColors[0];
 
       // Endpoint labels (device:pin)
       ctx.font = '2.5px monospace';
@@ -1360,17 +1368,17 @@ export function renderCircuit(
           const pinX = position.x + pinOffsetX;
           const pinY = position.y + pinOffsetY;
 
-          // Draw pulsing highlight circle around the pin
+          // Draw highlight circle around the wire start pin
           ctx.strokeStyle = t.wireStartHighlight;
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 0.4;
           ctx.beginPath();
-          ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
+          ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
           ctx.stroke();
 
           // Draw filled inner circle
           ctx.fillStyle = t.wireStartFill;
           ctx.beginPath();
-          ctx.arc(pinX, pinY, 10, 0, Math.PI * 2);
+          ctx.arc(pinX, pinY, 1.5, 0, Math.PI * 2);
           ctx.fill();
 
           // Draw preview line from start pin to mouse cursor (orthogonal L-shape)

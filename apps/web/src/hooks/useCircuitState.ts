@@ -21,6 +21,12 @@ export interface UseCircuitStateReturn {
   // State
   debugMode: boolean;
   setDebugMode: (mode: boolean) => void;
+  showGrid: boolean;
+  setShowGrid: (show: boolean) => void;
+  showPinLabels: boolean;
+  setShowPinLabels: (show: boolean) => void;
+  showDescriptions: boolean;
+  setShowDescriptions: (show: boolean) => void;
 
   // Sheet management
   activeSheetId: string;
@@ -32,6 +38,8 @@ export interface UseCircuitStateReturn {
   updateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
   setSheetLayout: (sheetId: string, layout: 'single-column' | 'dual-column' | 'no-rungs') => void;
   getSheetLayout: (sheetId: string) => 'single-column' | 'dual-column' | 'no-rungs';
+  setRungSpacing: (sheetId: string, spacing: number) => void;
+  getRungSpacing: (sheetId: string) => number;
 
   // History
   history: HistorySnapshot[];
@@ -123,6 +131,9 @@ export function useCircuitState(
   setDevicePositions: React.Dispatch<React.SetStateAction<Map<string, Point>>>
 ): UseCircuitStateReturn {
   const [debugMode, setDebugMode] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [showPinLabels, setShowPinLabels] = useState(true);
+  const [showDescriptions, setShowDescriptions] = useState(true);
   const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
   const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
@@ -347,6 +358,26 @@ export function useCircuitState(
       });
 
       return { ...prev, blocks: [...otherBlocks, ...newBlocks], sheets };
+    });
+  }, [setCircuit]);
+
+  const getRungSpacing = useCallback((sheetId: string): number => {
+    if (!circuit) return DEFAULT_LADDER_CONFIG.rungSpacing;
+    const block = (circuit.blocks || []).find(b => b.sheetId === sheetId && b.blockType === 'ladder') as LadderBlock | undefined;
+    return block?.ladderConfig?.rungSpacing ?? DEFAULT_LADDER_CONFIG.rungSpacing;
+  }, [circuit]);
+
+  const setRungSpacing = useCallback((sheetId: string, spacing: number) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const blocks = (prev.blocks || []).map(b => {
+        if (b.sheetId === sheetId && b.blockType === 'ladder') {
+          const lb = b as LadderBlock;
+          return { ...lb, ladderConfig: { ...lb.ladderConfig, rungSpacing: spacing }, modifiedAt: Date.now() };
+        }
+        return b;
+      });
+      return { ...prev, blocks };
     });
   }, [setCircuit]);
 
@@ -1255,6 +1286,12 @@ export function useCircuitState(
   return {
     debugMode,
     setDebugMode,
+    showGrid,
+    setShowGrid,
+    showPinLabels,
+    setShowPinLabels,
+    showDescriptions,
+    setShowDescriptions,
     activeSheetId: validActiveSheetId,
     setActiveSheetId,
     sheets,
@@ -1264,6 +1301,8 @@ export function useCircuitState(
     updateSheet,
     setSheetLayout,
     getSheetLayout,
+    setRungSpacing,
+    getRungSpacing,
     history,
     historyIndex,
     pushToHistory,

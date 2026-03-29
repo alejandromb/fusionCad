@@ -588,7 +588,8 @@ function drawPins(
   x: number,
   y: number,
   def: SymbolDefinition,
-  pinAliases?: Record<string, string>
+  pinAliases?: Record<string, string>,
+  hidePinLabels?: boolean
 ): void {
   const t = getTheme();
   ctx.fillStyle = t.pinDotColor;
@@ -603,7 +604,8 @@ function drawPins(
     ctx.arc(pinX, pinY, t.pinDotRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw pin label
+    // Draw pin label (skip if hidden)
+    if (hidePinLabels) { ctx.fillStyle = t.pinDotColor; continue; }
     ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 
@@ -693,7 +695,8 @@ export function drawSymbol(
   tag: string,
   transform?: DeviceTransform,
   partLabel?: string,
-  pinAliases?: Record<string, string>
+  pinAliases?: Record<string, string>,
+  showPinLabels?: boolean
 ): void {
   const def = lookupSymbol(idOrCategory);
   if (!def.geometry) {
@@ -761,10 +764,11 @@ export function drawSymbol(
   drawTag(ctx, x, y, def, tag, idOrCategory, partLabel);
 
   // Draw pins at their transformed positions
+  const hidePinLabels = showPinLabels === false;
   if (rotation !== 0 || mirrorH) {
-    drawTransformedPins(ctx, x, y, def, rotation, mirrorH, pinAliases);
+    drawTransformedPins(ctx, x, y, def, rotation, mirrorH, hidePinLabels ? undefined : pinAliases, hidePinLabels);
   } else {
-    drawPins(ctx, x, y, def, pinAliases);
+    drawPins(ctx, x, y, def, hidePinLabels ? undefined : pinAliases, hidePinLabels);
   }
 }
 
@@ -799,7 +803,8 @@ function drawTransformedPins(
   def: SymbolDefinition,
   rotation: number,
   mirrorH: boolean,
-  pinAliases?: Record<string, string>
+  pinAliases?: Record<string, string>,
+  hidePinLabels?: boolean
 ): void {
   const t = getTheme();
   const { width, height } = def.geometry;
@@ -822,6 +827,7 @@ function drawTransformedPins(
     ctx.arc(pinX, pinY, t.pinDotRadius, 0, Math.PI * 2);
     ctx.fill();
 
+    if (hidePinLabels) continue;
     ctx.fillStyle = t.pinLabelColor;
     ctx.textBaseline = 'middle';
 

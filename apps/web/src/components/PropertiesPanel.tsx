@@ -92,10 +92,16 @@ export function PropertiesPanel({
 
   // Multi-select summary — selectedDevices contains device IDs, display tags
   if (selectedDevices.length > 1) {
-    const selectedTags = selectedDevices.map(id => {
-      const d = circuit?.devices.find(dev => dev.id === id);
-      return d?.tag || id.slice(0, 6);
-    });
+    const selectedDeviceObjs = selectedDevices.map(id => circuit?.devices.find(dev => dev.id === id)).filter(Boolean) as Device[];
+    const selectedTags = selectedDeviceObjs.map(d => d.tag);
+
+    // Find common properties across all selected devices
+    const functions = new Set(selectedDeviceObjs.map(d => d.function).filter(Boolean));
+    const commonFunction = functions.size === 1 ? [...functions][0] : null;
+    const partIds = new Set(selectedDeviceObjs.map(d => d.partId).filter(Boolean));
+    const commonPartId = partIds.size === 1 ? [...partIds][0] : null;
+    const commonPart = commonPartId ? circuit?.parts?.find(p => p.id === commonPartId) : null;
+
     return (
       <div className="properties-panel">
         <div className="multi-select-summary">
@@ -109,6 +115,39 @@ export function PropertiesPanel({
             ))}
           </div>
         </div>
+
+        {/* Common properties */}
+        {commonFunction && (
+          <>
+            <div className="properties-section-label" style={{ marginTop: '0.5rem' }}>Common Properties</div>
+            <div className="property-row">
+              <span className="property-label">Type</span>
+              <span className="property-value">{commonFunction}</span>
+            </div>
+          </>
+        )}
+        {commonPart && (
+          <>
+            <div className="property-row">
+              <span className="property-label">Manufacturer</span>
+              <span className="property-value">{commonPart.manufacturer}</span>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Part #</span>
+              <span className="property-value">{commonPart.partNumber}</span>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Description</span>
+              <span className="property-value" title={commonPart.description}>{commonPart.description}</span>
+            </div>
+          </>
+        )}
+        {!commonFunction && functions.size > 1 && (
+          <p style={{ fontSize: '0.75rem', margin: '0.5rem 0', opacity: 0.5, fontStyle: 'italic' }}>
+            Mixed types ({functions.size})
+          </p>
+        )}
+
         <button
           className="delete-btn"
           onClick={() => onDeleteDevices(selectedDevices)}

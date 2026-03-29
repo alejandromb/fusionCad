@@ -10,7 +10,7 @@
 import type { SymbolDefinition } from '../types.js';
 import { registerSymbol, registerCategoryAlias } from '../symbol-library.js';
 import { loadSymbolsFromJson } from './symbol-loader.js';
-import { generatePLCDigitalSymbol, generatePLCAnalogSymbol } from './symbol-generators.js';
+import { generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateLC50_24_Input, generateLC50_24_Output } from './symbol-generators.js';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - JSON import handled by bundler
 import builtinSymbolsJson from './builtin-symbols.json' with { type: 'json' };
@@ -87,6 +87,9 @@ export function registerBuiltinSymbols(): void {
     generatePLCAnalogSymbol('AI', 8),
     generatePLCAnalogSymbol('AO', 4),
     generatePLCAnalogSymbol('AO', 8),
+    // Allen-Bradley 2080-LC50-24QBB separate I/O terminal blocks
+    generateLC50_24_Input(),
+    generateLC50_24_Output(),
   ];
   for (const def of plcDefaults) {
     registerSymbol(def);
