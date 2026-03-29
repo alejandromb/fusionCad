@@ -70,6 +70,7 @@ interface MenuBarProps {
   onOpenAIGenerate: () => void;
   onOpenERC: () => void;
   onOpenSymbolEditor: () => void;
+  onOpenSymbolImport: () => void;
   onOpenPartsCatalog: () => void;
 
   // Help
@@ -380,6 +381,8 @@ export function MenuBar(props: MenuBarProps) {
             <div className="toolbar-group">
               <ToolBtn icon={icons.symbolEditor} label="Symbol Editor" onClick={props.onOpenSymbolEditor} />
               <ToolLabel text="Symbol Editor" />
+              <ToolBtn icon={icons.upload} label="Import Symbol (SVG/DXF)" onClick={props.onOpenSymbolImport} />
+              <ToolLabel text="Import" />
             </div>
             <Divider />
             <div className="toolbar-group">

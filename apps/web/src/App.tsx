@@ -25,6 +25,7 @@ import { SymbolLibrary } from './components/SymbolLibrary';
 import { SymbolEditor } from './components/SymbolEditor';
 import { ERCDialog } from './components/ERCDialog';
 import { FindReplaceDialog } from './components/FindReplaceDialog';
+import { SymbolImportDialog } from './components/SymbolImportDialog';
 import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
@@ -141,6 +142,7 @@ function AppInner({
   const [showSymbolLibrary, setShowSymbolLibrary] = useState(false);
   const [showERC, setShowERC] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showSymbolImport, setShowSymbolImport] = useState(false);
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
@@ -467,6 +469,7 @@ function AppInner({
         onOpenAIGenerate={() => setShowAIPrompt(true)}
         onOpenERC={() => setShowERC(true)}
         onOpenSymbolEditor={() => setEditSymbolId('_create_new_')}
+        onOpenSymbolImport={() => setShowSymbolImport(true)}
         onOpenPartsCatalog={() => setShowPartsCatalog(true)}
         // Help
         onShowShortcuts={() => setShowShortcuts(true)}
@@ -638,6 +641,10 @@ function AppInner({
           circuit={project.circuit}
           onClose={() => setShowERC(false)}
         />
+      )}
+
+      {showSymbolImport && (
+        <SymbolImportDialog onClose={() => setShowSymbolImport(false)} />
       )}
 
       {showFindReplace && (
