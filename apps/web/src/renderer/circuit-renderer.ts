@@ -8,26 +8,12 @@ import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBl
 import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
-import { routeWires, type Obstacle, type RouteRequest, type ConnDirection, DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
+import { DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
 import { renderTitleBlock, SHEET_SIZES } from './title-block';
 import { getTheme } from './theme';
 
-/**
- * Rotate a pin direction by a device's rotation angle.
- * Follows CW rotation: right→down→left→up per 90° step.
- */
-function rotatePinDirection(
-  dir: 'left' | 'right' | 'top' | 'bottom',
-  rotation: number
-): ConnDirection {
-  // Map core-model PinDirection to our rotation array
-  const dirMap: Record<string, number> = { right: 0, bottom: 1, left: 2, top: 3 };
-  const connDirs: ConnDirection[] = ['right', 'down', 'left', 'up'];
-  const steps = Math.round(((rotation % 360) + 360) % 360 / 90);
-  return connDirs[(dirMap[dir] + steps) % 4];
-}
 
 /**
  * Resolve device for a connection endpoint.
@@ -269,20 +255,6 @@ export function getWireAtPoint(
   let bestHitIndex: number | null = null;
   let bestHitDist = Infinity;
 
-  // Build route requests for wires without manual waypoints
-  const routeRequests: RouteRequest[] = [];
-  const connectionMetadata: Array<{
-    index: number;
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    conn: Connection;
-  }> = [];
-
-  // Create obstacles from devices
-  const obstacles = createObstaclesForHitTest(devices, positions, partMap);
-
   for (let i = 0; i < connections.length; i++) {
     const conn = connections[i];
     const fromDevice = resolveDevice(conn, 'from', devices);
@@ -309,95 +281,28 @@ export function getWireAtPoint(
       ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
       : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
 
-    const fromX = fromPinPos.x;
-    const fromY = fromPinPos.y;
-    const toX = toPinPos.x;
-    const toY = toPinPos.y;
-
-    // For wires with manual waypoints, use the orthogonal path directly
-    if (conn.waypoints != null) {
-      const rawPoints: Point[] = [{ x: fromX, y: fromY }];
-      rawPoints.push(...conn.waypoints);
-      rawPoints.push({ x: toX, y: toY });
-      const pathPoints = toOrthogonalPath(rawPoints);
-
-      // Check each segment — track closest hit
-      for (let j = 0; j < pathPoints.length - 1; j++) {
-        const dist = pointToSegmentDistance(
-          worldX, worldY,
-          pathPoints[j].x, pathPoints[j].y,
-          pathPoints[j + 1].x, pathPoints[j + 1].y
-        );
-        if (dist <= hitRadius && dist < bestHitDist) {
-          bestHitDist = dist;
-          bestHitIndex = i;
-        }
-      }
+    // Build path: waypoints if present, otherwise direct/L-shape
+    let pathPoints: Point[];
+    if (conn.waypoints && conn.waypoints.length > 0) {
+      pathPoints = toOrthogonalPath([
+        fromPinPos,
+        ...conn.waypoints,
+        toPinPos,
+      ]);
     } else {
-      // Straight-line shortcut: if endpoints share X or Y, test directly
-      const isStraight = Math.abs(fromX - toX) < 1 || Math.abs(fromY - toY) < 1;
-      if (isStraight) {
-        const dist = pointToSegmentDistance(worldX, worldY, fromX, fromY, toX, toY);
-        if (dist <= hitRadius && dist < bestHitDist) {
-          bestHitDist = dist;
-          bestHitIndex = i;
-        }
-        continue;
-      }
-
-      // For auto-routed wires, collect for batch routing
-      const fromRot = transforms?.[fromDevice.id]?.rotation || 0;
-      const toRot = transforms?.[toDevice.id]?.rotation || 0;
-      routeRequests.push({
-        id: `wire_${i}`,
-        start: { x: fromX, y: fromY },
-        end: { x: toX, y: toY },
-        startDirection: fromPinDef?.direction ? rotatePinDirection(fromPinDef.direction, fromRot) : undefined,
-        endDirection: toPinDef?.direction ? rotatePinDirection(toPinDef.direction, toRot) : undefined,
-        netId: conn.netId,
-      });
-      connectionMetadata.push({
-        index: i,
-        fromX,
-        fromY,
-        toX,
-        toY,
-        conn,
-      });
+      pathPoints = toOrthogonalPath([fromPinPos, toPinPos]);
     }
-  }
 
-  // Route wires without waypoints and check for hits
-  if (routeRequests.length > 0) {
-    const routeResults = routeWires(routeRequests, obstacles, 5, 8);
-
-    for (let i = 0; i < routeResults.length; i++) {
-      const routeResult = routeResults[i];
-      const metadata = connectionMetadata[i];
-
-      let pathPoints: Point[];
-      if (routeResult.success && routeResult.path.waypoints.length >= 2) {
-        pathPoints = routeResult.path.waypoints;
-      } else {
-        // Fallback: orthogonal path for direct connection
-        const rawPoints = [
-          { x: metadata.fromX, y: metadata.fromY },
-          { x: metadata.toX, y: metadata.toY },
-        ];
-        pathPoints = toOrthogonalPath(rawPoints);
-      }
-
-      // Check each segment — track closest hit
-      for (let j = 0; j < pathPoints.length - 1; j++) {
-        const dist = pointToSegmentDistance(
-          worldX, worldY,
-          pathPoints[j].x, pathPoints[j].y,
-          pathPoints[j + 1].x, pathPoints[j + 1].y
-        );
-        if (dist <= hitRadius && dist < bestHitDist) {
-          bestHitDist = dist;
-          bestHitIndex = metadata.index;
-        }
+    // Check each segment — track closest hit
+    for (let j = 0; j < pathPoints.length - 1; j++) {
+      const dist = pointToSegmentDistance(
+        worldX, worldY,
+        pathPoints[j].x, pathPoints[j].y,
+        pathPoints[j + 1].x, pathPoints[j + 1].y
+      );
+      if (dist <= hitRadius && dist < bestHitDist) {
+        bestHitDist = dist;
+        bestHitIndex = i;
       }
     }
   }
@@ -444,51 +349,18 @@ export function getWireHitWithDistance(
     ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, transforms?.[toDevice.id])
     : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
 
-  // Check waypoint path or straight line
+  // Check path segments for closest distance
   let minDist = Infinity;
-  if (conn.waypoints != null) {
-    const pts = [fromPinPos, ...conn.waypoints, toPinPos];
-    const path = toOrthogonalPath(pts);
-    for (let j = 0; j < path.length - 1; j++) {
-      const d = pointToSegmentDistance(worldX, worldY, path[j].x, path[j].y, path[j + 1].x, path[j + 1].y);
-      if (d < minDist) minDist = d;
-    }
-  } else {
-    minDist = pointToSegmentDistance(worldX, worldY, fromPinPos.x, fromPinPos.y, toPinPos.x, toPinPos.y);
+  const pts = conn.waypoints && conn.waypoints.length > 0
+    ? [fromPinPos, ...conn.waypoints, toPinPos]
+    : [fromPinPos, toPinPos];
+  const path = toOrthogonalPath(pts);
+  for (let j = 0; j < path.length - 1; j++) {
+    const d = pointToSegmentDistance(worldX, worldY, path[j].x, path[j].y, path[j + 1].x, path[j + 1].y);
+    if (d < minDist) minDist = d;
   }
 
   return { index: idx, distance: minDist };
-}
-
-/**
- * Helper to create obstacles for hit testing (same as rendering)
- */
-function createObstaclesForHitTest(
-  devices: Device[],
-  positions: Map<string, Point>,
-  partMap: Map<string, Part>
-): Obstacle[] {
-  const obstacles: Obstacle[] = [];
-
-  for (const device of devices) {
-    const position = positions.get(device.id);
-    if (!position) continue;
-
-    const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
-
-    obstacles.push({
-      id: device.id,
-      bounds: {
-        x: position.x,
-        y: position.y,
-        width: geometry.width,
-        height: geometry.height,
-      },
-    });
-  }
-
-  return obstacles;
 }
 
 /**
@@ -679,34 +551,6 @@ function layoutDevices(
 /**
  * Create obstacles from device positions
  */
-function createObstacles(
-  devices: Device[],
-  positions: Map<string, Point>,
-  partMap: Map<string, Part>
-): Obstacle[] {
-  const obstacles: Obstacle[] = [];
-
-  for (const device of devices) {
-    const position = positions.get(device.id);
-    if (!position) continue;
-
-    const part = device.partId ? partMap.get(device.partId) : null;
-    const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
-
-    obstacles.push({
-      id: device.id,
-      bounds: {
-        x: position.x,
-        y: position.y,
-        width: geometry.width,
-        height: geometry.height,
-      },
-    });
-  }
-
-  return obstacles;
-}
-
 /**
  * Render the circuit on canvas
  */
@@ -930,11 +774,7 @@ export function renderCircuit(
     }
   }
 
-  // Create obstacles from devices for routing
-  const obstacles = createObstacles(devices, positions, partMap);
-
-  // Build all route requests first
-  const routeRequests: RouteRequest[] = [];
+  // Resolve pin positions for all connections (no auto-routing — simple direct/L-shape paths)
   const connectionMetadata: Array<{
     index: number;
     fromX: number;
@@ -960,7 +800,6 @@ export function renderCircuit(
     const fromGeometry = getSymbolGeometry(fromPart?.symbolCategory || fromPart?.category || 'unknown');
     const toGeometry = getSymbolGeometry(toPart?.symbolCategory || toPart?.category || 'unknown');
 
-    // Find pin positions (accounting for device rotation)
     const fromPinDef = fromGeometry.pins.find(p => p.id === conn.fromPin);
     const toPinDef = toGeometry.pins.find(p => p.id === conn.toPin);
 
@@ -971,42 +810,15 @@ export function renderCircuit(
       ? getPinWorldPosition(toPos, toPinDef.position, toGeometry, getTransform(toDevice.id))
       : { x: toPos.x + toGeometry.width / 2, y: toPos.y + toGeometry.height / 2 };
 
-    const fromX = fromPinPos.x;
-    const fromY = fromPinPos.y;
-    const toX = toPinPos.x;
-    const toY = toPinPos.y;
-
-    // Compute pin exit directions (accounting for device rotation)
-    const fromRotation = getTransform(fromDevice.id)?.rotation || 0;
-    const toRotation = getTransform(toDevice.id)?.rotation || 0;
-    const startDir = fromPinDef?.direction
-      ? rotatePinDirection(fromPinDef.direction, fromRotation)
-      : undefined;
-    const endDir = toPinDef?.direction
-      ? rotatePinDirection(toPinDef.direction, toRotation)
-      : undefined;
-
-    routeRequests.push({
-      id: `wire_${i}`,
-      start: { x: fromX, y: fromY },
-      end: { x: toX, y: toY },
-      startDirection: startDir,
-      endDirection: endDir,
-      netId: conn.netId,
-    });
-
     connectionMetadata.push({
       index: i,
-      fromX,
-      fromY,
-      toX,
-      toY,
+      fromX: fromPinPos.x,
+      fromY: fromPinPos.y,
+      toX: toPinPos.x,
+      toY: toPinPos.y,
       conn,
     });
   }
-
-  // Route all wires together with nudging
-  const routeResults = routeWires(routeRequests, obstacles, 5, 8); // 5px padding, 8px spacing
 
   // Auto-compute wire numbers for connections that don't have them
   const sheetRungs = (circuit.rungs || []).filter(r => r.sheetId === activeSheetId);
@@ -1085,51 +897,30 @@ export function renderCircuit(
   // Color palette for wires
   const wireColors = t.wireColors;
 
-  for (let i = 0; i < routeResults.length; i++) {
-    const routeResult = routeResults[i];
+  for (let i = 0; i < connectionMetadata.length; i++) {
     const metadata = connectionMetadata[i];
     const isSelected = options?.selectedWireIndex === metadata.index;
 
-    // Single wire color (first from palette); selected wires highlight white
+    // Single wire color; selected wires highlight white
     const baseColor = wireColors[0];
     ctx.strokeStyle = isSelected ? '#ffffff' : baseColor;
     ctx.lineWidth = isSelected ? t.wireWidthSelected : t.wireWidth;
 
-    // Build path points for rendering
-    let pathPoints: Point[] = [];
-
-    // Straight-line optimization: if endpoints share X or Y, draw a direct line.
-    // This prevents the auto-router from routing junction-to-junction bus segments
-    // around obstacles. Matches KiCad/QElectroTech: wire segments are always straight.
-    const isStraight = Math.abs(metadata.fromX - metadata.toX) < 1 ||
-                       Math.abs(metadata.fromY - metadata.toY) < 1;
-
-    if (isStraight && !(metadata.conn.waypoints && metadata.conn.waypoints.length > 0)) {
-      // Direct straight wire — no routing needed
-      pathPoints = [
-        { x: metadata.fromX, y: metadata.fromY },
-        { x: metadata.toX, y: metadata.toY },
-      ];
-    } else if (metadata.conn.waypoints != null) {
-      // Connection has explicit waypoints (even empty = "user-drawn, no routing").
-      // Use orthogonal path through waypoints, bypassing the auto-router entirely.
-      // This prevents the router from re-routing manually drawn wires.
-      const rawPoints = [
+    // Build path: explicit waypoints if present, otherwise direct/L-shape
+    let pathPoints: Point[];
+    if (metadata.conn.waypoints && metadata.conn.waypoints.length > 0) {
+      // Connection has explicit waypoints — route through them
+      pathPoints = toOrthogonalPath([
         { x: metadata.fromX, y: metadata.fromY },
         ...metadata.conn.waypoints,
         { x: metadata.toX, y: metadata.toY },
-      ];
-      pathPoints = toOrthogonalPath(rawPoints);
-    } else if (routeResult.success && routeResult.path.segments.length > 0) {
-      // Use auto-routed path (already orthogonal)
-      pathPoints = routeResult.path.waypoints;
+      ]);
     } else {
-      // Fallback: orthogonal path for direct connection
-      const rawPoints = [
+      // Direct connection: straight line if aligned, L-shape otherwise
+      pathPoints = toOrthogonalPath([
         { x: metadata.fromX, y: metadata.fromY },
         { x: metadata.toX, y: metadata.toY },
-      ];
-      pathPoints = toOrthogonalPath(rawPoints);
+      ]);
     }
 
     // Draw the wire path
