@@ -24,6 +24,7 @@ import { ExportDialog } from './components/ExportDialog';
 import { SymbolLibrary } from './components/SymbolLibrary';
 import { SymbolEditor } from './components/SymbolEditor';
 import { ERCDialog } from './components/ERCDialog';
+import { FindReplaceDialog } from './components/FindReplaceDialog';
 import { PartsCatalog } from './components/PartsCatalog';
 import { StatusBar } from './components/StatusBar';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
@@ -139,6 +140,7 @@ function AppInner({
   const [showExport, setShowExport] = useState(false);
   const [showSymbolLibrary, setShowSymbolLibrary] = useState(false);
   const [showERC, setShowERC] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
@@ -293,6 +295,11 @@ function AppInner({
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
         e.preventDefault();
         setShowShortcuts(prev => !prev);
+      }
+      // Cmd/Ctrl+F = Find/Replace
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowFindReplace(true);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -630,6 +637,16 @@ function AppInner({
         <ERCDialog
           circuit={project.circuit}
           onClose={() => setShowERC(false)}
+        />
+      )}
+
+      {showFindReplace && (
+        <FindReplaceDialog
+          circuit={project.circuit}
+          onClose={() => setShowFindReplace(false)}
+          onUpdateDevice={circuitState.updateDevice}
+          onSelectDevices={circuitState.setSelectedDevices}
+          activeSheetId={circuitState.activeSheetId}
         />
       )}
 
