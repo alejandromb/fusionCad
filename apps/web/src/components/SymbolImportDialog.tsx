@@ -97,6 +97,14 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
     );
 
     registerSymbol(symbolDef);
+
+    // Persist to localStorage so it survives page refresh
+    try {
+      const stored = JSON.parse(localStorage.getItem('fusionCad_importedSymbols') || '[]');
+      stored.push(symbolDef);
+      localStorage.setItem('fusionCad_importedSymbols', JSON.stringify(stored));
+    } catch { /* ignore storage errors */ }
+
     setSaved(true);
     onSymbolRegistered?.();
   }, [imported, pins, symbolId, symbolName, category, tagPrefix]);

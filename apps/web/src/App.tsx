@@ -96,6 +96,16 @@ export function App() {
       }
       // Fallback: load from static JSON (IndexedDB mode or API failure)
       registerBuiltinSymbols();
+
+      // Restore user-imported symbols from localStorage
+      try {
+        const stored = JSON.parse(localStorage.getItem('fusionCad_importedSymbols') || '[]');
+        for (const sym of stored) {
+          registerSymbol(sym);
+        }
+        if (stored.length > 0) console.log(`Restored ${stored.length} imported symbol(s)`);
+      } catch { /* ignore */ }
+
       setSymbolsLoaded(true);
     }
 
