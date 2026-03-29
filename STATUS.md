@@ -1705,3 +1705,36 @@ These are our end-to-end test cases. Each must always validate and export correc
 - L-to-R wire ordering uses actual X positions of endpoint devices, not array index
 
 **Tests**: 121 E2E + 82 unit, 86 symbols
+
+## Session 33 — 2026-03-28: Wire Routing Rewrite + PLC Symbols + UX Features
+
+**Duration**: ~5 hours
+**Focus**: Wire routing architecture overhaul, PLC symbol creation, editor UX improvements
+
+### Completed
+- **Wire routing rewrite**: Removed visibility graph + A* + nudging auto-router (-253 lines). Replaced with KiCad-style direct/L-shape routing via `toOrthogonalPath()`. No obstacle avoidance — wires go where you point them.
+- **Full-width title block**: 3-column layout spanning entire page bottom (company | title | rev)
+- **Auto rung count**: Fits page height, no more overflow off Tabloid
+- **Rung gap slider**: 15-50mm range in sidebar with themed styling
+- **2080-LC50-24QBB PLC symbols**: Separate input (14 DI) and output (10 DO) terminal blocks with dual-side layout (signals on main side, power/common on opposite side)
+- **Continuous placement mode**: Stay in placement mode until Escape/V, Shift+click for single placement
+- **Display toggles**: Show grid, pin labels, descriptions (all in sidebar DISPLAY section)
+- **Multi-select common properties**: Props panel shows shared type/part info when multiple same-type devices selected
+- **Arrow key nudging**: Move selected devices by 5mm grid step with undo support
+- **Single wire color**: Removed rainbow per-wire coloring
+- **Wire start indicator**: Reduced from 10mm to 3mm radius
+- **Junction cleanup**: Invisible junction symbol (wire endpoints sufficient), hidden "Wire junction" label
+- **Default rungSpacing = 15mm**: Matches PLC pin spacing for perfect alignment
+- **Grid-aligned symbol generator**: 40mm width, 5mm grid multiples for all pin positions
+- **Symbol creation rules**: `.claude/ai-rules/symbol-creation-rules.md` for AI-assisted symbol generation
+- **Multi-symbol parts architecture**: Designed `deviceGroupId`-based linking for PLC CPU+IO+PSU
+- **Agents API research**: Concluded raw API + tool-use is better than Agent SDK for fusionCad
+- **Priority list reorganized**: P0=features, P1=quality, P2=infra, P3=business
+
+### Key Decisions
+- Professional schematic editors (KiCad, EPLAN, AutoCAD Electrical) do NOT use auto-routing for schematic wires — manual/template placement is the standard
+- Visibility graph + A* routing module kept as library for future auto-layout, but removed from render path
+- PLC pin spacing (15mm) should match rung spacing for natural alignment
+- Bus wire entity (Phase C) and interactive wire drawing tool (Phase D) deferred to future sessions
+
+**Tests**: 121 E2E + 82 unit, 86 symbols + 10 PLC generators
