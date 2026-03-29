@@ -182,18 +182,16 @@ export function RightPanel({
 
     // Standard/usage filter
     if (selectedStandard === 'Layout') {
-      // Show only layout symbols
+      // Show only layout symbols (any category)
+      symbols = symbols.filter(s => s.usage === 'layout');
+    } else if (sheetContext === 'panel-layout') {
+      // Panel-layout sheet: show layout symbols + Panel category, hide schematic-only
       symbols = symbols.filter(s => s.usage === 'layout' || LAYOUT_ONLY_CATEGORIES.has(s.category));
     } else {
-      // Sheet context filter: hide layout symbols on schematic sheets and vice versa
-      if (sheetContext === 'panel-layout') {
-        symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category) || s.usage === 'layout');
-      } else {
-        // Default: schematic context — hide layout-only symbols
-        symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category) && s.usage !== 'layout');
-      }
+      // Schematic sheet: hide layout symbols
+      symbols = symbols.filter(s => s.usage !== 'layout' && !LAYOUT_ONLY_CATEGORIES.has(s.category));
 
-      // Standard filter
+      // Standard filter (IEC/ANSI)
       if (selectedStandard !== 'All') {
         symbols = symbols.filter(s =>
           s.standard === selectedStandard || s.standard === 'common'
