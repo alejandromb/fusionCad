@@ -18,6 +18,7 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
   const [category, setCategory] = useState('custom');
   const [tagPrefix, setTagPrefix] = useState('X');
   const [targetWidth, setTargetWidth] = useState(40);
+  const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
   const [pins, setPins] = useState<PinCandidate[]>([]);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -74,6 +75,7 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
       category,
       confirmedPins,
       tagPrefix,
+      usage,
     );
 
     registerSymbol(symbolDef);
@@ -150,6 +152,11 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
 
               {/* Symbol properties */}
               <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                <span>Type</span>
+                <select className="property-input" style={{ width: '100%' }} value={usage} onChange={e => setUsage(e.target.value as 'schematic' | 'layout')}>
+                  <option value="schematic">Schematic Symbol</option>
+                  <option value="layout">Layout Footprint</option>
+                </select>
                 <span>Name</span>
                 <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolName} onChange={e => setSymbolName(e.target.value)} />
                 <span>ID</span>

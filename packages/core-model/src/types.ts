@@ -210,6 +210,13 @@ export interface SymbolDefinition extends Entity {
    * e.g., 'IEC 60617-7:2012, Symbol 07-13-01'
    */
   iecReference?: string;
+
+  /**
+   * Symbol usage context.
+   * - 'schematic' (default): Logical symbol for schematic sheets
+   * - 'layout': Physical footprint for panel layout sheets
+   */
+  usage?: 'schematic' | 'layout';
 }
 
 /**

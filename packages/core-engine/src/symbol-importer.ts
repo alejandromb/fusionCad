@@ -398,6 +398,7 @@ export function finalizeImportedSymbol(
   category: string,
   confirmedPins: Array<{ x: number; y: number; name: string; direction: PinDirection; pinType: string }>,
   tagPrefix?: string,
+  usage?: 'schematic' | 'layout',
 ): SymbolDefinition {
   const pins: SymbolPin[] = confirmedPins.map(p => ({
     id: p.name,
@@ -418,6 +419,7 @@ export function finalizeImportedSymbol(
     tagPrefix: tagPrefix || category.substring(0, 2).toUpperCase(),
     source: 'imported',
     standard: 'custom',
+    usage: usage || 'schematic',
     createdAt: Date.now(),
     modifiedAt: Date.now(),
   };

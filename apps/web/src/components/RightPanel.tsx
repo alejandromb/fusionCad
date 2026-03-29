@@ -182,10 +182,10 @@ export function RightPanel({
 
     // Sheet context filter: hide layout symbols on schematic sheets and vice versa
     if (sheetContext === 'panel-layout') {
-      symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category));
+      symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category) || s.usage === 'layout');
     } else {
-      // Default: schematic context — hide Panel category
-      symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category));
+      // Default: schematic context — hide layout-only symbols
+      symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category) && s.usage !== 'layout');
     }
 
     // Standard filter
