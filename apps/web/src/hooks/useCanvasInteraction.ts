@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
-import { MM_TO_PX } from '@fusion-cad/core-model';
+import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
 import { getWireAtPoint, getWireHitWithDistance, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
 import type { Connection, SheetConnection } from '../renderer/circuit-renderer';
@@ -1296,6 +1296,25 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         } else if (selectedDevices.length > 0) {
           setSelectedDevices([]);
         }
+      }
+
+      // Arrow keys = nudge selected devices by one grid step
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedDevices.length > 0) {
+        e.preventDefault();
+        const step = GRID_MM;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        pushToHistoryRef.current();
+        setDevicePositions(prev => {
+          const next = new Map(prev);
+          for (const id of selectedDevices) {
+            const pos = next.get(id);
+            if (pos) {
+              next.set(id, { x: pos.x + dx, y: pos.y + dy });
+            }
+          }
+          return next;
+        });
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
