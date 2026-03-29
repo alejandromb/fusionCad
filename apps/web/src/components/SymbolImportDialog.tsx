@@ -167,35 +167,43 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
                 Imported from: {fileName} — {imported.primitives.length} elements, {imported.bounds.width.toFixed(1)} x {imported.bounds.height.toFixed(1)} mm
               </div>
 
-              {/* Symbol properties */}
+              {/* Step 1: What is this? */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <button
+                  className="assign-part-btn"
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    background: usage === 'schematic' ? 'var(--fc-accent)' : undefined,
+                    color: usage === 'schematic' ? '#fff' : undefined,
+                    fontWeight: usage === 'schematic' ? 'bold' : undefined,
+                  }}
+                  onClick={() => { setUsage('schematic'); setCategory('Control'); }}
+                >
+                  Schematic Symbol
+                </button>
+                <button
+                  className="assign-part-btn"
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    background: usage === 'layout' ? 'var(--fc-accent)' : undefined,
+                    color: usage === 'layout' ? '#fff' : undefined,
+                    fontWeight: usage === 'layout' ? 'bold' : undefined,
+                  }}
+                  onClick={() => { setUsage('layout'); setCategory('Panel'); }}
+                >
+                  Layout Footprint
+                </button>
+              </div>
+
+              {/* Step 2: Name (required) */}
               <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
-                <span>Type</span>
-                <select className="property-input" style={{ width: '100%' }} value={usage} onChange={e => {
-                  const val = e.target.value as 'schematic' | 'layout';
-                  setUsage(val);
-                  setCategory(val === 'layout' ? 'Panel' : 'Control');
-                }}>
-                  <option value="schematic">Schematic Symbol</option>
-                  <option value="layout">Layout Footprint</option>
-                </select>
                 <span>Name</span>
-                <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolName} onChange={e => setSymbolName(e.target.value)} />
-                <span>ID</span>
-                <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolId} onChange={e => setSymbolId(e.target.value)} />
-                <span>Category</span>
-                <select className="property-input" style={{ width: '100%' }} value={category} onChange={e => setCategory(e.target.value)}>
-                  <optgroup label="Primary">
-                    <option value="Control">Schematic</option>
-                    <option value="Panel">Layout</option>
-                  </optgroup>
-                  <optgroup label="Subcategory">
-                    {SYMBOL_CATEGORIES.map(c => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </optgroup>
-                </select>
-                <span>Tag prefix</span>
-                <input className="property-input" style={{ width: '60px', textAlign: 'left' }} value={tagPrefix} onChange={e => setTagPrefix(e.target.value)} />
+                <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolName} onChange={e => {
+                  setSymbolName(e.target.value);
+                  setSymbolId(`imported-${e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
+                }} />
                 <span>Width (mm)</span>
                 <input className="property-input" style={{ width: '60px' }} type="number" value={targetWidth} onChange={e => setTargetWidth(Number(e.target.value))} />
               </div>
@@ -253,8 +261,12 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
               </div>
 
               {saved && (
-                <div style={{ fontSize: '0.8rem', color: '#00C850', textAlign: 'center' }}>
-                  Symbol "{symbolName}" registered. Find it in the symbol palette under "{category}".
+                <div style={{ fontSize: '0.8rem', color: '#00C850', textAlign: 'center', lineHeight: 1.5 }}>
+                  Symbol "{symbolName}" saved.
+                  {usage === 'layout'
+                    ? ' Set a sheet to "Panel Layout", then click the "Layout" filter in the palette.'
+                    : ' Find it in the symbol palette — search by name or browse the "All" filter.'
+                  }
                 </div>
               )}
             </>
