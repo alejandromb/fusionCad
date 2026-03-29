@@ -170,7 +170,11 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
               {/* Symbol properties */}
               <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
                 <span>Type</span>
-                <select className="property-input" style={{ width: '100%' }} value={usage} onChange={e => setUsage(e.target.value as 'schematic' | 'layout')}>
+                <select className="property-input" style={{ width: '100%' }} value={usage} onChange={e => {
+                  const val = e.target.value as 'schematic' | 'layout';
+                  setUsage(val);
+                  setCategory(val === 'layout' ? 'Panel' : 'Control');
+                }}>
                   <option value="schematic">Schematic Symbol</option>
                   <option value="layout">Layout Footprint</option>
                 </select>
@@ -180,9 +184,15 @@ export function SymbolImportDialog({ onClose }: SymbolImportDialogProps) {
                 <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolId} onChange={e => setSymbolId(e.target.value)} />
                 <span>Category</span>
                 <select className="property-input" style={{ width: '100%' }} value={category} onChange={e => setCategory(e.target.value)}>
-                  {SYMBOL_CATEGORIES.map(c => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
+                  <optgroup label="Primary">
+                    <option value="Control">Schematic</option>
+                    <option value="Panel">Layout</option>
+                  </optgroup>
+                  <optgroup label="Subcategory">
+                    {SYMBOL_CATEGORIES.map(c => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
                 <span>Tag prefix</span>
                 <input className="property-input" style={{ width: '60px', textAlign: 'left' }} value={tagPrefix} onChange={e => setTagPrefix(e.target.value)} />
