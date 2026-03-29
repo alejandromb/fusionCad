@@ -72,9 +72,9 @@ export const SYMBOL_SIZES_MM = {
  * Each preset defines the rail positions for a Tabloid (432×279mm) sheet.
  * For other sheet sizes, scale railL2X proportionally.
  */
-export type SheetLadderLayout = 'single-column' | 'dual-column' | 'no-rungs';
+export type SheetLadderLayout = 'single-column' | 'dual-column' | 'no-rungs' | 'panel-layout';
 
-export const LADDER_LAYOUT_PRESETS: Record<Exclude<SheetLadderLayout, 'no-rungs'>, {
+export const LADDER_LAYOUT_PRESETS: Record<Exclude<SheetLadderLayout, 'no-rungs' | 'panel-layout'>, {
   columns: Array<{ railL1X: number; railL2X: number; blockOffsetX: number }>;
 }> = {
   'single-column': {

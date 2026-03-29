@@ -211,6 +211,7 @@ export function Sidebar({
                 <option value="single-column">Ladder (1 col)</option>
                 <option value="dual-column">Ladder (2 col)</option>
                 <option value="no-rungs">Plain</option>
+                <option value="panel-layout">Panel Layout</option>
               </select>
             </div>
             {sheetLayout !== 'no-rungs' && (

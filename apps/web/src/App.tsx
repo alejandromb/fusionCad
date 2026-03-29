@@ -577,7 +577,7 @@ function AppInner({
           }}
           interactionMode={interaction.interactionMode}
           placementCategory={interaction.placementCategory}
-          sheetContext="schematic"
+          sheetContext={circuitState.getSheetLayout(circuitState.activeSheetId) === 'panel-layout' ? 'panel-layout' : 'schematic'}
           wireStart={interaction.wireStart}
           selectedDevices={circuitState.selectedDevices}
           selectedWireIndex={circuitState.selectedWireIndex}

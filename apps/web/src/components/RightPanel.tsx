@@ -15,7 +15,7 @@ import { AIChatPanel } from './AIChatPanel';
 const FAVORITES_KEY = 'fusionCad_favoriteSymbols';
 const STANDARD_KEY = 'fusionCad_preferredStandard';
 
-const STANDARDS = ['All', 'IEC 60617', 'ANSI/NEMA'] as const;
+const STANDARDS = ['All', 'IEC 60617', 'ANSI/NEMA', 'Layout'] as const;
 type Standard = (typeof STANDARDS)[number];
 
 type TabId = 'symbols' | 'favorites' | 'parts' | 'properties' | 'ai';
@@ -180,19 +180,25 @@ export function RightPanel({
   const filteredSymbols = useMemo(() => {
     let symbols = allSymbols;
 
-    // Sheet context filter: hide layout symbols on schematic sheets and vice versa
-    if (sheetContext === 'panel-layout') {
-      symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category) || s.usage === 'layout');
+    // Standard/usage filter
+    if (selectedStandard === 'Layout') {
+      // Show only layout symbols
+      symbols = symbols.filter(s => s.usage === 'layout' || LAYOUT_ONLY_CATEGORIES.has(s.category));
     } else {
-      // Default: schematic context — hide layout-only symbols
-      symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category) && s.usage !== 'layout');
-    }
+      // Sheet context filter: hide layout symbols on schematic sheets and vice versa
+      if (sheetContext === 'panel-layout') {
+        symbols = symbols.filter(s => !SCHEMATIC_ONLY_CATEGORIES.has(s.category) || s.usage === 'layout');
+      } else {
+        // Default: schematic context — hide layout-only symbols
+        symbols = symbols.filter(s => !LAYOUT_ONLY_CATEGORIES.has(s.category) && s.usage !== 'layout');
+      }
 
-    // Standard filter
-    if (selectedStandard !== 'All') {
-      symbols = symbols.filter(s =>
-        s.standard === selectedStandard || s.standard === 'common'
-      );
+      // Standard filter
+      if (selectedStandard !== 'All') {
+        symbols = symbols.filter(s =>
+          s.standard === selectedStandard || s.standard === 'common'
+        );
+      }
     }
 
     if (selectedCategory) {

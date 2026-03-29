@@ -375,7 +375,7 @@ export interface TitleBlockData {
  * - 'single-line': single-line / one-line diagram (future)
  * - 'wiring': point-to-point wiring diagram (future)
  */
-export type DiagramType = 'ladder' | 'single-line' | 'schematic' | 'wiring';
+export type DiagramType = 'ladder' | 'single-line' | 'schematic' | 'wiring' | 'panel-layout';
 
 /**
  * Block type — a placeable region on a sheet with its own diagram style.

@@ -36,8 +36,8 @@ export interface UseCircuitStateReturn {
   renameSheet: (sheetId: string, newName: string) => void;
   deleteSheet: (sheetId: string) => void;
   updateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
-  setSheetLayout: (sheetId: string, layout: 'single-column' | 'dual-column' | 'no-rungs') => void;
-  getSheetLayout: (sheetId: string) => 'single-column' | 'dual-column' | 'no-rungs';
+  setSheetLayout: (sheetId: string, layout: SheetLadderLayout) => void;
+  getSheetLayout: (sheetId: string) => SheetLadderLayout;
   setRungSpacing: (sheetId: string, spacing: number) => void;
   getRungSpacing: (sheetId: string) => number;
 
@@ -306,6 +306,8 @@ export function useCircuitState(
 
   const getSheetLayout = useCallback((sheetId: string): SheetLadderLayout => {
     if (!circuit) return 'no-rungs';
+    const sheet = (circuit.sheets || []).find(s => s.id === sheetId);
+    if (sheet?.diagramType === 'panel-layout') return 'panel-layout';
     const blocks = (circuit.blocks || []).filter(b => b.sheetId === sheetId && b.blockType === 'ladder');
     if (blocks.length === 0) return 'no-rungs';
     if (blocks.length >= 2) return 'dual-column';
@@ -320,6 +322,14 @@ export function useCircuitState(
       const otherBlocks = (prev.blocks || []).filter(
         b => !(b.sheetId === sheetId && b.blockType === 'ladder')
       );
+
+      if (layout === 'panel-layout') {
+        // Set sheet to panel-layout type, remove ladder blocks
+        const sheets = (prev.sheets || []).map(s =>
+          s.id === sheetId ? { ...s, diagramType: 'panel-layout' as const, modifiedAt: now } : s
+        );
+        return { ...prev, blocks: otherBlocks, sheets };
+      }
 
       if (layout === 'no-rungs') {
         // Also update sheet diagramType
