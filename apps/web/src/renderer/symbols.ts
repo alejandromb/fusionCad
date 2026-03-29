@@ -860,18 +860,12 @@ function drawTransformedPins(
 // ---------------------------------------------------------------------------
 
 function drawJunction(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  def: SymbolDefinition
+  _ctx: CanvasRenderingContext2D,
+  _x: number,
+  _y: number,
+  _def: SymbolDefinition
 ): void {
-  const t = getTheme();
-  const cx = x + def.geometry.width / 2;
-  const cy = y + def.geometry.height / 2;
-  ctx.fillStyle = t.junctionFill;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 1, 0, Math.PI * 2);
-  ctx.fill();
+  // Junction is invisible — wire endpoint dots already mark the connection point
 }
 
 export function registerBuiltinDrawFunctions(): void {
