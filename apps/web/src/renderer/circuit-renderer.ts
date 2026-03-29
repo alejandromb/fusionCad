@@ -721,7 +721,7 @@ export function renderCircuit(
     }
 
     // Render device function text for regular devices (not arrows, not junctions)
-    if (options?.showDescriptions !== false && symbolKey !== 'source-arrow' && symbolKey !== 'destination-arrow' && symbolKey !== 'junction') {
+    if (options?.showDescriptions !== false && symbolKey !== 'source-arrow' && symbolKey !== 'destination-arrow' && symbolKey.toLowerCase() !== 'junction') {
       const fn = device.function;
       if (fn) {
         const geometry = getSymbolGeometry(symbolKey);
