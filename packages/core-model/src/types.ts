@@ -38,6 +38,16 @@ export interface Part extends Entity {
   supplierUrls?: Record<string, string>;  // e.g., { 'Mouser': 'https://...' }
   symbolCategory?: string;       // schematic symbol category (e.g., 'contactor', 'circuit-breaker')
   layoutSymbolId?: string;       // panel layout symbol ID (physical footprint for panel view)
+  /**
+   * Multi-symbol parts: declares all symbols needed to fully represent this part.
+   * Each entry becomes a linked device sharing the same deviceGroupId.
+   * When omitted or single-entry, the part behaves as a normal single-symbol part.
+   */
+  requiredSymbols?: Array<{
+    symbolId: string;    // registered symbol ID (e.g., 'ab-2080-lc50-24-input')
+    role: string;        // human label (e.g., 'DI Module', 'DO Module')
+    isPrimary?: boolean; // first symbol placed (default: first entry)
+  }>;
   attributes: Record<string, unknown>; // flexible attributes
 }
 

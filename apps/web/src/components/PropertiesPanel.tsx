@@ -275,6 +275,59 @@ export function PropertiesPanel({
           {part && part.manufacturer !== 'Unassigned' ? 'Change Part' : 'Assign Part'}
         </button>
 
+        {/* Multi-symbol companion warning */}
+        {part?.requiredSymbols && part.requiredSymbols.length > 1 && (() => {
+          // Find which companion symbols are already placed (same deviceGroupId)
+          const groupId = device.deviceGroupId;
+          const groupDevices = groupId
+            ? circuit?.devices.filter(d => d.deviceGroupId === groupId) || []
+            : [device];
+          const placedSymbolIds = new Set(groupDevices.map(d => {
+            const p = d.partId ? circuit?.parts?.find(pp => pp.id === d.partId) : null;
+            return p?.symbolCategory || '';
+          }).filter(Boolean));
+
+          const missing = part.requiredSymbols!.filter(rs => !placedSymbolIds.has(rs.symbolId));
+
+          if (missing.length > 0) {
+            return (
+              <div style={{
+                margin: '0.5rem 0',
+                padding: '0.5rem',
+                background: 'rgba(255, 180, 0, 0.15)',
+                border: '1px solid rgba(255, 180, 0, 0.3)',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#FFB400', marginBottom: '0.25rem' }}>
+                  Incomplete part
+                </div>
+                <div style={{ opacity: 0.8 }}>
+                  {missing.map(m => (
+                    <div key={m.symbolId}>Missing: {m.role}</div>
+                  ))}
+                </div>
+                <div style={{ marginTop: '0.25rem', opacity: 0.6, fontStyle: 'italic' }}>
+                  Place the companion symbol and link with same tag
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div style={{
+              margin: '0.5rem 0',
+              padding: '0.35rem 0.5rem',
+              background: 'rgba(0, 200, 80, 0.1)',
+              border: '1px solid rgba(0, 200, 80, 0.2)',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              color: '#00C850',
+            }}>
+              All symbols placed ({part.requiredSymbols!.length}/{part.requiredSymbols!.length})
+            </div>
+          );
+        })()}
+
         {/* Specifications Section */}
         {part && (part.voltage || part.current || part.powerRating || part.temperatureRange) && (
           <>

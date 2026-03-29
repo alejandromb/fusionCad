@@ -70,4 +70,36 @@ export const allenBradleyParts: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>[] 
     symbolCategory: 'plc-ps',
     attributes: { series: 'CompactLogix', inputVoltage: '85-265VAC' },
   },
+
+  // --- Micro800 Series (multi-symbol parts) ---
+  {
+    type: 'part',
+    manufacturer: 'Allen-Bradley',
+    partNumber: '2080-LC50-24QBB',
+    description: 'Micro850 PLC - 14 DI / 10 DO (24VDC)',
+    category: 'plc',
+    voltage: '24VDC',
+    certifications: ['UL', 'CE', 'CSA'],
+    symbolCategory: 'ab-2080-lc50-24-input',  // primary symbol
+    requiredSymbols: [
+      { symbolId: 'ab-2080-lc50-24-input', role: 'DI Module (14 inputs)', isPrimary: true },
+      { symbolId: 'ab-2080-lc50-24-output', role: 'DO Module (10 outputs)' },
+    ],
+    attributes: { series: 'Micro800', model: 'Micro850', diCount: 14, doCount: 10 },
+  },
+  {
+    type: 'part',
+    manufacturer: 'Allen-Bradley',
+    partNumber: '2080-LC50-24QVB',
+    description: 'Micro850 PLC - 14 DI / 10 DO (24VDC, high-speed)',
+    category: 'plc',
+    voltage: '24VDC',
+    certifications: ['UL', 'CE', 'CSA'],
+    symbolCategory: 'ab-2080-lc50-24-input',
+    requiredSymbols: [
+      { symbolId: 'ab-2080-lc50-24-input', role: 'DI Module (14 inputs)', isPrimary: true },
+      { symbolId: 'ab-2080-lc50-24-output', role: 'DO Module (10 outputs)' },
+    ],
+    attributes: { series: 'Micro800', model: 'Micro850', diCount: 14, doCount: 10 },
+  },
 ];
