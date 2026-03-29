@@ -321,7 +321,8 @@ function AppInner({
 
   const selectAll = useCallback(() => {
     if (project.circuit) {
-      circuitState.setSelectedDevices(project.circuit.devices.map(d => d.id));
+      const sheetDevices = project.circuit.devices.filter(d => d.sheetId === circuitState.activeSheetId);
+      circuitState.setSelectedDevices(sheetDevices.map(d => d.id));
     }
   }, [project.circuit, circuitState]);
 

@@ -1390,7 +1390,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
-        setSelectedDevices(circuit.devices.map(d => d.id));
+        const sheetDevices = activeSheetId
+          ? circuit.devices.filter(d => d.sheetId === activeSheetId)
+          : circuit.devices;
+        setSelectedDevices(sheetDevices.map(d => d.id));
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedDevices.length > 0) {
