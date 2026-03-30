@@ -113,6 +113,7 @@ Before doing ANYTHING else:
 22. **CORS locked down** — Currently allows all origins in dev.
 23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
 24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
+25. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
 
 ### P3 — Business & Revenue
 

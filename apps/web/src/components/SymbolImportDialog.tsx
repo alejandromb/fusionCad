@@ -75,7 +75,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!imported) return;
 
     const confirmedPins = pins.map(p => ({
@@ -98,12 +98,24 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
 
     registerSymbol(symbolDef);
 
-    // Persist to localStorage so it survives page refresh
+    // Persist: try API first (database), fall back to localStorage
     try {
-      const stored = JSON.parse(localStorage.getItem('fusionCad_importedSymbols') || '[]');
-      stored.push(symbolDef);
-      localStorage.setItem('fusionCad_importedSymbols', JSON.stringify(stored));
-    } catch { /* ignore storage errors */ }
+      const res = await fetch(`/api/symbols/${symbolDef.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(symbolDef),
+      });
+      if (!res.ok) throw new Error('API save failed');
+    } catch {
+      // Offline or API error — save to localStorage as fallback
+      try {
+        const stored = JSON.parse(localStorage.getItem('fusionCad_importedSymbols') || '[]');
+        // Replace if same ID exists
+        const idx = stored.findIndex((s: any) => s.id === symbolDef.id);
+        if (idx >= 0) stored[idx] = symbolDef; else stored.push(symbolDef);
+        localStorage.setItem('fusionCad_importedSymbols', JSON.stringify(stored));
+      } catch { /* ignore */ }
+    }
 
     setSaved(true);
     onSymbolRegistered?.();
