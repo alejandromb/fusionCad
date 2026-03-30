@@ -1738,3 +1738,31 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Bus wire entity (Phase C) and interactive wire drawing tool (Phase D) deferred to future sessions
 
 **Tests**: 121 E2E + 82 unit, 86 symbols + 10 PLC generators
+
+## Session 34 — 2026-03-29: Find/Replace, Symbol Importers, Panel Layout
+
+**Duration**: ~6 hours
+**Focus**: Find/Replace, multi-symbol parts, SVG/DXF importers, panel layout sheets
+
+### Completed
+- **ES2022 bump**: Web app target updated from ES2020 to ES2022
+- **Find/Replace dialog (Cmd+F)**: Search device tags/functions, replace one/all, navigate results, case sensitivity
+- **Multi-symbol part linking**: `requiredSymbols` field on Part type, 2080-LC50-24QBB catalog entries, PropertiesPanel companion warning (amber incomplete / green complete)
+- **SVG importer**: Parse SVG → fusionCad primitives + auto-detect pins (boundary endpoints, small circles). 3 unit tests.
+- **DXF importer**: Parse DXF → fusionCad primitives with Y-flip, block resolution, unit detection. Tested with real Rockwell Automation 2080-L50E-48QBB files.
+- **Import dialog UI**: Tools > Import, drag-and-drop, Schematic/Layout toggle, pin editing, saves to API (database) with localStorage fallback
+- **Layout symbol support**: `usage` field on SymbolDefinition ('schematic' | 'layout'), palette filtering, Layout filter button
+- **Panel-layout sheet type**: New layout option in sidebar, DiagramType 'panel-layout'
+- **Panel scale**: Sheet scale dropdown (1:1 to 1:10) for panel-layout sheets. Devices shrink by scale factor, sheet border stays at paper size.
+- **Select All fix**: Now only selects devices on the active sheet
+- **Symbol persistence**: Imported symbols save to database via API, localStorage fallback for offline
+- **Category dropdown**: Import dialog has predefined categories with Schematic/Layout primary grouping
+
+### Key Decisions
+- Manufacturers distribute DWG/DXF primarily; SVG from aggregators. DXF is the priority format.
+- DWG not supported — tell users to convert to DXF (free tools available)
+- Panel scale = ctx.scale(1/panelScale) applied after title block, before devices
+- Symbol persistence: API first, localStorage fallback. Review for production (P2 item).
+- Multi-symbol parts use existing deviceGroupId infrastructure
+
+**Tests**: 121 E2E + 85 unit, 86 symbols + 10 PLC generators

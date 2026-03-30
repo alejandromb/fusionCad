@@ -76,8 +76,8 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 33 (2026-03-28) — Wire routing rewrite (removed auto-router), full-width title block, PLC symbols (2080-LC50-24QBB), display toggles, continuous placement, rung gap slider, arrow key nudging, junction cleanup, priority reorg
-**Tests:** 121 E2E + 82 unit, 86 symbols + 10 PLC generators
+**Last session:** 34 (2026-03-29) — Find/Replace, multi-symbol part linking, SVG/DXF importers, layout symbols, panel-layout sheets with scale, Select All fix, symbol persistence
+**Tests:** 121 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
 ### P0 — MVP Features
