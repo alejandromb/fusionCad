@@ -11,6 +11,7 @@ import type { CircuitData } from '../renderer/circuit-renderer';
 import { SymbolPreview } from './SymbolPreview';
 import { PropertiesPanel } from './PropertiesPanel';
 import { AIChatPanel } from './AIChatPanel';
+import { BomNavigator } from './BomNavigator';
 
 const FAVORITES_KEY = 'fusionCad_favoriteSymbols';
 const STANDARD_KEY = 'fusionCad_preferredStandard';
@@ -63,6 +64,7 @@ interface RightPanelProps {
   selectedWireIndex: number | null;
   circuit: CircuitData | null;
   deleteDevices: (deviceIds: string[]) => void;
+  onSelectDevices: (deviceIds: string[]) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
   onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
   onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
@@ -87,6 +89,7 @@ export function RightPanel({
   selectedWireIndex,
   circuit,
   deleteDevices,
+  onSelectDevices,
   updateWireNumber,
   onAssignPart,
   onUpdateDevice,
@@ -544,12 +547,23 @@ export function RightPanel({
         renderPropertiesContent()
       ) : activeTab === 'ai' ? (
         <AIChatPanel circuit={circuit} projectName={projectName} projectId={projectId} onProjectChanged={onProjectChanged} />
-      ) : (
-        <div className="right-panel-content">
-          <div className="right-panel-empty">
-            Parts catalog coming soon
-          </div>
+      ) : activeTab === 'parts' ? (
+        <div className="right-panel-content" style={{ padding: '0.5rem', overflowY: 'auto' }}>
+          <BomNavigator
+            circuit={circuit}
+            onSelectDevice={(deviceId) => {
+              onSelectSymbol('', ''); // clear placement
+              // Select the device by ID
+              if (circuit) {
+                const dev = circuit.devices.find(d => d.id === deviceId);
+                if (dev && onSelectDevices) onSelectDevices([deviceId]);
+              }
+            }}
+            onAssignPart={onAssignPart}
+          />
         </div>
+      ) : (
+        null
       )}
     </aside>
   );

@@ -968,7 +968,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const maxY = Math.max(marquee.startY, marquee.endY);
 
         const hits: string[] = [];
-        for (const device of circuit.devices) {
+        const sheetDevices = activeSheetId
+          ? circuit.devices.filter(d => d.sheetId === activeSheetId)
+          : circuit.devices;
+        for (const device of sheetDevices) {
           const pos = allPositions.get(device.id);
           if (!pos) continue;
           const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;

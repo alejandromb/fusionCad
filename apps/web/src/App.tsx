@@ -598,6 +598,7 @@ function AppInner({
           selectedWireIndex={circuitState.selectedWireIndex}
           circuit={project.circuit}
           deleteDevices={circuitState.deleteDevices}
+          onSelectDevices={circuitState.setSelectedDevices}
           updateWireNumber={circuitState.updateWireNumber}
           onAssignPart={circuitState.assignPart}
           onUpdateDevice={circuitState.updateDevice}
