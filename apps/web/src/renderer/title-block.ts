@@ -28,9 +28,7 @@ export function renderTitleBlock(
   ctx: CanvasRenderingContext2D,
   sheet: Sheet
 ): void {
-  const rawSize = SHEET_SIZES[sheet.size] || SHEET_SIZES['Letter'];
-  const scale = sheet.panelScale ?? 1;
-  const size = { width: rawSize.width * scale, height: rawSize.height * scale };
+  const size = SHEET_SIZES[sheet.size] || SHEET_SIZES['Letter'];
   const t = getTheme();
 
   // Draw sheet background
@@ -139,13 +137,12 @@ export function renderTitleBlock(
 /**
  * Get the drawable area inside the border (above the title block)
  */
-export function getDrawableArea(sheetSize: string, panelScale?: number): { x: number; y: number; width: number; height: number } {
-  const rawSize = SHEET_SIZES[sheetSize] || SHEET_SIZES['Letter'];
-  const scale = panelScale ?? 1;
+export function getDrawableArea(sheetSize: string): { x: number; y: number; width: number; height: number } {
+  const size = SHEET_SIZES[sheetSize] || SHEET_SIZES['Letter'];
   return {
     x: BORDER_MARGIN,
     y: BORDER_MARGIN,
-    width: rawSize.width * scale - BORDER_MARGIN * 2,
-    height: rawSize.height * scale - BORDER_MARGIN * 2 - TITLE_BLOCK_HEIGHT,
+    width: size.width - BORDER_MARGIN * 2,
+    height: size.height - BORDER_MARGIN * 2 - TITLE_BLOCK_HEIGHT,
   };
 }

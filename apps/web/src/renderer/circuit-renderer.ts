@@ -666,6 +666,13 @@ export function renderCircuit(
     return undefined;
   }
 
+  // Apply panel scale for layout sheets — shrinks devices/wires to fit paper
+  // Sheet border and title block are already drawn at paper size above
+  const panelScale = activeSheet?.panelScale ?? 1;
+  if (panelScale > 1) {
+    ctx.scale(1 / panelScale, 1 / panelScale);
+  }
+
   // FIRST: Render devices (symbols) - draw these first so wires appear on top
   for (const device of devices) {
     const position = positions.get(device.id);
