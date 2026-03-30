@@ -468,6 +468,8 @@ export interface Sheet extends Entity {
   titleBlock?: TitleBlockData;
   diagramType?: DiagramType;
   ladderConfig?: LadderConfig;
+  /** Panel layout scale factor. 1 = 1:1, 3 = 1:3 (sheet represents 3x real space). Default 1. */
+  panelScale?: number;
 }
 
 /**

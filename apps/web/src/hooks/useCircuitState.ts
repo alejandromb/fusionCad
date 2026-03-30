@@ -40,6 +40,8 @@ export interface UseCircuitStateReturn {
   getSheetLayout: (sheetId: string) => SheetLadderLayout;
   setRungSpacing: (sheetId: string, spacing: number) => void;
   getRungSpacing: (sheetId: string) => number;
+  setPanelScale: (sheetId: string, scale: number) => void;
+  getPanelScale: (sheetId: string) => number;
 
   // History
   history: HistorySnapshot[];
@@ -388,6 +390,22 @@ export function useCircuitState(
         return b;
       });
       return { ...prev, blocks };
+    });
+  }, [setCircuit]);
+
+  const getPanelScale = useCallback((sheetId: string): number => {
+    if (!circuit) return 1;
+    const sheet = (circuit.sheets || []).find(s => s.id === sheetId);
+    return sheet?.panelScale ?? 1;
+  }, [circuit]);
+
+  const setPanelScale = useCallback((sheetId: string, scale: number) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const sheets = (prev.sheets || []).map(s =>
+        s.id === sheetId ? { ...s, panelScale: scale, modifiedAt: Date.now() } : s
+      );
+      return { ...prev, sheets };
     });
   }, [setCircuit]);
 
@@ -1313,6 +1331,8 @@ export function useCircuitState(
     getSheetLayout,
     setRungSpacing,
     getRungSpacing,
+    setPanelScale,
+    getPanelScale,
     history,
     historyIndex,
     pushToHistory,

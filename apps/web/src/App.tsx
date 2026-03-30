@@ -507,6 +507,8 @@ function AppInner({
           setShowPinLabels={circuitState.setShowPinLabels}
           showDescriptions={circuitState.showDescriptions}
           setShowDescriptions={circuitState.setShowDescriptions}
+          sheetScale={circuitState.getPanelScale(circuitState.activeSheetId)}
+          onSetSheetScale={(scale: number) => circuitState.setPanelScale(circuitState.activeSheetId, scale)}
           themeId={theme.themeId}
           setThemeId={theme.setThemeId}
           customColors={theme.customColors}

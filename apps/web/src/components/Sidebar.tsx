@@ -27,6 +27,8 @@ interface SidebarProps {
   setShowPinLabels: (show: boolean) => void;
   showDescriptions: boolean;
   setShowDescriptions: (show: boolean) => void;
+  sheetScale: number;
+  onSetSheetScale: (scale: number) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
   customColors: CustomThemeInput;
@@ -54,6 +56,8 @@ export function Sidebar({
   setShowPinLabels,
   showDescriptions,
   setShowDescriptions,
+  sheetScale,
+  onSetSheetScale,
   themeId,
   setThemeId,
   customColors,
@@ -214,7 +218,23 @@ export function Sidebar({
                 <option value="panel-layout">Panel Layout</option>
               </select>
             </div>
-            {sheetLayout !== 'no-rungs' && (
+            {sheetLayout === 'panel-layout' && (
+              <div className="property-row">
+                <span className="property-label">Scale</span>
+                <select
+                  className="property-input"
+                  value={sheetScale}
+                  onChange={e => onSetSheetScale(parseFloat(e.target.value))}
+                >
+                  <option value="1">1:1</option>
+                  <option value="2">1:2</option>
+                  <option value="3">1:3</option>
+                  <option value="5">1:5</option>
+                  <option value="10">1:10</option>
+                </select>
+              </div>
+            )}
+            {sheetLayout !== 'no-rungs' && sheetLayout !== 'panel-layout' && (
               <div className="property-row">
                 <span className="property-label">Rung Gap</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1 }}>
