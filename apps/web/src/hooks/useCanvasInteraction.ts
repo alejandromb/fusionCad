@@ -1412,6 +1412,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         copyDevice();
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && selectedDevices.length > 0) {
+        e.preventDefault();
+        copyDevice();
+        deleteDevices(selectedDevices);
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
         e.preventDefault();
         setPastePreview(true);
