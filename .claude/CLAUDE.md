@@ -82,18 +82,21 @@ Before doing ANYTHING else:
 
 ### P0 — MVP Features
 
-1. **Continuous placement mode** — Ctrl+click to keep placing same symbol (AutoCAD-style).
-2. **Find/Replace** — Search and replace device tags, net names, annotations across drawing.
-3. **SVG/DXF symbol importer** — Import manufacturer symbols (Allen-Bradley, Schneider) from SVG/DXF.
+1. ~~**Continuous placement mode**~~ ✅ Done (Session 33)
+2. ~~**Find/Replace**~~ ✅ Done (Session 34) — Cmd+F
+3. ~~**SVG/DXF symbol importer**~~ ✅ Done (Session 34) — Tools > Import, preview, pin detection
 4. **Page thumbnails** — Sheet navigation with thumbnail previews.
 5. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
 6. **Template caching** — Cache common patterns to skip AI entirely.
 7. **CDN for static assets** — CloudFront for the web app.
 8. **Analytics** — Usage patterns, feature tracking, generation success rate.
-9. **Grid toggle on/off** — Show/hide snap grid on canvas.
-10. **Grid size setting** — Change snap grid from default 20px.
-11. **Pin label visibility toggle** — Show/hide pin name labels.
-12. **Settings panel** — Centralized settings dialog.
+9. ~~**Grid toggle on/off**~~ ✅ Done (Session 33)
+10. ~~**Grid size setting**~~ ✅ Done (Session 33) — Rung gap slider
+11. ~~**Pin label visibility toggle**~~ ✅ Done (Session 33)
+12. ~~**Settings panel**~~ ✅ Done (Session 33) — DISPLAY section
+13. **Sheet reorder** — Drag-and-drop to rearrange sheets in sidebar and tabs.
+14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
+15. **DXF fill rendering** — SVG/DXF imports with filled shapes render as outlines only. Need fill support.
 
 ### P1 — Core Product Quality
 

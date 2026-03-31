@@ -110,21 +110,18 @@ export function Sidebar({
                   onClick={e => e.stopPropagation()}
                 />
               ) : (
-                <>
-                  <span className="page-tree-name">{sheet.name}</span>
-                  {sheets.length > 1 && (
-                    <button
-                      className="page-delete-btn"
-                      onClick={e => {
-                        e.stopPropagation();
-                        onDeleteSheet(sheet.id);
-                      }}
-                      title="Delete page"
-                    >
-                      &times;
-                    </button>
-                  )}
-                </>
+                <span
+                  className="page-tree-name"
+                  onContextMenu={e => {
+                    e.preventDefault();
+                    if (sheets.length > 1 && confirm(`Delete "${sheet.name}"? This cannot be undone.`)) {
+                      onDeleteSheet(sheet.id);
+                    }
+                  }}
+                  title="Right-click to delete"
+                >
+                  {sheet.name}
+                </span>
               )}
             </div>
           ))}
