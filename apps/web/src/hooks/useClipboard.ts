@@ -252,7 +252,7 @@ export function useClipboard(
     });
 
     setSelectedDevices(newDeviceIds);
-  }, [clipboard, circuit, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices]);
+  }, [clipboard, circuit, pushToHistory, setCircuit, setDevicePositions, setSelectedDevices, activeSheetId]);
 
   const duplicateDevice = useCallback(() => {
     if (selectedDevices.length === 0 || !circuit) return;
