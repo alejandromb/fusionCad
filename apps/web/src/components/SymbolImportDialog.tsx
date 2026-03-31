@@ -70,7 +70,6 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
       if (usage === 'layout' && simplifyLayout) {
         const w = result.bounds.width;
         const h = result.bounds.height;
-        // Keep only small circles (mounting holes) and replace everything else with outline
         const mountingHoles = result.primitives.filter(p =>
           p.type === 'circle' && p.r < 5 && p.r > 0.5
         );
@@ -78,6 +77,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
           { type: 'rect' as const, x: 0, y: 0, width: w, height: h, strokeWidth: 0.5 },
           ...mountingHoles,
         ];
+        result.pinCandidates = []; // layout footprints don't have electrical pins
       }
 
       setImported(result);
@@ -85,7 +85,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
     } catch (err: any) {
       setError(`Parse error: ${err.message}`);
     }
-  }, [targetWidth]);
+  }, [targetWidth, usage, simplifyLayout]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
