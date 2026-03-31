@@ -78,21 +78,17 @@ export function SheetTabs({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <>
+              <span
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (sheets.length > 1 && confirm(`Delete "${sheet.name}"? This cannot be undone.`)) {
+                    handleDelete(sheet.id);
+                  }
+                }}
+                title="Right-click to delete"
+              >
                 {sheet.name}
-                {sheets.length > 1 && (
-                  <span
-                    className="sheet-tab-close"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(sheet.id);
-                    }}
-                    title="Delete sheet"
-                  >
-                    &times;
-                  </span>
-                )}
-              </>
+              </span>
             )}
           </button>
         ))}
