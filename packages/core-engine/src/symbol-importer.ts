@@ -385,6 +385,52 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
     processEntity(entity);
   }
 
+  // Multi-view detection: if there's a large X gap, keep only the largest view (front)
+  // This handles DXF files with front+side+top orthographic projections
+  const entityXValues: number[] = [];
+  for (const p of primitives) {
+    if (p.type === 'line') { entityXValues.push(p.x1, p.x2); }
+    else if (p.type === 'circle' || p.type === 'arc') { entityXValues.push(p.cx); }
+    else if (p.type === 'polyline') { for (const pt of p.points) entityXValues.push(pt.x); }
+  }
+  if (entityXValues.length > 0) {
+    entityXValues.sort((a, b) => a - b);
+    // Find largest gap in X coordinates
+    let maxGap = 0, gapX = 0;
+    for (let i = 1; i < entityXValues.length; i++) {
+      const gap = entityXValues[i] - entityXValues[i - 1];
+      if (gap > maxGap) { maxGap = gap; gapX = (entityXValues[i] + entityXValues[i - 1]) / 2; }
+    }
+    // If gap > 30mm, there are multiple views — keep the one with more primitives
+    if (maxGap > 30) {
+      const leftCount = primitives.filter(p => {
+        if (p.type === 'line') return p.x1 < gapX && p.x2 < gapX;
+        if (p.type === 'circle' || p.type === 'arc') return p.cx < gapX;
+        if (p.type === 'polyline') return p.points.every(pt => pt.x < gapX);
+        return true;
+      }).length;
+      const rightCount = primitives.length - leftCount;
+      const keepLeft = leftCount >= rightCount;
+      // Filter to keep only the larger view
+      for (let i = primitives.length - 1; i >= 0; i--) {
+        const p = primitives[i];
+        let inLeft = true;
+        if (p.type === 'line') inLeft = p.x1 < gapX && p.x2 < gapX;
+        else if (p.type === 'circle' || p.type === 'arc') inLeft = p.cx < gapX;
+        else if (p.type === 'polyline') inLeft = p.points.every(pt => pt.x < gapX);
+        if ((keepLeft && !inLeft) || (!keepLeft && inLeft)) {
+          primitives.splice(i, 1);
+        }
+      }
+      // Also filter endpoints
+      for (let i = allEndpoints.length - 1; i >= 0; i--) {
+        if ((keepLeft && allEndpoints[i].x >= gapX) || (!keepLeft && allEndpoints[i].x < gapX)) {
+          allEndpoints.splice(i, 1);
+        }
+      }
+    }
+  }
+
   // Strip dimension-like text (e.g., "241.6[9.51]", "110.8 [4.36]")
   // and very long lines that are likely dimension extension lines
   const isDimensionText = (text: string) => /\d+\.?\d*\s*[\[\(]/.test(text);
