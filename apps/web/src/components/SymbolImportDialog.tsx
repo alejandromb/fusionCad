@@ -37,6 +37,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const [tagPrefix, setTagPrefix] = useState('X');
   const [targetWidth, setTargetWidth] = useState(40);
   const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
+  const [simplifyLayout, setSimplifyLayout] = useState(true);
   const [pins, setPins] = useState<PinCandidate[]>([]);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -64,6 +65,21 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
         return;
       }
       result.sourceName = file.name;
+
+      // Simplify layout footprints to outline + mounting holes
+      if (usage === 'layout' && simplifyLayout) {
+        const w = result.bounds.width;
+        const h = result.bounds.height;
+        // Keep only small circles (mounting holes) and replace everything else with outline
+        const mountingHoles = result.primitives.filter(p =>
+          p.type === 'circle' && p.r < 5 && p.r > 0.5
+        );
+        result.primitives = [
+          { type: 'rect' as const, x: 0, y: 0, width: w, height: h, strokeWidth: 0.5 },
+          ...mountingHoles,
+        ];
+      }
+
       setImported(result);
       setPins(result.pinCandidates);
     } catch (err: any) {
@@ -247,6 +263,13 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
                   Layout Footprint
                 </button>
               </div>
+
+              {usage === 'layout' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={simplifyLayout} onChange={e => setSimplifyLayout(e.target.checked)} />
+                  Simplified outline (recommended for panel layout)
+                </label>
+              )}
 
               {/* Step 2: Name (required) */}
               <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
