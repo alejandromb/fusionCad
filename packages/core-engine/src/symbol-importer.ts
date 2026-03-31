@@ -403,21 +403,20 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
     }
     // If gap > 30mm, there are multiple views — keep the one with more primitives
     if (maxGap > 30) {
-      const leftCount = primitives.filter(p => {
-        if (p.type === 'line') return p.x1 < gapX && p.x2 < gapX;
-        if (p.type === 'circle' || p.type === 'arc') return p.cx < gapX;
-        if (p.type === 'polyline') return p.points.every(pt => pt.x < gapX);
-        return true;
-      }).length;
+      // Use center X of each primitive to classify which view it belongs to
+      const getCenterX = (p: SymbolPrimitive): number => {
+        if (p.type === 'line') return (p.x1 + p.x2) / 2;
+        if (p.type === 'circle' || p.type === 'arc') return p.cx;
+        if (p.type === 'polyline') return p.points.reduce((s, pt) => s + pt.x, 0) / p.points.length;
+        if (p.type === 'text') return p.x;
+        return 0;
+      };
+      const leftCount = primitives.filter(p => getCenterX(p) < gapX).length;
       const rightCount = primitives.length - leftCount;
       const keepLeft = leftCount >= rightCount;
       // Filter to keep only the larger view
       for (let i = primitives.length - 1; i >= 0; i--) {
-        const p = primitives[i];
-        let inLeft = true;
-        if (p.type === 'line') inLeft = p.x1 < gapX && p.x2 < gapX;
-        else if (p.type === 'circle' || p.type === 'arc') inLeft = p.cx < gapX;
-        else if (p.type === 'polyline') inLeft = p.points.every(pt => pt.x < gapX);
+        const inLeft = getCenterX(primitives[i]) < gapX;
         if ((keepLeft && !inLeft) || (!keepLeft && inLeft)) {
           primitives.splice(i, 1);
         }
@@ -491,6 +490,33 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
 
   let width = bounds.maxX - bounds.minX;
   let height = bounds.maxY - bounds.minY;
+
+  // Clip: remove primitives that extend far outside the normalized bounds
+  // This catches stray ellipse arcs, construction lines, etc.
+  const clipMargin = Math.max(width, height) * 0.15;
+  for (let i = primitives.length - 1; i >= 0; i--) {
+    const p = primitives[i];
+    let outside = false;
+    if (p.type === 'line') {
+      outside = p.x1 < -clipMargin || p.y1 < -clipMargin || p.x2 < -clipMargin || p.y2 < -clipMargin ||
+                p.x1 > width + clipMargin || p.y1 > height + clipMargin || p.x2 > width + clipMargin || p.y2 > height + clipMargin;
+    } else if (p.type === 'polyline') {
+      outside = p.points.some(pt => pt.x < -clipMargin || pt.y < -clipMargin || pt.x > width + clipMargin || pt.y > height + clipMargin);
+    } else if (p.type === 'circle' || p.type === 'arc') {
+      outside = p.cx - p.r < -clipMargin || p.cy - p.r < -clipMargin || p.cx + p.r > width + clipMargin || p.cy + p.r > height + clipMargin;
+    }
+    if (outside) primitives.splice(i, 1);
+  }
+
+  // Recompute bounds after clipping
+  const clippedBounds = computeBounds(primitives, [], []);
+  if (clippedBounds.minX !== 0 || clippedBounds.minY !== 0) {
+    shiftPrimitives(primitives, -clippedBounds.minX, -clippedBounds.minY);
+    for (const ep of allEndpoints) { ep.x -= clippedBounds.minX; ep.y -= clippedBounds.minY; }
+    for (const sc of smallCircles) { sc.x -= clippedBounds.minX; sc.y -= clippedBounds.minY; }
+  }
+  width = clippedBounds.maxX - clippedBounds.minX;
+  height = clippedBounds.maxY - clippedBounds.minY;
 
   // Scale to target width if specified
   if (targetWidthMm && width > 0) {
