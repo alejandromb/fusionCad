@@ -24,6 +24,92 @@ const SYMBOL_CATEGORIES = [
   { value: 'custom', label: 'Custom' },
 ];
 
+/**
+ * Optimize primitives for layout symbols:
+ * 1. Merge connected LINE segments into polylines
+ * 2. Remove tiny features (lines < 0.5mm)
+ * 3. Remove duplicate overlapping lines
+ */
+function optimizePrimitives(primitives: SymbolPrimitive[], bounds: { width: number; height: number }): SymbolPrimitive[] {
+  const SNAP = 0.5; // snap tolerance for endpoint matching
+  const MIN_LENGTH = 0.3; // minimum line length to keep
+
+  // Separate lines from other primitives
+  const lines: Array<{ x1: number; y1: number; x2: number; y2: number; sw?: number }> = [];
+  const others: SymbolPrimitive[] = [];
+
+  for (const p of primitives) {
+    if (p.type === 'line') {
+      const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+      if (len >= MIN_LENGTH) {
+        lines.push({ x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2, sw: p.strokeWidth });
+      }
+    } else if (p.type === 'polyline') {
+      // Keep polylines but filter short ones
+      const totalLen = p.points.reduce((sum, pt, i) =>
+        i === 0 ? 0 : sum + Math.hypot(pt.x - p.points[i-1].x, pt.y - p.points[i-1].y), 0);
+      if (totalLen >= MIN_LENGTH) others.push(p);
+    } else {
+      others.push(p);
+    }
+  }
+
+  // Remove duplicate lines (same endpoints within snap tolerance)
+  const uniqueLines: typeof lines = [];
+  const seen = new Set<string>();
+  for (const l of lines) {
+    const k1 = `${Math.round(l.x1/SNAP)},${Math.round(l.y1/SNAP)}-${Math.round(l.x2/SNAP)},${Math.round(l.y2/SNAP)}`;
+    const k2 = `${Math.round(l.x2/SNAP)},${Math.round(l.y2/SNAP)}-${Math.round(l.x1/SNAP)},${Math.round(l.y1/SNAP)}`;
+    if (!seen.has(k1) && !seen.has(k2)) {
+      seen.add(k1);
+      uniqueLines.push(l);
+    }
+  }
+
+  // Merge connected lines into polylines
+  const used = new Set<number>();
+  const merged: SymbolPrimitive[] = [];
+
+  for (let i = 0; i < uniqueLines.length; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+
+    const chain: Array<{ x: number; y: number }> = [
+      { x: uniqueLines[i].x1, y: uniqueLines[i].y1 },
+      { x: uniqueLines[i].x2, y: uniqueLines[i].y2 },
+    ];
+
+    // Extend chain forward
+    let extended = true;
+    while (extended) {
+      extended = false;
+      const tail = chain[chain.length - 1];
+      for (let j = 0; j < uniqueLines.length; j++) {
+        if (used.has(j)) continue;
+        const l = uniqueLines[j];
+        if (Math.abs(l.x1 - tail.x) < SNAP && Math.abs(l.y1 - tail.y) < SNAP) {
+          chain.push({ x: l.x2, y: l.y2 });
+          used.add(j);
+          extended = true;
+          break;
+        }
+        if (Math.abs(l.x2 - tail.x) < SNAP && Math.abs(l.y2 - tail.y) < SNAP) {
+          chain.push({ x: l.x1, y: l.y1 });
+          used.add(j);
+          extended = true;
+          break;
+        }
+      }
+    }
+
+    if (chain.length >= 2) {
+      merged.push({ type: 'polyline', points: chain } as SymbolPrimitive);
+    }
+  }
+
+  return [...merged, ...others];
+}
+
 interface SymbolImportDialogProps {
   onClose: () => void;
   onSymbolRegistered?: () => void;
@@ -43,22 +129,16 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Compute display version: apply simplification dynamically based on current settings
+  // Compute display version: apply optimization dynamically based on current settings
   const imported = useMemo(() => {
     if (!rawImported) return null;
     if (usage === 'layout' && simplifyLayout) {
-      const w = rawImported.bounds.width;
-      const h = rawImported.bounds.height;
-      const mountingHoles = rawImported.primitives.filter(p =>
-        p.type === 'circle' && p.r < 5 && p.r > 0.5
-      );
+      // Optimize: merge connected lines into polylines, remove tiny features
+      const optimized = optimizePrimitives(rawImported.primitives, rawImported.bounds);
       return {
         ...rawImported,
-        primitives: [
-          { type: 'rect' as const, x: 0, y: 0, width: w, height: h, strokeWidth: 0.5 },
-          ...mountingHoles,
-        ],
-        pinCandidates: [],
+        primitives: optimized,
+        pinCandidates: [], // layout footprints don't have electrical pins
       };
     }
     return rawImported;
