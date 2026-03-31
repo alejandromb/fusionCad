@@ -53,10 +53,10 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
 
     try {
       let result: ImportedSymbol;
-      // DXF files have real-world coordinates — don't force target width for layout
+      // DXF files always have real-world coordinates — never force target width
       // SVG needs target width since it has no inherent units
       if (file.name.toLowerCase().endsWith('.dxf')) {
-        result = importDxf(text, usage === 'layout' ? undefined : targetWidth);
+        result = importDxf(text);
       } else if (file.name.toLowerCase().endsWith('.svg')) {
         result = importSvg(text, targetWidth);
       } else {
