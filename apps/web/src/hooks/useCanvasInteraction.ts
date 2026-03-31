@@ -560,7 +560,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const wireHitRadius = 8 / (viewport.scale * MM_TO_PX);
         const wirePriorityRadius = 4 / (viewport.scale * MM_TO_PX);
 
-        const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
         const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, wireHitRadius, circuit.transforms);
         const hitWire = wireHit?.index ?? null;
 
@@ -1113,7 +1113,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'select': {
-            const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+            const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
             const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
@@ -1447,7 +1447,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const allPositions = getAllPositions();
       const rect = canvas.getBoundingClientRect();
 
-      const hitDeviceId = getSymbolAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+      const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
       const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
       const hitWire = wireHit?.index ?? null;
 
