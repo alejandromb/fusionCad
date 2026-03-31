@@ -97,6 +97,7 @@ interface UseCanvasInteractionDeps {
   deviceTransforms: Map<string, DeviceTransform>;
   selectAnnotation: (id: string | null) => void;
   activeSheetId: string;
+  panelScale: number;
 }
 
 /**
@@ -244,6 +245,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     deviceTransforms,
     selectAnnotation,
     activeSheetId,
+    panelScale,
   } = deps;
 
   // Sheet-filtered connections — same filtering as the renderer uses.
@@ -394,9 +396,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const mmScale = viewport.scale * MM_TO_PX;
+      const ps = panelScale > 1 ? panelScale : 1;
       return {
-        x: (mouseX - viewport.offsetX) / mmScale,
-        y: (mouseY - viewport.offsetY) / mmScale,
+        x: ((mouseX - viewport.offsetX) / mmScale) * ps,
+        y: ((mouseY - viewport.offsetY) / mmScale) * ps,
       };
     };
 
@@ -680,9 +683,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const mmScale = viewport.scale * MM_TO_PX;
+      const ps = panelScale > 1 ? panelScale : 1;
       const world: Point = {
-        x: (mouseX - viewport.offsetX) / mmScale,
-        y: (mouseY - viewport.offsetY) / mmScale,
+        x: ((mouseX - viewport.offsetX) / mmScale) * ps,
+        y: ((mouseY - viewport.offsetY) / mmScale) * ps,
       };
 
       // Track mouse position for placement preview, wire preview, and paste preview

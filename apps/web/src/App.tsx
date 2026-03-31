@@ -256,6 +256,7 @@ function AppInner({
     deviceTransforms: circuitState.deviceTransforms,
     selectAnnotation: circuitState.selectAnnotation,
     activeSheetId: circuitState.activeSheetId,
+    panelScale: circuitState.getPanelScale(circuitState.activeSheetId),
   });
 
   // Expose state for E2E testing (dev mode only)
