@@ -22,6 +22,7 @@ interface HeaderProps {
   circuit: CircuitData | null;
   onOpenReports: () => void;
   onOpenExport?: () => void;
+  onPrint?: () => void;
   onOpenSymbols?: () => void;
   onOpenParts?: () => void;
   onOpenERC?: () => void;

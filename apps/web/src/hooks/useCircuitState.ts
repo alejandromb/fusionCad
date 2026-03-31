@@ -119,8 +119,10 @@ function getOrCreateSheets(circuit: CircuitData | null): Sheet[] {
     size: 'Tabloid',
     titleBlock: {
       title: 'Sheet 1',
+      drawingNumber: '',
       date: new Date().toISOString().slice(0, 10),
       revision: 'A',
+      drawnBy: '',
     },
     createdAt: now,
     modifiedAt: now,
@@ -214,8 +216,10 @@ export function useCircuitState(
       size: 'Tabloid',
       titleBlock: {
         title: `Sheet ${nextNumber}`,
+        drawingNumber: '',
         date: new Date().toISOString().slice(0, 10),
         revision: 'A',
+        drawnBy: '',
       },
       createdAt: now,
       modifiedAt: now,

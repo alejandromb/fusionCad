@@ -1079,10 +1079,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   junctionY = projected.y;
                 }
                 // Split wire at click point — creates junction, returns its device ID
-                const junctionId = connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, null);
-                if (junctionId) {
-                  setWireStart({ device: junctionId, pin: '1' });
-                }
+                connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, null as any);
+                // Junction was created at the click point — start wire from it
+                // The connectToWire function creates the junction device internally
               } else if (hitPin) {
                 // No wire hit — use pin
                 setWireStart(hitPin);
@@ -1474,7 +1473,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           worldX: world.x,
           worldY: world.y,
           target: 'wire',
-          wireIndex: hitWire,
+          wireIndex: hitWire ?? undefined,
         });
       } else if (hitDeviceId) {
         if (!selectedDevices.includes(hitDeviceId)) {

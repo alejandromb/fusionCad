@@ -60,7 +60,7 @@ interface MenuBarProps {
   snapEnabled: boolean;
   setSnapEnabled: (v: boolean) => void;
   themeId: string;
-  setThemeId: (id: string) => void;
+  setThemeId: (id: string | any) => void;
 
   // Insert
   onOpenSymbolPalette: () => void;

@@ -210,7 +210,7 @@ export function Sidebar({
               <select
                 className="property-input"
                 value={activeSheet.size}
-                onChange={e => onUpdateSheet(activeSheet.id, { size: e.target.value })}
+                onChange={e => onUpdateSheet(activeSheet.id, { size: e.target.value as Sheet['size'] })}
               >
                 {Object.keys(SHEET_SIZES).map(size => (
                   <option key={size} value={size}>{size}</option>
