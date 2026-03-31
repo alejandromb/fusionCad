@@ -189,6 +189,33 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
                 Imported from: {fileName} — {imported.primitives.length} elements, {imported.bounds.width.toFixed(1)} x {imported.bounds.height.toFixed(1)} mm
               </div>
 
+              {/* Preview */}
+              <div style={{ background: '#111', borderRadius: '4px', padding: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                <svg
+                  viewBox={`-2 -2 ${imported.bounds.width + 4} ${imported.bounds.height + 4}`}
+                  width="100%"
+                  height="150"
+                  style={{ maxWidth: '400px' }}
+                >
+                  {imported.primitives.map((p, i) => {
+                    switch (p.type) {
+                      case 'line': return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'rect': return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'circle': return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'arc': return <path key={i} d={`M ${p.cx + p.r * Math.cos(p.startAngle)} ${p.cy + p.r * Math.sin(p.startAngle)} A ${p.r} ${p.r} 0 0 1 ${p.cx + p.r * Math.cos(p.endAngle)} ${p.cy + p.r * Math.sin(p.endAngle)}`} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'polyline': return <polyline key={i} points={p.points.map(pt => `${pt.x},${pt.y}`).join(' ')} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'path': return <path key={i} d={p.d} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'text': return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize || 2} fill="#888">{p.content}</text>;
+                      default: return null;
+                    }
+                  })}
+                  {/* Pin candidates */}
+                  {pins.map((pin, i) => (
+                    <circle key={`pin-${i}`} cx={pin.x} cy={pin.y} r="1" fill="#FFB400" opacity="0.7" />
+                  ))}
+                </svg>
+              </div>
+
               {/* Step 1: What is this? */}
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <button
