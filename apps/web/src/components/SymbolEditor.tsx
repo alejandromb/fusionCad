@@ -380,6 +380,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   // Snap-to-grid toggle
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [orthoMode, setOrthoMode] = useState(false);
 
   // Drawing in progress
   const [isDrawing, setIsDrawing] = useState(false);
@@ -654,6 +655,19 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               : pin
           ));
         }
+        return;
+      }
+
+      // O = toggle ortho mode
+      if (e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        setOrthoMode(prev => !prev);
+        return;
+      }
+      // S = toggle snap
+      if (e.key === 's' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setSnapEnabled(prev => !prev);
         return;
       }
 
@@ -1253,10 +1267,15 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale, snapEnabled),
-      y: snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale, snapEnabled),
-    };
+    let x = snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale, snapEnabled);
+    let y = snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale, snapEnabled);
+    // Ortho constraint: snap to horizontal or vertical from start point
+    if (orthoMode && startPoint) {
+      const dx = Math.abs(x - startPoint.x);
+      const dy = Math.abs(y - startPoint.y);
+      if (dx > dy) { y = startPoint.y; } else { x = startPoint.x; }
+    }
+    return { x, y };
   };
 
   /** Un-snapped world position for hit testing */
@@ -2071,6 +2090,22 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
             </div>
 
             <div className="tool-actions">
+              <button
+                className={`action-btn ${orthoMode ? 'active' : ''}`}
+                onClick={() => setOrthoMode(!orthoMode)}
+                title="Orthogonal mode (O) — constrain lines to horizontal/vertical"
+                style={orthoMode ? { background: 'var(--fc-accent)', color: '#fff' } : undefined}
+              >
+                Ortho
+              </button>
+              <button
+                className={`action-btn ${snapEnabled ? 'active' : ''}`}
+                onClick={() => setSnapEnabled(!snapEnabled)}
+                title="Snap to grid (S)"
+                style={snapEnabled ? { background: 'var(--fc-accent)', color: '#fff' } : undefined}
+              >
+                Snap
+              </button>
               <button className="action-btn" onClick={handleDelete} disabled={selectedPathIds.size === 0 && !selectedPinId}>
                 Delete
               </button>
