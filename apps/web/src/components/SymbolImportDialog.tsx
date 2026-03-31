@@ -2,8 +2,9 @@
  * Symbol Import Dialog — upload SVG or DXF files and convert to fusionCad symbols
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { importSvg, importDxf, finalizeImportedSymbol, type ImportedSymbol, type PinCandidate } from '@fusion-cad/core-engine';
+import type { SymbolPrimitive } from '@fusion-cad/core-model';
 import { registerSymbol } from '@fusion-cad/core-model';
 
 const SYMBOL_CATEGORIES = [
@@ -29,7 +30,7 @@ interface SymbolImportDialogProps {
 }
 
 export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImportDialogProps) {
-  const [imported, setImported] = useState<ImportedSymbol | null>(null);
+  const [rawImported, setRawImported] = useState<ImportedSymbol | null>(null);
   const [fileName, setFileName] = useState('');
   const [symbolName, setSymbolName] = useState('');
   const [symbolId, setSymbolId] = useState('');
@@ -38,15 +39,36 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const [targetWidth, setTargetWidth] = useState(40);
   const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
   const [simplifyLayout, setSimplifyLayout] = useState(true);
-  const [pins, setPins] = useState<PinCandidate[]>([]);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Compute display version: apply simplification dynamically based on current settings
+  const imported = useMemo(() => {
+    if (!rawImported) return null;
+    if (usage === 'layout' && simplifyLayout) {
+      const w = rawImported.bounds.width;
+      const h = rawImported.bounds.height;
+      const mountingHoles = rawImported.primitives.filter(p =>
+        p.type === 'circle' && p.r < 5 && p.r > 0.5
+      );
+      return {
+        ...rawImported,
+        primitives: [
+          { type: 'rect' as const, x: 0, y: 0, width: w, height: h, strokeWidth: 0.5 },
+          ...mountingHoles,
+        ],
+        pinCandidates: [],
+      };
+    }
+    return rawImported;
+  }, [rawImported, usage, simplifyLayout]);
+
+  const pins = imported?.pinCandidates ?? [];
+
   const handleFile = useCallback(async (file: File) => {
     setError('');
     setSaved(false);
-    const text = await file.text();
     const name = file.name.replace(/\.(svg|dxf|dwg)$/i, '');
     setFileName(file.name);
     setSymbolName(name);
@@ -54,38 +76,20 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
 
     try {
       let result: ImportedSymbol;
-      // DXF files always have real-world coordinates — never force target width
-      // SVG needs target width since it has no inherent units
       if (file.name.toLowerCase().endsWith('.dxf')) {
-        result = importDxf(text);
+        result = importDxf(file.text ? await file.text() : '');
       } else if (file.name.toLowerCase().endsWith('.svg')) {
-        result = importSvg(text, targetWidth);
+        result = importSvg(await file.text(), targetWidth);
       } else {
         setError('Unsupported format. Use SVG or DXF. For DWG, convert to DXF first.');
         return;
       }
       result.sourceName = file.name;
-
-      // Simplify layout footprints to outline + mounting holes
-      if (usage === 'layout' && simplifyLayout) {
-        const w = result.bounds.width;
-        const h = result.bounds.height;
-        const mountingHoles = result.primitives.filter(p =>
-          p.type === 'circle' && p.r < 5 && p.r > 0.5
-        );
-        result.primitives = [
-          { type: 'rect' as const, x: 0, y: 0, width: w, height: h, strokeWidth: 0.5 },
-          ...mountingHoles,
-        ];
-        result.pinCandidates = []; // layout footprints don't have electrical pins
-      }
-
-      setImported(result);
-      setPins(result.pinCandidates);
+      setRawImported(result);
     } catch (err: any) {
       setError(`Parse error: ${err.message}`);
     }
-  }, [targetWidth, usage, simplifyLayout]);
+  }, [targetWidth]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -96,7 +100,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const handleSave = useCallback(async () => {
     if (!imported) return;
 
-    const confirmedPins = pins.map(p => ({
+    const confirmedPins = pins.map((p: PinCandidate) => ({
       x: p.x,
       y: p.y,
       name: p.name,
@@ -140,11 +144,15 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   }, [imported, pins, symbolId, symbolName, category, tagPrefix]);
 
   const removePin = (idx: number) => {
-    setPins(prev => prev.filter((_, i) => i !== idx));
+    if (!rawImported) return;
+    const newCandidates = rawImported.pinCandidates.filter((_, i) => i !== idx);
+    setRawImported({ ...rawImported, pinCandidates: newCandidates });
   };
 
   const updatePinName = (idx: number, name: string) => {
-    setPins(prev => prev.map((p, i) => i === idx ? { ...p, name } : p));
+    if (!rawImported) return;
+    const newCandidates = rawImported.pinCandidates.map((p, i) => i === idx ? { ...p, name } : p);
+    setRawImported({ ...rawImported, pinCandidates: newCandidates });
   };
 
   return (
@@ -215,13 +223,13 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
                   height="150"
                   style={{ maxWidth: '400px' }}
                 >
-                  {imported.primitives.map((p, i) => {
+                  {imported.primitives.map((p: SymbolPrimitive, i: number) => {
                     switch (p.type) {
                       case 'line': return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke="#aaa" strokeWidth="0.3" fill="none" />;
                       case 'rect': return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} stroke="#aaa" strokeWidth="0.3" fill="none" />;
                       case 'circle': return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} stroke="#aaa" strokeWidth="0.3" fill="none" />;
                       case 'arc': return <path key={i} d={`M ${p.cx + p.r * Math.cos(p.startAngle)} ${p.cy + p.r * Math.sin(p.startAngle)} A ${p.r} ${p.r} 0 0 1 ${p.cx + p.r * Math.cos(p.endAngle)} ${p.cy + p.r * Math.sin(p.endAngle)}`} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'polyline': return <polyline key={i} points={p.points.map(pt => `${pt.x},${pt.y}`).join(' ')} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+                      case 'polyline': return <polyline key={i} points={p.points.map((pt: {x:number;y:number}) => `${pt.x},${pt.y}`).join(' ')} stroke="#aaa" strokeWidth="0.3" fill="none" />;
                       case 'path': return <path key={i} d={p.d} stroke="#aaa" strokeWidth="0.3" fill="none" />;
                       case 'text': return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize || 2} fill="#888">{p.content}</text>;
                       default: return null;
@@ -320,7 +328,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
                 <button
                   className="assign-part-btn"
                   style={{ flex: 1 }}
-                  onClick={() => { setImported(null); setPins([]); setSaved(false); }}
+                  onClick={() => { setRawImported(null); setSaved(false); }}
                 >
                   Import Different File
                 </button>
