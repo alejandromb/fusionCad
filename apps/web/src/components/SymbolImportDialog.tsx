@@ -66,48 +66,12 @@ function optimizePrimitives(primitives: SymbolPrimitive[], bounds: { width: numb
     }
   }
 
-  // Merge connected lines into polylines
-  const used = new Set<number>();
-  const merged: SymbolPrimitive[] = [];
+  // Convert remaining unique lines back to primitives (no merging — preserves text shapes)
+  const keptLines: SymbolPrimitive[] = uniqueLines.map(l => ({
+    type: 'line' as const, x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2, strokeWidth: l.sw,
+  }));
 
-  for (let i = 0; i < uniqueLines.length; i++) {
-    if (used.has(i)) continue;
-    used.add(i);
-
-    const chain: Array<{ x: number; y: number }> = [
-      { x: uniqueLines[i].x1, y: uniqueLines[i].y1 },
-      { x: uniqueLines[i].x2, y: uniqueLines[i].y2 },
-    ];
-
-    // Extend chain forward
-    let extended = true;
-    while (extended) {
-      extended = false;
-      const tail = chain[chain.length - 1];
-      for (let j = 0; j < uniqueLines.length; j++) {
-        if (used.has(j)) continue;
-        const l = uniqueLines[j];
-        if (Math.abs(l.x1 - tail.x) < SNAP && Math.abs(l.y1 - tail.y) < SNAP) {
-          chain.push({ x: l.x2, y: l.y2 });
-          used.add(j);
-          extended = true;
-          break;
-        }
-        if (Math.abs(l.x2 - tail.x) < SNAP && Math.abs(l.y2 - tail.y) < SNAP) {
-          chain.push({ x: l.x1, y: l.y1 });
-          used.add(j);
-          extended = true;
-          break;
-        }
-      }
-    }
-
-    if (chain.length >= 2) {
-      merged.push({ type: 'polyline', points: chain } as SymbolPrimitive);
-    }
-  }
-
-  return [...merged, ...others];
+  return [...keptLines, ...others];
 }
 
 interface SymbolImportDialogProps {
