@@ -632,6 +632,31 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
         }
       }
 
+      // Arrow keys: nudge selected primitives/pins by grid step
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+          && (selectedPathIds.size > 0 || selectedPinId)) {
+        e.preventDefault();
+        const step = 1.25; // symbol grid step (M/2 = 1.25mm)
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+
+        if (selectedPathIds.size > 0) {
+          setPaths(prev => prev.map(p => {
+            if (!selectedPathIds.has(p.id)) return p;
+            return { ...p, points: p.points.map(pt => ({ ...pt, x: pt.x + dx, y: pt.y + dy })) };
+          }));
+        }
+
+        if (selectedPinId) {
+          setPins(prev => prev.map(pin =>
+            pin.id === selectedPinId
+              ? { ...pin, position: { x: pin.position.x + dx, y: pin.position.y + dy } }
+              : pin
+          ));
+        }
+        return;
+      }
+
       // Escape: cancel in-progress polyline or deselect
       if (e.key === 'Escape') {
         if (isDrawing) {
