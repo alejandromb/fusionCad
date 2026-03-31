@@ -3,76 +3,10 @@
  */
 
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { importSvg, importDxf, finalizeImportedSymbol, type ImportedSymbol, type PinCandidate } from '@fusion-cad/core-engine';
+import { importSvg, importDxf, finalizeImportedSymbol, simplifyLayoutPrimitives, type ImportedSymbol, type PinCandidate } from '@fusion-cad/core-engine';
 import type { SymbolPrimitive } from '@fusion-cad/core-model';
 import { registerSymbol } from '@fusion-cad/core-model';
-
-const SYMBOL_CATEGORIES = [
-  { value: 'PLC', label: 'PLC' },
-  { value: 'Control', label: 'Control' },
-  { value: 'Power', label: 'Power' },
-  { value: 'Motor', label: 'Motor' },
-  { value: 'Field', label: 'Field Devices' },
-  { value: 'Connectors', label: 'Connectors' },
-  { value: 'Terminal', label: 'Terminal' },
-  { value: 'Ground', label: 'Ground' },
-  { value: 'Meter', label: 'Meter' },
-  { value: 'Passive', label: 'Passive' },
-  { value: 'Output', label: 'Output' },
-  { value: 'Panel', label: 'Panel' },
-  { value: 'Junction', label: 'Junction' },
-  { value: 'custom', label: 'Custom' },
-];
-
-/**
- * Optimize primitives for layout symbols:
- * 1. Merge connected LINE segments into polylines
- * 2. Remove tiny features (lines < 0.5mm)
- * 3. Remove duplicate overlapping lines
- */
-function optimizePrimitives(primitives: SymbolPrimitive[], bounds: { width: number; height: number }): SymbolPrimitive[] {
-  const SNAP = 0.5; // snap tolerance for endpoint matching
-  const MIN_LENGTH = 0.3; // minimum line length to keep
-
-  // Separate lines from other primitives
-  const lines: Array<{ x1: number; y1: number; x2: number; y2: number; sw?: number }> = [];
-  const others: SymbolPrimitive[] = [];
-
-  for (const p of primitives) {
-    if (p.type === 'line') {
-      const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
-      if (len >= MIN_LENGTH) {
-        lines.push({ x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2, sw: p.strokeWidth });
-      }
-    } else if (p.type === 'polyline') {
-      // Keep polylines but filter short ones
-      const totalLen = p.points.reduce((sum, pt, i) =>
-        i === 0 ? 0 : sum + Math.hypot(pt.x - p.points[i-1].x, pt.y - p.points[i-1].y), 0);
-      if (totalLen >= MIN_LENGTH) others.push(p);
-    } else {
-      others.push(p);
-    }
-  }
-
-  // Remove duplicate lines (same endpoints within snap tolerance)
-  const uniqueLines: typeof lines = [];
-  const seen = new Set<string>();
-  for (const l of lines) {
-    const k1 = `${Math.round(l.x1/SNAP)},${Math.round(l.y1/SNAP)}-${Math.round(l.x2/SNAP)},${Math.round(l.y2/SNAP)}`;
-    const k2 = `${Math.round(l.x2/SNAP)},${Math.round(l.y2/SNAP)}-${Math.round(l.x1/SNAP)},${Math.round(l.y1/SNAP)}`;
-    if (!seen.has(k1) && !seen.has(k2)) {
-      seen.add(k1);
-      uniqueLines.push(l);
-    }
-  }
-
-  // Convert remaining unique lines back to primitives (no merging — preserves text shapes)
-  const keptLines: SymbolPrimitive[] = uniqueLines.map(l => ({
-    type: 'line' as const, x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2, strokeWidth: l.sw,
-  }));
-
-  return [...keptLines, ...others];
-}
+import { saveSymbol as saveSymbolApi } from '../api/symbols';
 
 interface SymbolImportDialogProps {
   onClose: () => void;
@@ -81,14 +15,19 @@ interface SymbolImportDialogProps {
 
 export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImportDialogProps) {
   const [rawImported, setRawImported] = useState<ImportedSymbol | null>(null);
+  const [sourceContent, setSourceContent] = useState<string | null>(null);
+  const [sourceFormat, setSourceFormat] = useState<'svg' | 'dxf' | null>(null);
   const [fileName, setFileName] = useState('');
   const [symbolName, setSymbolName] = useState('');
   const [symbolId, setSymbolId] = useState('');
   const [category, setCategory] = useState('custom');
-  const [tagPrefix, setTagPrefix] = useState('X');
+  const [tagPrefix] = useState('X');
   const [targetWidth, setTargetWidth] = useState(40);
   const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
   const [simplifyLayout, setSimplifyLayout] = useState(true);
+  const [preserveLabels, setPreserveLabels] = useState(true);
+  const [expandedPreview, setExpandedPreview] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,8 +36,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const imported = useMemo(() => {
     if (!rawImported) return null;
     if (usage === 'layout' && simplifyLayout) {
-      // Optimize: merge connected lines into polylines, remove tiny features
-      const optimized = optimizePrimitives(rawImported.primitives, rawImported.bounds);
+      const optimized = simplifyLayoutPrimitives(rawImported.primitives, { preserveLabels });
       return {
         ...rawImported,
         primitives: optimized,
@@ -106,7 +44,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
       };
     }
     return rawImported;
-  }, [rawImported, usage, simplifyLayout]);
+  }, [rawImported, usage, simplifyLayout, preserveLabels]);
 
   const pins = imported?.pinCandidates ?? [];
 
@@ -119,21 +57,40 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
     setSymbolId(`imported-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
 
     try {
+      const text = await file.text();
       let result: ImportedSymbol;
       if (file.name.toLowerCase().endsWith('.dxf')) {
-        result = importDxf(file.text ? await file.text() : '');
+        setSourceFormat('dxf');
+        result = importDxf(text, targetWidth);
       } else if (file.name.toLowerCase().endsWith('.svg')) {
-        result = importSvg(await file.text(), targetWidth);
+        setSourceFormat('svg');
+        result = importSvg(text, targetWidth);
       } else {
         setError('Unsupported format. Use SVG or DXF. For DWG, convert to DXF first.');
         return;
       }
+      setSourceContent(text);
       result.sourceName = file.name;
       setRawImported(result);
     } catch (err: any) {
       setError(`Parse error: ${err.message}`);
     }
   }, [targetWidth]);
+
+  const reimportCurrent = useCallback((nextWidth: number) => {
+    if (!sourceContent || !sourceFormat) return;
+    try {
+      const nextImported = sourceFormat === 'dxf'
+        ? importDxf(sourceContent, nextWidth)
+        : importSvg(sourceContent, nextWidth);
+      nextImported.sourceName = fileName;
+      setError('');
+      setRawImported(nextImported);
+      setSaved(false);
+    } catch (err: any) {
+      setError(`Parse error: ${err.message}`);
+    }
+  }, [fileName, sourceContent, sourceFormat]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -166,12 +123,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
 
     // Persist: try API first (database), fall back to localStorage
     try {
-      const res = await fetch(`/api/symbols/${symbolDef.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(symbolDef),
-      });
-      if (!res.ok) throw new Error('API save failed');
+      await saveSymbolApi(symbolDef);
     } catch {
       // Offline or API error — save to localStorage as fallback
       try {
@@ -199,206 +151,331 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
     setRawImported({ ...rawImported, pinCandidates: newCandidates });
   };
 
-  return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div
-        className="dialog"
-        onClick={e => e.stopPropagation()}
-        style={{ width: '500px', maxHeight: '80vh', overflow: 'auto' }}
+  const renderPreview = ({
+    width = '100%',
+    height,
+    maxWidth,
+  }: {
+    width?: number | string;
+    height: number | string;
+    maxWidth?: string;
+  }) => {
+    if (!imported) return null;
+
+    return (
+      <svg
+        viewBox={`-2 -2 ${imported.bounds.width + 4} ${imported.bounds.height + 4}`}
+        width={width}
+        height={height}
+        style={{ display: 'block', maxWidth }}
       >
-        <div className="dialog-header">
-          <h3>Import Symbol</h3>
-          <button className="dialog-close" onClick={onClose}>x</button>
-        </div>
+        {imported.primitives.map((p: SymbolPrimitive, i: number) => {
+          switch (p.type) {
+            case 'line': return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'rect': return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'circle': return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'arc': return <path key={i} d={`M ${p.cx + p.r * Math.cos(p.startAngle)} ${p.cy + p.r * Math.sin(p.startAngle)} A ${p.r} ${p.r} 0 0 1 ${p.cx + p.r * Math.cos(p.endAngle)} ${p.cy + p.r * Math.sin(p.endAngle)}`} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'polyline': return <polyline key={i} points={p.points.map((pt: {x:number;y:number}) => `${pt.x},${pt.y}`).join(' ')} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'path': return <path key={i} d={p.d} stroke="#aaa" strokeWidth="0.3" fill="none" />;
+            case 'text': return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize || 2} fill="#888">{p.content}</text>;
+            default: return null;
+          }
+        })}
+        {pins.map((pin, i) => (
+          <circle key={`pin-${i}`} cx={pin.x} cy={pin.y} r="1" fill="#FFB400" opacity="0.7" />
+        ))}
+      </svg>
+    );
+  };
 
-        <div className="dialog-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Drop zone */}
-          {!imported && (
-            <div
-              onDrop={handleDrop}
-              onDragOver={e => e.preventDefault()}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: '2px dashed var(--fc-border-strong)',
-                borderRadius: '8px',
-                padding: '2rem',
-                textAlign: 'center',
-                cursor: 'pointer',
-                opacity: 0.7,
-              }}
-            >
-              <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                Drop SVG or DXF file here
-              </div>
-              <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-                or click to browse. For DWG, convert to DXF first.
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".svg,.dxf"
-                style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFile(file);
+  return (
+    <>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div
+          className="dialog"
+          onClick={e => e.stopPropagation()}
+          style={{ width: '500px', maxHeight: '80vh', overflow: 'auto' }}
+        >
+          <div className="dialog-header">
+            <h3>Import Symbol</h3>
+            <button className="dialog-close" onClick={onClose}>x</button>
+          </div>
+
+          <div className="dialog-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {/* Drop zone */}
+            {!imported && (
+              <div
+                onDrop={handleDrop}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: '2px dashed var(--fc-border-strong)',
+                  borderRadius: '8px',
+                  padding: '2rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  opacity: 0.7,
                 }}
-              />
-            </div>
-          )}
-
-          {error && (
-            <div style={{ color: '#ff4444', fontSize: '0.85rem', padding: '0.5rem', background: 'rgba(255,0,0,0.1)', borderRadius: '4px' }}>
-              {error}
-            </div>
-          )}
-
-          {/* Import result */}
-          {imported && (
-            <>
-              <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-                Imported from: {fileName} — {imported.primitives.length} elements, {imported.bounds.width.toFixed(1)} x {imported.bounds.height.toFixed(1)} mm
-              </div>
-
-              {/* Preview */}
-              <div style={{ background: '#111', borderRadius: '4px', padding: '0.5rem', display: 'flex', justifyContent: 'center' }}>
-                <svg
-                  viewBox={`-2 -2 ${imported.bounds.width + 4} ${imported.bounds.height + 4}`}
-                  width="100%"
-                  height="150"
-                  style={{ maxWidth: '400px' }}
-                >
-                  {imported.primitives.map((p: SymbolPrimitive, i: number) => {
-                    switch (p.type) {
-                      case 'line': return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'rect': return <rect key={i} x={p.x} y={p.y} width={p.width} height={p.height} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'circle': return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'arc': return <path key={i} d={`M ${p.cx + p.r * Math.cos(p.startAngle)} ${p.cy + p.r * Math.sin(p.startAngle)} A ${p.r} ${p.r} 0 0 1 ${p.cx + p.r * Math.cos(p.endAngle)} ${p.cy + p.r * Math.sin(p.endAngle)}`} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'polyline': return <polyline key={i} points={p.points.map((pt: {x:number;y:number}) => `${pt.x},${pt.y}`).join(' ')} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'path': return <path key={i} d={p.d} stroke="#aaa" strokeWidth="0.3" fill="none" />;
-                      case 'text': return <text key={i} x={p.x} y={p.y} fontSize={p.fontSize || 2} fill="#888">{p.content}</text>;
-                      default: return null;
-                    }
-                  })}
-                  {/* Pin candidates */}
-                  {pins.map((pin, i) => (
-                    <circle key={`pin-${i}`} cx={pin.x} cy={pin.y} r="1" fill="#FFB400" opacity="0.7" />
-                  ))}
-                </svg>
-              </div>
-
-              {/* Step 1: What is this? */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                <button
-                  className="assign-part-btn"
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    background: usage === 'schematic' ? 'var(--fc-accent)' : undefined,
-                    color: usage === 'schematic' ? '#fff' : undefined,
-                    fontWeight: usage === 'schematic' ? 'bold' : undefined,
-                  }}
-                  onClick={() => { setUsage('schematic'); setCategory('Control'); }}
-                >
-                  Schematic Symbol
-                </button>
-                <button
-                  className="assign-part-btn"
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    background: usage === 'layout' ? 'var(--fc-accent)' : undefined,
-                    color: usage === 'layout' ? '#fff' : undefined,
-                    fontWeight: usage === 'layout' ? 'bold' : undefined,
-                  }}
-                  onClick={() => { setUsage('layout'); setCategory('Panel'); }}
-                >
-                  Layout Footprint
-                </button>
-              </div>
-
-              {usage === 'layout' && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={simplifyLayout} onChange={e => setSimplifyLayout(e.target.checked)} />
-                  Simplified outline (recommended for panel layout)
-                </label>
-              )}
-
-              {/* Step 2: Name (required) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
-                <span>Name</span>
-                <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolName} onChange={e => {
-                  setSymbolName(e.target.value);
-                  setSymbolId(`imported-${e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
-                }} />
-                <span>Width (mm)</span>
-                <input className="property-input" style={{ width: '60px' }} type="number" value={targetWidth} onChange={e => setTargetWidth(Number(e.target.value))} />
-              </div>
-
-              {/* Detected pins */}
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                  Pins ({pins.length} detected)
+              >
+                <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  Drop SVG or DXF file here
                 </div>
-                {pins.length === 0 && (
-                  <div style={{ fontSize: '0.75rem', opacity: 0.5, fontStyle: 'italic' }}>
-                    No pins detected. You can add them in the Symbol Editor after import.
+                <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                  or click to browse. For DWG, convert to DXF first.
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".svg,.dxf"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFile(file);
+                  }}
+                />
+              </div>
+            )}
+
+            {error && (
+              <div style={{ color: '#ff4444', fontSize: '0.85rem', padding: '0.5rem', background: 'rgba(255,0,0,0.1)', borderRadius: '4px' }}>
+                {error}
+              </div>
+            )}
+
+            {/* Import result */}
+            {imported && (
+              <>
+                <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                  Imported from: {fileName} — {imported.primitives.length} elements, {imported.bounds.width.toFixed(1)} x {imported.bounds.height.toFixed(1)} mm
+                </div>
+
+                {/* Preview */}
+              <div style={{ background: '#111', borderRadius: '4px', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                  {renderPreview({ height: 150, maxWidth: '400px' })}
+                  <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.65 }}>
+                      Use large preview for inspection and screenshots.
+                    </div>
+                    <button
+                      className="assign-part-btn"
+                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                      onClick={() => {
+                        setPreviewZoom(1);
+                        setExpandedPreview(true);
+                      }}
+                    >
+                      Open Large Preview
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step 1: What is this? */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <button
+                    className="assign-part-btn"
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      background: usage === 'schematic' ? 'var(--fc-accent)' : undefined,
+                      color: usage === 'schematic' ? '#fff' : undefined,
+                      fontWeight: usage === 'schematic' ? 'bold' : undefined,
+                    }}
+                    onClick={() => { setUsage('schematic'); setCategory('Control'); }}
+                  >
+                    Schematic Symbol
+                  </button>
+                  <button
+                    className="assign-part-btn"
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      background: usage === 'layout' ? 'var(--fc-accent)' : undefined,
+                      color: usage === 'layout' ? '#fff' : undefined,
+                      fontWeight: usage === 'layout' ? 'bold' : undefined,
+                    }}
+                    onClick={() => { setUsage('layout'); setCategory('Panel'); }}
+                  >
+                    Layout Footprint
+                  </button>
+                </div>
+
+                {usage === 'layout' && (
+                  <>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={simplifyLayout} onChange={e => setSimplifyLayout(e.target.checked)} />
+                      Simplified outline (recommended for panel layout)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={preserveLabels} onChange={e => setPreserveLabels(e.target.checked)} />
+                      Preserve readable labels like "24 VDC"
+                    </label>
+                  </>
+                )}
+
+                {/* Step 2: Name (required) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                  <span>Name</span>
+                  <input className="property-input" style={{ width: '100%', textAlign: 'left' }} value={symbolName} onChange={e => {
+                    setSymbolName(e.target.value);
+                    setSymbolId(`imported-${e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
+                  }} />
+                  <span>Width (mm)</span>
+                  <input
+                    className="property-input"
+                    style={{ width: '60px' }}
+                    type="number"
+                    value={targetWidth}
+                    onChange={e => {
+                      const nextWidth = Number(e.target.value);
+                      setTargetWidth(nextWidth);
+                      reimportCurrent(nextWidth);
+                    }}
+                  />
+                </div>
+
+                {/* Detected pins */}
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                    Pins ({pins.length} detected)
+                  </div>
+                  {pins.length === 0 && (
+                    <div style={{ fontSize: '0.75rem', opacity: 0.5, fontStyle: 'italic' }}>
+                      No pins detected. You can add them in the Symbol Editor after import.
+                    </div>
+                  )}
+                  <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    {pins.map((pin, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', padding: '0.15rem 0' }}>
+                        <input
+                          className="property-input"
+                          style={{ width: '50px', textAlign: 'left', padding: '0.15rem 0.3rem' }}
+                          value={pin.name}
+                          onChange={e => updatePinName(idx, e.target.value)}
+                        />
+                        <span style={{ opacity: 0.5 }}>
+                          ({pin.x.toFixed(1)}, {pin.y.toFixed(1)}) {pin.suggestedDirection} — {pin.source}
+                        </span>
+                        <button
+                          onClick={() => removePin(idx)}
+                          style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button
+                    className="assign-part-btn"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setRawImported(null);
+                      setSourceContent(null);
+                      setSourceFormat(null);
+                      setSaved(false);
+                    }}
+                  >
+                    Import Different File
+                  </button>
+                  <button
+                    className="assign-part-btn"
+                    style={{ flex: 1, background: saved ? 'rgba(0,200,80,0.2)' : undefined }}
+                    onClick={handleSave}
+                    disabled={!symbolName || !symbolId}
+                  >
+                    {saved ? 'Saved!' : 'Save to Library'}
+                  </button>
+                </div>
+
+                {saved && (
+                  <div style={{ fontSize: '0.8rem', color: '#00C850', textAlign: 'center', lineHeight: 1.5 }}>
+                    Symbol "{symbolName}" saved.
+                    {usage === 'layout'
+                      ? ' Set a sheet to "Panel Layout", then click the "Layout" filter in the palette.'
+                      : ' Find it in the symbol palette — search by name or browse the "All" filter.'
+                    }
                   </div>
                 )}
-                <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                  {pins.map((pin, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', padding: '0.15rem 0' }}>
-                      <input
-                        className="property-input"
-                        style={{ width: '50px', textAlign: 'left', padding: '0.15rem 0.3rem' }}
-                        value={pin.name}
-                        onChange={e => updatePinName(idx, e.target.value)}
-                      />
-                      <span style={{ opacity: 0.5 }}>
-                        ({pin.x.toFixed(1)}, {pin.y.toFixed(1)}) {pin.suggestedDirection} — {pin.source}
-                      </span>
-                      <button
-                        onClick={() => removePin(idx)}
-                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: '0.8rem' }}
-                      >
-                        x
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <button
-                  className="assign-part-btn"
-                  style={{ flex: 1 }}
-                  onClick={() => { setRawImported(null); setSaved(false); }}
-                >
-                  Import Different File
-                </button>
-                <button
-                  className="assign-part-btn"
-                  style={{ flex: 1, background: saved ? 'rgba(0,200,80,0.2)' : undefined }}
-                  onClick={handleSave}
-                  disabled={!symbolName || !symbolId}
-                >
-                  {saved ? 'Saved!' : 'Save to Library'}
-                </button>
-              </div>
-
-              {saved && (
-                <div style={{ fontSize: '0.8rem', color: '#00C850', textAlign: 'center', lineHeight: 1.5 }}>
-                  Symbol "{symbolName}" saved.
-                  {usage === 'layout'
-                    ? ' Set a sheet to "Panel Layout", then click the "Layout" filter in the palette.'
-                    : ' Find it in the symbol palette — search by name or browse the "All" filter.'
-                  }
-                </div>
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      {expandedPreview && imported && (
+        <div
+          onClick={() => setExpandedPreview(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 5000,
+            background: 'rgba(0, 0, 0, 0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(1280px, 96vw)',
+              height: 'min(900px, 92vh)',
+              background: 'var(--fc-bg-panel)',
+              border: '1px solid var(--fc-border-strong)',
+              borderRadius: '10px',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <div className="dialog-header" style={{ padding: '0.9rem 1rem', borderBottom: '1px solid var(--fc-border)' }}>
+              <h3 style={{ margin: 0 }}>Large Preview</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button className="assign-part-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={() => setPreviewZoom(z => Math.max(0.5, z - 0.25))}>-</button>
+                <div style={{ minWidth: '64px', textAlign: 'center', fontSize: '0.8rem', opacity: 0.8 }}>
+                  {Math.round(previewZoom * 100)}%
+                </div>
+                <button className="assign-part-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={() => setPreviewZoom(z => Math.min(4, z + 0.25))}>+</button>
+                <button className="assign-part-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={() => setPreviewZoom(1)}>Reset</button>
+                <button className="dialog-close" onClick={() => setExpandedPreview(false)}>x</button>
+              </div>
+            </div>
+            <div style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', opacity: 0.7, borderBottom: '1px solid var(--fc-border)' }}>
+              {fileName} — {imported.primitives.length} elements — {imported.bounds.width.toFixed(1)} x {imported.bounds.height.toFixed(1)} mm
+            </div>
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                background: '#0b0b0b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.max(700, imported.bounds.width * 8 * previewZoom)}px`,
+                  minHeight: `${Math.max(420, imported.bounds.height * 8 * previewZoom)}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {renderPreview({
+                  width: Math.max(700, (imported.bounds.width + 4) * 8 * previewZoom),
+                  height: Math.max(420, (imported.bounds.height + 4) * 8 * previewZoom),
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

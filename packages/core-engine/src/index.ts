@@ -31,3 +31,4 @@ export * from './terminal-calculator.js';
 
 // Symbol importers (SVG, DXF)
 export * from './symbol-importer.js';
+export * from './layout-symbol-simplifier.js';
