@@ -250,8 +250,16 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
   const smallCircles: Array<{ x: number; y: number; r: number }> = [];
   const pointEntities: Array<{ x: number; y: number }> = [];
 
+  // Layer-based line weight: "Narrow" layers get thin lines
+  function getStrokeWidth(entity: any): number {
+    const layer = (entity.layer || '').toLowerCase();
+    if (layer.includes('narrow') || layer.includes('thin') || layer.includes('hidden')) return 0.15;
+    return 0.35; // default visible weight
+  }
+
   // Process entities
   function processEntity(entity: any): void {
+    const sw = getStrokeWidth(entity);
     switch (entity.type) {
       case 'LINE':
         primitives.push({
@@ -260,6 +268,7 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
           y1: entity.vertices[0].y,
           x2: entity.vertices[1].x,
           y2: entity.vertices[1].y,
+          strokeWidth: sw,
         });
         allEndpoints.push(
           { x: entity.vertices[0].x, y: entity.vertices[0].y },
@@ -276,6 +285,7 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
             cx: entity.center.x,
             cy: entity.center.y,
             r: entity.radius,
+            strokeWidth: sw,
           });
         }
         break;
@@ -290,6 +300,7 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
             r: entity.radius,
             startAngle: (entity.startAngle * Math.PI) / 180,
             endAngle: (entity.endAngle * Math.PI) / 180,
+            strokeWidth: sw,
           });
         }
         break;
