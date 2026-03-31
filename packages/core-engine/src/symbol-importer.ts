@@ -281,15 +281,49 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
         break;
 
       case 'ARC':
-        primitives.push({
-          type: 'arc',
-          cx: entity.center.x,
-          cy: entity.center.y,
-          r: entity.radius,
-          startAngle: (entity.startAngle * Math.PI) / 180,
-          endAngle: (entity.endAngle * Math.PI) / 180,
-        });
+        // Skip construction/dimension arcs (radius > 100mm is likely not part geometry)
+        if (entity.radius <= 100) {
+          primitives.push({
+            type: 'arc',
+            cx: entity.center.x,
+            cy: entity.center.y,
+            r: entity.radius,
+            startAngle: (entity.startAngle * Math.PI) / 180,
+            endAngle: (entity.endAngle * Math.PI) / 180,
+          });
+        }
         break;
+
+      case 'ELLIPSE': {
+        // Approximate ellipse as polyline (sample points along the curve)
+        const cx = entity.center?.x ?? 0;
+        const cy = entity.center?.y ?? 0;
+        const majorX = entity.majorAxisEndPoint?.x ?? 1;
+        const majorY = entity.majorAxisEndPoint?.y ?? 0;
+        const ratio = entity.axisRatio ?? 1;
+        const startParam = entity.startAngle ?? 0;
+        const endParam = entity.endAngle ?? 2 * Math.PI;
+        const majorLen = Math.hypot(majorX, majorY);
+        const majorAngle = Math.atan2(majorY, majorX);
+        const a = majorLen;       // semi-major
+        const b = majorLen * ratio; // semi-minor
+        const steps = 32;
+        const range = endParam > startParam ? endParam - startParam : endParam + 2 * Math.PI - startParam;
+        const points: Array<{ x: number; y: number }> = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = startParam + (range * i) / steps;
+          const ex = a * Math.cos(t);
+          const ey = b * Math.sin(t);
+          // Rotate by major axis angle
+          const rx = cx + ex * Math.cos(majorAngle) - ey * Math.sin(majorAngle);
+          const ry = cy + ex * Math.sin(majorAngle) + ey * Math.cos(majorAngle);
+          points.push({ x: rx, y: ry });
+        }
+        if (points.length >= 2) {
+          primitives.push({ type: 'polyline', points });
+        }
+        break;
+      }
 
       case 'LWPOLYLINE':
       case 'POLYLINE': {
