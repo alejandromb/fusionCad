@@ -118,6 +118,7 @@ Before doing ANYTHING else:
 23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
 24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
 25. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
+26. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated symbols (PLC DI/DO) must auto-sync to DB on startup. localStorage should be an offline queue that syncs to DB when connectivity returns, not a permanent store. Prevents: blank device boxes after DB restart, stale duplicates, lost imports.
 
 ### P3 — Business & Revenue
 
