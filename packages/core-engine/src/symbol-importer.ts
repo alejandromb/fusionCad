@@ -12,6 +12,7 @@
 import type { SymbolDefinition, SymbolPrimitive, SymbolPin, PinDirection } from '@fusion-cad/core-model';
 import { parse as parseSvg } from 'svg-parser';
 import DxfParser from 'dxf-parser';
+import svgpath from 'svgpath';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +38,19 @@ export interface PinCandidate {
   source: 'boundary-endpoint' | 'small-circle' | 'point-entity' | 'manual';
   /** Suggested name (auto-numbered) */
   name: string;
+}
+
+interface Point2D {
+  x: number;
+  y: number;
+}
+
+interface EntityTransform {
+  tx: number;
+  ty: number;
+  scaleX: number;
+  scaleY: number;
+  rotationDeg: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,9 +172,13 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
       case 'path': {
         const d = String(p.d || '');
         if (d) {
-          // Store the path data as-is (scaled via transform)
-          // TODO: Apply scale transform to path data for accuracy
-          primitives.push({ type: 'path', d });
+          const transformed = svgpath(d)
+            .abs()
+            .translate(-viewBox.x, -viewBox.y)
+            .scale(scale)
+            .translate(tx, ty)
+            .toString();
+          primitives.push({ type: 'path', d: transformed });
         }
         break;
       }
@@ -249,6 +267,15 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
   const allEndpoints: Array<{ x: number; y: number }> = [];
   const smallCircles: Array<{ x: number; y: number; r: number }> = [];
   const pointEntities: Array<{ x: number; y: number }> = [];
+  const dxfUnitScale = getDxfUnitScaleMm(dxf.header?.$INSUNITS as number | undefined);
+
+  const identityTransform: EntityTransform = {
+    tx: 0,
+    ty: 0,
+    scaleX: 1,
+    scaleY: 1,
+    rotationDeg: 0,
+  };
 
   // Layer-based line weight: "Narrow" layers get thin lines
   function getStrokeWidth(entity: any): number {
@@ -257,53 +284,90 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
     return 0.35; // default visible weight
   }
 
+  function shouldSkipEntity(entity: any): boolean {
+    const layer = String(entity.layer || '').toLowerCase();
+    if (!layer) return false;
+    if (layer.includes('defpoints')) return true;
+    if (layer.includes('dimension') || layer.startsWith('dim')) {
+      return ['TEXT', 'MTEXT', 'LINE', 'LWPOLYLINE', 'POLYLINE', 'POINT'].includes(entity.type);
+    }
+    return false;
+  }
+
   // Process entities
-  function processEntity(entity: any): void {
+  function processEntity(entity: any, transform: EntityTransform = identityTransform): void {
+    if (shouldSkipEntity(entity)) return;
     const sw = getStrokeWidth(entity);
     switch (entity.type) {
-      case 'LINE':
+      case 'LINE': {
+        const start = transformPoint(entity.vertices[0], transform);
+        const end = transformPoint(entity.vertices[1], transform);
         primitives.push({
           type: 'line',
-          x1: entity.vertices[0].x,
-          y1: entity.vertices[0].y,
-          x2: entity.vertices[1].x,
-          y2: entity.vertices[1].y,
+          x1: start.x,
+          y1: start.y,
+          x2: end.x,
+          y2: end.y,
           strokeWidth: sw,
         });
         allEndpoints.push(
-          { x: entity.vertices[0].x, y: entity.vertices[0].y },
-          { x: entity.vertices[1].x, y: entity.vertices[1].y }
+          { x: start.x, y: start.y },
+          { x: end.x, y: end.y }
         );
         break;
+      }
 
-      case 'CIRCLE':
-        if (entity.radius < 1.5) {
-          smallCircles.push({ x: entity.center.x, y: entity.center.y, r: entity.radius });
-        } else {
+      case 'CIRCLE': {
+        const center = transformPoint(entity.center, transform);
+        const scaleUniform = isUniformScale(transform);
+        const radiusX = Math.abs(entity.radius * transform.scaleX);
+        const radiusY = Math.abs(entity.radius * transform.scaleY);
+
+        if (scaleUniform && entity.radius * Math.max(Math.abs(transform.scaleX), Math.abs(transform.scaleY)) < 1.5) {
+          smallCircles.push({ x: center.x, y: center.y, r: Math.abs(entity.radius * transform.scaleX) });
+        } else if (scaleUniform) {
           primitives.push({
             type: 'circle',
-            cx: entity.center.x,
-            cy: entity.center.y,
-            r: entity.radius,
+            cx: center.x,
+            cy: center.y,
+            r: Math.abs(entity.radius * transform.scaleX),
+            strokeWidth: sw,
+          });
+        } else {
+          primitives.push({
+            type: 'polyline',
+            points: sampleEllipse(center, radiusX, radiusY, transform.rotationDeg),
+            closed: true,
             strokeWidth: sw,
           });
         }
         break;
+      }
 
-      case 'ARC':
+      case 'ARC': {
         // Skip construction/dimension arcs (radius > 100mm is likely not part geometry)
         if (entity.radius <= 100) {
-          primitives.push({
-            type: 'arc',
-            cx: entity.center.x,
-            cy: entity.center.y,
-            r: entity.radius,
-            startAngle: (entity.startAngle * Math.PI) / 180,
-            endAngle: (entity.endAngle * Math.PI) / 180,
-            strokeWidth: sw,
-          });
+          const center = transformPoint(entity.center, transform);
+          if (isUniformScale(transform)) {
+            primitives.push({
+              type: 'arc',
+              cx: center.x,
+              cy: center.y,
+              r: Math.abs(entity.radius * transform.scaleX),
+              startAngle: ((entity.startAngle + transform.rotationDeg) * Math.PI) / 180,
+              endAngle: ((entity.endAngle + transform.rotationDeg) * Math.PI) / 180,
+              strokeWidth: sw,
+            });
+          } else {
+            primitives.push({
+              type: 'polyline',
+              points: sampleArc(entity.center, entity.radius, entity.startAngle, entity.endAngle, transform),
+              strokeWidth: sw,
+            });
+          }
         }
         break;
+      }
 
       case 'ELLIPSE': {
         // Approximate ellipse as polyline (sample points along the curve)
@@ -318,20 +382,17 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
         const majorAngle = Math.atan2(majorY, majorX);
         const a = majorLen;       // semi-major
         const b = majorLen * ratio; // semi-minor
-        const steps = 32;
-        const range = endParam > startParam ? endParam - startParam : endParam + 2 * Math.PI - startParam;
         const points: Array<{ x: number; y: number }> = [];
-        for (let i = 0; i <= steps; i++) {
-          const t = startParam + (range * i) / steps;
+        for (const t of sampleEllipseParams(startParam, endParam, 32)) {
           const ex = a * Math.cos(t);
           const ey = b * Math.sin(t);
           // Rotate by major axis angle
           const rx = cx + ex * Math.cos(majorAngle) - ey * Math.sin(majorAngle);
           const ry = cy + ex * Math.sin(majorAngle) + ey * Math.cos(majorAngle);
-          points.push({ x: rx, y: ry });
+          points.push(transformPoint({ x: rx, y: ry }, transform));
         }
         if (points.length >= 2) {
-          primitives.push({ type: 'polyline', points });
+          primitives.push({ type: 'polyline', points, strokeWidth: sw });
         }
         break;
       }
@@ -343,46 +404,64 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
           y: v.y,
         }));
         if (points.length >= 2) {
-          primitives.push({ type: 'polyline', points });
-          allEndpoints.push(points[0], points[points.length - 1]);
+          const transformedPoints = points.map((pt: Point2D) => transformPoint(pt, transform));
+          const closed = Boolean(entity.shape);
+          primitives.push({ type: 'polyline', points: transformedPoints, closed, strokeWidth: sw });
+          if (!closed) {
+            allEndpoints.push(transformedPoints[0], transformedPoints[transformedPoints.length - 1]);
+          }
         }
         break;
       }
 
       case 'TEXT':
-      case 'MTEXT':
+      case 'MTEXT': {
+        const position = transformPoint(entity.startPoint ?? entity.position ?? { x: 0, y: 0 }, transform);
         primitives.push({
           type: 'text',
-          x: entity.startPoint?.x ?? entity.position?.x ?? 0,
-          y: entity.startPoint?.y ?? entity.position?.y ?? 0,
+          x: position.x,
+          y: position.y,
           content: entity.text || '',
-          fontSize: entity.textHeight || 2.5,
+          fontSize: (entity.textHeight || 2.5) * Math.max(Math.abs(transform.scaleX), Math.abs(transform.scaleY)),
           textAnchor: 'start',
         });
         break;
+      }
 
-      case 'POINT':
-        pointEntities.push({ x: entity.position.x, y: entity.position.y });
+      case 'POINT': {
+        const point = transformPoint(entity.position, transform);
+        pointEntities.push({ x: point.x, y: point.y });
         break;
+      }
 
-      case 'INSERT':
+      case 'INSERT': {
         // Resolve block reference
         if (dxf.blocks && dxf.blocks[entity.name]) {
           const block = dxf.blocks[entity.name];
-          const offsetX = entity.position?.x ?? 0;
-          const offsetY = entity.position?.y ?? 0;
           for (const blockEntity of block.entities || []) {
-            // Clone and offset the entity
-            const shifted = shiftEntity(blockEntity, offsetX, offsetY);
-            processEntity(shifted);
+            processEntity(blockEntity, combineTransforms(transform, {
+              tx: entity.position?.x ?? 0,
+              ty: entity.position?.y ?? 0,
+              scaleX: entity.xScale ?? 1,
+              scaleY: entity.yScale ?? 1,
+              rotationDeg: entity.rotation ?? 0,
+            }));
           }
         }
         break;
+      }
     }
   }
 
   for (const entity of dxf.entities || []) {
     processEntity(entity);
+  }
+
+  if (dxfUnitScale !== 1) {
+    scalePrimitives(primitives, dxfUnitScale);
+    for (const ep of allEndpoints) { ep.x *= dxfUnitScale; ep.y *= dxfUnitScale; }
+    for (const sc of smallCircles) { sc.x *= dxfUnitScale; sc.y *= dxfUnitScale; sc.r *= dxfUnitScale; }
+    for (const pt of pointEntities) { pt.x *= dxfUnitScale; pt.y *= dxfUnitScale; }
   }
 
   // Multi-view detection: if there's a large X gap, keep only the largest view (front)
@@ -433,11 +512,12 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
   // Strip dimension-like text (e.g., "241.6[9.51]", "110.8 [4.36]")
   // and very long lines that are likely dimension extension lines
   const isDimensionText = (text: string) => /\d+\.?\d*\s*[\[\(]/.test(text);
-  const beforeStrip = primitives.length;
+  let removedDimensionTextCount = 0;
   for (let i = primitives.length - 1; i >= 0; i--) {
     const p = primitives[i];
     if (p.type === 'text' && isDimensionText(p.content || '')) {
       primitives.splice(i, 1);
+      removedDimensionTextCount += 1;
     }
   }
 
@@ -450,7 +530,7 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
     else if (p.type === 'circle') { allX.push(p.cx); allY.push(p.cy); }
     else if (p.type === 'polyline') { for (const pt of p.points) { allX.push(pt.x); allY.push(pt.y); } }
   }
-  if (allX.length > 0) {
+  if (allX.length > 0 && (removedDimensionTextCount > 0 || primitives.length >= 12)) {
     const rangeX = Math.max(...allX) - Math.min(...allX);
     const rangeY = Math.max(...allY) - Math.min(...allY);
     for (let i = primitives.length - 1; i >= 0; i--) {
@@ -613,8 +693,15 @@ function computeBounds(
       case 'rect': update(p.x, p.y); update(p.x + p.width, p.y + p.height); break;
       case 'circle': update(p.cx - p.r, p.cy - p.r); update(p.cx + p.r, p.cy + p.r); break;
       case 'arc': update(p.cx - p.r, p.cy - p.r); update(p.cx + p.r, p.cy + p.r); break;
+      case 'ellipse': update(p.cx - p.rx, p.cy - p.ry); update(p.cx + p.rx, p.cy + p.ry); break;
       case 'polyline': for (const pt of p.points) update(pt.x, pt.y); break;
       case 'text': update(p.x, p.y); break;
+      case 'path': {
+        const pathBounds = computePathBounds(p.d);
+        update(pathBounds.minX, pathBounds.minY);
+        update(pathBounds.maxX, pathBounds.maxY);
+        break;
+      }
     }
   }
   for (const ep of endpoints) update(ep.x, ep.y);
@@ -631,8 +718,10 @@ function shiftPrimitives(primitives: SymbolPrimitive[], dx: number, dy: number):
       case 'rect': p.x += dx; p.y += dy; break;
       case 'circle': p.cx += dx; p.cy += dy; break;
       case 'arc': p.cx += dx; p.cy += dy; break;
+      case 'ellipse': p.cx += dx; p.cy += dy; break;
       case 'polyline': for (const pt of p.points) { pt.x += dx; pt.y += dy; } break;
       case 'text': p.x += dx; p.y += dy; break;
+      case 'path': p.d = svgpath(p.d).translate(dx, dy).toString(); break;
     }
   }
 }
@@ -644,8 +733,10 @@ function scalePrimitives(primitives: SymbolPrimitive[], s: number): void {
       case 'rect': p.x *= s; p.y *= s; p.width *= s; p.height *= s; break;
       case 'circle': p.cx *= s; p.cy *= s; p.r *= s; break;
       case 'arc': p.cx *= s; p.cy *= s; p.r *= s; break;
+      case 'ellipse': p.cx *= s; p.cy *= s; p.rx *= s; p.ry *= s; break;
       case 'polyline': for (const pt of p.points) { pt.x *= s; pt.y *= s; } break;
       case 'text': p.x *= s; p.y *= s; if (p.fontSize) p.fontSize *= s; break;
+      case 'path': p.d = svgpath(p.d).scale(s).toString(); break;
     }
   }
 }
@@ -657,27 +748,66 @@ function flipPrimitivesY(primitives: SymbolPrimitive[], flipY: number): void {
       case 'rect': p.y = flipY - p.y - p.height; break;
       case 'circle': p.cy = flipY - p.cy; break;
       case 'arc': p.cy = flipY - p.cy; break;
+      case 'ellipse': p.cy = flipY - p.cy; break;
       case 'polyline': for (const pt of p.points) { pt.y = flipY - pt.y; } break;
       case 'text': p.y = flipY - p.y; break;
     }
   }
 }
 
-function shiftEntity(entity: any, dx: number, dy: number): any {
-  const shifted = { ...entity };
-  if (shifted.vertices) {
-    shifted.vertices = shifted.vertices.map((v: any) => ({ ...v, x: v.x + dx, y: v.y + dy }));
-  }
-  if (shifted.center) {
-    shifted.center = { ...shifted.center, x: shifted.center.x + dx, y: shifted.center.y + dy };
-  }
-  if (shifted.position) {
-    shifted.position = { ...shifted.position, x: shifted.position.x + dx, y: shifted.position.y + dy };
-  }
-  if (shifted.startPoint) {
-    shifted.startPoint = { ...shifted.startPoint, x: shifted.startPoint.x + dx, y: shifted.startPoint.y + dy };
-  }
-  return shifted;
+function computePathBounds(d: string): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  const update = (x: number, y: number) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  };
+
+  svgpath(d).abs().iterate((segment, _index, x, y) => {
+    update(x, y);
+
+    switch (segment[0]) {
+      case 'M':
+      case 'L':
+      case 'T':
+        update(segment[1], segment[2]);
+        break;
+      case 'H':
+        update(segment[1], y);
+        break;
+      case 'V':
+        update(x, segment[1]);
+        break;
+      case 'C':
+        update(segment[1], segment[2]);
+        update(segment[3], segment[4]);
+        update(segment[5], segment[6]);
+        break;
+      case 'S':
+      case 'Q':
+        update(segment[1], segment[2]);
+        update(segment[3], segment[4]);
+        break;
+      case 'A': {
+        const rx = segment[1];
+        const ry = segment[2];
+        const endX = segment[6];
+        const endY = segment[7];
+        update(endX, endY);
+        update(x - rx, y - ry);
+        update(x + rx, y + ry);
+        update(endX - rx, endY - ry);
+        update(endX + rx, endY + ry);
+        break;
+      }
+    }
+  });
+
+  if (minX === Infinity) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  return { minX, minY, maxX, maxY };
 }
 
 /**
@@ -733,4 +863,84 @@ function detectPinCandidates(
   }
 
   return candidates;
+}
+
+function transformPoint(point: Point2D | undefined, transform: EntityTransform): Point2D {
+  const px = (point?.x ?? 0) * transform.scaleX;
+  const py = (point?.y ?? 0) * transform.scaleY;
+  const angle = (transform.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: px * cos - py * sin + transform.tx,
+    y: px * sin + py * cos + transform.ty,
+  };
+}
+
+function combineTransforms(parent: EntityTransform, child: EntityTransform): EntityTransform {
+  const transformedOffset = transformPoint({ x: child.tx, y: child.ty }, parent);
+  return {
+    tx: transformedOffset.x,
+    ty: transformedOffset.y,
+    scaleX: parent.scaleX * child.scaleX,
+    scaleY: parent.scaleY * child.scaleY,
+    rotationDeg: parent.rotationDeg + child.rotationDeg,
+  };
+}
+
+function isUniformScale(transform: EntityTransform): boolean {
+  return Math.abs(Math.abs(transform.scaleX) - Math.abs(transform.scaleY)) < 1e-6;
+}
+
+function sampleEllipse(center: Point2D, radiusX: number, radiusY: number, rotationDeg: number, steps: number = 48): Point2D[] {
+  const angle = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const points: Point2D[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = (Math.PI * 2 * i) / steps;
+    const ex = radiusX * Math.cos(t);
+    const ey = radiusY * Math.sin(t);
+    points.push({
+      x: center.x + ex * cos - ey * sin,
+      y: center.y + ex * sin + ey * cos,
+    });
+  }
+  return points;
+}
+
+function sampleEllipseParams(startParam: number, endParam: number, steps: number): number[] {
+  const range = endParam > startParam ? endParam - startParam : endParam + 2 * Math.PI - startParam;
+  return Array.from({ length: steps + 1 }, (_, i) => startParam + (range * i) / steps);
+}
+
+function sampleArc(center: Point2D, radius: number, startAngleDeg: number, endAngleDeg: number, transform: EntityTransform, steps: number = 32): Point2D[] {
+  const start = (startAngleDeg * Math.PI) / 180;
+  const end = (endAngleDeg * Math.PI) / 180;
+  const params = sampleEllipseParams(start, end, steps);
+  return params.map((t) => transformPoint({
+    x: center.x + radius * Math.cos(t),
+    y: center.y + radius * Math.sin(t),
+  }, transform));
+}
+
+function getDxfUnitScaleMm(insUnits: number | undefined): number {
+  switch (insUnits) {
+    case 1: return 25.4; // inches
+    case 2: return 304.8; // feet
+    case 4: return 1; // millimeters
+    case 5: return 10; // centimeters
+    case 6: return 1000; // meters
+    case 8: return 0.0000254; // microinches
+    case 9: return 0.0254; // mils
+    case 10: return 914.4; // yards
+    case 14: return 100; // decimeters
+    case 15: return 10000; // decameters
+    case 16: return 100000; // hectometers
+    case 17: return 1000000; // gigameters in DXF enum naming
+    case 18: return 149597870700000; // astronomical units
+    case 19: return 9460730472580800; // light years
+    case 20: return 30856775814913673000; // parsecs
+    default: return 1;
+  }
 }
