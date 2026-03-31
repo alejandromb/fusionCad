@@ -126,6 +126,7 @@ export function getSymbolAtPoint(
   positions: Map<string, Point>,
   transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
   viewportScale = 1,
+  panelScale = 1,
 ): string | null {
   const partMap = new Map<string, Part>();
   for (const part of parts) {
@@ -133,8 +134,12 @@ export function getSymbolAtPoint(
   }
 
   for (const device of devices) {
-    const pos = positions.get(device.id);
-    if (!pos) continue;
+    const rawPos = positions.get(device.id);
+    if (!rawPos) continue;
+
+    // Panel scale: device renders at pos/panelScale, so scale hit box to match
+    const ps = panelScale > 1 ? panelScale : 1;
+    const pos = { x: rawPos.x / ps, y: rawPos.y / ps };
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
@@ -142,12 +147,10 @@ export function getSymbolAtPoint(
     const rotation = transform?.rotation || 0;
 
     // For rotated devices, swap width/height for bounding box check
-    const effectiveWidth = (rotation % 180 !== 0) ? geometry.height : geometry.width;
-    const effectiveHeight = (rotation % 180 !== 0) ? geometry.width : geometry.height;
+    const effectiveWidth = ((rotation % 180 !== 0) ? geometry.height : geometry.width) / ps;
+    const effectiveHeight = ((rotation % 180 !== 0) ? geometry.width : geometry.height) / ps;
 
     // Shrink hit box by an inset to exclude pin stub areas at symbol edges.
-    // Inset is in screen-space (divided by scale) so it feels consistent at any zoom.
-    // Cap inset to 25% of each dimension so small symbols remain clickable at low zoom.
     const rawInset = 10 / (viewportScale * MM_TO_PX);
     const insetX = Math.min(rawInset, effectiveWidth * 0.25);
     const insetY = Math.min(rawInset, effectiveHeight * 0.25);
@@ -155,8 +158,8 @@ export function getSymbolAtPoint(
     const insetH = effectiveHeight - insetY * 2;
 
     // Center stays the same, but bounds shift with swapped dimensions
-    const cx = pos.x + geometry.width / 2;
-    const cy = pos.y + geometry.height / 2;
+    const cx = pos.x + (geometry.width / ps) / 2;
+    const cy = pos.y + (geometry.height / ps) / 2;
     const minX = cx - insetW / 2;
     const minY = cy - insetH / 2;
 

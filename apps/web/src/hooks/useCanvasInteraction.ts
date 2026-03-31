@@ -396,10 +396,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const mmScale = viewport.scale * MM_TO_PX;
-      const ps = panelScale > 1 ? panelScale : 1;
       return {
-        x: ((mouseX - viewport.offsetX) / mmScale) * ps,
-        y: ((mouseY - viewport.offsetY) / mmScale) * ps,
+        x: (mouseX - viewport.offsetX) / mmScale,
+        y: (mouseY - viewport.offsetY) / mmScale,
       };
     };
 
@@ -563,7 +562,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const wireHitRadius = 8 / (viewport.scale * MM_TO_PX);
         const wirePriorityRadius = 4 / (viewport.scale * MM_TO_PX);
 
-        const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
         const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, wireHitRadius, circuit.transforms);
         const hitWire = wireHit?.index ?? null;
 
@@ -599,9 +598,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           dragHistoryPushedRef.current = false;
           const symbolPos = allPositions.get(hitDeviceId);
           if (symbolPos) {
+            const ps = panelScale > 1 ? panelScale : 1;
             dragOffsetRef.current = {
-              x: world.x - symbolPos.x,
-              y: world.y - symbolPos.y,
+              x: world.x - symbolPos.x / ps,
+              y: world.y - symbolPos.y / ps,
             };
           }
           canvas.style.cursor = 'move';
@@ -683,10 +683,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const mmScale = viewport.scale * MM_TO_PX;
-      const ps = panelScale > 1 ? panelScale : 1;
       const world: Point = {
-        x: ((mouseX - viewport.offsetX) / mmScale) * ps,
-        y: ((mouseY - viewport.offsetY) / mmScale) * ps,
+        x: (mouseX - viewport.offsetX) / mmScale,
+        y: (mouseY - viewport.offsetY) / mmScale,
       };
 
       // Track mouse position for placement preview, wire preview, and paste preview
@@ -809,8 +808,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const allPositions = getAllPositions();
         const draggedPos = allPositions.get(draggingDevice);
         if (draggedPos) {
-          const newX = snapToGrid(world.x - dragOffsetRef.current.x);
-          const newY = snapToGrid(world.y - dragOffsetRef.current.y);
+          // Panel scale: mouse is in visual mm, positions in real mm
+          const ps = panelScale > 1 ? panelScale : 1;
+          const newX = snapToGrid((world.x - dragOffsetRef.current.x) * ps);
+          const newY = snapToGrid((world.y - dragOffsetRef.current.y) * ps);
           const dx = newX - draggedPos.x;
           const dy = newY - draggedPos.y;
 
@@ -975,19 +976,22 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const sheetDevices = activeSheetId
           ? circuit.devices.filter(d => d.sheetId === activeSheetId)
           : circuit.devices;
+        const ps = panelScale > 1 ? panelScale : 1;
         for (const device of sheetDevices) {
-          const pos = allPositions.get(device.id);
-          if (!pos) continue;
+          const rawPos = allPositions.get(device.id);
+          if (!rawPos) continue;
+          // Panel scale: device renders at pos/panelScale
+          const pos = { x: rawPos.x / ps, y: rawPos.y / ps };
           const part = device.partId ? circuit.parts.find(p => p.id === device.partId) : null;
           const geom = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
 
           // Account for rotation when computing bounding box
           const transform = circuit.transforms?.[device.id];
           const rotation = transform?.rotation || 0;
-          const effectiveWidth = (rotation % 180 !== 0) ? geom.height : geom.width;
-          const effectiveHeight = (rotation % 180 !== 0) ? geom.width : geom.height;
-          const cx = pos.x + geom.width / 2;
-          const cy = pos.y + geom.height / 2;
+          const effectiveWidth = ((rotation % 180 !== 0) ? geom.height : geom.width) / ps;
+          const effectiveHeight = ((rotation % 180 !== 0) ? geom.width : geom.height) / ps;
+          const cx = pos.x + (geom.width / ps) / 2;
+          const cy = pos.y + (geom.height / ps) / 2;
           const devMinX = cx - effectiveWidth / 2;
           const devMinY = cy - effectiveHeight / 2;
           const devMaxX = cx + effectiveWidth / 2;
@@ -1117,7 +1121,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'select': {
-            const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+            const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
             const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
 
             if (hitWire !== null && hitWire === selectedWireIndex) {
@@ -1451,7 +1455,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       const allPositions = getAllPositions();
       const rect = canvas.getBoundingClientRect();
 
-      const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+      const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
       const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
       const hitWire = wireHit?.index ?? null;
 
