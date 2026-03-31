@@ -374,6 +374,45 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
     processEntity(entity);
   }
 
+  // Strip dimension-like text (e.g., "241.6[9.51]", "110.8 [4.36]")
+  // and very long lines that are likely dimension extension lines
+  const isDimensionText = (text: string) => /\d+\.?\d*\s*[\[\(]/.test(text);
+  const beforeStrip = primitives.length;
+  for (let i = primitives.length - 1; i >= 0; i--) {
+    const p = primitives[i];
+    if (p.type === 'text' && isDimensionText(p.content || '')) {
+      primitives.splice(i, 1);
+    }
+  }
+
+  // Compute initial bounds to detect outlier lines (dimension extension lines)
+  // Lines that span > 80% of the full extent are likely dimension lines, not geometry
+  const allX: number[] = [];
+  const allY: number[] = [];
+  for (const p of primitives) {
+    if (p.type === 'line') { allX.push(p.x1, p.x2); allY.push(p.y1, p.y2); }
+    else if (p.type === 'circle') { allX.push(p.cx); allY.push(p.cy); }
+    else if (p.type === 'polyline') { for (const pt of p.points) { allX.push(pt.x); allY.push(pt.y); } }
+  }
+  if (allX.length > 0) {
+    const rangeX = Math.max(...allX) - Math.min(...allX);
+    const rangeY = Math.max(...allY) - Math.min(...allY);
+    for (let i = primitives.length - 1; i >= 0; i--) {
+      const p = primitives[i];
+      if (p.type === 'line') {
+        const lineLen = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+        // Very long horizontal or vertical lines spanning most of the drawing = dimension lines
+        if (lineLen > rangeX * 0.7 || lineLen > rangeY * 0.7) {
+          const isHoriz = Math.abs(p.y2 - p.y1) < 0.5;
+          const isVert = Math.abs(p.x2 - p.x1) < 0.5;
+          if (isHoriz || isVert) {
+            primitives.splice(i, 1);
+          }
+        }
+      }
+    }
+  }
+
   // DXF uses Y-up, fusionCad uses Y-down — flip Y
   const rawBounds = computeBounds(primitives, allEndpoints, smallCircles);
   const flipY = rawBounds.maxY + rawBounds.minY;
