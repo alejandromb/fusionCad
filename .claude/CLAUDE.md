@@ -76,7 +76,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 34 (2026-03-29) — Find/Replace, multi-symbol part linking, SVG/DXF importers, layout symbols, panel-layout sheets with scale, Select All fix, symbol persistence
+**Last session:** 34 (2026-03-29) — Find/Replace, importers, panel layout, multi-symbol parts
 **Tests:** 121 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
@@ -94,9 +94,10 @@ Before doing ANYTHING else:
 10. ~~**Grid size setting**~~ ✅ Done (Session 33) — Rung gap slider
 11. ~~**Pin label visibility toggle**~~ ✅ Done (Session 33)
 12. ~~**Settings panel**~~ ✅ Done (Session 33) — DISPLAY section
-13. **Sheet reorder** — Drag-and-drop to rearrange sheets in sidebar and tabs.
+13. ~~**Sheet reorder**~~ ✅ Done (Session 34) — Drag-and-drop in sidebar
 14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
-15. **DXF fill rendering** — SVG/DXF imports with filled shapes render as outlines only. Need fill support.
+15. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing (screws, terminal blocks), line weights need improvement. Research proper DXF text rendering + HATCH/SOLID fill support.
+16. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
 
 ### P1 — Core Product Quality
 
