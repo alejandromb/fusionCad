@@ -15,6 +15,7 @@ interface SidebarProps {
   onAddSheet: () => void;
   onRenameSheet: (sheetId: string, newName: string) => void;
   onDeleteSheet: (sheetId: string) => void;
+  onReorderSheets: (fromIndex: number, toIndex: number) => void;
   activeSheet: Sheet | null;
   onUpdateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
   sheetLayout: SheetLadderLayout;
@@ -44,6 +45,7 @@ export function Sidebar({
   onAddSheet,
   onRenameSheet,
   onDeleteSheet,
+  onReorderSheets,
   activeSheet,
   onUpdateSheet,
   sheetLayout,
@@ -67,6 +69,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [dragSheetIdx, setDragSheetIdx] = useState<number | null>(null);
 
   const handleStartRename = (sheetId: string) => {
     const sheet = sheets.find(s => s.id === sheetId);
@@ -89,12 +92,24 @@ export function Sidebar({
       <section className="sidebar-section">
         <h3>Pages</h3>
         <div className="page-tree">
-          {sheets.map(sheet => (
+          {sheets.map((sheet, idx) => (
             <div
               key={sheet.id}
               className={`page-tree-item ${sheet.id === activeSheetId ? 'active' : ''}`}
               onClick={() => onSelectSheet(sheet.id)}
               onDoubleClick={() => handleStartRename(sheet.id)}
+              draggable={editingSheetId !== sheet.id}
+              onDragStart={() => setDragSheetIdx(idx)}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderTop = '2px solid var(--fc-accent)'; }}
+              onDragLeave={e => { e.currentTarget.style.borderTop = ''; }}
+              onDrop={e => {
+                e.currentTarget.style.borderTop = '';
+                if (dragSheetIdx !== null && dragSheetIdx !== idx) {
+                  onReorderSheets(dragSheetIdx, idx);
+                }
+                setDragSheetIdx(null);
+              }}
+              onDragEnd={() => setDragSheetIdx(null)}
             >
               {editingSheetId === sheet.id ? (
                 <input

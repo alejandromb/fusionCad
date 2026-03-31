@@ -56,7 +56,8 @@ export function useClipboard(
   selectedDevices: string[],
   setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>>,
   getAllPositions: () => Map<string, Point>,
-  pushToHistory: () => void
+  pushToHistory: () => void,
+  activeSheetId?: string
 ): UseClipboardReturn {
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
 
@@ -165,6 +166,7 @@ export function useClipboard(
         ...device,
         id: newDeviceId,
         tag: newTag,
+        sheetId: activeSheetId || device.sheetId, // paste to active sheet
         partId: device.partId ? partIdMap.get(device.partId) : undefined,
         createdAt: now,
         modifiedAt: now,
@@ -321,6 +323,7 @@ export function useClipboard(
         ...device,
         id: newDeviceId,
         tag: newTag,
+        sheetId: activeSheetId || device.sheetId, // paste to active sheet
         partId: device.partId ? partIdMap.get(device.partId) : undefined,
         createdAt: now,
         modifiedAt: now,

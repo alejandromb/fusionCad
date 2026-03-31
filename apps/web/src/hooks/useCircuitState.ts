@@ -35,6 +35,7 @@ export interface UseCircuitStateReturn {
   addSheet: () => void;
   renameSheet: (sheetId: string, newName: string) => void;
   deleteSheet: (sheetId: string) => void;
+  reorderSheets: (fromIndex: number, toIndex: number) => void;
   updateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
   setSheetLayout: (sheetId: string, layout: SheetLadderLayout) => void;
   getSheetLayout: (sheetId: string) => SheetLadderLayout;
@@ -283,6 +284,18 @@ export function useCircuitState(
     setSelectedDevices([]);
     setSelectedWireIndex(null);
   }, [circuit, activeSheetId, setCircuit]);
+
+  const reorderSheets = useCallback((fromIndex: number, toIndex: number) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const sheets = [...getOrCreateSheets(prev)];
+      const [moved] = sheets.splice(fromIndex, 1);
+      sheets.splice(toIndex, 0, moved);
+      // Update sheet numbers to match new order
+      const renumbered = sheets.map((s, i) => ({ ...s, number: i + 1 }));
+      return { ...prev, sheets: renumbered };
+    });
+  }, [setCircuit]);
 
   const updateSheet = useCallback((sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => {
     setCircuit(prev => {
@@ -1326,6 +1339,7 @@ export function useCircuitState(
     addSheet,
     renameSheet,
     deleteSheet,
+    reorderSheets,
     updateSheet,
     setSheetLayout,
     getSheetLayout,

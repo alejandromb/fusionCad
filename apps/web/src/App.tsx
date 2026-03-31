@@ -219,7 +219,8 @@ function AppInner({
     circuitState.selectedDevices,
     circuitState.setSelectedDevices,
     circuitState.getAllPositions,
-    circuitState.pushToHistory
+    circuitState.pushToHistory,
+    circuitState.activeSheetId
   );
   const interaction = useCanvasInteraction({
     circuit: project.circuit,
@@ -496,6 +497,7 @@ function AppInner({
           onAddSheet={circuitState.addSheet}
           onRenameSheet={circuitState.renameSheet}
           onDeleteSheet={circuitState.deleteSheet}
+          onReorderSheets={circuitState.reorderSheets}
           activeSheet={circuitState.sheets.find(s => s.id === circuitState.activeSheetId) || null}
           onUpdateSheet={circuitState.updateSheet}
           sheetLayout={circuitState.getSheetLayout(circuitState.activeSheetId)}
