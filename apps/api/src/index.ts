@@ -344,7 +344,7 @@ app.put('/api/symbols/:id', async (req, res) => {
       try {
         const fs = await import('fs');
         const path = await import('path');
-        const jsonPath = path.resolve(__dirname, '../../../packages/core-model/src/symbols/builtin-symbols.json');
+        const jsonPath = path.resolve(process.cwd(), 'packages/core-model/src/symbols/builtin-symbols.json');
         const json = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
         const idx = json.symbols.findIndex((s: any) => s.id === definition.id);
         if (idx >= 0) {
