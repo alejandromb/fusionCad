@@ -676,6 +676,32 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // Check for annotation hit (before marquee) — enables drag
+      if (interactionMode === 'select') {
+        const annots = (circuit.annotations || []).filter(a =>
+          !activeSheetId || a.sheetId === activeSheetId
+        );
+        for (const ann of annots) {
+          if (ann.annotationType !== 'text') continue;
+          const fontSize = ann.style?.fontSize || 14;
+          const lines = ann.content.split('\n');
+          const tw = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
+          const th = lines.length * fontSize * 1.4;
+          if (world.x >= ann.position.x && world.x <= ann.position.x + tw &&
+              world.y >= ann.position.y && world.y <= ann.position.y + th) {
+            selectAnnotation(ann.id);
+            draggingAnnotationRef.current = {
+              id: ann.id,
+              offsetX: world.x - ann.position.x,
+              offsetY: world.y - ann.position.y,
+            };
+            pushToHistoryRef.current();
+            canvas.style.cursor = 'move';
+            return;
+          }
+        }
+      }
+
       // Select mode on empty space: start marquee selection
       // Shift preserves existing selection; plain click deselects first
       if (interactionMode === 'select') {

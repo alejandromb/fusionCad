@@ -569,7 +569,7 @@ function AppInner({
             return (
               <textarea
                 autoFocus
-                placeholder="Type text... (Enter for new line, Esc to cancel)"
+                placeholder="Type text... (Enter to place, Alt+Enter for new line)"
                 style={{
                   position: 'absolute',
                   left: screenX,
@@ -592,17 +592,23 @@ function AppInner({
                   if (e.key === 'Escape') {
                     interaction.setPendingTextPosition(null);
                   }
-                  // Cmd/Ctrl+Enter to submit
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    const text = (e.target as HTMLTextAreaElement).value.trim();
-                    if (text) {
-                      circuitState.addAnnotation(
-                        interaction.pendingTextPosition!.x,
-                        interaction.pendingTextPosition!.y,
-                        text
-                      );
+                  // Enter = submit (place text)
+                  // Alt+Enter or Cmd+Enter = new line
+                  if (e.key === 'Enter') {
+                    if (e.altKey || e.ctrlKey || e.metaKey) {
+                      // Allow new line — don't prevent default
+                    } else {
+                      e.preventDefault();
+                      const text = (e.target as HTMLTextAreaElement).value.trim();
+                      if (text) {
+                        circuitState.addAnnotation(
+                          interaction.pendingTextPosition!.x,
+                          interaction.pendingTextPosition!.y,
+                          text
+                        );
+                      }
+                      interaction.setPendingTextPosition(null);
                     }
-                    interaction.setPendingTextPosition(null);
                   }
                 }}
                 onBlur={e => {
