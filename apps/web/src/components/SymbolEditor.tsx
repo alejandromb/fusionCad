@@ -73,14 +73,14 @@ interface SymbolEditorProps {
   storageProvider?: StorageProvider;
 }
 
-const GRID_SIZE = 5;
+const DEFAULT_GRID_SIZE = 5;
 const PIN_GRID_SIZE = 20; // Pins snap to main canvas grid for alignment
 const PREVIEW_SCALE = 0.8;
 const MAX_EDITOR_HISTORY = 50;
 
-function snapToGrid(value: number, enabled = true): number {
+function snapToGrid(value: number, enabled = true, gridSize = DEFAULT_GRID_SIZE): number {
   if (!enabled) return value;
-  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  return Math.round(value / gridSize) * gridSize;
 }
 
 function snapPinToGrid(value: number): number {
@@ -380,6 +380,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   // Snap-to-grid toggle
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [orthoMode, setOrthoMode] = useState(false);
 
   // Drawing in progress
@@ -786,7 +787,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
       const mouseY = e.clientY - rect.top;
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       setViewport(prev => {
-        const newScale = Math.max(0.25, Math.min(4.0, prev.scale * factor));
+        const newScale = Math.max(0.1, Math.min(20.0, prev.scale * factor));
         const ratio = newScale / prev.scale;
         return {
           scale: newScale,
@@ -947,20 +948,20 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     const worldBottom = (canvasHeight - offsetY) / scale;
 
     // Draw grid (only visible lines)
-    const gridLeft = Math.floor(worldLeft / GRID_SIZE) * GRID_SIZE;
-    const gridTop = Math.floor(worldTop / GRID_SIZE) * GRID_SIZE;
-    const gridRight = Math.ceil(worldRight / GRID_SIZE) * GRID_SIZE;
-    const gridBottom = Math.ceil(worldBottom / GRID_SIZE) * GRID_SIZE;
+    const gridLeft = Math.floor(worldLeft / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE;
+    const gridTop = Math.floor(worldTop / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE;
+    const gridRight = Math.ceil(worldRight / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE;
+    const gridBottom = Math.ceil(worldBottom / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE;
 
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 0.5 / scale;
-    for (let x = gridLeft; x <= gridRight; x += GRID_SIZE) {
+    for (let x = gridLeft; x <= gridRight; x += DEFAULT_GRID_SIZE) {
       ctx.beginPath();
       ctx.moveTo(x, gridTop);
       ctx.lineTo(x, gridBottom);
       ctx.stroke();
     }
-    for (let y = gridTop; y <= gridBottom; y += GRID_SIZE) {
+    for (let y = gridTop; y <= gridBottom; y += DEFAULT_GRID_SIZE) {
       ctx.beginPath();
       ctx.moveTo(gridLeft, y);
       ctx.lineTo(gridRight, y);
@@ -1267,8 +1268,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    let x = snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale, snapEnabled);
-    let y = snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale, snapEnabled);
+    let x = snapToGrid((e.clientX - rect.left - viewport.offsetX) / viewport.scale, snapEnabled, gridSize);
+    let y = snapToGrid((e.clientY - rect.top - viewport.offsetY) / viewport.scale, snapEnabled, gridSize);
     // Ortho constraint: snap to horizontal or vertical from start point
     if (orthoMode && startPoint) {
       const dx = Math.abs(x - startPoint.x);
@@ -1880,7 +1881,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   const zoomIn = useCallback(() => {
     setViewport(prev => {
-      const newScale = Math.max(0.25, Math.min(4.0, prev.scale * 1.25));
+      const newScale = Math.max(0.1, Math.min(20.0, prev.scale * 1.25));
       const ratio = newScale / prev.scale;
       const cx = canvasWidth / 2;
       const cy = canvasHeight / 2;
@@ -1894,7 +1895,7 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
 
   const zoomOut = useCallback(() => {
     setViewport(prev => {
-      const newScale = Math.max(0.25, Math.min(4.0, prev.scale * 0.8));
+      const newScale = Math.max(0.1, Math.min(20.0, prev.scale * 0.8));
       const ratio = newScale / prev.scale;
       const cx = canvasWidth / 2;
       const cy = canvasHeight / 2;
@@ -2106,6 +2107,17 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
               >
                 Snap
               </button>
+              <select
+                className="action-btn"
+                value={gridSize}
+                onChange={e => setGridSize(Number(e.target.value))}
+                title="Grid size (drawing snap = 5mm matches schematic grid)"
+                style={{ width: '55px', padding: '2px', fontSize: '0.7rem' }}
+              >
+                <option value={1.25}>1.25</option>
+                <option value={2.5}>2.5</option>
+                <option value={5}>5 *</option>
+              </select>
               <button className="action-btn" onClick={handleDelete} disabled={selectedPathIds.size === 0 && !selectedPinId}>
                 Delete
               </button>
@@ -2228,8 +2240,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                 </label>
                 <div className="numeric-coords">
                   <div className="coord-row">
-                    <label>X: <input type="number" value={Math.round(selectedPin.position.x)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, x: Number(e.target.value) } })} step={GRID_SIZE} /></label>
-                    <label>Y: <input type="number" value={Math.round(selectedPin.position.y)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, y: Number(e.target.value) } })} step={GRID_SIZE} /></label>
+                    <label>X: <input type="number" value={Math.round(selectedPin.position.x)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, x: Number(e.target.value) } })} step={gridSize} /></label>
+                    <label>Y: <input type="number" value={Math.round(selectedPin.position.y)} onChange={e => updateSelectedPin({ position: { ...selectedPin.position, y: Number(e.target.value) } })} step={gridSize} /></label>
                   </div>
                 </div>
               </div>
@@ -2331,12 +2343,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                   {selectedPath.type === 'rect' && (
                     <div className="numeric-coords">
                       <div className="coord-row">
-                        <label>X: <input type="number" value={Math.round(rectX)} onChange={e => updateRect('x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                        <label>Y: <input type="number" value={Math.round(rectY)} onChange={e => updateRect('y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>X: <input type="number" value={Math.round(rectX)} onChange={e => updateRect('x', Number(e.target.value))} step={gridSize} /></label>
+                        <label>Y: <input type="number" value={Math.round(rectY)} onChange={e => updateRect('y', Number(e.target.value))} step={gridSize} /></label>
                       </div>
                       <div className="coord-row">
-                        <label>W: <input type="number" value={Math.round(rectW)} onChange={e => updateRect('w', Number(e.target.value))} step={GRID_SIZE} min={5} /></label>
-                        <label>H: <input type="number" value={Math.round(rectH)} onChange={e => updateRect('h', Number(e.target.value))} step={GRID_SIZE} min={5} /></label>
+                        <label>W: <input type="number" value={Math.round(rectW)} onChange={e => updateRect('w', Number(e.target.value))} step={gridSize} min={5} /></label>
+                        <label>H: <input type="number" value={Math.round(rectH)} onChange={e => updateRect('h', Number(e.target.value))} step={gridSize} min={5} /></label>
                       </div>
                     </div>
                   )}
@@ -2345,8 +2357,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                   {selectedPath.type === 'circle' && (
                     <div className="numeric-coords">
                       <div className="coord-row">
-                        <label>CX: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                        <label>CY: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>CX: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={gridSize} /></label>
+                        <label>CY: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={gridSize} /></label>
                       </div>
                     </div>
                   )}
@@ -2355,12 +2367,12 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                   {selectedPath.type === 'line' && (
                     <div className="numeric-coords">
                       <div className="coord-row">
-                        <label>X1: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                        <label>Y1: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>X1: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={gridSize} /></label>
+                        <label>Y1: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={gridSize} /></label>
                       </div>
                       <div className="coord-row">
-                        <label>X2: <input type="number" value={Math.round(selectedPath.points[1]?.x ?? 0)} onChange={e => updatePoint(1, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                        <label>Y2: <input type="number" value={Math.round(selectedPath.points[1]?.y ?? 0)} onChange={e => updatePoint(1, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>X2: <input type="number" value={Math.round(selectedPath.points[1]?.x ?? 0)} onChange={e => updatePoint(1, 'x', Number(e.target.value))} step={gridSize} /></label>
+                        <label>Y2: <input type="number" value={Math.round(selectedPath.points[1]?.y ?? 0)} onChange={e => updatePoint(1, 'y', Number(e.target.value))} step={gridSize} /></label>
                       </div>
                     </div>
                   )}
@@ -2369,8 +2381,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                   {selectedPath.type === 'text' && (
                     <div className="numeric-coords">
                       <div className="coord-row">
-                        <label>X: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                        <label>Y: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                        <label>X: <input type="number" value={Math.round(selectedPath.points[0]?.x ?? 0)} onChange={e => updatePoint(0, 'x', Number(e.target.value))} step={gridSize} /></label>
+                        <label>Y: <input type="number" value={Math.round(selectedPath.points[0]?.y ?? 0)} onChange={e => updatePoint(0, 'y', Number(e.target.value))} step={gridSize} /></label>
                       </div>
                     </div>
                   )}
@@ -2381,8 +2393,8 @@ export function SymbolEditor({ isOpen, onClose, onSave, editSymbolId, storagePro
                       <span style={{ fontSize: '11px', color: 'var(--fc-text-muted, #888)' }}>Vertices ({selectedPath.points.length})</span>
                       {selectedPath.points.map((pt, i) => (
                         <div className="coord-row" key={i}>
-                          <label>X: <input type="number" value={Math.round(pt.x)} onChange={e => updatePoint(i, 'x', Number(e.target.value))} step={GRID_SIZE} /></label>
-                          <label>Y: <input type="number" value={Math.round(pt.y)} onChange={e => updatePoint(i, 'y', Number(e.target.value))} step={GRID_SIZE} /></label>
+                          <label>X: <input type="number" value={Math.round(pt.x)} onChange={e => updatePoint(i, 'x', Number(e.target.value))} step={gridSize} /></label>
+                          <label>Y: <input type="number" value={Math.round(pt.y)} onChange={e => updatePoint(i, 'y', Number(e.target.value))} step={gridSize} /></label>
                         </div>
                       ))}
                     </div>
