@@ -610,24 +610,25 @@ function drawPins(
     ctx.textBaseline = 'middle';
 
     const pinLabel = pinAliases?.[pin.id] || pin.name || pin.id;
+    const labelOffset = 2; // mm offset from pin to avoid wire overlap
     switch (pin.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pinLabel, pinX - 0.5, pinY);
+        ctx.fillText(pinLabel, pinX - labelOffset, pinY);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pinLabel, pinX + 0.5, pinY);
+        ctx.fillText(pinLabel, pinX + labelOffset, pinY);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pinLabel, pinX, pinY - 0.5);
+        ctx.fillText(pinLabel, pinX, pinY - labelOffset);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pinLabel, pinX, pinY + 0.5);
+        ctx.fillText(pinLabel, pinX, pinY + labelOffset);
         break;
     }
 

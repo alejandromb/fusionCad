@@ -1287,7 +1287,7 @@ export function renderCircuit(
 
   for (const annotation of sheetAnnotations) {
     if (annotation.annotationType === 'text') {
-      const fontSize = annotation.style?.fontSize || 14;
+      const fontSize = annotation.style?.fontSize || 3;
       const fontWeight = annotation.style?.fontWeight || 'normal';
 
       ctx.fillStyle = t.annotationColor;

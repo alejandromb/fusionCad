@@ -1197,7 +1197,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               let hitAnnotation: string | null = null;
               for (const annotation of sheetAnnotations) {
                 if (annotation.annotationType !== 'text') continue;
-                const fontSize = annotation.style?.fontSize || 14;
+                const fontSize = annotation.style?.fontSize || 3;
                 const lines = annotation.content.split('\n');
                 const textWidth = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
                 const textHeight = lines.length * fontSize * 1.4;

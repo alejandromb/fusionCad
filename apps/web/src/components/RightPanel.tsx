@@ -346,16 +346,21 @@ export function RightPanel({
             />
             <div className="property-row">
               <span className="property-label">Font Size</span>
-              <input
+              <select
                 className="property-input"
-                type="number"
-                min={8}
-                max={72}
-                value={selectedAnnotation.style?.fontSize || 14}
+                value={selectedAnnotation.style?.fontSize || 3}
                 onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
-                  style: { ...selectedAnnotation.style, fontSize: parseInt(e.target.value) || 14 },
+                  style: { ...selectedAnnotation.style, fontSize: parseFloat(e.target.value) },
                 })}
-              />
+              >
+                <option value={2}>2mm (small)</option>
+                <option value={2.5}>2.5mm</option>
+                <option value={3}>3mm (default)</option>
+                <option value={3.5}>3.5mm</option>
+                <option value={4}>4mm</option>
+                <option value={5}>5mm (large)</option>
+                <option value={7}>7mm (title)</option>
+              </select>
             </div>
             <div className="property-row">
               <span className="property-label">Font Weight</span>
