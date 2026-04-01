@@ -6255,20 +6255,20 @@
       "name": "Source Arrow",
       "category": "Connectors",
       "standard": "ANSI",
-      "width": 10,
-      "height": 15,
+      "width": 5,
+      "height": 7.5,
       "svgPath": "",
       "pins": [
         {
           "id": "1",
           "name": "1",
-          "x": 5,
-          "y": 15,
+          "x": 2.5,
+          "y": 7.5,
           "direction": "bottom",
           "pinType": "power",
           "position": {
-            "x": 20,
-            "y": 60
+            "x": 2.5,
+            "y": 7.5
           }
         }
       ],
@@ -6277,30 +6277,21 @@
         {
           "type": "polyline",
           "points": [
-            {
-              "x": 1.25,
-              "y": 2.5
-            },
-            {
-              "x": 8.75,
-              "y": 2.5
-            },
-            {
-              "x": 5,
-              "y": 8.75
-            }
+            { "x": 0.5, "y": 1.25 },
+            { "x": 4.5, "y": 1.25 },
+            { "x": 2.5, "y": 4.5 }
           ],
           "closed": true,
           "fill": "stroke",
-          "strokeWidth": 0.5
+          "strokeWidth": 0.4
         },
         {
           "type": "line",
-          "x1": 5,
-          "y1": 8.75,
-          "x2": 5,
-          "y2": 15,
-          "strokeWidth": 0.5
+          "x1": 2.5,
+          "y1": 4.5,
+          "x2": 2.5,
+          "y2": 7.5,
+          "strokeWidth": 0.4
         }
       ]
     },
@@ -6309,19 +6300,19 @@
       "name": "Destination Arrow",
       "category": "Connectors",
       "standard": "ANSI",
-      "width": 10,
-      "height": 15,
+      "width": 5,
+      "height": 7.5,
       "svgPath": "",
       "pins": [
         {
           "id": "1",
           "name": "1",
-          "x": 5,
+          "x": 2.5,
           "y": 0,
           "direction": "top",
           "pinType": "power",
           "position": {
-            "x": 20,
+            "x": 2.5,
             "y": 0
           }
         }
@@ -6330,31 +6321,22 @@
       "primitives": [
         {
           "type": "line",
-          "x1": 5,
+          "x1": 2.5,
           "y1": 0,
-          "x2": 5,
-          "y2": 6.25,
-          "strokeWidth": 0.5
+          "x2": 2.5,
+          "y2": 3,
+          "strokeWidth": 0.4
         },
         {
           "type": "polyline",
           "points": [
-            {
-              "x": 5,
-              "y": 6.25
-            },
-            {
-              "x": 1.25,
-              "y": 12.5
-            },
-            {
-              "x": 8.75,
-              "y": 12.5
-            }
+            { "x": 2.5, "y": 3 },
+            { "x": 0.5, "y": 6.25 },
+            { "x": 4.5, "y": 6.25 }
           ],
           "closed": true,
           "fill": "stroke",
-          "strokeWidth": 0.5
+          "strokeWidth": 0.4
         }
       ]
     },

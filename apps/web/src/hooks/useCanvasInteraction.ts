@@ -1345,6 +1345,19 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
+      // Arrow keys = nudge selected annotation by one grid step
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedAnnotationId) {
+        e.preventDefault();
+        const step = GRID_MM;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        const ann = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
+        if (ann) {
+          pushToHistoryRef.current();
+          updateAnnotation(ann.id, { position: { x: ann.position.x + dx, y: ann.position.y + dy } });
+        }
+      }
+
       // Arrow keys = nudge selected devices by one grid step
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedDevices.length > 0) {
         e.preventDefault();
