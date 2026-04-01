@@ -12,8 +12,6 @@
     "dev": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:all": "npm run dev:api & npm run dev",
-    "dev:full": "npm run db:up && npm run dev:all",
-    "inspect:layout-import": "npm run build --workspace=packages/core-engine && node scripts/eval-layout-import.mjs",
     "cli": "npm run start --workspace=apps/cli",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
