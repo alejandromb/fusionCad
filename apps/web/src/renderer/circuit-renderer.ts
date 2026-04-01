@@ -1294,12 +1294,19 @@ export function renderCircuit(
       ctx.font = `${fontWeight} ${fontSize}px monospace`;
       ctx.textAlign = (annotation.style?.textAlign as CanvasTextAlign) || 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(annotation.content, annotation.position.x, annotation.position.y);
+
+      // Multiline support: split by \n and render each line
+      const lines = annotation.content.split('\n');
+      const lineHeight = fontSize * 1.4;
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], annotation.position.x, annotation.position.y + li * lineHeight);
+      }
 
       // Draw selection highlight if this annotation is selected
       if (options?.selectedAnnotationId === annotation.id) {
-        const textWidth = annotation.content.length * fontSize * 0.6;
-        const textHeight = fontSize * 1.2;
+        const maxLineWidth = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
+        const textWidth = maxLineWidth;
+        const textHeight = lines.length * lineHeight;
         ctx.strokeStyle = t.annotationSelectionColor;
         ctx.lineWidth = t.selectionWidth;
         ctx.setLineDash(t.selectionDash);

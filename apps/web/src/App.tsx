@@ -256,6 +256,9 @@ function AppInner({
     mirrorDevice: circuitState.mirrorDevice,
     deviceTransforms: circuitState.deviceTransforms,
     selectAnnotation: circuitState.selectAnnotation,
+    updateAnnotation: circuitState.updateAnnotation,
+    deleteAnnotation: circuitState.deleteAnnotation,
+    selectedAnnotationId: circuitState.selectedAnnotationId,
     activeSheetId: circuitState.activeSheetId,
     panelScale: circuitState.getPanelScale(circuitState.activeSheetId),
   });

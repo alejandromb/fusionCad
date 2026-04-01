@@ -96,6 +96,9 @@ interface UseCanvasInteractionDeps {
   mirrorDevice: (deviceId: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
   selectAnnotation: (id: string | null) => void;
+  updateAnnotation: (id: string, updates: { position?: { x: number; y: number } }) => void;
+  deleteAnnotation: (id: string) => void;
+  selectedAnnotationId: string | null;
   activeSheetId: string;
   panelScale: number;
 }
@@ -244,6 +247,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     mirrorDevice,
     deviceTransforms,
     selectAnnotation,
+    updateAnnotation,
+    deleteAnnotation,
+    selectedAnnotationId,
     activeSheetId,
     panelScale,
   } = deps;
@@ -294,6 +300,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [draggingDevice, setDraggingDevice] = useState<string | null>(null);
   const dragOffsetRef = useRef<Point | null>(null);
   const dragHistoryPushedRef = useRef(false);
+  const draggingAnnotationRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   /** 'drag' = G key (move with wires), 'move' = M key (detach wires) */
   const dragModeRef = useRef<'drag' | 'move'>('drag');
 
@@ -797,6 +804,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // Drag annotation — update position via mouseWorldPos for preview,
+      // commit on mouseUp
+      if (draggingAnnotationRef.current && circuit) {
+        hasDraggedRef.current = true;
+        setMouseWorldPos(world); // triggers re-render for visual feedback
+      }
+
       // Drag device
       // draggingDevice is now a device ID
       if (draggingDevice && dragOffsetRef.current) {
@@ -950,6 +964,18 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
         setDraggingEndpoint(null);
         setMouseWorldPos(null);
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
+
+      // End annotation dragging — commit position
+      if (draggingAnnotationRef.current) {
+        const ann = draggingAnnotationRef.current;
+        const newX = snapToGrid(world.x - ann.offsetX);
+        const newY = snapToGrid(world.y - ann.offsetY);
+        updateAnnotation(ann.id, { position: { x: newX, y: newY } });
+        draggingAnnotationRef.current = null;
         isDraggingRef.current = false;
         canvas.style.cursor = getCursor();
         return;
@@ -1144,8 +1170,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               for (const annotation of sheetAnnotations) {
                 if (annotation.annotationType !== 'text') continue;
                 const fontSize = annotation.style?.fontSize || 14;
-                const textWidth = annotation.content.length * fontSize * 0.6;
-                const textHeight = fontSize * 1.2;
+                const lines = annotation.content.split('\n');
+                const textWidth = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
+                const textHeight = lines.length * fontSize * 1.4;
                 if (
                   world.x >= annotation.position.x &&
                   world.x <= annotation.position.x + textWidth &&
@@ -1159,6 +1186,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
               if (hitAnnotation) {
                 selectAnnotation(hitAnnotation);
+                // Start dragging the annotation
+                const ann = sheetAnnotations.find(a => a.id === hitAnnotation);
+                if (ann) {
+                  draggingAnnotationRef.current = {
+                    id: hitAnnotation,
+                    offsetX: world.x - ann.position.x,
+                    offsetY: world.y - ann.position.y,
+                  };
+                  pushToHistoryRef.current();
+                }
                 break;
               }
             }
@@ -1335,6 +1372,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           e.preventDefault();
           deleteWire(toGlobalIndex(selectedWireIndex));
           setSelectedWireIndex(null);
+        } else if (selectedAnnotationId) {
+          e.preventDefault();
+          deleteAnnotation(selectedAnnotationId);
+          selectAnnotation(null);
         }
       }
 
