@@ -458,6 +458,7 @@ interface TerminalPin {
   id: string;       // Pin ID used in connections (e.g., 'I-00', 'COM0')
   name: string;     // Display label
   pinType: PinType;
+  terminal?: number; // Physical terminal number from datasheet
 }
 
 /**
@@ -549,7 +550,7 @@ function generateDualSideModuleSymbol(
   // Signal pins — evenly spaced on signal side
   for (let i = 0; i < signalPins.length; i++) {
     const py = HEADER_HEIGHT + i * PIN_SPACING;
-    addPin(signalPins[i], py, signalSide, `${i + 1}`);
+    addPin(signalPins[i], py, signalSide, signalPins[i].terminal ? `${signalPins[i].terminal}` : `${i + 1}`);
   }
 
   // Power pins — distributed on opposite side:
@@ -559,7 +560,7 @@ function generateDualSideModuleSymbol(
     : 0;
   for (let i = 0; i < powerPins.length; i++) {
     const py = HEADER_HEIGHT + i * powerSpacing;
-    addPin(powerPins[i], py, powerSide, '');
+    addPin(powerPins[i], py, powerSide, powerPins[i].terminal ? `${powerPins[i].terminal}` : '');
   }
 
   return {
@@ -584,26 +585,27 @@ function generateDualSideModuleSymbol(
  * Right side: COM0 (top), COM1 (bottom)
  */
 export function generateLC50_24_Input(): SymbolDefinition {
+  // Terminal numbers match datasheet pinout (2080-LC50-24QBB Input Terminal Block)
   const signalPins: TerminalPin[] = [
-    { id: 'I-00', name: 'I-00', pinType: 'input' },
-    { id: 'I-01', name: 'I-01', pinType: 'input' },
-    { id: 'I-02', name: 'I-02', pinType: 'input' },
-    { id: 'I-03', name: 'I-03', pinType: 'input' },
-    { id: 'I-04', name: 'I-04', pinType: 'input' },
-    { id: 'I-05', name: 'I-05', pinType: 'input' },
-    { id: 'I-06', name: 'I-06', pinType: 'input' },
-    { id: 'I-07', name: 'I-07', pinType: 'input' },
-    { id: 'I-08', name: 'I-08', pinType: 'input' },
-    { id: 'I-09', name: 'I-09', pinType: 'input' },
-    { id: 'I-10', name: 'I-10', pinType: 'input' },
-    { id: 'I-11', name: 'I-11', pinType: 'input' },
-    { id: 'I-12', name: 'I-12', pinType: 'input' },
-    { id: 'I-13', name: 'I-13', pinType: 'input' },
+    { id: 'I-00', name: 'I-00', pinType: 'input', terminal: 2 },
+    { id: 'I-01', name: 'I-01', pinType: 'input', terminal: 3 },
+    { id: 'I-02', name: 'I-02', pinType: 'input', terminal: 4 },
+    { id: 'I-03', name: 'I-03', pinType: 'input', terminal: 5 },
+    { id: 'I-04', name: 'I-04', pinType: 'input', terminal: 6 },
+    { id: 'I-05', name: 'I-05', pinType: 'input', terminal: 7 },
+    { id: 'I-06', name: 'I-06', pinType: 'input', terminal: 8 },
+    { id: 'I-07', name: 'I-07', pinType: 'input', terminal: 9 },
+    { id: 'I-08', name: 'I-08', pinType: 'input', terminal: 11 },
+    { id: 'I-09', name: 'I-09', pinType: 'input', terminal: 12 },
+    { id: 'I-10', name: 'I-10', pinType: 'input', terminal: 13 },
+    { id: 'I-11', name: 'I-11', pinType: 'input', terminal: 14 },
+    { id: 'I-12', name: 'I-12', pinType: 'input', terminal: 15 },
+    { id: 'I-13', name: 'I-13', pinType: 'input', terminal: 16 },
   ];
 
   const powerPins: TerminalPin[] = [
-    { id: 'COM0', name: 'COM0', pinType: 'power' },
-    { id: 'COM1', name: 'COM1', pinType: 'power' },
+    { id: 'COM0', name: 'COM0', pinType: 'power', terminal: 1 },
+    { id: 'COM1', name: 'COM1', pinType: 'power', terminal: 10 },
   ];
 
   return generateDualSideModuleSymbol(
@@ -623,27 +625,28 @@ export function generateLC50_24_Input(): SymbolDefinition {
  * Left side: +DC24 (top), +CM0, +CM1 (middle), -DC24, -CM0, -CM1 (bottom)
  */
 export function generateLC50_24_Output(): SymbolDefinition {
+  // Terminal numbers match datasheet pinout (2080-LC50-24QBB Output Terminal Block)
   const signalPins: TerminalPin[] = [
-    { id: 'O-00', name: 'O-00', pinType: 'output' },
-    { id: 'O-01', name: 'O-01', pinType: 'output' },
-    { id: 'O-02', name: 'O-02', pinType: 'output' },
-    { id: 'O-03', name: 'O-03', pinType: 'output' },
-    { id: 'O-04', name: 'O-04', pinType: 'output' },
-    { id: 'O-05', name: 'O-05', pinType: 'output' },
-    { id: 'O-06', name: 'O-06', pinType: 'output' },
-    { id: 'O-07', name: 'O-07', pinType: 'output' },
-    { id: 'O-08', name: 'O-08', pinType: 'output' },
-    { id: 'O-09', name: 'O-09', pinType: 'output' },
+    { id: 'O-00', name: 'O-00', pinType: 'output', terminal: 4 },
+    { id: 'O-01', name: 'O-01', pinType: 'output', terminal: 5 },
+    { id: 'O-02', name: 'O-02', pinType: 'output', terminal: 8 },
+    { id: 'O-03', name: 'O-03', pinType: 'output', terminal: 9 },
+    { id: 'O-04', name: 'O-04', pinType: 'output', terminal: 10 },
+    { id: 'O-05', name: 'O-05', pinType: 'output', terminal: 11 },
+    { id: 'O-06', name: 'O-06', pinType: 'output', terminal: 12 },
+    { id: 'O-07', name: 'O-07', pinType: 'output', terminal: 13 },
+    { id: 'O-08', name: 'O-08', pinType: 'output', terminal: 14 },
+    { id: 'O-09', name: 'O-09', pinType: 'output', terminal: 15 },
   ];
 
   // Power pins: +V top, commons middle, grounds bottom
   const powerPins: TerminalPin[] = [
-    { id: '+DC24', name: '+DC24', pinType: 'power' },
-    { id: '+CM0',  name: '+CM0',  pinType: 'power' },
-    { id: '+CM1',  name: '+CM1',  pinType: 'power' },
-    { id: '-CM0',  name: '-CM0',  pinType: 'power' },
-    { id: '-CM1',  name: '-CM1',  pinType: 'power' },
-    { id: '-DC24', name: '-DC24', pinType: 'power' },
+    { id: '+DC24', name: '+DC24', pinType: 'power', terminal: 1 },
+    { id: '+CM0',  name: '+CM0',  pinType: 'power', terminal: 3 },
+    { id: '+CM1',  name: '+CM1',  pinType: 'power', terminal: 7 },
+    { id: '-CM0',  name: '-CM0',  pinType: 'power', terminal: 6 },
+    { id: '-CM1',  name: '-CM1',  pinType: 'power', terminal: 16 },
+    { id: '-DC24', name: '-DC24', pinType: 'power', terminal: 2 },
   ];
 
   return generateDualSideModuleSymbol(
