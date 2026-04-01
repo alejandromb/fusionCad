@@ -517,11 +517,12 @@ function generateDualSideModuleSymbol(
     const px = side === 'left' ? 0 : MOD_WIDTH;
     const isLeft = side === 'left';
 
-    // Pin: ID = signal name (I-10), name = terminal number (13)
-    // The renderer draws pin.name as the external label near the wire
+    // Pin ID and name = terminal number (what the wire connects to)
+    // I/O function name (I-10) is a body label, not the pin identity
+    const pinLabel = t.terminal ? `${t.terminal}` : t.id;
     pins.push({
-      id: t.id,
-      name: t.terminal ? `${t.terminal}` : t.name,
+      id: pinLabel,
+      name: pinLabel,
       position: { x: px, y: py },
       direction: side as PinDirection,
       pinType: t.pinType,
