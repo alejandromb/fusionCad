@@ -517,9 +517,11 @@ function generateDualSideModuleSymbol(
     const px = side === 'left' ? 0 : MOD_WIDTH;
     const isLeft = side === 'left';
 
+    // Pin: ID = signal name (I-10), name = terminal number (13)
+    // The renderer draws pin.name as the external label near the wire
     pins.push({
       id: t.id,
-      name: t.name,
+      name: t.terminal ? `${t.terminal}` : t.name,
       position: { x: px, y: py },
       direction: side as PinDirection,
       pinType: t.pinType,
@@ -532,14 +534,14 @@ function generateDualSideModuleSymbol(
       primitives.push({ type: 'line', x1: MOD_WIDTH - MOD_INSET, y1: py, x2: MOD_WIDTH, y2: py });
     }
 
-    // Terminal number (near pin, inside body)
-    const termX = isLeft ? MOD_INSET + 1 : MOD_WIDTH - MOD_INSET - 1;
+    // Terminal number (near pin edge, inside body)
+    const termNumX = isLeft ? MOD_INSET + 1 : MOD_WIDTH - MOD_INSET - 1;
     primitives.push({
-      type: 'text', x: termX, y: py,
+      type: 'text', x: termNumX, y: py,
       content: termNum, fontSize: 2, fontWeight: 'normal', textAnchor: isLeft ? 'start' : 'end',
     });
 
-    // Channel label (away from pin, inside body)
+    // I/O function label (inside body, toward center)
     const labelX = isLeft ? centerX - 1 : centerX + 1;
     primitives.push({
       type: 'text', x: labelX, y: py,
