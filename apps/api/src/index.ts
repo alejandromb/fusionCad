@@ -338,6 +338,43 @@ app.put('/api/symbols/:id', async (req, res) => {
     });
 
     await symbolRepo.save(symbol);
+
+    // Dev mode: persist edits to builtin-symbols.json so they survive restarts
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const jsonPath = path.resolve(__dirname, '../../../packages/core-model/src/symbols/builtin-symbols.json');
+        const json = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        const idx = json.symbols.findIndex((s: any) => s.id === definition.id);
+        if (idx >= 0) {
+          // Convert back to flat JSON format for builtin-symbols.json
+          const flat: Record<string, unknown> = {
+            ...json.symbols[idx],
+            ...definition,
+            // Flatten geometry back to top-level width/height
+            width: (definition.geometry as any)?.width ?? json.symbols[idx].width,
+            height: (definition.geometry as any)?.height ?? json.symbols[idx].height,
+          };
+          // Flatten pin positions
+          if ((definition as any).pins) {
+            flat.pins = (definition as any).pins.map((p: any) => ({
+              ...p,
+              x: p.position?.x ?? p.x,
+              y: p.position?.y ?? p.y,
+            }));
+          }
+          delete (flat as any).geometry;
+          json.symbols[idx] = flat;
+          fs.writeFileSync(jsonPath, JSON.stringify(json, null, 2) + '\n');
+          console.log(`[dev] Persisted symbol "${definition.id}" to builtin-symbols.json`);
+        }
+      } catch (err) {
+        // Non-fatal — DB save succeeded
+        console.warn('[dev] Failed to persist to builtin-symbols.json:', err);
+      }
+    }
+
     res.json(definition);
   } catch (error) {
     console.error('Error saving symbol:', error);
@@ -522,9 +559,9 @@ AppDataSource.initialize()
   .then(async () => {
     console.log('Database connected successfully');
 
-    // Sync builtin symbols: insert new, update existing with latest JSON definitions
-    console.log('Syncing builtin symbols...');
-    const result = await seedBuiltinSymbols(true);
+    // Seed builtin symbols: insert new only, never overwrite user edits
+    console.log('Seeding builtin symbols...');
+    const result = await seedBuiltinSymbols(false);
     console.log(`Symbols synced: ${result.seeded} new, ${result.updated} updated, ${result.skipped} unchanged`);
 
     app.listen(PORT, () => {
