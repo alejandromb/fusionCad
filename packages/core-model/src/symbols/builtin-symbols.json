@@ -6277,9 +6277,18 @@
         {
           "type": "polyline",
           "points": [
-            { "x": 0.5, "y": 1.25 },
-            { "x": 4.5, "y": 1.25 },
-            { "x": 2.5, "y": 4.5 }
+            {
+              "x": 0.5,
+              "y": 1.25
+            },
+            {
+              "x": 4.5,
+              "y": 1.25
+            },
+            {
+              "x": 2.5,
+              "y": 4.5
+            }
           ],
           "closed": true,
           "fill": "stroke",
@@ -6330,9 +6339,18 @@
         {
           "type": "polyline",
           "points": [
-            { "x": 2.5, "y": 3 },
-            { "x": 0.5, "y": 6.25 },
-            { "x": 4.5, "y": 6.25 }
+            {
+              "x": 2.5,
+              "y": 3
+            },
+            {
+              "x": 0.5,
+              "y": 6.25
+            },
+            {
+              "x": 4.5,
+              "y": 6.25
+            }
           ],
           "closed": true,
           "fill": "stroke",
@@ -6494,6 +6512,174 @@
           "y1": 8,
           "x2": 6.5,
           "y2": 8
+        }
+      ]
+    },
+    {
+      "id": "ups-dc-24v",
+      "name": "UPS DC 24V",
+      "category": "Power",
+      "standard": "common",
+      "width": 20,
+      "height": 30,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "IN+",
+          "name": "IN+",
+          "x": 7.5,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "IN-",
+          "name": "IN-",
+          "x": 12.5,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "OUT+",
+          "name": "OUT+",
+          "x": 7.5,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "OUT-",
+          "name": "OUT-",
+          "x": 12.5,
+          "y": 30,
+          "direction": "bottom",
+          "pinType": "power"
+        },
+        {
+          "id": "BAT+",
+          "name": "B+",
+          "x": 0,
+          "y": 12.5,
+          "direction": "left",
+          "pinType": "power"
+        },
+        {
+          "id": "BAT-",
+          "name": "B-",
+          "x": 0,
+          "y": 17.5,
+          "direction": "left",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "UPS",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 7.5,
+          "y1": 0,
+          "x2": 7.5,
+          "y2": 5
+        },
+        {
+          "type": "line",
+          "x1": 12.5,
+          "y1": 0,
+          "x2": 12.5,
+          "y2": 5
+        },
+        {
+          "type": "line",
+          "x1": 7.5,
+          "y1": 25,
+          "x2": 7.5,
+          "y2": 30
+        },
+        {
+          "type": "line",
+          "x1": 12.5,
+          "y1": 25,
+          "x2": 12.5,
+          "y2": 30
+        },
+        {
+          "type": "line",
+          "x1": 0,
+          "y1": 12.5,
+          "x2": 5,
+          "y2": 12.5
+        },
+        {
+          "type": "line",
+          "x1": 0,
+          "y1": 17.5,
+          "x2": 5,
+          "y2": 17.5
+        },
+        {
+          "type": "rect",
+          "x": 5,
+          "y": 5,
+          "width": 10,
+          "height": 20
+        },
+        {
+          "type": "line",
+          "x1": 5,
+          "y1": 15,
+          "x2": 15,
+          "y2": 15
+        },
+        {
+          "type": "text",
+          "x": 10,
+          "y": 8.5,
+          "content": "UPS",
+          "fontSize": 3,
+          "fontWeight": "bold",
+          "textAnchor": "middle"
+        },
+        {
+          "type": "text",
+          "x": 10,
+          "y": 12,
+          "content": "24V",
+          "fontSize": 2.5,
+          "fontWeight": "normal",
+          "textAnchor": "middle"
+        },
+        {
+          "type": "line",
+          "x1": 8,
+          "y1": 18,
+          "x2": 12,
+          "y2": 18,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 9,
+          "y1": 19.5,
+          "x2": 11,
+          "y2": 19.5,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 8,
+          "y1": 21,
+          "x2": 12,
+          "y2": 21,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 9,
+          "y1": 22.5,
+          "x2": 11,
+          "y2": 22.5,
+          "strokeWidth": 0.8
         }
       ]
     }
