@@ -98,6 +98,7 @@ Before doing ANYTHING else:
 14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
 15. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing (screws, terminal blocks), line weights need improvement. Research proper DXF text rendering + HATCH/SOLID fill support.
 16. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
+17. **Shape annotations** — Arrow, line, rectangle, circle annotations for voltage labels, callouts, borders. Non-electrical drawing elements.
 
 ### P1 — Core Product Quality
 
