@@ -58,6 +58,9 @@ export interface UseCanvasInteractionReturn {
   renderHandleRef: React.MutableRefObject<import('../components/Canvas').CanvasRenderHandle | null>;
   /** Whether paste ghost preview is active */
   pastePreview: boolean;
+  /** Pending text annotation position (waiting for user input) */
+  pendingTextPosition: Point | null;
+  setPendingTextPosition: React.Dispatch<React.SetStateAction<Point | null>>;
   /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
   sheetConnections: SheetConnection[];
 }
@@ -292,6 +295,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [wireStart, setWireStart] = useState<PinHit | null>(null);
   const [mouseWorldPos, setMouseWorldPos] = useState<Point | null>(null);
   const [pastePreview, setPastePreview] = useState(false);
+  const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -1139,10 +1143,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'text': {
-            const text = prompt('Enter annotation text:');
-            if (text) {
-              addAnnotation(world.x, world.y, text);
-            }
+            // Show text input at click position
+            setPendingTextPosition({ x: world.x, y: world.y });
             break;
           }
           case 'select': {
@@ -1611,6 +1613,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     contextMenu,
     setContextMenu,
     pastePreview,
+    pendingTextPosition,
+    setPendingTextPosition,
     zoomToFit,
     renderHandleRef,
     sheetConnections,

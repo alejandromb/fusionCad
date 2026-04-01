@@ -561,6 +561,65 @@ function AppInner({
             showDescriptions={circuitState.showDescriptions}
           />
 
+          {/* Inline text input for annotations */}
+          {interaction.pendingTextPosition && (() => {
+            const mmScale = interaction.viewport.scale * 4; // MM_TO_PX = 4
+            const screenX = interaction.pendingTextPosition.x * mmScale + interaction.viewport.offsetX;
+            const screenY = interaction.pendingTextPosition.y * mmScale + interaction.viewport.offsetY;
+            return (
+              <textarea
+                autoFocus
+                placeholder="Type text... (Enter for new line, Esc to cancel)"
+                style={{
+                  position: 'absolute',
+                  left: screenX,
+                  top: screenY,
+                  minWidth: '150px',
+                  minHeight: '40px',
+                  maxWidth: '300px',
+                  padding: '4px 6px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  background: 'var(--fc-bg-app)',
+                  color: 'var(--fc-text-primary)',
+                  border: '1px solid var(--fc-accent)',
+                  borderRadius: '3px',
+                  outline: 'none',
+                  resize: 'both',
+                  zIndex: 100,
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    interaction.setPendingTextPosition(null);
+                  }
+                  // Cmd/Ctrl+Enter to submit
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    const text = (e.target as HTMLTextAreaElement).value.trim();
+                    if (text) {
+                      circuitState.addAnnotation(
+                        interaction.pendingTextPosition!.x,
+                        interaction.pendingTextPosition!.y,
+                        text
+                      );
+                    }
+                    interaction.setPendingTextPosition(null);
+                  }
+                }}
+                onBlur={e => {
+                  const text = e.target.value.trim();
+                  if (text) {
+                    circuitState.addAnnotation(
+                      interaction.pendingTextPosition!.x,
+                      interaction.pendingTextPosition!.y,
+                      text
+                    );
+                  }
+                  interaction.setPendingTextPosition(null);
+                }}
+              />
+            );
+          })()}
+
           <ZoomControls
             viewport={interaction.viewport}
             setViewport={interaction.setViewport}
