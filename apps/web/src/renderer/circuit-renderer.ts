@@ -737,8 +737,8 @@ export function renderCircuit(
         ctx.fillStyle = t.annotationColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        // Render above the device tag (tag is at y-0.75, so function goes at y-4.5)
-        ctx.fillText(fn, position.x + geometry.width / 2, position.y - 4.5);
+        // Render just above the tag (tag is at y-0.5)
+        ctx.fillText(fn, position.x + geometry.width / 2, position.y - 3.5);
         ctx.restore();
       }
     }
