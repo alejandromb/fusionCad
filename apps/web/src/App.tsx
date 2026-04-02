@@ -419,6 +419,8 @@ function AppInner({
             deviceTransforms: circuitState.deviceTransforms,
             title: project.projectName,
             allSheets: true,
+            showDescriptions: circuitState.showDescriptions,
+            showPinLabels: circuitState.showPinLabels,
           });
         }}
         onOpenSymbols={() => setShowSymbolLibrary(true)}
@@ -456,6 +458,8 @@ function AppInner({
             deviceTransforms: circuitState.deviceTransforms,
             title: project.projectName,
             allSheets: true,
+            showDescriptions: circuitState.showDescriptions,
+            showPinLabels: circuitState.showPinLabels,
           });
         }}
         onOpenReports={() => setShowReports(true)}

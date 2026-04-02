@@ -27,6 +27,9 @@ interface PDFExportOptions {
   title?: string;
   /** Active sheet ID */
   activeSheetId?: string;
+  /** Display settings */
+  showDescriptions?: boolean;
+  showPinLabels?: boolean;
 }
 
 /**
@@ -37,7 +40,7 @@ export async function exportToPDF(
   positions: Map<string, Point>,
   options: PDFExportOptions & { allSheets?: boolean } = {}
 ): Promise<void> {
-  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets } = options;
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels } = options;
 
   // Determine which sheets to export
   const sheetIds = allSheets
@@ -126,6 +129,7 @@ function renderSheetForPrint(
   sheetId: string,
   deviceTransforms?: Map<string, DeviceTransform>,
   scaleFactor = 1.5,
+  displayOptions?: { showDescriptions?: boolean; showPinLabels?: boolean },
 ): HTMLCanvasElement | null {
   const sheetSize = SHEET_SIZES[
     circuit.sheets?.find(s => s.id === sheetId)?.size || 'Tabloid'
@@ -154,6 +158,8 @@ function renderSheetForPrint(
       activeSheetId: sheetId,
       deviceTransforms,
       showGrid: false,
+      showDescriptions: displayOptions?.showDescriptions,
+      showPinLabels: displayOptions?.showPinLabels,
     });
   } finally {
     setTheme(originalTheme);
@@ -175,7 +181,7 @@ export async function printSheet(
   positions: Map<string, Point>,
   options: PDFExportOptions & { allSheets?: boolean } = {}
 ): Promise<void> {
-  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets } = options;
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels } = options;
 
   const sheetIds = allSheets
     ? (circuit.sheets || []).map(s => s.id)
@@ -183,7 +189,7 @@ export async function printSheet(
 
   const images: string[] = [];
   for (const sid of sheetIds) {
-    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms);
+    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, undefined, { showDescriptions, showPinLabels });
     if (canvas) images.push(canvas.toDataURL('image/png'));
   }
 
