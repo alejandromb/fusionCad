@@ -6682,6 +6682,116 @@
           "strokeWidth": 0.8
         }
       ]
+    },
+    {
+      "id": "battery-12v",
+      "name": "Battery 12V",
+      "category": "Power",
+      "standard": "common",
+      "width": 10,
+      "height": 15,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "+",
+          "name": "+",
+          "x": 5,
+          "y": 0,
+          "direction": "top",
+          "pinType": "power"
+        },
+        {
+          "id": "-",
+          "name": "-",
+          "x": 5,
+          "y": 15,
+          "direction": "bottom",
+          "pinType": "power"
+        }
+      ],
+      "tagPrefix": "BT",
+      "primitives": [
+        {
+          "type": "line",
+          "x1": 5,
+          "y1": 0,
+          "x2": 5,
+          "y2": 4
+        },
+        {
+          "type": "line",
+          "x1": 5,
+          "y1": 11,
+          "x2": 5,
+          "y2": 15
+        },
+        {
+          "type": "line",
+          "x1": 2,
+          "y1": 4,
+          "x2": 8,
+          "y2": 4,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 3,
+          "y1": 5.5,
+          "x2": 7,
+          "y2": 5.5,
+          "strokeWidth": 0.5
+        },
+        {
+          "type": "line",
+          "x1": 2,
+          "y1": 7,
+          "x2": 8,
+          "y2": 7,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 3,
+          "y1": 8.5,
+          "x2": 7,
+          "y2": 8.5,
+          "strokeWidth": 0.5
+        },
+        {
+          "type": "line",
+          "x1": 2,
+          "y1": 10,
+          "x2": 8,
+          "y2": 10,
+          "strokeWidth": 0.8
+        },
+        {
+          "type": "line",
+          "x1": 3,
+          "y1": 11,
+          "x2": 7,
+          "y2": 11,
+          "strokeWidth": 0.5
+        },
+        {
+          "type": "text",
+          "x": 9,
+          "y": 3,
+          "content": "+",
+          "fontSize": 2.5,
+          "fontWeight": "bold",
+          "textAnchor": "start"
+        },
+        {
+          "type": "text",
+          "x": 9,
+          "y": 12,
+          "content": "-",
+          "fontSize": 2.5,
+          "fontWeight": "bold",
+          "textAnchor": "start"
+        }
+      ]
     }
   ]
 }
