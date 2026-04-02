@@ -220,7 +220,8 @@ function AppInner({
     circuitState.setSelectedDevices,
     circuitState.getAllPositions,
     circuitState.pushToHistory,
-    circuitState.activeSheetId
+    circuitState.activeSheetId,
+    circuitState.selectedAnnotationId
   );
   const interaction = useCanvasInteraction({
     circuit: project.circuit,

@@ -20,6 +20,7 @@ interface ClipboardData {
   connections: Connection[];
   positions: Map<string, Point>;
   transforms: Record<string, DeviceTransform>;
+  annotations?: import('@fusion-cad/core-model').Annotation[];
 }
 
 export interface UseClipboardReturn {
@@ -57,12 +58,24 @@ export function useClipboard(
   setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>>,
   getAllPositions: () => Map<string, Point>,
   pushToHistory: () => void,
-  activeSheetId?: string
+  activeSheetId?: string,
+  selectedAnnotationId?: string | null
 ): UseClipboardReturn {
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
 
   const copyDevice = useCallback(() => {
-    if (selectedDevices.length === 0 || !circuit) return;
+    if (!circuit) return;
+
+    // Copy annotation if one is selected (and no devices)
+    if (selectedDevices.length === 0 && selectedAnnotationId) {
+      const ann = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
+      if (ann) {
+        setClipboard({ devices: [], parts: [], connections: [], positions: new Map(), transforms: {}, annotations: [ann] });
+      }
+      return;
+    }
+
+    if (selectedDevices.length === 0) return;
 
     const selectedSet = new Set(selectedDevices);
     const allPositions = getAllPositions();
@@ -105,10 +118,29 @@ export function useClipboard(
     });
 
     setClipboard({ devices, parts, connections, positions, transforms });
-  }, [selectedDevices, circuit, getAllPositions]);
+  }, [selectedDevices, selectedAnnotationId, circuit, getAllPositions]);
 
   const pasteDevice = useCallback((worldX: number, worldY: number) => {
     if (!clipboard || !circuit) return;
+
+    // Paste annotation if clipboard has one
+    if (clipboard.annotations && clipboard.annotations.length > 0 && clipboard.devices.length === 0) {
+      pushToHistory();
+      const ann = clipboard.annotations[0];
+      const newAnn = {
+        ...ann,
+        id: generateId(),
+        sheetId: activeSheetId || ann.sheetId,
+        position: { x: snapToGrid(worldX), y: snapToGrid(worldY) },
+        createdAt: Date.now(),
+        modifiedAt: Date.now(),
+      };
+      setCircuit(prev => {
+        if (!prev) return prev;
+        return { ...prev, annotations: [...(prev.annotations || []), newAnn] };
+      });
+      return;
+    }
 
     pushToHistory();
 
