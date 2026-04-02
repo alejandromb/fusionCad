@@ -1488,15 +1488,20 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         setSelectedDevices(sheetDevices.map(d => d.id));
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedDevices.length > 0) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && (selectedDevices.length > 0 || selectedAnnotationId)) {
         e.preventDefault();
         copyDevice();
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && selectedDevices.length > 0) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && (selectedDevices.length > 0 || selectedAnnotationId)) {
         e.preventDefault();
         copyDevice();
-        deleteDevices(selectedDevices);
+        if (selectedDevices.length > 0) {
+          deleteDevices(selectedDevices);
+        } else if (selectedAnnotationId) {
+          deleteAnnotation(selectedAnnotationId);
+          selectAnnotation(null);
+        }
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
