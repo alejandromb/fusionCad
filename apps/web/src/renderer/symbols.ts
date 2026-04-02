@@ -610,15 +610,17 @@ function drawPins(
     ctx.textBaseline = 'middle';
 
     const pinLabel = pinAliases?.[pin.id] || pin.name || pin.id;
-    const labelOffset = 2; // mm offset from pin to avoid wire overlap
+    const labelOffset = 1.5; // mm offset from pin
     switch (pin.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pinLabel, pinX - labelOffset, pinY);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pinLabel, pinX - labelOffset, pinY - 1);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pinLabel, pinX + labelOffset, pinY);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pinLabel, pinX + labelOffset, pinY - 1);
         break;
       case 'top':
         ctx.textAlign = 'center';
@@ -836,21 +838,23 @@ function drawTransformedPins(
     switch (transformed.direction) {
       case 'left':
         ctx.textAlign = 'right';
-        ctx.fillText(pinLabel, pinX - 2, pinY);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pinLabel, pinX - 1.5, pinY - 1);
         break;
       case 'right':
         ctx.textAlign = 'left';
-        ctx.fillText(pinLabel, pinX + 2, pinY);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(pinLabel, pinX + 1.5, pinY - 1);
         break;
       case 'top':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(pinLabel, pinX, pinY - 2);
+        ctx.fillText(pinLabel, pinX, pinY - 1.5);
         break;
       case 'bottom':
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(pinLabel, pinX, pinY + 2);
+        ctx.fillText(pinLabel, pinX, pinY + 1.5);
         break;
     }
   }
