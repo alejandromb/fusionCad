@@ -415,7 +415,7 @@ function renderPrimitives(
     ctx.lineWidth = lineWidth;
 
     // Apply dash pattern: per-primitive strokeDash takes priority, then device-level dashed
-    const dashPattern = ('strokeDash' in p && p.strokeDash) || (deviceDashed ? [0.8, 0.6] : undefined);
+    const dashPattern = ('strokeDash' in p && p.strokeDash) || (deviceDashed ? [0.8, 0.8] : undefined);
     if (dashPattern) {
       ctx.setLineDash(dashPattern);
     } else {
