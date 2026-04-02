@@ -669,7 +669,7 @@ function drawTag(
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y - 0.25);
+    ctx.fillText(tag, x + width / 2, y + 1.5);
     // Part label below the symbol
     if (partLabel) {
       ctx.fillStyle = t.partLabelColor;
