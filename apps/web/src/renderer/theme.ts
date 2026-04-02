@@ -293,7 +293,7 @@ const HIGH_CONTRAST: ThemeData = {
   waypointRadius: 1.5,
   selectionColor: '#FFD700',
   selectionWidth: 0.5,
-  selectionDash: [2, 1],
+  selectionDash: [1, 0.5],
   marqueeWindowColor: '#FFD700',
   marqueeWindowFill: 'rgba(255, 215, 0, 0.15)',
   marqueeCrossingColor: '#00FF88',

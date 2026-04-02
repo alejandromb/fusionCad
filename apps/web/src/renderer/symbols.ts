@@ -664,12 +664,12 @@ function drawTag(
       ctx.fillText(partLabel, x + width / 2, y + height + 6.75);
     }
   } else {
-    // Tag above the symbol
+    // Tag below the symbol
     ctx.fillStyle = t.tagColor;
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y - 0.25);
+    ctx.textBaseline = 'top';
+    ctx.fillText(tag, x + width / 2, y + height + 0.5);
     // Part label below the symbol
     if (partLabel) {
       ctx.fillStyle = t.partLabelColor;
