@@ -673,6 +673,7 @@ function AppInner({
           updateWireNumber={circuitState.updateWireNumber}
           onAssignPart={circuitState.assignPart}
           onUpdateDevice={circuitState.updateDevice}
+          onToggleDashed={circuitState.toggleDashed}
           selectedAnnotationId={circuitState.selectedAnnotationId}
           onUpdateAnnotation={circuitState.updateAnnotation}
           onDeleteAnnotation={circuitState.deleteAnnotation}

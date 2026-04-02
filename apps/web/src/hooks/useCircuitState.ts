@@ -79,6 +79,7 @@ export interface UseCircuitStateReturn {
   rotateDevice: (deviceId: string, direction: 'cw' | 'ccw') => void;
   rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceId: string) => void;
+  toggleDashed: (deviceId: string) => void;
 
   // Alignment
   alignSelectedDevices: (direction: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
@@ -933,6 +934,17 @@ export function useCircuitState(
     });
   }, [pushToHistory, setCircuit]);
 
+  const toggleDashed = useCallback((deviceId: string) => {
+    pushToHistory();
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const transforms = { ...(prev.transforms || {}) };
+      const current = transforms[deviceId] || { rotation: 0 };
+      transforms[deviceId] = { ...current, dashed: !current.dashed };
+      return { ...prev, transforms };
+    });
+  }, [pushToHistory, setCircuit]);
+
   // Rotate selected devices as a group around their shared center
   const rotateSelectedDevices = useCallback((direction: 'cw' | 'ccw') => {
     if (selectedDevices.length === 0 || !circuit) return;
@@ -1379,6 +1391,7 @@ export function useCircuitState(
     rotateDevice,
     rotateSelectedDevices,
     mirrorDevice,
+    toggleDashed,
     alignSelectedDevices,
     addAnnotation,
     updateAnnotation,

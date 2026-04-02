@@ -20,6 +20,8 @@ interface PropertiesPanelProps {
   selectedDevices: string[];  // device IDs
   onAssignPart: (deviceId: string, part: ManufacturerPart) => void;
   onUpdateDevice?: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+  onToggleDashed?: (deviceId: string) => void;
+  isDashed?: boolean;
 }
 
 function EditableValue({
@@ -85,6 +87,8 @@ export function PropertiesPanel({
   selectedDevices,
   onAssignPart,
   onUpdateDevice,
+  onToggleDashed,
+  isDashed,
 }: PropertiesPanelProps) {
   const [showCatalog, setShowCatalog] = useState(false);
   const [editingField, setEditingField] = useState<EditableField>(null);
@@ -243,6 +247,17 @@ export function PropertiesPanel({
             <span className="property-value">{device.location || '—'}</span>
           )}
         </div>
+
+        {/* Dashed toggle */}
+        {isSingleSelect && onToggleDashed && (
+          <div className="property-row">
+            <span className="property-label">Style</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+              <input type="checkbox" checked={isDashed || false} onChange={() => onToggleDashed(device.id)} />
+              Dashed (external/remote)
+            </label>
+          </div>
+        )}
 
         {/* Part Info Section */}
         {part && (

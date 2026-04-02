@@ -68,6 +68,7 @@ interface RightPanelProps {
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
   onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
   onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
+  onToggleDashed?: (deviceId: string) => void;
   selectedAnnotationId: string | null;
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
@@ -93,6 +94,7 @@ export function RightPanel({
   updateWireNumber,
   onAssignPart,
   onUpdateDevice,
+  onToggleDashed,
   selectedAnnotationId,
   onUpdateAnnotation,
   onDeleteAnnotation,
@@ -326,6 +328,8 @@ export function RightPanel({
             selectedDevices={selectedDevices}
             onAssignPart={onAssignPart}
             onUpdateDevice={onUpdateDevice}
+            onToggleDashed={onToggleDashed}
+            isDashed={selectedDeviceInfo ? circuit?.transforms?.[selectedDeviceInfo.id]?.dashed || false : false}
           />
         </div>
       )}

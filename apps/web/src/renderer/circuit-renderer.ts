@@ -63,7 +63,7 @@ export interface CircuitData {
   annotations?: Annotation[];
   terminals?: Terminal[];
   rungs?: Rung[];
-  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>;
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>;
   blocks?: AnyDiagramBlock[];
 }
 
@@ -244,7 +244,7 @@ export function getWireAtPoint(
   parts: Part[],
   positions: Map<string, Point>,
   hitRadius = 8,
-  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>,
 ): number | null {
   const partMap = new Map<string, Part>();
   for (const part of parts) {
@@ -315,7 +315,7 @@ export function getWireHitWithDistance(
   worldX: number, worldY: number,
   connections: Connection[], devices: Device[], parts: Part[],
   positions: Map<string, Point>, hitRadius = 8,
-  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>,
 ): { index: number; distance: number } | null {
   // Reuse getWireAtPoint logic but we need the distance too.
   // For efficiency, call getWireAtPoint with a tight radius first, then loosen.
@@ -402,7 +402,7 @@ export function getWireEndpointAtPoint(
   parts: Part[],
   positions: Map<string, Point>,
   hitRadius = 10,
-  transforms?: Record<string, { rotation: number; mirrorH?: boolean }>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>,
 ): { connectionIndex: number; endpoint: 'from' | 'to' } | null {
   const conn = connections[connectionIndex];
   if (!conn) return null;
