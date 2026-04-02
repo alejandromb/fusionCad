@@ -137,9 +137,12 @@ export function useCircuitState(
   setDevicePositions: React.Dispatch<React.SetStateAction<Map<string, Point>>>
 ): UseCircuitStateReturn {
   const [debugMode, setDebugMode] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
-  const [showPinLabels, setShowPinLabels] = useState(true);
-  const [showDescriptions, setShowDescriptions] = useState(true);
+  const [showGrid, setShowGridRaw] = useState(() => localStorage.getItem('fusionCad_showGrid') !== 'false');
+  const setShowGrid = useCallback((v: boolean) => { setShowGridRaw(v); localStorage.setItem('fusionCad_showGrid', String(v)); }, []);
+  const [showPinLabels, setShowPinLabelsRaw] = useState(() => localStorage.getItem('fusionCad_showPinLabels') !== 'false');
+  const setShowPinLabels = useCallback((v: boolean) => { setShowPinLabelsRaw(v); localStorage.setItem('fusionCad_showPinLabels', String(v)); }, []);
+  const [showDescriptions, setShowDescriptionsRaw] = useState(() => localStorage.getItem('fusionCad_showDescriptions') !== 'false');
+  const setShowDescriptions = useCallback((v: boolean) => { setShowDescriptionsRaw(v); localStorage.setItem('fusionCad_showDescriptions', String(v)); }, []);
   const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
   const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
@@ -148,7 +151,7 @@ export function useCircuitState(
     const map = new Map<string, DeviceTransform>();
     if (circuit?.transforms) {
       for (const [id, t] of Object.entries(circuit.transforms)) {
-        map.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false });
+        map.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false, dashed: t.dashed ?? false });
       }
     }
     return map;
@@ -161,13 +164,13 @@ export function useCircuitState(
       const currentMap = new Map<string, DeviceTransform>();
       if (prev.transforms) {
         for (const [id, t] of Object.entries(prev.transforms)) {
-          currentMap.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false });
+          currentMap.set(id, { rotation: t.rotation, mirrorH: t.mirrorH ?? false, dashed: t.dashed ?? false });
         }
       }
       const nextMap = typeof action === 'function' ? action(currentMap) : action;
-      const newTransforms: Record<string, { rotation: number; mirrorH?: boolean }> = {};
+      const newTransforms: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }> = {};
       for (const [id, t] of nextMap) {
-        newTransforms[id] = { rotation: t.rotation, mirrorH: t.mirrorH || undefined };
+        newTransforms[id] = { rotation: t.rotation, mirrorH: t.mirrorH || undefined, dashed: t.dashed || undefined };
       }
       return { ...prev, transforms: newTransforms };
     });
