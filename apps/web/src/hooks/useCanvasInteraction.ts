@@ -47,6 +47,7 @@ export interface UseCanvasInteractionReturn {
   setPlacementCategory: React.Dispatch<React.SetStateAction<SymbolCategory | null>>;
   wireStart: PinHit | null;
   setWireStart: React.Dispatch<React.SetStateAction<PinHit | null>>;
+  wireWaypoints: Point[];
   mouseWorldPos: Point | null;
   draggingDevice: string | null;
   draggingEndpoint: DraggingEndpointState | null;
@@ -77,7 +78,7 @@ interface UseCanvasInteractionDeps {
   placeSymbol: (worldX: number, worldY: number, category: SymbolCategory, partData?: ManufacturerPart) => void;
   pendingPartData: ManufacturerPart | null;
   clearPendingPartData: () => void;
-  createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
+  createWireConnection: (fromPin: PinHit, toPin: PinHit, waypoints?: Point[]) => void;
   deleteDevices: (deviceIds: string[]) => void;
   deleteWire: (connectionIndex: number) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
@@ -295,6 +296,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('select');
   const [placementCategory, setPlacementCategory] = useState<SymbolCategory | null>(null);
   const [wireStart, setWireStart] = useState<PinHit | null>(null);
+  const [wireWaypoints, setWireWaypoints] = useState<Point[]>([]);
   const [mouseWorldPos, setMouseWorldPos] = useState<Point | null>(null);
   const [pastePreview, setPastePreview] = useState(false);
   const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
@@ -1146,13 +1148,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                 setWireStart(hitPin);
               }
             } else {
-              // === CLICK 2: Completing a wire ===
-              // Prefer PIN over WIRE so the wire connects to a device pin.
+              // === CLICK 2+: Completing or adding waypoint ===
               if (hitPin) {
+                // Finish wire at pin (with accumulated waypoints)
                 if (hitPin.device !== wireStart.device || hitPin.pin !== wireStart.pin) {
-                  createWireConnection(wireStart, hitPin);
+                  createWireConnection(wireStart, hitPin, wireWaypoints.length > 0 ? wireWaypoints : undefined);
                 }
-                setWireStart(null);
+                setWireStart(null); setWireWaypoints([]);
               } else if (hitWireIdx !== null) {
                 // T-junction: connect to existing wire
                 const hitConn = sheetConnections[hitWireIdx];
@@ -1166,7 +1168,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   junctionY = projected.y;
                 }
                 connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, wireStart);
-                setWireStart(null);
+                setWireStart(null); setWireWaypoints([]);
+              } else {
+                // Empty space: add waypoint (bend point) and keep drawing
+                setWireWaypoints(prev => [...prev, { x: snapToGrid(world.x), y: snapToGrid(world.y) }]);
               }
             }
             break;
@@ -1282,7 +1287,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           e.preventDefault();
           setInteractionMode('select');
           setPlacementCategory(null);
-          setWireStart(null);
+          setWireStart(null); setWireWaypoints([]);
         }
       }
 
@@ -1292,7 +1297,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           e.preventDefault();
           setInteractionMode('pan');
           setPlacementCategory(null);
-          setWireStart(null);
+          setWireStart(null); setWireWaypoints([]);
           setSelectedDevices([]);
         }
       }
@@ -1313,7 +1318,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           e.preventDefault();
           setInteractionMode('text');
           setPlacementCategory(null);
-          setWireStart(null);
+          setWireStart(null); setWireWaypoints([]);
           setSelectedDevices([]);
         }
       }
@@ -1365,7 +1370,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           setPastePreview(false);
           setMouseWorldPos(null);
         } else if (wireStart) {
-          setWireStart(null);
+          setWireStart(null); setWireWaypoints([]);
         } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan') {
           setInteractionMode('select');
           setPlacementCategory(null);
@@ -1646,6 +1651,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     setPlacementCategory,
     wireStart,
     setWireStart,
+    wireWaypoints,
     mouseWorldPos,
     draggingDevice,
     draggingEndpoint,

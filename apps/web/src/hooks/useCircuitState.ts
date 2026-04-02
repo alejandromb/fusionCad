@@ -60,7 +60,7 @@ export interface UseCircuitStateReturn {
   // Circuit operations
   getAllPositions: () => Map<string, Point>;
   placeSymbol: (worldX: number, worldY: number, category: SymbolCategory, partData?: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
-  createWireConnection: (fromPin: PinHit, toPin: PinHit) => void;
+  createWireConnection: (fromPin: PinHit, toPin: PinHit, waypoints?: Point[]) => void;
   deleteDevices: (deviceIds: string[]) => void;
   deleteWire: (connectionIndex: number) => void;
   addWaypoint: (connectionIndex: number, segmentIndex: number, point: Point) => void;
@@ -666,7 +666,7 @@ export function useCircuitState(
 
   // Create a wire connection
   // PinHit.device is now device ID (ULID)
-  const createWireConnection = useCallback((fromPin: PinHit, toPin: PinHit) => {
+  const createWireConnection = useCallback((fromPin: PinHit, toPin: PinHit, waypoints?: Point[]) => {
     if (!circuit) return;
 
     pushToHistory();
@@ -695,9 +695,8 @@ export function useCircuitState(
       toPin: toPin.pin,
       netId: newNetId,
       sheetId: validActiveSheetId,
-      // Empty waypoints array signals "user-drawn wire" — bypasses auto-router.
-      // The renderer uses toOrthogonalPath([start, end]) for clean H/V routing.
-      waypoints: [],
+      // Waypoints for user-drawn bends. Empty array = direct path via toOrthogonalPath.
+      waypoints: waypoints || [],
     };
 
     setCircuit(prev => {

@@ -143,6 +143,8 @@ export interface RenderOptions {
   wireStart?: { device: string; pin: string } | null;
   /** Mouse position for wire preview (draws line from wireStart to mouse) */
   wirePreviewMouse?: { x: number; y: number } | null;
+  /** Accumulated waypoints during wire drawing */
+  wireWaypoints?: Point[];
   ghostSymbol?: { category: string; x: number; y: number } | null;
   /** Dragging endpoint for wire reconnection - shows preview line to mouse position */
   draggingEndpoint?: {
@@ -1179,10 +1181,12 @@ export function renderCircuit(
           ctx.arc(pinX, pinY, 1.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Draw preview line from start pin to mouse cursor (orthogonal L-shape)
+          // Draw preview line from start pin through waypoints to mouse cursor
           if (options.wirePreviewMouse) {
+            const wpPoints = options.wireWaypoints || [];
             const previewPath = toOrthogonalPath([
               { x: pinX, y: pinY },
+              ...wpPoints,
               { x: options.wirePreviewMouse.x, y: options.wirePreviewMouse.y },
             ]);
             ctx.strokeStyle = t.wirePreviewColor;

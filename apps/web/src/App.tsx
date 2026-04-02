@@ -549,6 +549,7 @@ function AppInner({
             selectedDevices={circuitState.selectedDevices}
             selectedWireIndex={circuitState.selectedWireIndex}
             wireStart={interaction.wireStart}
+            wireWaypoints={interaction.wireWaypoints}
             interactionMode={interaction.interactionMode}
             placementCategory={interaction.placementCategory}
             mouseWorldPos={interaction.mouseWorldPos}

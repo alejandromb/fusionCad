@@ -23,6 +23,7 @@ interface CanvasProps {
   selectedDevices: string[];
   selectedWireIndex: number | null;
   wireStart: PinHit | null;
+  wireWaypoints?: Point[];
   interactionMode: InteractionMode;
   placementCategory: SymbolCategory | null;
   mouseWorldPos: Point | null;
@@ -64,6 +65,7 @@ export function Canvas({
   selectedDevices,
   selectedWireIndex,
   wireStart,
+  wireWaypoints = [],
   interactionMode,
   placementCategory,
   mouseWorldPos,
@@ -105,6 +107,7 @@ export function Canvas({
     wirePreviewMouse: interactionMode === 'wire' && wireStart && mouseWorldPos
       ? mouseWorldPos
       : null,
+    wireWaypoints: wireWaypoints,
     ghostSymbol: interactionMode === 'place' && placementCategory && mouseWorldPos
       ? { category: placementCategory, x: snapToGrid(mouseWorldPos.x), y: snapToGrid(mouseWorldPos.y) }
       : null,
