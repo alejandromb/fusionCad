@@ -218,6 +218,7 @@ export function useClipboard(
         toDevice: newToTag,
         toDeviceId: newToId,
         netId: generateId(),
+        sheetId: activeSheetId, // paste connections to active sheet
         waypoints,
       });
     }
@@ -232,6 +233,16 @@ export function useClipboard(
       }
     }
 
+
+    // Create nets for pasted connections
+    const newNets = newConnections.map(c => ({
+      id: c.netId,
+      name: `NET_${c.netId.slice(-4)}`,
+      type: "net" as const,
+      netType: "signal" as const,
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    }));
     setCircuit(prev => {
       if (!prev) return prev;
       return {
@@ -239,6 +250,7 @@ export function useClipboard(
         parts: [...prev.parts, ...newParts],
         devices: [...prev.devices, ...newDevices],
         connections: [...prev.connections, ...newConnections],
+        nets: [...prev.nets, ...newNets],
         transforms: { ...(prev.transforms || {}), ...newTransforms },
       };
     });
