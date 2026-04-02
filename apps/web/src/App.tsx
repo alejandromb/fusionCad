@@ -638,6 +638,59 @@ function AppInner({
             );
           })()}
 
+          {/* Edit existing annotation (F2) */}
+          {interaction.editingAnnotationId && (() => {
+            const ann = (project.circuit?.annotations || []).find(a => a.id === interaction.editingAnnotationId);
+            if (!ann) return null;
+            const mmScale = interaction.viewport.scale * 4;
+            const screenX = ann.position.x * mmScale + interaction.viewport.offsetX;
+            const screenY = ann.position.y * mmScale + interaction.viewport.offsetY;
+            return (
+              <textarea
+                autoFocus
+                defaultValue={ann.content}
+                style={{
+                  position: 'absolute',
+                  left: screenX,
+                  top: screenY,
+                  minWidth: '150px',
+                  minHeight: '40px',
+                  maxWidth: '300px',
+                  padding: '4px 6px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  background: 'var(--fc-bg-app)',
+                  color: 'var(--fc-text-primary)',
+                  border: '1px solid var(--fc-accent)',
+                  borderRadius: '3px',
+                  outline: 'none',
+                  resize: 'both',
+                  zIndex: 100,
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    interaction.setEditingAnnotationId(null);
+                  }
+                  if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    const text = (e.target as HTMLTextAreaElement).value.trim();
+                    if (text) {
+                      circuitState.updateAnnotation(ann.id, { content: text });
+                    }
+                    interaction.setEditingAnnotationId(null);
+                  }
+                }}
+                onBlur={e => {
+                  const text = e.target.value.trim();
+                  if (text) {
+                    circuitState.updateAnnotation(ann.id, { content: text });
+                  }
+                  interaction.setEditingAnnotationId(null);
+                }}
+              />
+            );
+          })()}
+
           <ZoomControls
             viewport={interaction.viewport}
             setViewport={interaction.setViewport}

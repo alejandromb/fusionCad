@@ -61,6 +61,8 @@ export interface UseCanvasInteractionReturn {
   /** Pending text annotation position (waiting for user input) */
   pendingTextPosition: Point | null;
   setPendingTextPosition: React.Dispatch<React.SetStateAction<Point | null>>;
+  editingAnnotationId: string | null;
+  setEditingAnnotationId: React.Dispatch<React.SetStateAction<string | null>>;
   /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
   sheetConnections: SheetConnection[];
 }
@@ -296,6 +298,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [mouseWorldPos, setMouseWorldPos] = useState<Point | null>(null);
   const [pastePreview, setPastePreview] = useState(false);
   const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -1373,6 +1376,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
+      // F2 = edit selected annotation
+      if (e.key === 'F2' && selectedAnnotationId) {
+        e.preventDefault();
+        setEditingAnnotationId(selectedAnnotationId);
+      }
+
       // Arrow keys = nudge selected annotation by one grid step
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedAnnotationId) {
         e.preventDefault();
@@ -1646,6 +1655,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     pastePreview,
     pendingTextPosition,
     setPendingTextPosition,
+    editingAnnotationId,
+    setEditingAnnotationId,
     zoomToFit,
     renderHandleRef,
     sheetConnections,
