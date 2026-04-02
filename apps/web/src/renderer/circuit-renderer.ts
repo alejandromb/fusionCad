@@ -1219,7 +1219,17 @@ export function renderCircuit(
   if (options?.ghostPaste && options.ghostPaste.length > 0) {
     ctx.globalAlpha = 0.4;
     for (const ghost of options.ghostPaste) {
-      if (ghost.rotation || ghost.mirrorH) {
+      if (ghost.category === '_annotation_') {
+        // Ghost text annotation
+        ctx.fillStyle = t.annotationColor;
+        ctx.font = '3px monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const lines = ghost.tag.split('\n');
+        for (let li = 0; li < lines.length; li++) {
+          ctx.fillText(lines[li], ghost.x, ghost.y + li * 4.2);
+        }
+      } else if (ghost.rotation || ghost.mirrorH) {
         const geom = getSymbolGeometry(ghost.category);
         const cx = ghost.x + geom.width / 2;
         const cy = ghost.y + geom.height / 2;

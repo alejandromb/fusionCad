@@ -358,14 +358,25 @@ function AppInner({
     if (!interaction.pastePreview || !clipboardState.clipboard || !interaction.mouseWorldPos) return null;
 
     const cb = clipboardState.clipboard;
-    // Compute centroid of clipboard positions
+    const mouseX = snapToGrid(interaction.mouseWorldPos.x);
+    const mouseY = snapToGrid(interaction.mouseWorldPos.y);
+
+    // Annotation ghost — render as a text ghost
+    if (cb.annotations && cb.annotations.length > 0 && cb.devices.length === 0) {
+      return cb.annotations.map(ann => ({
+        category: '_annotation_',
+        x: mouseX,
+        y: mouseY,
+        tag: ann.content,
+      }));
+    }
+
+    // Device ghost
+    if (cb.positions.size === 0) return null;
     let cx = 0, cy = 0;
     for (const pos of cb.positions.values()) { cx += pos.x; cy += pos.y; }
     cx /= cb.positions.size;
     cy /= cb.positions.size;
-
-    const mouseX = snapToGrid(interaction.mouseWorldPos.x);
-    const mouseY = snapToGrid(interaction.mouseWorldPos.y);
 
     return cb.devices.map(device => {
       const part = device.partId ? cb.parts.find(p => p.id === device.partId) : null;
