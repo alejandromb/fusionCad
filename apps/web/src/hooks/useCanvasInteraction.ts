@@ -365,6 +365,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [shapeToolType, setShapeToolType] = useState<ShapeToolType>('rectangle');
   const [drawingShapeStart, setDrawingShapeStart] = useState<Point | null>(null);
+  // Refs for shape drawing — handlers need current values without re-registration
+  const shapeToolTypeRef = useRef<ShapeToolType>('rectangle');
+  shapeToolTypeRef.current = shapeToolType;
+  const drawingShapeStartRef = useRef<Point | null>(null);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -1078,26 +1082,29 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       // End shape drawing
-      if (drawingShapeStart && interactionMode === 'shape') {
+      if (drawingShapeStartRef.current) {
+        const start = drawingShapeStartRef.current;
+        const tool = shapeToolTypeRef.current;
         const endPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
-        const dx = endPt.x - drawingShapeStart.x;
-        const dy = endPt.y - drawingShapeStart.y;
+        const dx = endPt.x - start.x;
+        const dy = endPt.y - start.y;
         const dist = Math.hypot(dx, dy);
+        drawingShapeStartRef.current = null;
+        setDrawingShapeStart(null);
         if (dist >= 1) { // minimum 1mm to prevent accidental clicks
-          if (shapeToolType === 'rectangle') {
+          if (tool === 'rectangle') {
             addShapeAnnotation('rectangle', {
-              x: Math.min(drawingShapeStart.x, endPt.x),
-              y: Math.min(drawingShapeStart.y, endPt.y),
+              x: Math.min(start.x, endPt.x),
+              y: Math.min(start.y, endPt.y),
             }, { width: Math.abs(dx), height: Math.abs(dy) });
-          } else if (shapeToolType === 'circle') {
-            addShapeAnnotation('circle', drawingShapeStart, { radius: dist });
-          } else if (shapeToolType === 'line') {
-            addShapeAnnotation('line', drawingShapeStart, { endX: endPt.x, endY: endPt.y });
-          } else if (shapeToolType === 'arrow') {
-            addShapeAnnotation('arrow', drawingShapeStart, { endX: endPt.x, endY: endPt.y });
+          } else if (tool === 'circle') {
+            addShapeAnnotation('circle', start, { radius: dist });
+          } else if (tool === 'line') {
+            addShapeAnnotation('line', start, { endX: endPt.x, endY: endPt.y });
+          } else if (tool === 'arrow') {
+            addShapeAnnotation('arrow', start, { endX: endPt.x, endY: endPt.y });
           }
         }
-        setDrawingShapeStart(null);
         return;
       }
 
@@ -1267,8 +1274,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'shape': {
-            // Start drawing shape — record start point
-            setDrawingShapeStart({ x: snapToGrid(world.x), y: snapToGrid(world.y) });
+            // Start drawing shape — record start point (ref for handler, state for preview)
+            const startPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+            drawingShapeStartRef.current = startPt;
+            setDrawingShapeStart(startPt);
             break;
           }
           case 'select': {
@@ -1417,6 +1426,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             setPlacementCategory(null);
             setWireStart(null); setWireWaypoints([]);
             setSelectedDevices([]);
+            drawingShapeStartRef.current = null;
             setDrawingShapeStart(null);
           }
         }
