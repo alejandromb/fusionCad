@@ -241,10 +241,10 @@ export function Canvas({
                   if (mirrorDevice && contextMenu.deviceTag) mirrorDevice(contextMenu.deviceTag);
                   setContextMenu(null);
                 }}>Mirror (F)</button>
-                {import.meta.env.DEV && onEditSymbol && contextMenu.deviceTag && circuit && (() => {
+                {onEditSymbol && contextMenu.deviceTag && circuit && (() => {
                   const device = circuit.devices.find(d => d.id === contextMenu.deviceTag);
                   const part = device?.partId ? circuit.parts.find(p => p.id === device.partId) : null;
-                  const symbolKey = part?.symbolCategory || part?.category;
+                  const symbolKey = part?.symbolCategory || part?.category || device?.function;
                   return symbolKey ? (
                     <button className="context-menu-item" onClick={() => {
                       onEditSymbol(symbolKey);
