@@ -795,8 +795,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         y: (mouseY - viewport.offsetY) / mmScale,
       };
 
-      // Track mouse position for placement preview, wire preview, and paste preview
-      if (interactionMode === 'place' || interactionMode === 'wire' || pastePreview) {
+      // Track mouse position for placement preview, wire preview, paste preview, and shape drawing
+      if (interactionMode === 'place' || interactionMode === 'wire' || interactionMode === 'shape' || pastePreview) {
         setMouseWorldPos(world);
       }
 
@@ -1480,9 +1480,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           setMouseWorldPos(null);
         } else if (wireStart) {
           setWireStart(null); setWireWaypoints([]);
-        } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan') {
+        } else if (drawingShapeStartRef.current) {
+          drawingShapeStartRef.current = null;
+          setDrawingShapeStart(null);
+        } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan' || interactionMode === 'shape') {
           setInteractionMode('select');
           setPlacementCategory(null);
+          drawingShapeStartRef.current = null;
+          setDrawingShapeStart(null);
         } else if (selectedWireIndex !== null) {
           setSelectedWireIndex(null);
         } else if (selectedDevices.length > 0) {
