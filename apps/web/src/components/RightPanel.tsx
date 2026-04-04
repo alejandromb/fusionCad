@@ -337,48 +337,123 @@ export function RightPanel({
       {/* Annotation Properties */}
       {selectedAnnotation && !selectedDeviceInfo && (
         <div className="properties-section-wrap">
-          <h3>Annotation</h3>
+          <h3>{['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) ? 'Shape' : 'Annotation'}</h3>
           <div className="annotation-properties">
-            <div className="property-row">
-              <span className="property-label">Content</span>
-            </div>
-            <textarea
-              className="annotation-content-input"
-              value={selectedAnnotation.content}
-              onChange={e => onUpdateAnnotation(selectedAnnotation.id, { content: e.target.value })}
-              rows={3}
-            />
-            <div className="property-row">
-              <span className="property-label">Font Size</span>
-              <select
-                className="property-input"
-                value={selectedAnnotation.style?.fontSize || 3}
-                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
-                  style: { ...selectedAnnotation.style, fontSize: parseFloat(e.target.value) },
-                })}
-              >
-                <option value={2}>2mm (small)</option>
-                <option value={2.5}>2.5mm</option>
-                <option value={3}>3mm (default)</option>
-                <option value={3.5}>3.5mm</option>
-                <option value={4}>4mm</option>
-                <option value={5}>5mm (large)</option>
-                <option value={7}>7mm (title)</option>
-              </select>
-            </div>
-            <div className="property-row">
-              <span className="property-label">Font Weight</span>
-              <select
-                className="property-input"
-                value={selectedAnnotation.style?.fontWeight || 'normal'}
-                onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
-                  style: { ...selectedAnnotation.style, fontWeight: e.target.value as 'normal' | 'bold' },
-                })}
-              >
-                <option value="normal">Normal</option>
-                <option value="bold">Bold</option>
-              </select>
-            </div>
+            {/* Text-specific properties */}
+            {selectedAnnotation.annotationType === 'text' && (
+              <>
+                <div className="property-row">
+                  <span className="property-label">Content</span>
+                </div>
+                <textarea
+                  className="annotation-content-input"
+                  value={selectedAnnotation.content}
+                  onChange={e => onUpdateAnnotation(selectedAnnotation.id, { content: e.target.value })}
+                  rows={3}
+                />
+                <div className="property-row">
+                  <span className="property-label">Font Size</span>
+                  <select
+                    className="property-input"
+                    value={selectedAnnotation.style?.fontSize || 3}
+                    onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                      style: { ...selectedAnnotation.style, fontSize: parseFloat(e.target.value) },
+                    })}
+                  >
+                    <option value={2}>2mm (small)</option>
+                    <option value={2.5}>2.5mm</option>
+                    <option value={3}>3mm (default)</option>
+                    <option value={3.5}>3.5mm</option>
+                    <option value={4}>4mm</option>
+                    <option value={5}>5mm (large)</option>
+                    <option value={7}>7mm (title)</option>
+                  </select>
+                </div>
+                <div className="property-row">
+                  <span className="property-label">Font Weight</span>
+                  <select
+                    className="property-input"
+                    value={selectedAnnotation.style?.fontWeight || 'normal'}
+                    onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                      style: { ...selectedAnnotation.style, fontWeight: e.target.value as 'normal' | 'bold' },
+                    })}
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                  </select>
+                </div>
+              </>
+            )}
+            {/* Shape-specific properties */}
+            {['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) && (
+              <>
+                <div className="property-row">
+                  <span className="property-label">Type</span>
+                  <span className="property-value" style={{ textTransform: 'capitalize' }}>{selectedAnnotation.annotationType}</span>
+                </div>
+                <div className="property-row">
+                  <span className="property-label">Stroke</span>
+                  <select
+                    className="property-input"
+                    value={selectedAnnotation.style?.strokeWidth || 0.5}
+                    onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                      style: { ...selectedAnnotation.style, strokeWidth: parseFloat(e.target.value) },
+                    })}
+                  >
+                    <option value={0.25}>Thin (0.25mm)</option>
+                    <option value={0.5}>Normal (0.5mm)</option>
+                    <option value={1}>Thick (1mm)</option>
+                    <option value={2}>Heavy (2mm)</option>
+                  </select>
+                </div>
+                <div className="property-row">
+                  <span className="property-label">Dashed</span>
+                  <input
+                    type="checkbox"
+                    checked={selectedAnnotation.style?.dashed || false}
+                    onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                      style: { ...selectedAnnotation.style, dashed: e.target.checked },
+                    })}
+                  />
+                </div>
+                <div className="property-row">
+                  <span className="property-label">Color</span>
+                  <input
+                    type="color"
+                    className="property-input"
+                    value={selectedAnnotation.style?.strokeColor || '#ffffff'}
+                    onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                      style: { ...selectedAnnotation.style, strokeColor: e.target.value },
+                    })}
+                    style={{ width: '40px', height: '24px', padding: 0, border: 'none' }}
+                  />
+                </div>
+                {(selectedAnnotation.annotationType === 'rectangle' || selectedAnnotation.annotationType === 'circle') && (
+                  <div className="property-row">
+                    <span className="property-label">Fill</span>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedAnnotation.style?.fillColor}
+                        onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                          style: { ...selectedAnnotation.style, fillColor: e.target.checked ? '#333333' : undefined },
+                        })}
+                      />
+                      {selectedAnnotation.style?.fillColor && (
+                        <input
+                          type="color"
+                          value={selectedAnnotation.style.fillColor}
+                          onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                            style: { ...selectedAnnotation.style, fillColor: e.target.value },
+                          })}
+                          style={{ width: '30px', height: '20px', padding: 0, border: 'none' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <div className="property-row">
               <span className="property-label">Position</span>
               <span className="property-value">
@@ -392,7 +467,7 @@ export function RightPanel({
                 onSelectAnnotation(null);
               }}
             >
-              Delete Annotation
+              Delete {['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) ? 'Shape' : 'Annotation'}
             </button>
           </div>
         </div>

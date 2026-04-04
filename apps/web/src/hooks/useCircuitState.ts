@@ -86,6 +86,7 @@ export interface UseCircuitStateReturn {
 
   // Annotations
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
+  addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: Annotation['style']) => void;
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   deleteAnnotation: (annotationId: string) => void;
 
@@ -894,6 +895,31 @@ export function useCircuitState(
     });
   }, [circuit, validActiveSheetId, pushToHistory, setCircuit]);
 
+  const addShapeAnnotation = useCallback((
+    annotationType: 'rectangle' | 'circle' | 'line' | 'arrow',
+    position: { x: number; y: number },
+    style: Annotation['style'],
+  ) => {
+    if (!circuit) return;
+    pushToHistory();
+    const now = Date.now();
+    const annotation: Annotation = {
+      id: generateId(),
+      type: 'annotation',
+      sheetId: validActiveSheetId,
+      annotationType,
+      position: { x: snapToGrid(position.x), y: snapToGrid(position.y) },
+      content: '',
+      style: { strokeWidth: 0.5, ...style },
+      createdAt: now,
+      modifiedAt: now,
+    };
+    setCircuit(prev => {
+      if (!prev) return prev;
+      return { ...prev, annotations: [...(prev.annotations || []), annotation] };
+    });
+  }, [circuit, validActiveSheetId, pushToHistory, setCircuit]);
+
   const updateAnnotation = useCallback((annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => {
     if (!circuit) return;
 
@@ -1396,6 +1422,7 @@ export function useCircuitState(
     toggleDashed,
     alignSelectedDevices,
     addAnnotation,
+    addShapeAnnotation,
     updateAnnotation,
     deleteAnnotation,
     updateDevice,

@@ -9,7 +9,8 @@ import { getSymbolGeometry } from './renderer/symbols';
 import type { Point } from './renderer/types';
 
 export type SymbolCategory = string;
-export type InteractionMode = 'select' | 'place' | 'wire' | 'text' | 'pan';
+export type InteractionMode = 'select' | 'place' | 'wire' | 'text' | 'shape' | 'pan';
+export type ShapeToolType = 'rectangle' | 'circle' | 'line' | 'arrow';
 
 // Dynamic categories from the core-model registry
 export const SYMBOL_CATEGORIES = getAllSymbolCategories();

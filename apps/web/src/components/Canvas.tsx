@@ -51,6 +51,7 @@ interface CanvasProps {
   alignSelectedDevices?: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
   /** Ghost paste preview data - built by parent from clipboard + mouse position */
   ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
+  drawingShapePreview?: import('../renderer/circuit-renderer').RenderOptions['drawingShapePreview'];
   showGrid?: boolean;
   showPinLabels?: boolean;
   showDescriptions?: boolean;
@@ -88,6 +89,7 @@ export function Canvas({
   onEditSymbol,
   alignSelectedDevices,
   ghostPaste,
+  drawingShapePreview,
   showGrid = true,
   showPinLabels = true,
   showDescriptions = true,
@@ -122,6 +124,7 @@ export function Canvas({
     showDescriptions,
     selectedAnnotationId,
     ghostPaste,
+    drawingShapePreview,
   });
 
   // Full render + snapshot capture
@@ -196,7 +199,7 @@ export function Canvas({
     rafIdRef.current = requestAnimationFrame(() => doFullRender(viewport));
 
     return () => cancelAnimationFrame(rafIdRef.current);
-  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId, ghostPaste]);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId, ghostPaste, drawingShapePreview]);
 
   // Re-render on window resize (container size changed)
   useEffect(() => {

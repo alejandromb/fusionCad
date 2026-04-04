@@ -46,6 +46,8 @@ interface MenuBarProps {
   // Draw mode
   interactionMode: InteractionMode;
   setInteractionMode: (mode: InteractionMode) => void;
+  shapeToolType?: import('../types').ShapeToolType;
+  setShapeToolType?: (type: import('../types').ShapeToolType) => void;
   rotateSelectedDevices: (dir: 'cw' | 'ccw') => void;
   mirrorDevice: (id: string) => void;
   alignSelectedDevices: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
@@ -98,6 +100,10 @@ const icons = {
   pan: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M18 11V6a2 2 0 00-4 0v4M14 10V4a2 2 0 00-4 0v7M10 10.5V6a2 2 0 00-4 0v8M20 11a2 2 0 00-2-2h-1l0 0v-1M6 14v0a6 6 0 006 6h4a4 4 0 004-4v-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   wire: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 12h6m4 0h6M10 12a2 2 0 104 0 2 2 0 00-4 0" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   text: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 5h14M12 5v14M8 19h8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  shapeRect: <svg viewBox="0 0 24 24" width="18" height="18"><rect x="4" y="6" width="16" height="12" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  shapeCircle: <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  shapeLine: <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2"/></svg>,
+  shapeArrow: <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2"/><path d="M14 4h6v6" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   rotateCCW: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M1 4v6h6M4 15a8 8 0 108-8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   rotateCW: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M23 4v6h-6M20 15a8 8 0 10-8-8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   mirror: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3v18M5 8l4 4-4 4M19 8l-4 4 4 4" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
@@ -264,6 +270,10 @@ export function MenuBar(props: MenuBarProps) {
               <ToolBtn icon={icons.pan} label="Pan (H)" onClick={() => props.setInteractionMode('pan')} active={props.interactionMode === 'pan'} />
               <ToolBtn icon={icons.wire} label="Wire (W)" onClick={() => props.setInteractionMode('wire')} active={props.interactionMode === 'wire'} />
               <ToolBtn icon={icons.text} label="Text (T)" onClick={() => props.setInteractionMode('text')} active={props.interactionMode === 'text'} />
+              <ToolBtn icon={icons.shapeRect} label="Rectangle (S)" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('rectangle'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'rectangle'} />
+              <ToolBtn icon={icons.shapeCircle} label="Circle" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('circle'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'circle'} />
+              <ToolBtn icon={icons.shapeLine} label="Line" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('line'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'line'} />
+              <ToolBtn icon={icons.shapeArrow} label="Arrow" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('arrow'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'arrow'} />
             </div>
             <Divider />
             <div className="toolbar-group">

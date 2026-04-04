@@ -33,6 +33,7 @@ export function StatusBar({
     wire: 'Wire',
     place: 'Place',
     text: 'Text',
+    shape: 'Shape',
   };
 
   return (

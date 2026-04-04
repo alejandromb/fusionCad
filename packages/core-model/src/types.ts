@@ -342,7 +342,7 @@ export interface Terminal extends Entity {
 export interface Annotation extends Entity {
   type: 'annotation';
   sheetId: EntityId;
-  annotationType: 'text' | 'note' | 'title-block' | 'border';
+  annotationType: 'text' | 'note' | 'title-block' | 'border' | 'rectangle' | 'circle' | 'line' | 'arrow';
   position: { x: number; y: number };
   content: string;
   style?: {
@@ -352,8 +352,23 @@ export interface Annotation extends Entity {
     rotation?: number;
     width?: number;
     height?: number;
+    /** End point for line/arrow annotations */
+    endX?: number;
+    endY?: number;
+    /** Radius for circle annotations */
+    radius?: number;
+    /** Stroke color override (default: theme annotation color) */
+    strokeColor?: string;
+    /** Stroke width in mm (default: 0.5) */
+    strokeWidth?: number;
+    /** Fill color (default: none) */
+    fillColor?: string;
+    /** Dashed stroke */
+    dashed?: boolean;
   };
 }
+
+export type ShapeAnnotationType = 'rectangle' | 'circle' | 'line' | 'arrow';
 
 /**
  * Title block data for a sheet

@@ -18,6 +18,7 @@ import {
   type InteractionMode,
   type SymbolCategory,
   type PinHit,
+  type ShapeToolType,
 } from '../types';
 import { getSymbolGeometry } from '../renderer/symbols';
 
@@ -64,6 +65,11 @@ export interface UseCanvasInteractionReturn {
   setPendingTextPosition: React.Dispatch<React.SetStateAction<Point | null>>;
   editingAnnotationId: string | null;
   setEditingAnnotationId: React.Dispatch<React.SetStateAction<string | null>>;
+  /** Shape drawing tool type */
+  shapeToolType: ShapeToolType;
+  setShapeToolType: React.Dispatch<React.SetStateAction<ShapeToolType>>;
+  /** Start point for shape being drawn (drag in progress) */
+  drawingShapeStart: Point | null;
   /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
   sheetConnections: SheetConnection[];
 }
@@ -88,6 +94,7 @@ interface UseCanvasInteractionDeps {
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
+  addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: import('@fusion-cad/core-model').Annotation['style']) => void;
   copyDevice: () => void;
   pasteDevice: (worldX: number, worldY: number) => void;
   duplicateDevice: () => void;
@@ -219,6 +226,60 @@ function projectPointOntoWire(
   return bestPoint;
 }
 
+/** Hit-test an annotation at a world coordinate. Returns true if the point is inside. */
+function hitTestAnnotation(ann: import('@fusion-cad/core-model').Annotation, wx: number, wy: number): boolean {
+  const s = ann.style || {};
+  switch (ann.annotationType) {
+    case 'text':
+    case 'note': {
+      const fontSize = s.fontSize || 3;
+      const lines = ann.content.split('\n');
+      const tw = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
+      const th = lines.length * fontSize * 1.4;
+      return wx >= ann.position.x && wx <= ann.position.x + tw &&
+             wy >= ann.position.y && wy <= ann.position.y + th;
+    }
+    case 'rectangle': {
+      const w = s.width || 10, h = s.height || 10;
+      const margin = 1; // 1mm hit margin for edges
+      const inX = wx >= ann.position.x - margin && wx <= ann.position.x + w + margin;
+      const inY = wy >= ann.position.y - margin && wy <= ann.position.y + h + margin;
+      if (!inX || !inY) return false;
+      // Hit on edge (within margin of any side)
+      const nearLeft = Math.abs(wx - ann.position.x) < margin;
+      const nearRight = Math.abs(wx - (ann.position.x + w)) < margin;
+      const nearTop = Math.abs(wy - ann.position.y) < margin;
+      const nearBottom = Math.abs(wy - (ann.position.y + h)) < margin;
+      return nearLeft || nearRight || nearTop || nearBottom || (s.fillColor != null);
+    }
+    case 'circle': {
+      const r = s.radius || 5;
+      const dist = Math.hypot(wx - ann.position.x, wy - ann.position.y);
+      return s.fillColor ? dist <= r + 1 : Math.abs(dist - r) < 1.5;
+    }
+    case 'line':
+    case 'arrow': {
+      const ex = s.endX ?? ann.position.x + 10;
+      const ey = s.endY ?? ann.position.y;
+      // Point-to-segment distance
+      const dx = ex - ann.position.x, dy = ey - ann.position.y;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return Math.hypot(wx - ann.position.x, wy - ann.position.y) < 2;
+      let t = ((wx - ann.position.x) * dx + (wy - ann.position.y) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+      const px = ann.position.x + t * dx, py = ann.position.y + t * dy;
+      return Math.hypot(wx - px, wy - py) < 2;
+    }
+    default:
+      return false;
+  }
+}
+
+/** Get the bounding box origin for any annotation (for drag offset). */
+function getAnnotationOrigin(ann: import('@fusion-cad/core-model').Annotation): { x: number; y: number } {
+  return ann.position;
+}
+
 export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasInteractionReturn {
   const {
     circuit,
@@ -240,6 +301,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     reconnectWire,
     connectToWire,
     addAnnotation,
+    addShapeAnnotation,
     copyDevice,
     pasteDevice,
     duplicateDevice,
@@ -301,6 +363,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [pastePreview, setPastePreview] = useState(false);
   const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+  const [shapeToolType, setShapeToolType] = useState<ShapeToolType>('rectangle');
+  const [drawingShapeStart, setDrawingShapeStart] = useState<Point | null>(null);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -424,6 +488,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       switch (interactionMode) {
         case 'wire': return 'crosshair';
         case 'place': return 'crosshair';
+        case 'shape': return 'crosshair';
         case 'text': return 'text';
         case 'pan': return isPanningRef.current ? 'grabbing' : 'grab';
         case 'select':
@@ -687,18 +752,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           !activeSheetId || a.sheetId === activeSheetId
         );
         for (const ann of annots) {
-          if (ann.annotationType !== 'text') continue;
-          const fontSize = ann.style?.fontSize || 14;
-          const lines = ann.content.split('\n');
-          const tw = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
-          const th = lines.length * fontSize * 1.4;
-          if (world.x >= ann.position.x && world.x <= ann.position.x + tw &&
-              world.y >= ann.position.y && world.y <= ann.position.y + th) {
+          if (!hitTestAnnotation(ann, world.x, world.y)) continue;
+          {
+            const origin = getAnnotationOrigin(ann);
             selectAnnotation(ann.id);
             draggingAnnotationRef.current = {
               id: ann.id,
-              offsetX: world.x - ann.position.x,
-              offsetY: world.y - ann.position.y,
+              offsetX: world.x - origin.x,
+              offsetY: world.y - origin.y,
             };
             pushToHistoryRef.current();
             canvas.style.cursor = 'move';
@@ -1016,6 +1077,30 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // End shape drawing
+      if (drawingShapeStart && interactionMode === 'shape') {
+        const endPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+        const dx = endPt.x - drawingShapeStart.x;
+        const dy = endPt.y - drawingShapeStart.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist >= 1) { // minimum 1mm to prevent accidental clicks
+          if (shapeToolType === 'rectangle') {
+            addShapeAnnotation('rectangle', {
+              x: Math.min(drawingShapeStart.x, endPt.x),
+              y: Math.min(drawingShapeStart.y, endPt.y),
+            }, { width: Math.abs(dx), height: Math.abs(dy) });
+          } else if (shapeToolType === 'circle') {
+            addShapeAnnotation('circle', drawingShapeStart, { radius: dist });
+          } else if (shapeToolType === 'line') {
+            addShapeAnnotation('line', drawingShapeStart, { endX: endPt.x, endY: endPt.y });
+          } else if (shapeToolType === 'arrow') {
+            addShapeAnnotation('arrow', drawingShapeStart, { endX: endPt.x, endY: endPt.y });
+          }
+        }
+        setDrawingShapeStart(null);
+        return;
+      }
+
       // End device dragging
       if (draggingDevice) {
         setDraggingDevice(null);
@@ -1181,6 +1266,11 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             setPendingTextPosition({ x: world.x, y: world.y });
             break;
           }
+          case 'shape': {
+            // Start drawing shape — record start point
+            setDrawingShapeStart({ x: snapToGrid(world.x), y: snapToGrid(world.y) });
+            break;
+          }
           case 'select': {
             const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
             const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
@@ -1204,17 +1294,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
               let hitAnnotation: string | null = null;
               for (const annotation of sheetAnnotations) {
-                if (annotation.annotationType !== 'text') continue;
-                const fontSize = annotation.style?.fontSize || 3;
-                const lines = annotation.content.split('\n');
-                const textWidth = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
-                const textHeight = lines.length * fontSize * 1.4;
-                if (
-                  world.x >= annotation.position.x &&
-                  world.x <= annotation.position.x + textWidth &&
-                  world.y >= annotation.position.y &&
-                  world.y <= annotation.position.y + textHeight
-                ) {
+                if (hitTestAnnotation(annotation, world.x, world.y)) {
                   hitAnnotation = annotation.id;
                   break;
                 }
@@ -1222,13 +1302,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
               if (hitAnnotation) {
                 selectAnnotation(hitAnnotation);
-                // Start dragging the annotation
                 const ann = sheetAnnotations.find(a => a.id === hitAnnotation);
                 if (ann) {
+                  const origin = getAnnotationOrigin(ann);
                   draggingAnnotationRef.current = {
                     id: hitAnnotation,
-                    offsetX: world.x - ann.position.x,
-                    offsetY: world.y - ann.position.y,
+                    offsetX: world.x - origin.x,
+                    offsetY: world.y - origin.y,
                   };
                   pushToHistoryRef.current();
                 }
@@ -1320,6 +1400,25 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           setPlacementCategory(null);
           setWireStart(null); setWireWaypoints([]);
           setSelectedDevices([]);
+        }
+      }
+
+      // S = shape mode (cycle: rectangle → circle → line → arrow)
+      if (e.key === 's' || e.key === 'S') {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (interactionMode === 'shape') {
+            // Cycle through shape tools
+            const tools: ShapeToolType[] = ['rectangle', 'circle', 'line', 'arrow'];
+            const idx = tools.indexOf(shapeToolType);
+            setShapeToolType(tools[(idx + 1) % tools.length]);
+          } else {
+            setInteractionMode('shape');
+            setPlacementCategory(null);
+            setWireStart(null); setWireWaypoints([]);
+            setSelectedDevices([]);
+            setDrawingShapeStart(null);
+          }
         }
       }
 
@@ -1665,6 +1764,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     setEditingAnnotationId,
     zoomToFit,
     renderHandleRef,
+    shapeToolType,
+    setShapeToolType,
+    drawingShapeStart,
     sheetConnections,
   };
 }

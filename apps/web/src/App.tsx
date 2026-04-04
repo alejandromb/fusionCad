@@ -243,6 +243,7 @@ function AppInner({
     reconnectWire: circuitState.reconnectWire,
     connectToWire: circuitState.connectToWire,
     addAnnotation: circuitState.addAnnotation,
+    addShapeAnnotation: circuitState.addShapeAnnotation,
     copyDevice: clipboardState.copyDevice,
     pasteDevice: clipboardState.pasteDevice,
     duplicateDevice: clipboardState.duplicateDevice,
@@ -481,6 +482,8 @@ function AppInner({
         // Draw
         interactionMode={interaction.interactionMode}
         setInteractionMode={interaction.setInteractionMode}
+        shapeToolType={interaction.shapeToolType}
+        setShapeToolType={interaction.setShapeToolType}
         rotateSelectedDevices={circuitState.rotateSelectedDevices}
         mirrorDevice={circuitState.mirrorDevice}
         alignSelectedDevices={circuitState.alignSelectedDevices}
@@ -573,6 +576,11 @@ function AppInner({
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
             alignSelectedDevices={circuitState.alignSelectedDevices}
             ghostPaste={ghostPaste}
+            drawingShapePreview={interaction.drawingShapeStart && interaction.mouseWorldPos ? {
+              type: interaction.shapeToolType,
+              start: interaction.drawingShapeStart,
+              end: interaction.mouseWorldPos,
+            } : null}
             showGrid={circuitState.showGrid}
             showPinLabels={circuitState.showPinLabels}
             showDescriptions={circuitState.showDescriptions}

@@ -88,7 +88,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
   const [category, setCategory] = useState('custom');
   const [tagPrefix, setTagPrefix] = useState('X');
   const [targetWidth, setTargetWidth] = useState(40);
-  const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
+  const [usage, setUsage] = useState<'schematic' | 'layout'>('layout');
   const [simplifyLayout, setSimplifyLayout] = useState(true);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<false | 'library' | 'project'>(false);
@@ -164,6 +164,21 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
     );
 
     registerSymbol(symbolDef);
+
+    // Check for existing symbol with same ID to prevent accidental overwrite
+    try {
+      const checkRes = await fetch(`/api/symbols/${symbolDef.id}`);
+      if (checkRes.ok) {
+        const existing = await checkRes.json();
+        if (existing.source !== 'imported') {
+          const confirmed = window.confirm(
+            `Warning: A built-in or generated symbol "${existing.name}" already exists with ID "${symbolDef.id}".\n\n` +
+            `Overwriting it may break existing projects. Continue?`
+          );
+          if (!confirmed) return;
+        }
+      }
+    } catch { /* symbol doesn't exist, safe to create */ }
 
     // Persist: try API first (database), fall back to localStorage
     try {

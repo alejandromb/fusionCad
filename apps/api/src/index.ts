@@ -6,7 +6,7 @@ import { AppDataSource } from './data-source.js';
 import { Project } from './entities/Project.js';
 import { User } from './entities/User.js';
 import { Symbol } from './entities/Symbol.js';
-import { builtinSymbolsJson, convertSymbol } from '@fusion-cad/core-model';
+import { builtinSymbolsJson, convertSymbol, generateLC50_24_Input, generateLC50_24_Output } from '@fusion-cad/core-model';
 import { aiGenerate } from './ai-generate.js';
 import { aiSymbolGenerate } from './ai-symbol-generate.js';
 import { aiChat } from './ai-chat.js';
@@ -461,6 +461,41 @@ async function seedBuiltinSymbols(force = false): Promise<{ seeded: number; upda
 
     await symbolRepo.save(symbol);
     seeded++;
+  }
+
+  // Seed programmatically generated symbols (PLC modules, etc.)
+  // These are regenerated if missing — protects against accidental deletion/overwrite.
+  const generatedSymbols = [generateLC50_24_Input(), generateLC50_24_Output()];
+  for (const definition of generatedSymbols) {
+    const existing = await symbolRepo.findOneBy({ id: definition.id });
+    if (existing) {
+      // Only restore if the existing symbol was overwritten by an import
+      // (detected by source changing from undefined/generated to 'imported')
+      if (force || existing.source === 'imported') {
+        existing.name = definition.name;
+        existing.category = definition.category;
+        existing.standard = definition.standard;
+        existing.source = definition.source ?? 'generated';
+        existing.tagPrefix = definition.tagPrefix;
+        existing.definition = definition as any;
+        await symbolRepo.save(existing);
+        updated++;
+      } else {
+        skipped++;
+      }
+    } else {
+      const symbol = symbolRepo.create({
+        id: definition.id,
+        name: definition.name,
+        category: definition.category,
+        standard: definition.standard,
+        source: (definition as any).source ?? 'generated',
+        tagPrefix: definition.tagPrefix,
+        definition: definition as any,
+      });
+      await symbolRepo.save(symbol);
+      seeded++;
+    }
   }
 
   return { seeded, updated, skipped };

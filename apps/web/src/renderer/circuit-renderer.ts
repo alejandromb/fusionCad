@@ -172,6 +172,8 @@ export interface RenderOptions {
   selectedAnnotationId?: string | null;
   /** Ghost paste preview - array of devices to render as semi-transparent ghosts */
   ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
+  /** Live shape drawing preview */
+  drawingShapePreview?: { type: import('@fusion-cad/core-model').ShapeAnnotationType; start: Point; end: Point } | null;
 }
 
 /**
@@ -1342,6 +1344,89 @@ export function renderCircuit(
         ctx.setLineDash([]);
       }
     }
+
+    // Shape annotations: rectangle, circle, line, arrow
+    const shapeTypes = ['rectangle', 'circle', 'line', 'arrow'];
+    if (shapeTypes.includes(annotation.annotationType)) {
+      const s = annotation.style || {};
+      const sw = s.strokeWidth || 0.5;
+      ctx.strokeStyle = s.strokeColor || t.annotationColor;
+      ctx.lineWidth = sw;
+      if (s.dashed) ctx.setLineDash([2, 2]);
+
+      if (annotation.annotationType === 'rectangle') {
+        const w = s.width || 10, h = s.height || 10;
+        if (s.fillColor) { ctx.fillStyle = s.fillColor; ctx.fillRect(annotation.position.x, annotation.position.y, w, h); }
+        ctx.strokeRect(annotation.position.x, annotation.position.y, w, h);
+      } else if (annotation.annotationType === 'circle') {
+        const r = s.radius || 5;
+        ctx.beginPath();
+        ctx.arc(annotation.position.x, annotation.position.y, r, 0, Math.PI * 2);
+        if (s.fillColor) { ctx.fillStyle = s.fillColor; ctx.fill(); }
+        ctx.stroke();
+      } else if (annotation.annotationType === 'line' || annotation.annotationType === 'arrow') {
+        const ex = s.endX ?? annotation.position.x + 10;
+        const ey = s.endY ?? annotation.position.y;
+        ctx.beginPath();
+        ctx.moveTo(annotation.position.x, annotation.position.y);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        if (annotation.annotationType === 'arrow') {
+          const angle = Math.atan2(ey - annotation.position.y, ex - annotation.position.x);
+          const headLen = 2;
+          ctx.beginPath();
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 6), ey - headLen * Math.sin(angle - Math.PI / 6));
+          ctx.lineTo(ex - headLen * Math.cos(angle + Math.PI / 6), ey - headLen * Math.sin(angle + Math.PI / 6));
+          ctx.closePath();
+          ctx.fillStyle = s.strokeColor || t.annotationColor;
+          ctx.fill();
+        }
+      }
+
+      if (s.dashed) ctx.setLineDash([]);
+
+      // Selection highlight
+      if (options?.selectedAnnotationId === annotation.id) {
+        ctx.strokeStyle = t.annotationSelectionColor;
+        ctx.lineWidth = t.selectionWidth;
+        ctx.setLineDash(t.selectionDash);
+        let bx = annotation.position.x, by = annotation.position.y, bw = 10, bh = 10;
+        if (annotation.annotationType === 'rectangle') { bw = s.width || 10; bh = s.height || 10; }
+        else if (annotation.annotationType === 'circle') { const r = s.radius || 5; bx -= r; by -= r; bw = r * 2; bh = r * 2; }
+        else { const ex = s.endX ?? bx + 10, ey = s.endY ?? by; bx = Math.min(bx, ex); by = Math.min(by, ey); bw = Math.abs((s.endX ?? bx + 10) - annotation.position.x); bh = Math.abs((s.endY ?? by) - annotation.position.y); }
+        ctx.strokeRect(bx - 0.75, by - 0.75, bw + 1.5, bh + 1.5);
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // Draw shape preview (live drawing)
+  if (options?.drawingShapePreview) {
+    const { type, start, end } = options.drawingShapePreview;
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = t.annotationColor;
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([1, 1]);
+    if (type === 'rectangle') {
+      const x = Math.min(start.x, end.x), y = Math.min(start.y, end.y);
+      ctx.strokeRect(x, y, Math.abs(end.x - start.x), Math.abs(end.y - start.y));
+    } else if (type === 'circle') {
+      const r = Math.hypot(end.x - start.x, end.y - start.y);
+      ctx.beginPath(); ctx.arc(start.x, start.y, r, 0, Math.PI * 2); ctx.stroke();
+    } else if (type === 'line' || type === 'arrow') {
+      ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+      if (type === 'arrow') {
+        const angle = Math.atan2(end.y - start.y, end.x - start.x);
+        const hl = 2;
+        ctx.beginPath(); ctx.moveTo(end.x, end.y);
+        ctx.lineTo(end.x - hl * Math.cos(angle - Math.PI / 6), end.y - hl * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(end.x - hl * Math.cos(angle + Math.PI / 6), end.y - hl * Math.sin(angle + Math.PI / 6));
+        ctx.closePath(); ctx.fillStyle = t.annotationColor; ctx.fill();
+      }
+    }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
   }
 
   // Draw marquee selection rectangle
