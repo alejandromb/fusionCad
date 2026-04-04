@@ -159,7 +159,7 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
         }
         if (points.length >= 2) {
           primitives.push({ type: 'polyline', points });
-          allEndpoints.push(points[0], points[points.length - 1]);
+          allEndpoints.push({ ...points[0] }, { ...points[points.length - 1] });
         }
         break;
       }
@@ -361,7 +361,7 @@ export function importDxf(dxfString: string, targetWidthMm?: number): ImportedSy
         }));
         if (points.length >= 2) {
           primitives.push({ type: 'polyline', points });
-          allEndpoints.push(points[0], points[points.length - 1]);
+          allEndpoints.push({ ...points[0] }, { ...points[points.length - 1] });
         }
         break;
       }
