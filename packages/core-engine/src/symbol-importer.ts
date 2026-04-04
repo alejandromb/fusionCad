@@ -12,6 +12,7 @@
 import type { SymbolDefinition, SymbolPrimitive, SymbolPin, PinDirection } from '@fusion-cad/core-model';
 import { parse as parseSvg } from 'svg-parser';
 import DxfParser from 'dxf-parser';
+import svgpath from 'svgpath';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,9 +166,18 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
       case 'path': {
         const d = String(p.d || '');
         if (d) {
-          // Store the path data as-is (scaled via transform)
-          // TODO: Apply scale transform to path data for accuracy
-          primitives.push({ type: 'path', d });
+          // Transform path data: apply viewBox offset and scale
+          try {
+            const transformed = svgpath(d)
+              .translate(-viewBox.x, -viewBox.y)
+              .scale(scale)
+              .abs()
+              .round(2)
+              .toString();
+            primitives.push({ type: 'path', d: transformed });
+          } catch {
+            primitives.push({ type: 'path', d });
+          }
         }
         break;
       }

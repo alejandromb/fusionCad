@@ -1598,16 +1598,6 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           target: 'wire',
           wireIndex: hitWire,
         });
-      } else if (selectedDevices.length > 0) {
-        // No direct hit but device is selected — show device menu for selected device
-        setContextMenu({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-          worldX: world.x,
-          worldY: world.y,
-          target: 'device',
-          deviceTag: selectedDevices[0],
-        });
       } else {
         setContextMenu({
           x: e.clientX - rect.left,
