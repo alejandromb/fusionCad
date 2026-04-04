@@ -5,7 +5,7 @@
  */
 
 import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBlock, LadderBlock } from '@fusion-cad/core-model';
-import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
+import { MM_TO_PX, GRID_MM, registerSymbol } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
 import { DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
@@ -65,6 +65,8 @@ export interface CircuitData {
   rungs?: Rung[];
   transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>;
   blocks?: AnyDiagramBlock[];
+  /** Project-level symbols — embedded in the project, not in the global library */
+  symbols?: import('@fusion-cad/core-model').SymbolDefinition[];
 }
 
 /** A connection with its original index in the global circuit.connections array */
@@ -566,6 +568,13 @@ export function renderCircuit(
 ): void {
   const { nets, parts } = circuit;
   const activeSheetId = options?.activeSheetId;
+
+  // Register project-level symbols so the renderer can find them
+  if (circuit.symbols && circuit.symbols.length > 0) {
+    for (const sym of circuit.symbols) {
+      registerSymbol(sym);
+    }
+  }
 
   // Filter devices and connections by active sheet if specified
   const devices = activeSheetId

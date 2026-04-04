@@ -805,6 +805,15 @@ function AppInner({
         <SymbolImportDialog
           onClose={() => setShowSymbolImport(false)}
           onSymbolRegistered={() => setSymbolLibVersion(v => v + 1)}
+          onAddToProject={(sym) => {
+            project.setCircuit(prev => {
+              if (!prev) return prev;
+              const existing = prev.symbols || [];
+              // Replace if same ID exists
+              const filtered = existing.filter(s => s.id !== sym.id);
+              return { ...prev, symbols: [...filtered, sym] };
+            });
+          }}
         />
       )}
 

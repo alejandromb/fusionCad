@@ -58,6 +58,7 @@ function buildCircuitData(raw: any): CircuitData {
     ...(raw.rungs ? { rungs: raw.rungs } : {}),
     ...(raw.transforms ? { transforms: raw.transforms } : {}),
     ...(raw.blocks ? { blocks: raw.blocks } : {}),
+    ...(raw.symbols ? { symbols: raw.symbols } : {}),
   };
   // Auto-migrate sheet-level ladder config → blocks
   return migrateToBlocks(base);
@@ -288,6 +289,7 @@ export function useProjectPersistence(
           ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
           ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
           ...(circuit.blocks ? { blocks: circuit.blocks } : {}),
+          ...(circuit.symbols ? { symbols: circuit.symbols } : {}),
         },
       });
       setSaveStatus('saved');

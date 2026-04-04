@@ -77,9 +77,10 @@ function optimizePrimitives(primitives: SymbolPrimitive[], bounds: { width: numb
 interface SymbolImportDialogProps {
   onClose: () => void;
   onSymbolRegistered?: () => void;
+  onAddToProject?: (symbol: import('@fusion-cad/core-model').SymbolDefinition) => void;
 }
 
-export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImportDialogProps) {
+export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject }: SymbolImportDialogProps) {
   const [rawImported, setRawImported] = useState<ImportedSymbol | null>(null);
   const [fileName, setFileName] = useState('');
   const [symbolName, setSymbolName] = useState('');
@@ -90,7 +91,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
   const [usage, setUsage] = useState<'schematic' | 'layout'>('schematic');
   const [simplifyLayout, setSimplifyLayout] = useState(true);
   const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<false | 'library' | 'project'>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Compute display version: apply optimization dynamically based on current settings
@@ -183,7 +184,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
       } catch { /* ignore */ }
     }
 
-    setSaved(true);
+    setSaved('library');
     onSymbolRegistered?.();
   }, [imported, pins, symbolId, symbolName, category, tagPrefix]);
 
@@ -376,17 +377,37 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered }: SymbolImport
                 >
                   Import Different File
                 </button>
+                {onAddToProject && (
+                  <button
+                    className="assign-part-btn"
+                    style={{ flex: 1, background: saved === 'project' ? 'rgba(0,200,80,0.2)' : undefined }}
+                    onClick={() => {
+                      if (!imported) return;
+                      const confirmedPins = pins.map((p: PinCandidate) => ({
+                        x: p.x, y: p.y, name: p.name, direction: p.suggestedDirection, pinType: 'passive',
+                      }));
+                      const symbolDef = finalizeImportedSymbol(imported, symbolId, symbolName, category, confirmedPins, tagPrefix, usage);
+                      registerSymbol(symbolDef);
+                      onAddToProject(symbolDef);
+                      setSaved('project');
+                      onSymbolRegistered?.();
+                    }}
+                    disabled={!symbolName || !symbolId}
+                  >
+                    {saved === 'project' ? 'Added!' : 'Add to Project'}
+                  </button>
+                )}
                 <button
                   className="assign-part-btn"
-                  style={{ flex: 1, background: saved ? 'rgba(0,200,80,0.2)' : undefined }}
-                  onClick={handleSave}
+                  style={{ flex: 1, background: saved === 'library' ? 'rgba(0,200,80,0.2)' : undefined }}
+                  onClick={() => { handleSave(); setSaved('library'); }}
                   disabled={!symbolName || !symbolId}
                 >
-                  {saved ? 'Saved!' : 'Save to Library'}
+                  {saved === 'library' ? 'Saved!' : 'Save to Library'}
                 </button>
               </div>
 
-              {saved && (
+              {saved !== false && (
                 <div style={{ fontSize: '0.8rem', color: '#00C850', textAlign: 'center', lineHeight: 1.5 }}>
                   Symbol "{symbolName}" saved.
                   {usage === 'layout'
