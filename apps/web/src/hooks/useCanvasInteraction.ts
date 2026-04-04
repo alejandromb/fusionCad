@@ -241,34 +241,28 @@ function hitTestAnnotation(ann: import('@fusion-cad/core-model').Annotation, wx:
     }
     case 'rectangle': {
       const w = s.width || 10, h = s.height || 10;
-      const margin = 1; // 1mm hit margin for edges
-      const inX = wx >= ann.position.x - margin && wx <= ann.position.x + w + margin;
-      const inY = wy >= ann.position.y - margin && wy <= ann.position.y + h + margin;
-      if (!inX || !inY) return false;
-      // Hit on edge (within margin of any side)
-      const nearLeft = Math.abs(wx - ann.position.x) < margin;
-      const nearRight = Math.abs(wx - (ann.position.x + w)) < margin;
-      const nearTop = Math.abs(wy - ann.position.y) < margin;
-      const nearBottom = Math.abs(wy - (ann.position.y + h)) < margin;
-      return nearLeft || nearRight || nearTop || nearBottom || (s.fillColor != null);
+      // Click anywhere inside the rectangle to select it
+      return wx >= ann.position.x && wx <= ann.position.x + w &&
+             wy >= ann.position.y && wy <= ann.position.y + h;
     }
     case 'circle': {
       const r = s.radius || 5;
       const dist = Math.hypot(wx - ann.position.x, wy - ann.position.y);
-      return s.fillColor ? dist <= r + 1 : Math.abs(dist - r) < 1.5;
+      // Click anywhere inside the circle
+      return dist <= r;
     }
     case 'line':
     case 'arrow': {
       const ex = s.endX ?? ann.position.x + 10;
       const ey = s.endY ?? ann.position.y;
-      // Point-to-segment distance
+      // Point-to-segment distance — generous 3mm hit zone
       const dx = ex - ann.position.x, dy = ey - ann.position.y;
       const lenSq = dx * dx + dy * dy;
-      if (lenSq === 0) return Math.hypot(wx - ann.position.x, wy - ann.position.y) < 2;
+      if (lenSq === 0) return Math.hypot(wx - ann.position.x, wy - ann.position.y) < 3;
       let t = ((wx - ann.position.x) * dx + (wy - ann.position.y) * dy) / lenSq;
       t = Math.max(0, Math.min(1, t));
       const px = ann.position.x + t * dx, py = ann.position.y + t * dy;
-      return Math.hypot(wx - px, wy - py) < 2;
+      return Math.hypot(wx - px, wy - py) < 3;
     }
     default:
       return false;
