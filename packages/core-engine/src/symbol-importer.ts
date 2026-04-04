@@ -166,46 +166,16 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
       case 'path': {
         const d = String(p.d || '');
         if (d) {
-          // Convert SVG path to polylines so Symbol Editor can handle them
+          // Transform path data: apply viewBox offset and scale
           try {
-            // Transform path first
             const transformed = svgpath(d)
               .translate(-viewBox.x, -viewBox.y)
               .scale(scale)
               .abs()
               .round(2)
               .toString();
-            // Parse into commands and convert to polylines
-            const segments = transformed.split(/(?=[ML])/);
-            let currentPolyline: Array<{ x: number; y: number }> = [];
-            for (const seg of segments) {
-              const cmd = seg.trim();
-              if (!cmd) continue;
-              const type = cmd[0];
-              const nums = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
-              if (type === 'M') {
-                // Move: start new polyline
-                if (currentPolyline.length >= 2) {
-                  primitives.push({ type: 'polyline', points: currentPolyline });
-                  allEndpoints.push(currentPolyline[0], currentPolyline[currentPolyline.length - 1]);
-                }
-                currentPolyline = [{ x: nums[0], y: nums[1] }];
-              } else if (type === 'L') {
-                currentPolyline.push({ x: nums[0], y: nums[1] });
-              } else if (type === 'V') {
-                const lastPt = currentPolyline[currentPolyline.length - 1];
-                if (lastPt) currentPolyline.push({ x: lastPt.x, y: nums[0] });
-              } else if (type === 'H') {
-                const lastPt = currentPolyline[currentPolyline.length - 1];
-                if (lastPt) currentPolyline.push({ x: nums[0], y: lastPt.y });
-              }
-            }
-            if (currentPolyline.length >= 2) {
-              primitives.push({ type: 'polyline', points: currentPolyline });
-              allEndpoints.push(currentPolyline[0], currentPolyline[currentPolyline.length - 1]);
-            }
+            primitives.push({ type: 'path', d: transformed });
           } catch {
-            // Fallback: store as path (won't show in Symbol Editor but renders)
             primitives.push({ type: 'path', d });
           }
         }
