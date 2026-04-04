@@ -478,6 +478,7 @@ export function useProjectPersistence(
           ...(circuit.rungs ? { rungs: circuit.rungs } : {}),
           ...(circuit.transforms ? { transforms: circuit.transforms } : {}),
           ...(circuit.blocks ? { blocks: circuit.blocks } : {}),
+          ...(circuit.symbols ? { symbols: circuit.symbols } : {}),
         },
       },
     };
