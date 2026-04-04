@@ -81,7 +81,14 @@ export function importSvg(svgString: string, targetWidthMm?: number): ImportedSy
   }
 
   // Scale factor: SVG units → mm
-  const defaultWidthMm = targetWidthMm ?? 40; // default 40mm symbol width
+  // If SVG has explicit mm dimensions, use them (no scaling needed)
+  let nativeWidthMm: number | null = null;
+  if (root?.properties?.width) {
+    const widthStr = String(root.properties.width);
+    const mmMatch = widthStr.match(/^([\d.]+)mm$/);
+    if (mmMatch) nativeWidthMm = parseFloat(mmMatch[1]);
+  }
+  const defaultWidthMm = targetWidthMm ?? nativeWidthMm ?? 40;
   const scale = defaultWidthMm / viewBox.w;
 
   // Convert SVG coordinate to mm
