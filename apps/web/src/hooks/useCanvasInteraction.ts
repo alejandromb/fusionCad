@@ -68,8 +68,8 @@ export interface UseCanvasInteractionReturn {
   /** Shape drawing tool type */
   shapeToolType: ShapeToolType;
   setShapeToolType: React.Dispatch<React.SetStateAction<ShapeToolType>>;
-  /** Start point for shape being drawn (drag in progress) */
-  drawingShapeStart: Point | null;
+  /** Live shape drawing preview (computed from ref + mouseWorldPos) */
+  drawingShapePreview: { type: ShapeToolType; start: Point; end: Point } | null;
   /** Sheet-filtered connections (same filtering as renderer) for passing to Canvas context menu */
   sheetConnections: SheetConnection[];
 }
@@ -358,11 +358,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [shapeToolType, setShapeToolType] = useState<ShapeToolType>('rectangle');
-  const [drawingShapeStart, setDrawingShapeStart] = useState<Point | null>(null);
-  // Refs for shape drawing — handlers need current values without re-registration
+  // Single ref for all shape drawing state — no stale closure issues
   const shapeToolTypeRef = useRef<ShapeToolType>('rectangle');
   shapeToolTypeRef.current = shapeToolType;
-  const drawingShapeStartRef = useRef<Point | null>(null);
+  const shapeDrawingRef = useRef<{ type: ShapeToolType; start: Point } | null>(null);
 
   // Drag state
   const isDraggingRef = useRef(false);
@@ -778,9 +777,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       // Shape mode: record start point on mouseDown (drag to draw)
       if (interactionMode === 'shape') {
-        const startPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
-        drawingShapeStartRef.current = startPt;
-        setDrawingShapeStart(startPt);
+        shapeDrawingRef.current = {
+          type: shapeToolTypeRef.current,
+          start: { x: snapToGrid(world.x), y: snapToGrid(world.y) },
+        };
       }
 
       canvas.style.cursor = getCursor();
@@ -1083,15 +1083,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       // End shape drawing
-      if (drawingShapeStartRef.current) {
-        const start = drawingShapeStartRef.current;
-        const tool = shapeToolTypeRef.current;
+      if (shapeDrawingRef.current) {
+        const { type: tool, start } = shapeDrawingRef.current;
+        shapeDrawingRef.current = null;
         const endPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
         const dx = endPt.x - start.x;
         const dy = endPt.y - start.y;
         const dist = Math.hypot(dx, dy);
-        drawingShapeStartRef.current = null;
-        setDrawingShapeStart(null);
         if (dist >= 1) { // minimum 1mm to prevent accidental clicks
           if (tool === 'rectangle') {
             addShapeAnnotation('rectangle', {
@@ -1423,8 +1421,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             setPlacementCategory(null);
             setWireStart(null); setWireWaypoints([]);
             setSelectedDevices([]);
-            drawingShapeStartRef.current = null;
-            setDrawingShapeStart(null);
+            shapeDrawingRef.current = null;
           }
         }
       }
@@ -1477,14 +1474,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           setMouseWorldPos(null);
         } else if (wireStart) {
           setWireStart(null); setWireWaypoints([]);
-        } else if (drawingShapeStartRef.current) {
-          drawingShapeStartRef.current = null;
-          setDrawingShapeStart(null);
+        } else if (shapeDrawingRef.current) {
+          shapeDrawingRef.current = null;
         } else if (interactionMode === 'place' || interactionMode === 'text' || interactionMode === 'pan' || interactionMode === 'shape') {
           setInteractionMode('select');
           setPlacementCategory(null);
-          drawingShapeStartRef.current = null;
-          setDrawingShapeStart(null);
+          shapeDrawingRef.current = null;
         } else if (selectedWireIndex !== null) {
           setSelectedWireIndex(null);
         } else if (selectedDevices.length > 0) {
@@ -1778,7 +1773,12 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     renderHandleRef,
     shapeToolType,
     setShapeToolType,
-    drawingShapeStart,
+    // Compute preview from ref at render time — mouseWorldPos change triggers re-render
+    drawingShapePreview: shapeDrawingRef.current && mouseWorldPos ? {
+      type: shapeDrawingRef.current.type,
+      start: shapeDrawingRef.current.start,
+      end: mouseWorldPos,
+    } : null,
     sheetConnections,
   };
 }

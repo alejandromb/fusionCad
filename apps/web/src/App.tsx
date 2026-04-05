@@ -577,11 +577,7 @@ function AppInner({
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
             alignSelectedDevices={circuitState.alignSelectedDevices}
             ghostPaste={ghostPaste}
-            drawingShapePreview={interaction.drawingShapeStart && interaction.mouseWorldPos ? {
-              type: interaction.shapeToolType,
-              start: interaction.drawingShapeStart,
-              end: interaction.mouseWorldPos,
-            } : null}
+            drawingShapePreview={interaction.drawingShapePreview}
             showGrid={circuitState.showGrid}
             showPinLabels={circuitState.showPinLabels}
             showDescriptions={circuitState.showDescriptions}
