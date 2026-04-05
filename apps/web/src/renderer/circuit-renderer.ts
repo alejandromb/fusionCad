@@ -1304,6 +1304,11 @@ export function renderCircuit(
     }
   }
 
+  // Undo panel scale for annotations — they render at paper coordinates (where user clicks)
+  if (panelScale > 1) {
+    ctx.scale(panelScale, panelScale);
+  }
+
   // Render annotations (text labels on the active sheet)
   const annotations = circuit.annotations || [];
   const sheetAnnotations = activeSheetId
