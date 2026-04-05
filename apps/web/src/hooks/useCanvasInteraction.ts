@@ -636,6 +636,24 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
         }
 
+        // Check annotation hit BEFORE device hit — shapes render on top of devices
+        const annots = (circuit.annotations || []).filter(a =>
+          !activeSheetId || a.sheetId === activeSheetId
+        );
+        for (const ann of annots) {
+          if (!hitTestAnnotation(ann, world.x, world.y)) continue;
+          const origin = getAnnotationOrigin(ann);
+          selectAnnotation(ann.id);
+          draggingAnnotationRef.current = {
+            id: ann.id,
+            offsetX: world.x - origin.x,
+            offsetY: world.y - origin.y,
+          };
+          pushToHistoryRef.current();
+          canvas.style.cursor = 'move';
+          return;
+        }
+
         // Hit radii are screen-space constant (divided by zoom scale)
         const wireHitRadius = 8 / (viewport.scale * MM_TO_PX);
         const wirePriorityRadius = 4 / (viewport.scale * MM_TO_PX);
@@ -741,28 +759,6 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         isPanningRef.current = true;
         canvas.style.cursor = 'grabbing';
         return;
-      }
-
-      // Check for annotation hit (before marquee) — enables drag
-      if (interactionMode === 'select') {
-        const annots = (circuit.annotations || []).filter(a =>
-          !activeSheetId || a.sheetId === activeSheetId
-        );
-        for (const ann of annots) {
-          if (!hitTestAnnotation(ann, world.x, world.y)) continue;
-          {
-            const origin = getAnnotationOrigin(ann);
-            selectAnnotation(ann.id);
-            draggingAnnotationRef.current = {
-              id: ann.id,
-              offsetX: world.x - origin.x,
-              offsetY: world.y - origin.y,
-            };
-            pushToHistoryRef.current();
-            canvas.style.cursor = 'move';
-            return;
-          }
-        }
       }
 
       // Select mode on empty space: start marquee selection
