@@ -274,6 +274,41 @@ function getAnnotationOrigin(ann: import('@fusion-cad/core-model').Annotation): 
   return ann.position;
 }
 
+/** Get resize handles for a shape annotation. */
+function getShapeHandles(ann: import('@fusion-cad/core-model').Annotation): Array<{ id: string; x: number; y: number; cursor: string }> {
+  const s = ann.style || {};
+  switch (ann.annotationType) {
+    case 'rectangle': {
+      const x = ann.position.x, y = ann.position.y;
+      const w = s.width || 10, h = s.height || 10;
+      return [
+        { id: 'nw', x, y, cursor: 'nw-resize' },
+        { id: 'ne', x: x + w, y, cursor: 'ne-resize' },
+        { id: 'se', x: x + w, y: y + h, cursor: 'se-resize' },
+        { id: 'sw', x, y: y + h, cursor: 'sw-resize' },
+      ];
+    }
+    case 'circle': {
+      const cx = ann.position.x, cy = ann.position.y, r = s.radius || 5;
+      return [
+        { id: 'n', x: cx, y: cy - r, cursor: 'n-resize' },
+        { id: 'e', x: cx + r, y: cy, cursor: 'e-resize' },
+        { id: 's', x: cx, y: cy + r, cursor: 's-resize' },
+        { id: 'w', x: cx - r, y: cy, cursor: 'w-resize' },
+      ];
+    }
+    case 'line':
+    case 'arrow': {
+      return [
+        { id: 'start', x: ann.position.x, y: ann.position.y, cursor: 'crosshair' },
+        { id: 'end', x: s.endX ?? ann.position.x + 10, y: s.endY ?? ann.position.y, cursor: 'crosshair' },
+      ];
+    }
+    default:
+      return [];
+  }
+}
+
 export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasInteractionReturn {
   const {
     circuit,
@@ -371,6 +406,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const dragOffsetRef = useRef<Point | null>(null);
   const dragHistoryPushedRef = useRef(false);
   const draggingAnnotationRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  /** Active resize handle for shape annotation */
+  const resizingShapeRef = useRef<{ annotationId: string; handleId: string; type: string } | null>(null);
   /** 'drag' = G key (move with wires), 'move' = M key (detach wires) */
   const dragModeRef = useRef<'drag' | 'move'>('drag');
 
@@ -632,6 +669,23 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               dragHistoryPushedRef.current = false;
               canvas.style.cursor = dir === 'h' ? 'ns-resize' : 'ew-resize';
               return;
+            }
+          }
+        }
+
+        // Check resize handles on selected shape annotation first
+        if (selectedAnnotationId) {
+          const selAnn = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
+          if (selAnn && ['rectangle', 'circle', 'line', 'arrow'].includes(selAnn.annotationType)) {
+            const handles = getShapeHandles(selAnn);
+            const hitRadius = 3; // mm
+            for (const h of handles) {
+              if (Math.abs(world.x - h.x) < hitRadius && Math.abs(world.y - h.y) < hitRadius) {
+                resizingShapeRef.current = { annotationId: selAnn.id, handleId: h.id, type: selAnn.annotationType };
+                pushToHistoryRef.current();
+                canvas.style.cursor = h.cursor;
+                return;
+              }
             }
           }
         }
@@ -901,6 +955,49 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
+      // Resize shape handle drag
+      if (resizingShapeRef.current && circuit) {
+        const { annotationId, handleId, type } = resizingShapeRef.current;
+        const ann = (circuit.annotations || []).find(a => a.id === annotationId);
+        if (ann) {
+          const s = ann.style || {};
+          const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+          let updates: { position?: { x: number; y: number }; style?: typeof s } | null = null;
+
+          if (type === 'rectangle') {
+            let x1 = ann.position.x, y1 = ann.position.y;
+            let x2 = x1 + (s.width || 10), y2 = y1 + (s.height || 10);
+            const h = handleId;
+            if (h === 'nw' || h === 'sw') x1 = snapped.x;
+            if (h === 'nw' || h === 'ne') y1 = snapped.y;
+            if (h === 'ne' || h === 'se') x2 = snapped.x;
+            if (h === 'se' || h === 'sw') y2 = snapped.y;
+            if (Math.abs(x2 - x1) >= 2 && Math.abs(y2 - y1) >= 2) {
+              updates = {
+                position: { x: Math.min(x1, x2), y: Math.min(y1, y2) },
+                style: { ...s, width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) },
+              };
+            }
+          } else if (type === 'circle') {
+            const newRadius = Math.max(2, Math.hypot(snapped.x - ann.position.x, snapped.y - ann.position.y));
+            updates = { style: { ...s, radius: snapToGrid(newRadius) } };
+          } else if (type === 'line' || type === 'arrow') {
+            if (handleId === 'start') {
+              updates = { position: snapped, style: s };
+            } else {
+              updates = { style: { ...s, endX: snapped.x, endY: snapped.y } };
+            }
+          }
+
+          if (updates) {
+            updateAnnotation(annotationId, updates);
+          }
+        }
+        hasDraggedRef.current = true;
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
       // Drag annotation — update position via mouseWorldPos for preview,
       // commit on mouseUp
       if (draggingAnnotationRef.current && circuit) {
@@ -1033,6 +1130,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           replaceWaypoints(toGlobalIndex(draggingSegment.connectionIndex), simplified);
         }
         setDraggingSegment(null);
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
+
+      // End shape resize
+      if (resizingShapeRef.current) {
+        resizingShapeRef.current = null;
         isDraggingRef.current = false;
         canvas.style.cursor = getCursor();
         return;

@@ -1391,7 +1391,7 @@ export function renderCircuit(
 
       if (s.dashed) ctx.setLineDash([]);
 
-      // Selection highlight
+      // Selection highlight + resize handles
       if (options?.selectedAnnotationId === annotation.id) {
         ctx.strokeStyle = t.annotationSelectionColor;
         ctx.lineWidth = t.selectionWidth;
@@ -1402,6 +1402,34 @@ export function renderCircuit(
         else { const ex = s.endX ?? bx + 10, ey = s.endY ?? by; bx = Math.min(bx, ex); by = Math.min(by, ey); bw = Math.abs((s.endX ?? bx + 10) - annotation.position.x); bh = Math.abs((s.endY ?? by) - annotation.position.y); }
         ctx.strokeRect(bx - 0.75, by - 0.75, bw + 1.5, bh + 1.5);
         ctx.setLineDash([]);
+
+        // Draw resize handles
+        const handleSize = 1.5; // mm
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = t.annotationSelectionColor;
+        ctx.lineWidth = 0.3;
+        if (annotation.annotationType === 'rectangle') {
+          const rx = annotation.position.x, ry = annotation.position.y;
+          const rw = s.width || 10, rh = s.height || 10;
+          for (const [hx, hy] of [[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh]]) {
+            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+            ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          }
+        } else if (annotation.annotationType === 'circle') {
+          const cx = annotation.position.x, cy = annotation.position.y, r = s.radius || 5;
+          for (const [hx, hy] of [[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]]) {
+            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+            ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          }
+        } else if (annotation.annotationType === 'line' || annotation.annotationType === 'arrow') {
+          const ex = s.endX ?? annotation.position.x + 10, ey = s.endY ?? annotation.position.y;
+          for (const [hx, hy] of [[annotation.position.x, annotation.position.y], [ex, ey]]) {
+            ctx.beginPath();
+            ctx.arc(hx, hy, handleSize * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
       }
     }
   }
