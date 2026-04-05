@@ -1414,9 +1414,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
           if (interactionMode === 'shape') {
-            // Cycle through shape tools
+            // Cycle through shape tools (use ref to avoid stale closure)
             const tools: ShapeToolType[] = ['rectangle', 'circle', 'line', 'arrow'];
-            const idx = tools.indexOf(shapeToolType);
+            const idx = tools.indexOf(shapeToolTypeRef.current);
             setShapeToolType(tools[(idx + 1) % tools.length]);
           } else {
             setInteractionMode('shape');

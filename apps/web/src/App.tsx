@@ -282,6 +282,7 @@ function AppInner({
         historyLength: circuitState.history.length,
         historyIndex: circuitState.historyIndex,
         activeSheetId: circuitState.activeSheetId,
+        selectedAnnotationId: circuitState.selectedAnnotationId,
         sheets: circuitState.sheets,
         alignSelectedDevices: circuitState.alignSelectedDevices,
         // Render audit — captures computed wire paths, device bounds, overlaps.
