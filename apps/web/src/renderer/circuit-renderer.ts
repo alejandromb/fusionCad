@@ -169,7 +169,7 @@ export interface RenderOptions {
   /** Show device function/description text above symbols (default true) */
   showDescriptions?: boolean;
   /** Selected annotation ID for highlight */
-  selectedAnnotationId?: string | null;
+  selectedAnnotationIds?: string[];
   /** Ghost paste preview - array of devices to render as semi-transparent ghosts */
   ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
   /** Live shape drawing preview */
@@ -1333,7 +1333,7 @@ export function renderCircuit(
       }
 
       // Draw selection highlight if this annotation is selected
-      if (options?.selectedAnnotationId === annotation.id) {
+      if (options?.selectedAnnotationIds?.includes(annotation.id)) {
         const maxLineWidth = Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
         const textWidth = maxLineWidth;
         const textHeight = lines.length * lineHeight;
@@ -1392,7 +1392,7 @@ export function renderCircuit(
       if (s.dashed) ctx.setLineDash([]);
 
       // Selection highlight + resize handles
-      if (options?.selectedAnnotationId === annotation.id) {
+      if (options?.selectedAnnotationIds?.includes(annotation.id)) {
         ctx.strokeStyle = t.annotationSelectionColor;
         ctx.lineWidth = t.selectionWidth;
         ctx.setLineDash(t.selectionDash);

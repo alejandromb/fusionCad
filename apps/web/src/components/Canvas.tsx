@@ -41,7 +41,7 @@ interface CanvasProps {
   addWaypoint?: (connectionIndex: number, segmentIndex: number, point: Point) => void;
   pasteDevice?: (worldX: number, worldY: number) => void;
   clipboard?: unknown;
-  selectedAnnotationId?: string | null;
+  selectedAnnotationIds?: string[];
   /** Sheet-filtered connections for mapping wireIndex back to global index */
   sheetConnections?: SheetConnection[];
   /** Ref to expose imperative render handle for zoom bypass */
@@ -83,7 +83,7 @@ export function Canvas({
   addWaypoint,
   pasteDevice,
   clipboard,
-  selectedAnnotationId,
+  selectedAnnotationIds,
   sheetConnections,
   renderHandleRef,
   onEditSymbol,
@@ -122,7 +122,7 @@ export function Canvas({
     showGrid,
     showPinLabels,
     showDescriptions,
-    selectedAnnotationId,
+    selectedAnnotationIds,
     ghostPaste,
     drawingShapePreview,
   });
@@ -199,7 +199,7 @@ export function Canvas({
     rafIdRef.current = requestAnimationFrame(() => doFullRender(viewport));
 
     return () => cancelAnimationFrame(rafIdRef.current);
-  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationId, ghostPaste, drawingShapePreview]);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, interactionMode, placementCategory, mouseWorldPos, draggingEndpoint, activeSheetId, deviceTransforms, marquee, selectedAnnotationIds, ghostPaste, drawingShapePreview]);
 
   // Re-render on window resize (container size changed)
   useEffect(() => {
@@ -209,7 +209,7 @@ export function Canvas({
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, activeSheetId, deviceTransforms, marquee, selectedAnnotationId]);
+  }, [canvasRef, circuit, viewport, debugMode, devicePositions, selectedDevices, selectedWireIndex, wireStart, activeSheetId, deviceTransforms, marquee, selectedAnnotationIds]);
 
   return (
     <main className="canvas-container">

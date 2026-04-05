@@ -366,6 +366,8 @@ export interface Annotation extends Entity {
     /** Dashed stroke */
     dashed?: boolean;
   };
+  /** Group ID — annotations with same groupId select/move together */
+  groupId?: string;
 }
 
 export type ShapeAnnotationType = 'rectangle' | 'circle' | 'line' | 'arrow';

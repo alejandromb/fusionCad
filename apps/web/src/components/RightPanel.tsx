@@ -69,7 +69,7 @@ interface RightPanelProps {
   onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
   onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
   onToggleDashed?: (deviceId: string) => void;
-  selectedAnnotationId: string | null;
+  selectedAnnotationIds: string[];
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
   onDeleteAnnotation: (id: string) => void;
   onSelectAnnotation: (id: string | null) => void;
@@ -95,7 +95,7 @@ export function RightPanel({
   onAssignPart,
   onUpdateDevice,
   onToggleDashed,
-  selectedAnnotationId,
+  selectedAnnotationIds,
   onUpdateAnnotation,
   onDeleteAnnotation,
   onSelectAnnotation,
@@ -154,7 +154,7 @@ export function RightPanel({
   const categories = useMemo(() => getSymbolCategories(), [symbolLibVersion]);
 
   // Auto-switch to Properties tab when something is selected
-  const hasSelection = selectedDevices.length > 0 || selectedWireIndex !== null || selectedAnnotationId !== null;
+  const hasSelection = selectedDevices.length > 0 || selectedWireIndex !== null || selectedAnnotationIds.length > 0;
 
   useEffect(() => {
     if (hasSelection) {
@@ -242,8 +242,8 @@ export function RightPanel({
   const selectedWireNet = selectedWire && circuit
     ? circuit.nets.find(n => n.id === selectedWire.netId)
     : null;
-  const selectedAnnotation = selectedAnnotationId && circuit
-    ? (circuit.annotations || []).find(a => a.id === selectedAnnotationId)
+  const selectedAnnotation = selectedAnnotationIds.length === 1 && circuit
+    ? (circuit.annotations || []).find(a => a.id === selectedAnnotationIds[0])
     : null;
 
   if (collapsed) {

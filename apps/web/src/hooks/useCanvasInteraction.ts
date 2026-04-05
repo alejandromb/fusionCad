@@ -108,10 +108,10 @@ interface UseCanvasInteractionDeps {
   rotateSelectedDevices: (direction: 'cw' | 'ccw') => void;
   mirrorDevice: (deviceId: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
-  selectAnnotation: (id: string | null) => void;
+  selectAnnotation: (id: string | null, addToSelection?: boolean) => void;
   updateAnnotation: (id: string, updates: { position?: { x: number; y: number } }) => void;
   deleteAnnotation: (id: string) => void;
-  selectedAnnotationId: string | null;
+  selectedAnnotationIds: string[];
   activeSheetId: string;
   panelScale: number;
 }
@@ -346,7 +346,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     selectAnnotation,
     updateAnnotation,
     deleteAnnotation,
-    selectedAnnotationId,
+    selectedAnnotationIds,
     activeSheetId,
     panelScale,
   } = deps;
@@ -674,8 +674,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
 
         // Check resize handles on selected shape annotation first
-        if (selectedAnnotationId) {
-          const selAnn = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
+        if (selectedAnnotationIds.length === 1) {
+          const selAnn = (circuit.annotations || []).find(a => a.id === selectedAnnotationIds[0]);
           if (selAnn && ['rectangle', 'circle', 'line', 'arrow'].includes(selAnn.annotationType)) {
             const handles = getShapeHandles(selAnn);
             const hitRadius = 3; // mm
@@ -697,7 +697,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         for (const ann of annots) {
           if (!hitTestAnnotation(ann, world.x, world.y)) continue;
           const origin = getAnnotationOrigin(ann);
-          selectAnnotation(ann.id);
+          selectAnnotation(ann.id, e.shiftKey);
           draggingAnnotationRef.current = {
             id: ann.id,
             offsetX: world.x - origin.x,
@@ -1171,12 +1171,19 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
-      // End annotation dragging — commit position
+      // End annotation dragging — commit position for all selected
       if (draggingAnnotationRef.current) {
-        const ann = draggingAnnotationRef.current;
-        const newX = snapToGrid(world.x - ann.offsetX);
-        const newY = snapToGrid(world.y - ann.offsetY);
-        updateAnnotation(ann.id, { position: { x: newX, y: newY } });
+        const dragRef = draggingAnnotationRef.current;
+        const dx = snapToGrid(world.x - dragRef.offsetX) - ((circuit.annotations || []).find(a => a.id === dragRef.id)?.position.x ?? 0);
+        const dy = snapToGrid(world.y - dragRef.offsetY) - ((circuit.annotations || []).find(a => a.id === dragRef.id)?.position.y ?? 0);
+        // Move all selected annotations by the same delta
+        const idsToMove = selectedAnnotationIds.includes(dragRef.id) ? selectedAnnotationIds : [dragRef.id];
+        for (const annId of idsToMove) {
+          const a = (circuit.annotations || []).find(an => an.id === annId);
+          if (a) {
+            updateAnnotation(annId, { position: { x: a.position.x + dx, y: a.position.y + dy } });
+          }
+        }
         draggingAnnotationRef.current = null;
         isDraggingRef.current = false;
         canvas.style.cursor = getCursor();
@@ -1589,21 +1596,23 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       // F2 = edit selected annotation
-      if (e.key === 'F2' && selectedAnnotationId) {
+      if (e.key === 'F2' && selectedAnnotationIds.length === 1) {
         e.preventDefault();
-        setEditingAnnotationId(selectedAnnotationId);
+        setEditingAnnotationId(selectedAnnotationIds[0]);
       }
 
       // Arrow keys = nudge selected annotation by one grid step
-      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedAnnotationId) {
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedAnnotationIds.length > 0) {
         e.preventDefault();
         const step = GRID_MM;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        const ann = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
-        if (ann) {
-          pushToHistoryRef.current();
-          updateAnnotation(ann.id, { position: { x: ann.position.x + dx, y: ann.position.y + dy } });
+        pushToHistoryRef.current();
+        for (const annId of selectedAnnotationIds) {
+          const ann = (circuit.annotations || []).find(a => a.id === annId);
+          if (ann) {
+            updateAnnotation(ann.id, { position: { x: ann.position.x + dx, y: ann.position.y + dy } });
+          }
         }
       }
 
@@ -1634,9 +1643,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           e.preventDefault();
           deleteWire(toGlobalIndex(selectedWireIndex));
           setSelectedWireIndex(null);
-        } else if (selectedAnnotationId) {
+        } else if (selectedAnnotationIds.length > 0) {
           e.preventDefault();
-          deleteAnnotation(selectedAnnotationId);
+          for (const annId of selectedAnnotationIds) deleteAnnotation(annId);
           selectAnnotation(null);
         }
       }
@@ -1709,19 +1718,38 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         setSelectedDevices(sheetDevices.map(d => d.id));
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && (selectedDevices.length > 0 || selectedAnnotationId)) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && (selectedDevices.length > 0 || selectedAnnotationIds.length > 0)) {
         e.preventDefault();
         copyDevice();
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && (selectedDevices.length > 0 || selectedAnnotationId)) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && (selectedDevices.length > 0 || selectedAnnotationIds.length > 0)) {
         e.preventDefault();
         copyDevice();
         if (selectedDevices.length > 0) {
           deleteDevices(selectedDevices);
-        } else if (selectedAnnotationId) {
-          deleteAnnotation(selectedAnnotationId);
+        } else if (selectedAnnotationIds.length > 0) {
+          for (const annId of selectedAnnotationIds) deleteAnnotation(annId);
           selectAnnotation(null);
+        }
+      }
+
+      // Cmd+G = group selected annotations
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && !e.shiftKey && selectedAnnotationIds.length >= 2) {
+        e.preventDefault();
+        pushToHistoryRef.current();
+        const groupId = `group-${Date.now()}`;
+        for (const annId of selectedAnnotationIds) {
+          updateAnnotation(annId, { groupId } as any);
+        }
+      }
+
+      // Cmd+Shift+G = ungroup
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && e.shiftKey && selectedAnnotationIds.length > 0) {
+        e.preventDefault();
+        pushToHistoryRef.current();
+        for (const annId of selectedAnnotationIds) {
+          updateAnnotation(annId, { groupId: undefined } as any);
         }
       }
 

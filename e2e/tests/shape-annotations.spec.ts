@@ -168,7 +168,7 @@ test.describe('Shape Annotations', () => {
     await page.waitForTimeout(200);
 
     let state = await page.evaluate(() => (window as any).__fusionCadState);
-    expect(state.selectedAnnotationId).toBeTruthy();
+    expect(state.selectedAnnotationIds?.length).toBeTruthy();
 
     // Delete it
     await page.keyboard.press('Delete');

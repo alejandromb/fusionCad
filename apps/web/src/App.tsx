@@ -221,7 +221,7 @@ function AppInner({
     circuitState.getAllPositions,
     circuitState.pushToHistory,
     circuitState.activeSheetId,
-    circuitState.selectedAnnotationId
+    circuitState.selectedAnnotationIds
   );
   const interaction = useCanvasInteraction({
     circuit: project.circuit,
@@ -260,7 +260,7 @@ function AppInner({
     selectAnnotation: circuitState.selectAnnotation,
     updateAnnotation: circuitState.updateAnnotation,
     deleteAnnotation: circuitState.deleteAnnotation,
-    selectedAnnotationId: circuitState.selectedAnnotationId,
+    selectedAnnotationIds: circuitState.selectedAnnotationIds,
     activeSheetId: circuitState.activeSheetId,
     panelScale: circuitState.getPanelScale(circuitState.activeSheetId),
   });
@@ -282,7 +282,7 @@ function AppInner({
         historyLength: circuitState.history.length,
         historyIndex: circuitState.historyIndex,
         activeSheetId: circuitState.activeSheetId,
-        selectedAnnotationId: circuitState.selectedAnnotationId,
+        selectedAnnotationIds: circuitState.selectedAnnotationIds,
         sheets: circuitState.sheets,
         alignSelectedDevices: circuitState.alignSelectedDevices,
         // Render audit — captures computed wire paths, device bounds, overlaps.
@@ -571,7 +571,7 @@ function AppInner({
             addWaypoint={circuitState.addWaypoint}
             pasteDevice={clipboardState.pasteDevice}
             clipboard={clipboardState.clipboard}
-            selectedAnnotationId={circuitState.selectedAnnotationId}
+            selectedAnnotationIds={circuitState.selectedAnnotationIds}
             sheetConnections={interaction.sheetConnections}
             renderHandleRef={interaction.renderHandleRef}
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
@@ -749,7 +749,7 @@ function AppInner({
           onAssignPart={circuitState.assignPart}
           onUpdateDevice={circuitState.updateDevice}
           onToggleDashed={circuitState.toggleDashed}
-          selectedAnnotationId={circuitState.selectedAnnotationId}
+          selectedAnnotationIds={circuitState.selectedAnnotationIds}
           onUpdateAnnotation={circuitState.updateAnnotation}
           onDeleteAnnotation={circuitState.deleteAnnotation}
           onSelectAnnotation={circuitState.selectAnnotation}

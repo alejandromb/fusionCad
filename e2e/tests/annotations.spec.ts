@@ -54,7 +54,7 @@ test.describe('Annotations', () => {
 
     // Check if annotation section appears in sidebar
     const state = await canvasHelpers.getState(page);
-    if (state.selectedAnnotationId) {
+    if (state.selectedAnnotationIds?.length > 0) {
       // Sidebar should show annotation properties
       const annotationSection = page.locator('.annotation-properties');
       await expect(annotationSection).toBeVisible();

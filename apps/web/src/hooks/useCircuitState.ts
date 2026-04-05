@@ -87,7 +87,7 @@ export interface UseCircuitStateReturn {
   // Annotations
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: Annotation['style']) => void;
-  updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
+  updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style' | 'groupId'>>) => void;
   deleteAnnotation: (annotationId: string) => void;
 
   // Device update (by device ID)
@@ -101,8 +101,8 @@ export interface UseCircuitStateReturn {
   setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>>;
   selectedWireIndex: number | null;
   setSelectedWireIndex: React.Dispatch<React.SetStateAction<number | null>>;
-  selectedAnnotationId: string | null;
-  selectAnnotation: (id: string | null) => void;
+  selectedAnnotationIds: string[];
+  selectAnnotation: (id: string | null, addToSelection?: boolean) => void;
 }
 
 const DEFAULT_SHEET_ID = 'sheet-1';
@@ -177,24 +177,40 @@ export function useCircuitState(
     });
   }, [setCircuit]);
 
-  const [selectedAnnotationId, setSelectedAnnotationIdRaw] = useState<string | null>(null);
+  const [selectedAnnotationIds, setSelectedAnnotationIdsRaw] = useState<string[]>([]);
 
   // Wrapped setters that clear the other selection type
   const setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>> = useCallback((action) => {
     setSelectedDevicesRaw(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (next.length > 0) setSelectedAnnotationIdRaw(null);
+      if (next.length > 0) setSelectedAnnotationIdsRaw([]);
       return next;
     });
   }, []);
 
-  const selectAnnotation = useCallback((id: string | null) => {
-    setSelectedAnnotationIdRaw(id);
-    if (id) {
-      setSelectedDevicesRaw([]);
-      setSelectedWireIndex(null);
+  const selectAnnotation = useCallback((id: string | null, addToSelection = false) => {
+    if (!id) {
+      setSelectedAnnotationIdsRaw([]);
+      return;
     }
-  }, []);
+    // Expand group: if the annotation has a groupId, select all in group
+    const ann = circuit?.annotations?.find(a => a.id === id);
+    const groupMembers = ann?.groupId
+      ? (circuit?.annotations || []).filter(a => a.groupId === ann.groupId).map(a => a.id)
+      : [id];
+
+    if (addToSelection) {
+      setSelectedAnnotationIdsRaw(prev => {
+        const inSelection = groupMembers.every(m => prev.includes(m));
+        if (inSelection) return prev.filter(i => !groupMembers.includes(i)); // toggle off
+        return [...new Set([...prev, ...groupMembers])];
+      });
+    } else {
+      setSelectedAnnotationIdsRaw(groupMembers);
+    }
+    setSelectedDevicesRaw([]);
+    setSelectedWireIndex(null);
+  }, [circuit]);
 
   // Get sheets from circuit data (backward-compatible)
   const sheets = getOrCreateSheets(circuit);
@@ -562,7 +578,7 @@ export function useCircuitState(
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex - 1);
     setSelectedDevices([]);
-    setSelectedAnnotationIdRaw(null);
+    setSelectedAnnotationIdsRaw([]);
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
@@ -593,7 +609,7 @@ export function useCircuitState(
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex + 1);
     setSelectedDevices([]);
-    setSelectedAnnotationIdRaw(null);
+    setSelectedAnnotationIdsRaw([]);
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
@@ -920,7 +936,7 @@ export function useCircuitState(
     });
   }, [circuit, validActiveSheetId, pushToHistory, setCircuit]);
 
-  const updateAnnotation = useCallback((annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => {
+  const updateAnnotation = useCallback((annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style' | 'groupId'>>) => {
     if (!circuit) return;
 
     pushToHistory();
@@ -1431,7 +1447,7 @@ export function useCircuitState(
     setSelectedDevices,
     selectedWireIndex,
     setSelectedWireIndex,
-    selectedAnnotationId,
+    selectedAnnotationIds,
     selectAnnotation,
   };
 }

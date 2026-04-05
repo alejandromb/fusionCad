@@ -59,18 +59,18 @@ export function useClipboard(
   getAllPositions: () => Map<string, Point>,
   pushToHistory: () => void,
   activeSheetId?: string,
-  selectedAnnotationId?: string | null
+  selectedAnnotationIds?: string[]
 ): UseClipboardReturn {
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
 
   const copyDevice = useCallback(() => {
     if (!circuit) return;
 
-    // Copy annotation if one is selected (and no devices)
-    if (selectedDevices.length === 0 && selectedAnnotationId) {
-      const ann = (circuit.annotations || []).find(a => a.id === selectedAnnotationId);
-      if (ann) {
-        setClipboard({ devices: [], parts: [], connections: [], positions: new Map(), transforms: {}, annotations: [ann] });
+    // Copy annotations if selected (and no devices)
+    if (selectedDevices.length === 0 && selectedAnnotationIds && selectedAnnotationIds.length > 0) {
+      const anns = (circuit.annotations || []).filter(a => selectedAnnotationIds.includes(a.id));
+      if (anns.length > 0) {
+        setClipboard({ devices: [], parts: [], connections: [], positions: new Map(), transforms: {}, annotations: anns });
       }
       return;
     }
@@ -118,7 +118,7 @@ export function useClipboard(
     });
 
     setClipboard({ devices, parts, connections, positions, transforms });
-  }, [selectedDevices, selectedAnnotationId, circuit, getAllPositions]);
+  }, [selectedDevices, selectedAnnotationIds, circuit, getAllPositions]);
 
   const pasteDevice = useCallback((worldX: number, worldY: number) => {
     if (!clipboard || !circuit) return;
