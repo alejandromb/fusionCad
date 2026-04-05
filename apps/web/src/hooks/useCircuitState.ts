@@ -88,6 +88,7 @@ export interface UseCircuitStateReturn {
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: Annotation['style']) => void;
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style' | 'groupId'>>) => void;
+  moveAnnotations: (ids: string[], dx: number, dy: number) => void;
   deleteAnnotation: (annotationId: string) => void;
 
   // Device update (by device ID)
@@ -952,6 +953,20 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
+  /** Move annotations by delta without pushing history (for live drag). */
+  const moveAnnotations = useCallback((ids: string[], dx: number, dy: number) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const idSet = new Set(ids);
+      const annotations = (prev.annotations || []).map(a =>
+        idSet.has(a.id)
+          ? { ...a, position: { x: a.position.x + dx, y: a.position.y + dy }, modifiedAt: Date.now() }
+          : a
+      );
+      return { ...prev, annotations };
+    });
+  }, [setCircuit]);
+
   // Rotate device 90° clockwise or counter-clockwise (by device ID)
   const rotateDevice = useCallback((deviceId: string, direction: 'cw' | 'ccw') => {
     pushToHistory();
@@ -1440,6 +1455,7 @@ export function useCircuitState(
     addAnnotation,
     addShapeAnnotation,
     updateAnnotation,
+    moveAnnotations,
     deleteAnnotation,
     updateDevice,
     assignPart,

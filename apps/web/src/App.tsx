@@ -259,6 +259,7 @@ function AppInner({
     deviceTransforms: circuitState.deviceTransforms,
     selectAnnotation: circuitState.selectAnnotation,
     updateAnnotation: circuitState.updateAnnotation,
+    moveAnnotations: circuitState.moveAnnotations,
     deleteAnnotation: circuitState.deleteAnnotation,
     selectedAnnotationIds: circuitState.selectedAnnotationIds,
     activeSheetId: circuitState.activeSheetId,

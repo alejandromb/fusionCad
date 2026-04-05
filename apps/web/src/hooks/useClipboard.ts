@@ -123,21 +123,34 @@ export function useClipboard(
   const pasteDevice = useCallback((worldX: number, worldY: number) => {
     if (!clipboard || !circuit) return;
 
-    // Paste annotation if clipboard has one
+    // Paste annotations if clipboard has them
     if (clipboard.annotations && clipboard.annotations.length > 0 && clipboard.devices.length === 0) {
       pushToHistory();
-      const ann = clipboard.annotations[0];
-      const newAnn = {
-        ...ann,
-        id: generateId(),
-        sheetId: activeSheetId || ann.sheetId,
-        position: { x: snapToGrid(worldX), y: snapToGrid(worldY) },
-        createdAt: Date.now(),
-        modifiedAt: Date.now(),
-      };
+      // Compute offset from first annotation's position to paste position
+      const ref = clipboard.annotations[0];
+      const offsetX = snapToGrid(worldX) - ref.position.x;
+      const offsetY = snapToGrid(worldY) - ref.position.y;
+      // Map old groupIds to new groupIds so pasted groups stay grouped
+      const groupIdMap = new Map<string, string>();
+      const newAnns = clipboard.annotations.map(ann => {
+        let newGroupId = ann.groupId;
+        if (ann.groupId) {
+          if (!groupIdMap.has(ann.groupId)) groupIdMap.set(ann.groupId, `group-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+          newGroupId = groupIdMap.get(ann.groupId);
+        }
+        return {
+          ...ann,
+          id: generateId(),
+          sheetId: activeSheetId || ann.sheetId,
+          position: { x: ann.position.x + offsetX, y: ann.position.y + offsetY },
+          groupId: newGroupId,
+          createdAt: Date.now(),
+          modifiedAt: Date.now(),
+        };
+      });
       setCircuit(prev => {
         if (!prev) return prev;
-        return { ...prev, annotations: [...(prev.annotations || []), newAnn] };
+        return { ...prev, annotations: [...(prev.annotations || []), ...newAnns] };
       });
       return;
     }

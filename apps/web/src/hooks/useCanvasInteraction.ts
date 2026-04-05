@@ -109,7 +109,8 @@ interface UseCanvasInteractionDeps {
   mirrorDevice: (deviceId: string) => void;
   deviceTransforms: Map<string, DeviceTransform>;
   selectAnnotation: (id: string | null, addToSelection?: boolean) => void;
-  updateAnnotation: (id: string, updates: { position?: { x: number; y: number } }) => void;
+  updateAnnotation: (id: string, updates: { position?: { x: number; y: number }; groupId?: string }) => void;
+  moveAnnotations: (ids: string[], dx: number, dy: number) => void;
   deleteAnnotation: (id: string) => void;
   selectedAnnotationIds: string[];
   activeSheetId: string;
@@ -345,6 +346,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     deviceTransforms,
     selectAnnotation,
     updateAnnotation,
+    moveAnnotations,
     deleteAnnotation,
     selectedAnnotationIds,
     activeSheetId,
@@ -998,11 +1000,28 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
-      // Drag annotation — update position via mouseWorldPos for preview,
-      // commit on mouseUp
+      // Drag annotation — live update positions (like device drag)
       if (draggingAnnotationRef.current && circuit) {
+        if (!dragHistoryPushedRef.current) {
+          pushToHistoryRef.current();
+          dragHistoryPushedRef.current = true;
+        }
         hasDraggedRef.current = true;
-        setMouseWorldPos(world); // triggers re-render for visual feedback
+        const dragRef = draggingAnnotationRef.current;
+        const idsToMove = selectedAnnotationIds.includes(dragRef.id) ? selectedAnnotationIds : [dragRef.id];
+        const dx = world.x - lastMousePosRef.current.x / (viewport.scale * MM_TO_PX) - (viewport.offsetX / (viewport.scale * MM_TO_PX) - viewport.offsetX / (viewport.scale * MM_TO_PX));
+        // Simpler: compute delta from last mouse position in world coords
+        const prevWorld = {
+          x: (lastMousePosRef.current.x - canvasRef.current!.getBoundingClientRect().left - viewport.offsetX) / (viewport.scale * MM_TO_PX),
+          y: (lastMousePosRef.current.y - canvasRef.current!.getBoundingClientRect().top - viewport.offsetY) / (viewport.scale * MM_TO_PX),
+        };
+        const moveDx = world.x - prevWorld.x;
+        const moveDy = world.y - prevWorld.y;
+        if (Math.abs(moveDx) > 0.01 || Math.abs(moveDy) > 0.01) {
+          moveAnnotations(idsToMove, moveDx, moveDy);
+        }
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
       }
 
       // Drag device
@@ -1171,17 +1190,20 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         return;
       }
 
-      // End annotation dragging — commit position for all selected
+      // End annotation dragging — positions already updated live during mouseMove
       if (draggingAnnotationRef.current) {
-        const dragRef = draggingAnnotationRef.current;
-        const dx = snapToGrid(world.x - dragRef.offsetX) - ((circuit.annotations || []).find(a => a.id === dragRef.id)?.position.x ?? 0);
-        const dy = snapToGrid(world.y - dragRef.offsetY) - ((circuit.annotations || []).find(a => a.id === dragRef.id)?.position.y ?? 0);
-        // Move all selected annotations by the same delta
-        const idsToMove = selectedAnnotationIds.includes(dragRef.id) ? selectedAnnotationIds : [dragRef.id];
-        for (const annId of idsToMove) {
-          const a = (circuit.annotations || []).find(an => an.id === annId);
-          if (a) {
-            updateAnnotation(annId, { position: { x: a.position.x + dx, y: a.position.y + dy } });
+        // Snap final positions to grid
+        if (hasDraggedRef.current) {
+          const idsToMove = selectedAnnotationIds.includes(draggingAnnotationRef.current.id) ? selectedAnnotationIds : [draggingAnnotationRef.current.id];
+          for (const annId of idsToMove) {
+            const a = (circuit.annotations || []).find(an => an.id === annId);
+            if (a) {
+              const snappedX = snapToGrid(a.position.x);
+              const snappedY = snapToGrid(a.position.y);
+              if (snappedX !== a.position.x || snappedY !== a.position.y) {
+                moveAnnotations([annId], snappedX - a.position.x, snappedY - a.position.y);
+              }
+            }
           }
         }
         draggingAnnotationRef.current = null;
