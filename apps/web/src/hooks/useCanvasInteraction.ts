@@ -776,6 +776,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         marqueeStartRef.current = world;
       }
 
+      // Shape mode: record start point on mouseDown (drag to draw)
+      if (interactionMode === 'shape') {
+        const startPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+        drawingShapeStartRef.current = startPt;
+        setDrawingShapeStart(startPt);
+      }
+
       canvas.style.cursor = getCursor();
     };
 
@@ -1267,13 +1274,9 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             setPendingTextPosition({ x: world.x, y: world.y });
             break;
           }
-          case 'shape': {
-            // Start drawing shape — record start point (ref for handler, state for preview)
-            const startPt = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
-            drawingShapeStartRef.current = startPt;
-            setDrawingShapeStart(startPt);
+          case 'shape':
+            // Shape drawing handled in mouseDown (drag to draw)
             break;
-          }
           case 'select': {
             const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
             const hitWire = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
