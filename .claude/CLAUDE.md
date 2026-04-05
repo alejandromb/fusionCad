@@ -76,15 +76,15 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 34 (2026-03-29) — Find/Replace, importers, panel layout, multi-symbol parts
-**Tests:** 121 E2E + 85 unit, 86 symbols + 10 PLC generators
+**Last session:** 35 (2026-04-04) — DXF import fix, shape annotations, symbol protection, layout symbols
+**Tests:** 128 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
 ### P0 — MVP Features
 
 1. ~~**Continuous placement mode**~~ ✅ Done (Session 33)
 2. ~~**Find/Replace**~~ ✅ Done (Session 34) — Cmd+F
-3. ~~**SVG/DXF symbol importer**~~ ✅ Done (Session 34) — Tools > Import, preview, pin detection
+3. ~~**SVG/DXF symbol importer**~~ ✅ Done (Session 34+35) — Tools > Import, preview, pin detection. Default: Layout. Overwrite warning for built-in symbols.
 4. **Page thumbnails** — Sheet navigation with thumbnail previews.
 5. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
 6. **Template caching** — Cache common patterns to skip AI entirely.
@@ -98,7 +98,8 @@ Before doing ANYTHING else:
 14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
 15. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing (screws, terminal blocks), line weights need improvement. Research proper DXF text rendering + HATCH/SOLID fill support.
 16. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
-17. **Shape annotations** — Arrow, line, rectangle, circle annotations for voltage labels, callouts, borders. Non-electrical drawing elements.
+17. ~~**Shape annotations**~~ ✅ Done (Session 35) — Rectangle, circle, line, arrow. S key to draw (cycles tools), click-drag, select/delete, right panel properties (stroke, color, dashed, fill). 7 E2E tests.
+18. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library. Separate layout symbol category from schematic symbols.
 
 ### P1 — Core Product Quality
 
@@ -119,7 +120,7 @@ Before doing ANYTHING else:
 23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
 24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
 25. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
-26. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated symbols (PLC DI/DO) must auto-sync to DB on startup. localStorage should be an offline queue that syncs to DB when connectivity returns, not a permanent store. Prevents: blank device boxes after DB restart, stale duplicates, lost imports.
+26. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated PLC symbols now auto-seed on startup ✅ (Session 35). localStorage should be an offline queue that syncs to DB when connectivity returns, not a permanent store. Prevents: blank device boxes after DB restart, stale duplicates, lost imports.
 
 ### P3 — Business & Revenue
 
@@ -154,7 +155,10 @@ Before doing ANYTHING else:
 - Auth: Cognito + Amplify, Google/GitHub OAuth
 - Cloud deployment ready: Dockerfile, migrations, Railway config, CORS, /health
 - ERC: hot-to-neutral short circuit detection (device classifier + BFS)
-- 154 E2E tests + 60 unit tests
+- Shape annotations: rectangle, circle, line, arrow on canvas (S key, drag-to-draw)
+- Symbol protection: generated PLC symbols auto-seed on startup, import warns before overwrite
+- Layout symbols: 9 panel footprints (DXF imports + rectangular fallbacks) for Rockwell, Eaton parts
+- 161 E2E tests + 60 unit tests
 
 **Architecture decisions:**
 - **Storage:** Cloud Postgres for everyone. Free tier: 3 projects, full editor, no AI. Paid: unlimited + AI.
