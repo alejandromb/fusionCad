@@ -1244,6 +1244,43 @@ export function renderCircuit(
         for (let li = 0; li < lines.length; li++) {
           ctx.fillText(lines[li], ghost.x, ghost.y + li * 4.2);
         }
+      } else if (ghost.category === '_annotation_shape_') {
+        // Ghost shape annotation — ghost.x/y are the offset position
+        const gs = (ghost as any).style || {};
+        const aType = (ghost as any).annotationType;
+        ctx.strokeStyle = t.annotationColor;
+        ctx.lineWidth = gs.strokeWidth || 0.5;
+        if (gs.dashed) ctx.setLineDash([2, 2]);
+        if (aType === 'rectangle') {
+          ctx.strokeRect(ghost.x, ghost.y, gs.width || 10, gs.height || 10);
+        } else if (aType === 'circle') {
+          ctx.beginPath();
+          ctx.arc(ghost.x, ghost.y, gs.radius || 5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (aType === 'line' || aType === 'arrow') {
+          const ex = gs.endX ?? ghost.x + 10;
+          const ey = gs.endY ?? ghost.y;
+          ctx.beginPath();
+          ctx.moveTo(ghost.x, ghost.y);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+          if (aType === 'arrow') {
+            const angle = Math.atan2(ey - ghost.y, ex - ghost.x);
+            const hl = 2;
+            ctx.beginPath();
+            ctx.moveTo(ex, ey);
+            ctx.lineTo(ex - hl * Math.cos(angle - Math.PI / 6), ey - hl * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(ex - hl * Math.cos(angle + Math.PI / 6), ey - hl * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fillStyle = t.annotationColor; ctx.fill();
+          }
+        } else if (aType === 'text') {
+          ctx.fillStyle = t.annotationColor;
+          ctx.font = '3px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(ghost.tag || 'Text', ghost.x, ghost.y);
+        }
+        if (gs.dashed) ctx.setLineDash([]);
       } else if (ghost.rotation || ghost.mirrorH) {
         const geom = getSymbolGeometry(ghost.category);
         const cx = ghost.x + geom.width / 2;

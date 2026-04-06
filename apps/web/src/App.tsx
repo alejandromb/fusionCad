@@ -364,14 +364,26 @@ function AppInner({
     const mouseX = snapToGrid(interaction.mouseWorldPos.x);
     const mouseY = snapToGrid(interaction.mouseWorldPos.y);
 
-    // Annotation ghost — render as a text ghost
+    // Annotation ghost — render shapes with correct offsets
     if (cb.annotations && cb.annotations.length > 0 && cb.devices.length === 0) {
-      return cb.annotations.map(ann => ({
-        category: '_annotation_',
-        x: mouseX,
-        y: mouseY,
-        tag: ann.content,
-      }));
+      const ref = cb.annotations[0];
+      const offsetX = mouseX - ref.position.x;
+      const offsetY = mouseY - ref.position.y;
+      return cb.annotations.map(ann => {
+        const s = ann.style || {};
+        // For line/arrow, offset endX/endY too
+        const offsetStyle = (ann.annotationType === 'line' || ann.annotationType === 'arrow')
+          ? { ...s, endX: (s.endX ?? ann.position.x + 10) + offsetX, endY: (s.endY ?? ann.position.y) + offsetY }
+          : s;
+        return {
+          category: '_annotation_shape_',
+          x: ann.position.x + offsetX,
+          y: ann.position.y + offsetY,
+          tag: ann.content || ann.annotationType,
+          annotationType: ann.annotationType,
+          style: offsetStyle,
+        };
+      });
     }
 
     // Device ghost
