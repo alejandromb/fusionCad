@@ -678,7 +678,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         // Check resize handles on selected shape annotation first
         if (selectedAnnotationIds.length === 1) {
           const selAnn = (circuit.annotations || []).find(a => a.id === selectedAnnotationIds[0]);
-          if (selAnn && ['rectangle', 'circle', 'line', 'arrow'].includes(selAnn.annotationType)) {
+          if (selAnn && ['rectangle', 'circle', 'line', 'arrow'].includes(selAnn.annotationType) && !selAnn.style?.locked) {
             const handles = getShapeHandles(selAnn);
             const hitRadius = 3; // mm
             for (const h of handles) {

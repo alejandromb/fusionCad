@@ -1403,12 +1403,22 @@ export function renderCircuit(
         ctx.strokeRect(bx - 0.75, by - 0.75, bw + 1.5, bh + 1.5);
         ctx.setLineDash([]);
 
-        // Draw resize handles
+        // Draw resize handles (skip if locked)
+        if (s.locked) {
+          // Show lock icon (small padlock at top-right of bounding box)
+          ctx.fillStyle = t.annotationSelectionColor;
+          ctx.font = '2.5px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText('\u{1F512}', bx + bw + 1, by - 1);
+        }
         const handleSize = 1.5; // mm
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = t.annotationSelectionColor;
         ctx.lineWidth = 0.3;
-        if (annotation.annotationType === 'rectangle') {
+        if (s.locked) {
+          // No handles when locked
+        } else if (annotation.annotationType === 'rectangle') {
           const rx = annotation.position.x, ry = annotation.position.y;
           const rw = s.width || 10, rh = s.height || 10;
           for (const [hx, hy] of [[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh]]) {

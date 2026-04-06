@@ -454,6 +454,18 @@ export function RightPanel({
                 )}
               </>
             )}
+            {['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) && (
+              <div className="property-row">
+                <span className="property-label">Lock Size</span>
+                <input
+                  type="checkbox"
+                  checked={!!selectedAnnotation.style?.locked}
+                  onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                    style: { ...selectedAnnotation.style, locked: e.target.checked || undefined },
+                  })}
+                />
+              </div>
+            )}
             <div className="property-row">
               <span className="property-label">Position</span>
               <span className="property-value">

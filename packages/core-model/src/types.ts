@@ -365,6 +365,8 @@ export interface Annotation extends Entity {
     fillColor?: string;
     /** Dashed stroke */
     dashed?: boolean;
+    /** Lock size — prevents resizing via handles */
+    locked?: boolean;
   };
   /** Group ID — annotations with same groupId select/move together */
   groupId?: string;
