@@ -76,8 +76,8 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 35 (2026-04-04) — DXF import fix, shape annotations, symbol protection, layout symbols
-**Tests:** 128 E2E + 85 unit, 86 symbols + 10 PLC generators
+**Last session:** 35 (2026-04-04/05) — DXF fix, shape annotations, multi-select/grouping, layout symbols, symbol protection
+**Tests:** 135 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
 ### P0 — MVP Features
@@ -98,7 +98,7 @@ Before doing ANYTHING else:
 14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
 15. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing (screws, terminal blocks), line weights need improvement. Research proper DXF text rendering + HATCH/SOLID fill support.
 16. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
-17. ~~**Shape annotations**~~ ✅ Done (Session 35) — Rectangle, circle, line, arrow. S key to draw (cycles tools), click-drag, select/delete, right panel properties (stroke, color, dashed, fill). 7 E2E tests.
+17. ~~**Shape annotations**~~ ✅ Done (Session 35) — Rectangle, circle, line, arrow. S key (cycles tools), click-drag, resize handles, multi-select (Shift+click, marquee), grouping (Cmd+G/Cmd+Shift+G), lock size, copy/paste with ghost preview. Right panel: stroke, color, dashed, fill. 7 E2E tests.
 18. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library. Separate layout symbol category from schematic symbols.
 
 ### P1 — Core Product Quality
@@ -155,10 +155,10 @@ Before doing ANYTHING else:
 - Auth: Cognito + Amplify, Google/GitHub OAuth
 - Cloud deployment ready: Dockerfile, migrations, Railway config, CORS, /health
 - ERC: hot-to-neutral short circuit detection (device classifier + BFS)
-- Shape annotations: rectangle, circle, line, arrow on canvas (S key, drag-to-draw)
+- Shape annotations: rectangle, circle, line, arrow on canvas (S key, drag-to-draw, resize handles, multi-select, grouping, lock size, copy/paste with ghost)
 - Symbol protection: generated PLC symbols auto-seed on startup, import warns before overwrite
-- Layout symbols: 9 panel footprints (DXF imports + rectangular fallbacks) for Rockwell, Eaton parts
-- 161 E2E tests + 60 unit tests
+- Layout symbols: 11 panel footprints (DXF imports + rectangular fallbacks) for Rockwell, Eaton, Phoenix Contact parts
+- 135 E2E tests + 85 unit tests
 
 **Architecture decisions:**
 - **Storage:** Cloud Postgres for everyone. Free tier: 3 projects, full editor, no AI. Paid: unlimited + AI.

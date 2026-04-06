@@ -1766,3 +1766,38 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Multi-symbol parts use existing deviceGroupId infrastructure
 
 **Tests**: 121 E2E + 85 unit, 86 symbols + 10 PLC generators
+
+## Session 35 — 2026-04-04/05: Shape Annotations, DXF Fix, Symbol Protection
+
+**Duration**: ~6 hours
+**Focus**: Shape drawing tools, DXF import bugfix, symbol safety, layout symbols
+
+### Completed
+- **DXF import fix**: Diagonal lines caused by shared polyline endpoint references double-transformed during Y-flip. Fixed with `{ ...points[0] }` clone.
+- **Shape annotations**: Rectangle, circle, line, arrow on main canvas. S key to enter/cycle tools, click-drag to draw, Escape to cancel.
+- **Shape editing**: Resize handles (corners for rect, cardinal for circle, endpoints for line/arrow). Right panel: stroke width, color, dashed, fill, lock size.
+- **Multi-select**: Shift+click and marquee selection for annotations. All selected shapes move together.
+- **Grouping**: Cmd+G groups selected annotations (shared groupId). Click any member selects all. Cmd+Shift+G ungroups.
+- **Copy/paste**: Multi-annotation copy/paste with ghost preview. GroupIds remapped on paste.
+- **Symbol protection**: Import dialog defaults to Layout. Warns before overwriting built-in/generated symbols. PLC DI/DO auto-seed on API startup.
+- **PLC2 restoration**: Restored deleted PLC2 device + 17 connections from April 2 backup.
+- **Layout symbols**: 4 DXF imports (1606-XLS240-UPS, 1606-XLS240E, 700-HK36, 700-HN121) + 6 rectangular footprints (700-HA32Z24, 700-HN100, QCR1015, SDU1024, UTTB 2.5, UT 2.5).
+- **7 new E2E tests** for shape annotations (draw, position, select, delete, tool cycling).
+
+### Key Decisions
+- Shape annotations stored as extended Annotation type (annotationType: rectangle|circle|line|arrow) — reuses existing annotation CRUD pipeline.
+- Used refs for shape drawing state to avoid stale closures in useEffect event handlers.
+- Annotations render at paper coordinates (undo panelScale transform) so click position matches render position on layout sheets.
+- selectedAnnotationId refactored to selectedAnnotationIds (string[]) for multi-select support.
+- groupId field on Annotation for persistent grouping.
+
+### Key Bugs Found & Fixed
+- DXF polyline endpoints shared JS object references → double-transform during Y-flip/normalize → diagonal lines
+- Shape drawing start was in mouseUp click handler instead of mouseDown → two-click instead of drag
+- mouseWorldPos not tracked in shape mode → no live preview
+- shapeToolType cycling used stale closure → S key cycling broken
+- Annotation hit-test was after device hit-test → couldn't select shapes overlapping devices
+- Annotation drag had no live feedback (only jumped on mouseUp)
+- Ghost paste only handled first annotation, not multiple
+
+**Tests**: 135 E2E + 85 unit, 86 symbols + 10 PLC generators
