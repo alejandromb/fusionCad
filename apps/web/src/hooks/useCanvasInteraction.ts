@@ -1292,14 +1292,53 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           }
         }
 
+        // Also check annotations in marquee
+        const annHits: string[] = [];
+        const sheetAnnotations = (circuit.annotations || []).filter(a =>
+          !activeSheetId || a.sheetId === activeSheetId
+        );
+        for (const ann of sheetAnnotations) {
+          const s = ann.style || {};
+          let aMinX = ann.position.x, aMinY = ann.position.y, aMaxX = aMinX, aMaxY = aMinY;
+          if (ann.annotationType === 'rectangle') {
+            aMaxX = aMinX + (s.width || 10); aMaxY = aMinY + (s.height || 10);
+          } else if (ann.annotationType === 'circle') {
+            const r = s.radius || 5; aMinX -= r; aMinY -= r; aMaxX += r; aMaxY += r;
+          } else if (ann.annotationType === 'line' || ann.annotationType === 'arrow') {
+            const ex = s.endX ?? aMinX, ey = s.endY ?? aMinY;
+            aMinX = Math.min(aMinX, ex); aMinY = Math.min(aMinY, ey);
+            aMaxX = Math.max(ann.position.x, ex); aMaxY = Math.max(ann.position.y, ey);
+          } else if (ann.annotationType === 'text') {
+            const fontSize = s.fontSize || 3;
+            const lines = ann.content.split('\n');
+            aMaxX = aMinX + Math.max(...lines.map(l => l.length)) * fontSize * 0.6;
+            aMaxY = aMinY + lines.length * fontSize * 1.4;
+          } else continue;
+
+          const inside = marquee.mode === 'window'
+            ? aMinX >= minX && aMaxX <= maxX && aMinY >= minY && aMaxY <= maxY
+            : aMaxX >= minX && aMinX <= maxX && aMaxY >= minY && aMinY <= maxY;
+          if (inside) annHits.push(ann.id);
+        }
+
         if (hits.length > 0) {
           if (e.shiftKey) {
             setSelectedDevices(prev => [...new Set([...prev, ...hits])]);
           } else {
             setSelectedDevices(hits);
           }
+          // Also select annotations if any
+          if (annHits.length > 0) {
+            for (const id of annHits) selectAnnotation(id, true);
+          }
+        } else if (annHits.length > 0) {
+          // Only annotations hit
+          if (!e.shiftKey) setSelectedDevices([]);
+          selectAnnotation(null);
+          for (const id of annHits) selectAnnotation(id, true);
         } else if (!e.shiftKey) {
           setSelectedDevices([]);
+          selectAnnotation(null);
         }
 
         setMarquee(null);
