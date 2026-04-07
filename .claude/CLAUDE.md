@@ -76,7 +76,7 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 35 (2026-04-04/05) — DXF fix, shape annotations, multi-select/grouping, layout symbols, symbol protection
+**Last session:** 36 (2026-04-06/07) — AI-assisted symbol import, ANSI e-stop NC symbol, compressor sequencer review
 **Tests:** 135 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
@@ -105,17 +105,17 @@ Before doing ANYTHING else:
 
 13. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking (warn if DO missing), AI always places full set, BOM groups as one item.
 14. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries).
-15. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics.
+15. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics. Includes PLC pin/rung alignment: COM pins need double-spacing, output pins should land exactly on rung lines. Options: symbol-aware rung placement (generate pin spacing from rung gap), auto-layout stretch, or per-pin Y-offset in symbol format.
 16. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
 17. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
-18. **AI-assisted symbol creation** — Load symbol-creation-rules.md into AI chat, add `create_custom_symbol` MCP tool. User describes a part → AI generates the symbol.
+18. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36): POST `/api/symbols/ai-import-assist` takes raw SVG/DXF primitives + filename, Claude identifies the symbol and returns clean geometry with proper pins. Works for schematic and layout. Frontend wired in SymbolImportDialog (purple "AI Assist" button). **TODO:** Tune layout prompt (currently over-simplifies DXF geometry), add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
 19. **Error monitoring** — Sentry or similar for production error tracking.
 
 ### P2 — Infrastructure & Security
 
 19. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
 20. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
-21. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions.
+21. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions. **Rollback feature**: auto-rollback if E2E tests fail post-deploy.
 22. **CORS locked down** — Currently allows all origins in dev.
 23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
 24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.

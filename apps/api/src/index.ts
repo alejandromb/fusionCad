@@ -8,7 +8,7 @@ import { User } from './entities/User.js';
 import { Symbol } from './entities/Symbol.js';
 import { builtinSymbolsJson, convertSymbol, generateLC50_24_Input, generateLC50_24_Output } from '@fusion-cad/core-model';
 import { aiGenerate } from './ai-generate.js';
-import { aiSymbolGenerate } from './ai-symbol-generate.js';
+import { aiSymbolGenerate, aiSymbolImportAssist } from './ai-symbol-generate.js';
 import { aiChat } from './ai-chat.js';
 import { requireAuth, optionalAuth } from './middleware/auth.js';
 import { checkAiRateLimit } from './middleware/ai-rate-limit.js';
@@ -567,6 +567,30 @@ app.post('/api/symbols/ai-generate', optionalAuth, async (req, res) => {
   } catch (error: any) {
     console.error('Error in AI symbol generation:', error);
     res.status(500).json({ error: `AI symbol generation failed: ${error.message}` });
+  }
+});
+
+// AI-assisted symbol import — clean up raw SVG/DXF geometry with AI
+app.post('/api/symbols/ai-import-assist', optionalAuth, async (req, res) => {
+  try {
+    const { primitives, fileName, svgSource, usage } = req.body;
+    if (!primitives || !Array.isArray(primitives)) {
+      return res.status(400).json({ error: 'primitives array is required' });
+    }
+    if (!fileName || typeof fileName !== 'string') {
+      return res.status(400).json({ error: 'fileName string is required' });
+    }
+
+    const result = await aiSymbolImportAssist(primitives, fileName, svgSource, usage);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error in AI import assist:', error);
+    res.status(500).json({ error: `AI import assist failed: ${error.message}` });
   }
 });
 

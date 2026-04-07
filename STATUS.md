@@ -1801,3 +1801,30 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Ghost paste only handled first annotation, not multiple
 
 **Tests**: 135 E2E + 85 unit, 86 symbols + 10 PLC generators
+
+## Session 36 — 2026-04-06/07: AI-Assisted Symbol Import
+
+**Duration**: ~3 hours
+**Focus**: AI-assisted symbol import pipeline, manual symbol creation, compressor project review
+
+### Completed
+- **ANSI Emergency Stop NC symbol** — Manually created `ansi-emergency-stop-nc` from manufacturer SVG. Used SVG as geometry blueprint + ANSI contact dimensions (25mm wide, pins at y=10). IEC pin numbering (11/12), mushroom dome arc, NC bar, contact circles.
+- **AI-assisted symbol import** — New `POST /api/symbols/ai-import-assist` endpoint. Takes raw SVG/DXF primitives + filename, Claude identifies the symbol type and returns clean geometry with proper pins, dimensions (5mm grid), category, and tag prefix. Frontend wired in SymbolImportDialog with purple "AI Assist" button.
+  - Schematic mode: tested with e-stop SVG → correctly identified as Emergency Stop NC, set tag S, IEC pins 11/12
+  - Layout mode: tested with Phoenix Contact UTTB 2.5 DXF (449 primitives → 10 clean layout primitives)
+  - Fixed API_BASE bug: SymbolImportDialog was using bare `/api/` URLs hitting Vite instead of API on port 3001
+  - Fixed pin validation: layout symbols with 0 pins were rejected by existing validation
+- **Compressor sequencer project review** — Analyzed 221-device, 3-sheet design. Power chain (CB→PSU→UPS→PLC) is solid. Identified gaps: missing descriptions, no E-stop circuit, field-side protection references.
+- **PLC pin/rung alignment** — Added details to P1 #15: COM pins need double spacing, three approaches documented (symbol-aware rung placement, auto-layout stretch, per-pin Y-offset)
+
+### Key Decisions
+- AI-assisted import is more valuable than AI symbol generation from scratch — the importer already has the geometry, AI adds understanding
+- Layout mode AI needs prompt tuning — currently over-simplifies manufacturer DXFs (strips too much detail)
+- AI Assist button enabled for both schematic and layout modes
+
+### Key Files Changed
+- `apps/api/src/ai-symbol-generate.ts` — Added `IMPORT_ASSIST_PROMPT` and `aiSymbolImportAssist()` function
+- `apps/api/src/index.ts` — Added `POST /api/symbols/ai-import-assist` endpoint
+- `apps/web/src/components/SymbolImportDialog.tsx` — AI Assist button, `API_BASE` fix, SVG source capture
+
+**Tests**: 135 E2E + 85 unit, 86 symbols + 10 PLC generators

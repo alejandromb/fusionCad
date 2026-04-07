@@ -7,6 +7,8 @@ import { importSvg, importDxf, finalizeImportedSymbol, type ImportedSymbol, type
 import type { SymbolPrimitive } from '@fusion-cad/core-model';
 import { registerSymbol } from '@fusion-cad/core-model';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const SYMBOL_CATEGORIES = [
   { value: 'PLC', label: 'PLC' },
   { value: 'Control', label: 'Control' },
@@ -92,6 +94,9 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
   const [simplifyLayout, setSimplifyLayout] = useState(true);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<false | 'library' | 'project'>(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiApplied, setAiApplied] = useState(false);
+  const [svgSource, setSvgSource] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Compute display version: apply optimization dynamically based on current settings
@@ -121,16 +126,19 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
 
     try {
       let result: ImportedSymbol;
+      const fileText = await file.text();
       if (file.name.toLowerCase().endsWith('.dxf')) {
-        result = importDxf(file.text ? await file.text() : '');
+        result = importDxf(fileText);
       } else if (file.name.toLowerCase().endsWith('.svg')) {
-        result = importSvg(await file.text(), targetWidth);
+        result = importSvg(fileText, targetWidth);
+        setSvgSource(fileText);
       } else {
         setError('Unsupported format. Use SVG or DXF. For DWG, convert to DXF first.');
         return;
       }
       result.sourceName = file.name;
       setRawImported(result);
+      setAiApplied(false);
     } catch (err: any) {
       setError(`Parse error: ${err.message}`);
     }
@@ -167,7 +175,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
 
     // Check for existing symbol with same ID to prevent accidental overwrite
     try {
-      const checkRes = await fetch(`/api/symbols/${symbolDef.id}`);
+      const checkRes = await fetch(`${API_BASE}/api/symbols/${symbolDef.id}`);
       if (checkRes.ok) {
         const existing = await checkRes.json();
         if (existing.source !== 'imported') {
@@ -182,7 +190,7 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
 
     // Persist: try API first (database), fall back to localStorage
     try {
-      const res = await fetch(`/api/symbols/${symbolDef.id}`, {
+      const res = await fetch(`${API_BASE}/api/symbols/${symbolDef.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(symbolDef),
@@ -202,6 +210,52 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
     setSaved('library');
     onSymbolRegistered?.();
   }, [imported, pins, symbolId, symbolName, category, tagPrefix]);
+
+  const handleAiAssist = useCallback(async () => {
+    if (!rawImported) return;
+    setAiLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/symbols/ai-import-assist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          primitives: rawImported.primitives,
+          fileName,
+          svgSource: svgSource || undefined,
+          usage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || 'AI assist failed');
+        return;
+      }
+      const sym = data.symbol;
+      // Replace raw import with AI-cleaned version
+      setRawImported({
+        primitives: sym.primitives,
+        pinCandidates: sym.pins.map((p: any, i: number) => ({
+          x: p.position?.x ?? p.x ?? 0,
+          y: p.position?.y ?? p.y ?? 0,
+          suggestedDirection: p.direction || 'left',
+          source: 'manual' as const,
+          name: p.name || p.id || `${i + 1}`,
+        })),
+        bounds: { width: sym.width, height: sym.height },
+        sourceName: fileName,
+      });
+      setSymbolName(sym.name);
+      setSymbolId(`imported-${sym.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
+      setCategory(sym.category);
+      setTagPrefix(sym.tagPrefix || 'X');
+      setAiApplied(true);
+    } catch (err: any) {
+      setError(`AI assist error: ${err.message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [rawImported, fileName, svgSource, usage]);
 
   const removePin = (idx: number) => {
     if (!rawImported) return;
@@ -331,6 +385,25 @@ export function SymbolImportDialog({ onClose, onSymbolRegistered, onAddToProject
                   Layout Footprint
                 </button>
               </div>
+
+              {/* AI Assist button */}
+              <button
+                className="assign-part-btn"
+                style={{
+                  padding: '0.5rem',
+                  background: aiApplied ? 'rgba(0,200,80,0.2)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: aiLoading ? 'wait' : 'pointer',
+                  opacity: aiLoading ? 0.6 : 1,
+                }}
+                onClick={handleAiAssist}
+                disabled={aiLoading}
+              >
+                {aiLoading ? 'AI analyzing...' : aiApplied ? 'AI Applied — Re-run?' : 'AI Assist — Clean & Identify'}
+              </button>
 
               {usage === 'layout' && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
