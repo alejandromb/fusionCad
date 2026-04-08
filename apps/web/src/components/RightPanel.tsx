@@ -66,8 +66,9 @@ interface RightPanelProps {
   deleteDevices: (deviceIds: string[]) => void;
   onSelectDevices: (deviceIds: string[]) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
+  updateWireField: (connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => void;
   onAssignPart: (deviceId: string, part: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
-  onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location'>>) => void;
+  onUpdateDevice: (deviceId: string, updates: Partial<Pick<import('@fusion-cad/core-model').Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => void;
   onToggleDashed?: (deviceId: string) => void;
   selectedAnnotationIds: string[];
   onUpdateAnnotation: (id: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style'>>) => void;
@@ -92,6 +93,7 @@ export function RightPanel({
   deleteDevices,
   onSelectDevices,
   updateWireNumber,
+  updateWireField,
   onAssignPart,
   onUpdateDevice,
   onToggleDashed,
@@ -454,7 +456,26 @@ export function RightPanel({
                 )}
               </>
             )}
-            {['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) && (
+            {selectedAnnotation.annotationType === 'image' && (
+              <div className="property-row">
+                <span className="property-label">Opacity</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.1"
+                  value={selectedAnnotation.style?.imageOpacity ?? 1}
+                  onChange={e => onUpdateAnnotation(selectedAnnotation.id, {
+                    style: { ...selectedAnnotation.style, imageOpacity: parseFloat(e.target.value) },
+                  })}
+                  style={{ width: '80px' }}
+                />
+                <span className="property-value" style={{ marginLeft: 4 }}>
+                  {Math.round((selectedAnnotation.style?.imageOpacity ?? 1) * 100)}%
+                </span>
+              </div>
+            )}
+            {['rectangle','circle','line','arrow','image'].includes(selectedAnnotation.annotationType) && (
               <div className="property-row">
                 <span className="property-label">Lock Size</span>
                 <input
@@ -479,7 +500,7 @@ export function RightPanel({
                 onSelectAnnotation(null);
               }}
             >
-              Delete {['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) ? 'Shape' : 'Annotation'}
+              Delete {selectedAnnotation.annotationType === 'image' ? 'Image' : ['rectangle','circle','line','arrow'].includes(selectedAnnotation.annotationType) ? 'Shape' : 'Annotation'}
             </button>
           </div>
         </div>
@@ -510,6 +531,36 @@ export function RightPanel({
             <div className="property-row">
               <span className="property-label">To</span>
               <span className="property-value">{selectedWire.toDevice}:{selectedWire.toPin}</span>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Gauge</span>
+              <input
+                className="property-input"
+                type="text"
+                placeholder="#16"
+                value={selectedWire.wireGauge || ''}
+                onChange={(e) => updateWireField(selectedSheetConn?._globalIndex ?? selectedWireIndex, 'wireGauge', e.target.value)}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Type</span>
+              <input
+                className="property-input"
+                type="text"
+                placeholder="TFFN"
+                value={selectedWire.wireType || ''}
+                onChange={(e) => updateWireField(selectedSheetConn?._globalIndex ?? selectedWireIndex, 'wireType', e.target.value)}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Color</span>
+              <input
+                className="property-input"
+                type="text"
+                placeholder="WHITE"
+                value={selectedWire.wireColor || ''}
+                onChange={(e) => updateWireField(selectedSheetConn?._globalIndex ?? selectedWireIndex, 'wireColor', e.target.value)}
+              />
             </div>
           </div>
         </div>

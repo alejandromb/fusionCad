@@ -19,6 +19,10 @@ export interface Connection {
   netId: string;
   sheetId?: string;
   wireNumber?: string;
+  wireGauge?: string;
+  wireType?: string;
+  wireColor?: string;
+  wireSpecPosition?: { x: number; y: number };
   waypoints?: Array<{ x: number; y: number }>;
 }
 

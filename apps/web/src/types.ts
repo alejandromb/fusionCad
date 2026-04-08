@@ -144,12 +144,14 @@ export function getSymbolAtPoint(
 
     const part = device.partId ? partMap.get(device.partId) : null;
     const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
+    const geoW = device.sizeOverride?.width ?? geometry.width;
+    const geoH = device.sizeOverride?.height ?? geometry.height;
     const transform = transforms?.[device.id];
     const rotation = transform?.rotation || 0;
 
     // For rotated devices, swap width/height for bounding box check
-    const effectiveWidth = ((rotation % 180 !== 0) ? geometry.height : geometry.width) / ps;
-    const effectiveHeight = ((rotation % 180 !== 0) ? geometry.width : geometry.height) / ps;
+    const effectiveWidth = ((rotation % 180 !== 0) ? geoH : geoW) / ps;
+    const effectiveHeight = ((rotation % 180 !== 0) ? geoW : geoH) / ps;
 
     // Shrink hit box by an inset to exclude pin stub areas at symbol edges.
     const rawInset = 10 / (viewportScale * MM_TO_PX);
@@ -159,8 +161,8 @@ export function getSymbolAtPoint(
     const insetH = effectiveHeight - insetY * 2;
 
     // Center stays the same, but bounds shift with swapped dimensions
-    const cx = pos.x + (geometry.width / ps) / 2;
-    const cy = pos.y + (geometry.height / ps) / 2;
+    const cx = pos.x + (geoW / ps) / 2;
+    const cy = pos.y + (geoH / ps) / 2;
     const minX = cx - insetW / 2;
     const minY = cy - insetH / 2;
 

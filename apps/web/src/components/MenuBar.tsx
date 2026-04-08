@@ -67,6 +67,7 @@ interface MenuBarProps {
   // Insert
   onOpenSymbolPalette: () => void;
   onAddSheet: () => void;
+  onImportImage: () => void;
 
   // Tools
   onOpenAIGenerate: () => void;
@@ -127,6 +128,7 @@ const icons = {
   alignCenterY: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 12h18M7 6v12h4V6zM15 8v8h4V8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
   alignBottom: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 20h18M7 4v12h4V4zM15 8v8h4V8z" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>,
   info: <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/></svg>,
+  image: <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
 };
 
 function ToolBtn({ icon, label, onClick, disabled, active, danger }: {
@@ -370,6 +372,7 @@ export function MenuBar(props: MenuBarProps) {
             <div className="toolbar-group">
               <ToolBtn icon={icons.symbol} label="Insert Symbol" onClick={props.onOpenSymbolPalette} />
               <ToolBtn icon={icons.text} label="Place Text (T)" onClick={() => { props.setInteractionMode('text'); props.setActiveTab('draw'); }} />
+              <ToolBtn icon={icons.image} label="Insert Image" onClick={props.onImportImage} />
               <ToolBtn icon={icons.addSheet} label="Add Sheet" onClick={props.onAddSheet} />
             </div>
           </>

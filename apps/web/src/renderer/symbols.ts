@@ -646,11 +646,14 @@ function drawTag(
   def: SymbolDefinition,
   tag: string,
   category: string,
-  partLabel?: string
+  partLabel?: string,
+  sizeOverride?: { width?: number; height?: number }
 ): void {
   const t = getTheme();
-  const { width, height } = def.geometry;
+  const width = sizeOverride?.width ?? def.geometry.width;
+  const height = sizeOverride?.height ?? def.geometry.height;
 
+  const catLower = def.category?.toLowerCase() || category.toLowerCase();
   if (category === 'motor') {
     // Motor shows tag below the symbol
     ctx.fillStyle = t.tagColor;
@@ -663,8 +666,29 @@ function drawTag(
       ctx.font = t.partLabelFont;
       ctx.fillText(partLabel, x + width / 2, y + height + 6.75);
     }
+  } else if (catLower === 'terminal') {
+    // Terminal: tag centered inside the hexagon symbol
+    ctx.fillStyle = t.tagColor;
+    ctx.font = t.tagFont;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tag, x + width / 2, y + height / 2);
+    if (partLabel) {
+      ctx.fillStyle = t.partLabelColor;
+      ctx.font = t.partLabelFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
+    }
+  } else if (catLower === 'plc-module' || catLower === 'plc' || category.startsWith('plc-')) {
+    // PLC symbols: tag above symbol, skip part label (model is rendered internally)
+    ctx.fillStyle = t.tagColor;
+    ctx.font = t.tagFont;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(tag, x + width / 2, y - 2);
   } else {
-    // Tag above the symbol
+    // Tag above the symbol (default position)
     ctx.fillStyle = t.tagColor;
     ctx.font = t.tagFont;
     ctx.textAlign = 'center';
@@ -699,7 +723,8 @@ export function drawSymbol(
   transform?: DeviceTransform,
   partLabel?: string,
   pinAliases?: Record<string, string>,
-  showPinLabels?: boolean
+  showPinLabels?: boolean,
+  sizeOverride?: { width?: number; height?: number }
 ): void {
   const def = lookupSymbol(idOrCategory);
   if (!def.geometry) {
@@ -714,7 +739,10 @@ export function drawSymbol(
 
   ctx.save();
 
-  const { width, height } = def.geometry;
+  const origWidth = def.geometry.width;
+  const origHeight = def.geometry.height;
+  const width = sizeOverride?.width ?? origWidth;
+  const height = sizeOverride?.height ?? origHeight;
   const rotation = transform?.rotation || 0;
   const mirrorH = transform?.mirrorH || false;
 
@@ -735,8 +763,27 @@ export function drawSymbol(
   // Priority: 1. primitives, 2. paths array, 3. custom draw function, 4. generic fallback
   const deviceDashed = transform?.dashed || false;
   if (def.primitives && def.primitives.length > 0) {
-    // Use typed primitive rendering (preferred)
-    renderPrimitives(ctx, def.primitives, x, y, deviceDashed);
+    // DIN rail with size override: draw directly at correct width
+    // (generic primitive scaling is unreliable across format conversions)
+    if (sizeOverride?.width && (def.category === 'Panel' || def.id === 'panel-din-rail')) {
+      const w = width;
+      const h = origHeight; // height stays fixed
+      const t = getTheme();
+      ctx.strokeStyle = t.symbolStroke;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w, h);
+      // Inner rail lines (DIN rail profile: flanges at ~24% and ~81% of height)
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h * 0.238);       // 5/21 ≈ 0.238
+      ctx.lineTo(x + w, y + h * 0.238);
+      ctx.moveTo(x, y + h * 0.81);        // 17/21 ≈ 0.81
+      ctx.lineTo(x + w, y + h * 0.81);
+      ctx.stroke();
+    } else {
+      // Use typed primitive rendering (preferred)
+      renderPrimitives(ctx, def.primitives, x, y, deviceDashed);
+    }
   } else if (def.paths && def.paths.length > 0) {
     // Use SVG path-based rendering (legacy)
     renderPaths(ctx, def.paths, x, y);
@@ -764,7 +811,7 @@ export function drawSymbol(
   }
 
   // Draw tag label and part number (outside rotation transform so text stays readable)
-  drawTag(ctx, x, y, def, tag, idOrCategory, partLabel);
+  drawTag(ctx, x, y, def, tag, idOrCategory, partLabel, sizeOverride);
 
   // Draw pins at their transformed positions
   const hidePinLabels = showPinLabels === false;

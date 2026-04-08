@@ -19,7 +19,7 @@ interface PropertiesPanelProps {
   onDeleteDevices: (deviceIds: string[]) => void;
   selectedDevices: string[];  // device IDs
   onAssignPart: (deviceId: string, part: ManufacturerPart) => void;
-  onUpdateDevice?: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+  onUpdateDevice?: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => void;
   onToggleDashed?: (deviceId: string) => void;
   isDashed?: boolean;
 }
@@ -247,6 +247,27 @@ export function PropertiesPanel({
             <span className="property-value">{device.location || '—'}</span>
           )}
         </div>
+
+        {/* DIN Rail length override */}
+        {isSingleSelect && onUpdateDevice && (part?.symbolCategory === 'panel-din-rail' || part?.category === 'panel-din-rail') && (
+          <div className="property-row">
+            <span className="property-label">Length (mm)</span>
+            <input
+              className="property-input"
+              type="number"
+              min={50}
+              max={2000}
+              step={10}
+              value={device.sizeOverride?.width ?? 450}
+              onChange={e => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 50) {
+                  onUpdateDevice(device.id, { sizeOverride: { width: val } });
+                }
+              }}
+            />
+          </div>
+        )}
 
         {/* Dashed toggle */}
         {isSingleSelect && onToggleDashed && (

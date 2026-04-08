@@ -69,6 +69,7 @@ export interface UseCircuitStateReturn {
   replaceWaypoints: (connectionIndex: number, waypoints: Point[] | undefined) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   updateWireNumber: (connectionIndex: number, wireNumber: string) => void;
+  updateWireField: (connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => void;
 
   // T-Junction
   connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin?: PinHit | null) => string | null;
@@ -87,12 +88,13 @@ export interface UseCircuitStateReturn {
   // Annotations
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: Annotation['style']) => void;
+  addImageAnnotation: (worldX: number, worldY: number, imageData: string, widthMm: number, heightMm: number) => void;
   updateAnnotation: (annotationId: string, updates: Partial<Pick<Annotation, 'content' | 'position' | 'style' | 'groupId'>>) => void;
   moveAnnotations: (ids: string[], dx: number, dy: number) => void;
   deleteAnnotation: (annotationId: string) => void;
 
   // Device update (by device ID)
-  updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => void;
+  updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => void;
 
   // Part assignment (by device ID)
   assignPart: (deviceId: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
@@ -103,6 +105,7 @@ export interface UseCircuitStateReturn {
   selectedWireIndex: number | null;
   setSelectedWireIndex: React.Dispatch<React.SetStateAction<number | null>>;
   selectedAnnotationIds: string[];
+  setSelectedAnnotationIds: (ids: string[]) => void;
   selectAnnotation: (id: string | null, addToSelection?: boolean) => void;
 }
 
@@ -323,24 +326,50 @@ export function useCircuitState(
     });
   }, [setCircuit]);
 
+  // Fields that should be shared across all sheets (not per-sheet)
+  const SHARED_TB_FIELDS = ['drawnBy', 'company', 'addressLine1', 'addressLine2', 'phone', 'logoData', 'date', 'revision', 'projectNumber'] as const;
+
   const updateSheet = useCallback((sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => {
     setCircuit(prev => {
       if (!prev) return prev;
       const currentSheets = getOrCreateSheets(prev);
+
+      // Extract shared fields from the title block update
+      const tbUpdate = updates.titleBlock;
+      const sharedUpdates: Record<string, unknown> = {};
+      if (tbUpdate) {
+        for (const key of SHARED_TB_FIELDS) {
+          if (key in tbUpdate) {
+            sharedUpdates[key] = (tbUpdate as Record<string, unknown>)[key];
+          }
+        }
+      }
+      const hasSharedUpdates = Object.keys(sharedUpdates).length > 0;
+
       return {
         ...prev,
-        sheets: currentSheets.map(s =>
-          s.id === sheetId
-            ? {
-                ...s,
-                ...(updates.size !== undefined ? { size: updates.size } : {}),
-                ...(updates.titleBlock !== undefined
-                  ? { titleBlock: { ...s.titleBlock, ...updates.titleBlock } }
-                  : {}),
-                modifiedAt: Date.now(),
-              }
-            : s
-        ),
+        sheets: currentSheets.map(s => {
+          const isTarget = s.id === sheetId;
+          // Apply shared title block fields to ALL sheets
+          const sharedTbMerge = hasSharedUpdates
+            ? { titleBlock: { ...s.titleBlock, ...sharedUpdates } }
+            : {};
+          if (isTarget) {
+            return {
+              ...s,
+              ...(updates.size !== undefined ? { size: updates.size } : {}),
+              ...(tbUpdate !== undefined
+                ? { titleBlock: { ...s.titleBlock, ...tbUpdate } }
+                : {}),
+              modifiedAt: Date.now(),
+            };
+          }
+          // Non-target sheets: only apply shared fields
+          if (hasSharedUpdates) {
+            return { ...s, ...sharedTbMerge, modifiedAt: Date.now() };
+          }
+          return s;
+        }),
       };
     });
   }, [setCircuit]);
@@ -856,6 +885,19 @@ export function useCircuitState(
     });
   }, [circuit, setCircuit]);
 
+  const updateWireField = useCallback((connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => {
+    if (!circuit) return;
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const newConnections = [...prev.connections];
+      const conn = { ...newConnections[connectionIndex] };
+      (conn as Record<string, unknown>)[field] = value || undefined;
+      newConnections[connectionIndex] = conn;
+      return { ...prev, connections: newConnections };
+    });
+  }, [circuit, setCircuit]);
+
   const reconnectWire = useCallback((connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => {
     if (!circuit) return;
 
@@ -928,6 +970,34 @@ export function useCircuitState(
       position: { x: snapToGrid(position.x), y: snapToGrid(position.y) },
       content: '',
       style: { strokeWidth: 0.5, ...style },
+      createdAt: now,
+      modifiedAt: now,
+    };
+    setCircuit(prev => {
+      if (!prev) return prev;
+      return { ...prev, annotations: [...(prev.annotations || []), annotation] };
+    });
+  }, [circuit, validActiveSheetId, pushToHistory, setCircuit]);
+
+  const addImageAnnotation = useCallback((worldX: number, worldY: number, imageData: string, widthMm: number, heightMm: number) => {
+    if (!circuit) return;
+    pushToHistory();
+    const now = Date.now();
+    const annotation: Annotation = {
+      id: generateId(),
+      type: 'annotation',
+      sheetId: validActiveSheetId,
+      annotationType: 'image',
+      position: { x: snapToGrid(worldX), y: snapToGrid(worldY) },
+      content: '', // not used for images
+      style: {
+        width: widthMm,
+        height: heightMm,
+        imageData,
+        imageWidth: widthMm,
+        imageHeight: heightMm,
+        imageOpacity: 1,
+      },
       createdAt: now,
       modifiedAt: now,
     };
@@ -1381,7 +1451,7 @@ export function useCircuitState(
   }, [circuit, pushToHistory, setCircuit]);
 
   // Update device properties (tag, function, location) — looked up by device ID
-  const updateDevice = useCallback((deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location'>>) => {
+  const updateDevice = useCallback((deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => {
     if (!circuit) return;
 
     pushToHistory();
@@ -1444,6 +1514,7 @@ export function useCircuitState(
     replaceWaypoints,
     reconnectWire,
     updateWireNumber,
+    updateWireField,
     connectToWire,
     deviceTransforms,
     setDeviceTransforms,
@@ -1454,6 +1525,7 @@ export function useCircuitState(
     alignSelectedDevices,
     addAnnotation,
     addShapeAnnotation,
+    addImageAnnotation,
     updateAnnotation,
     moveAnnotations,
     deleteAnnotation,
@@ -1464,6 +1536,7 @@ export function useCircuitState(
     selectedWireIndex,
     setSelectedWireIndex,
     selectedAnnotationIds,
+    setSelectedAnnotationIds: setSelectedAnnotationIdsRaw,
     selectAnnotation,
   };
 }

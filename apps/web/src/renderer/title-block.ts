@@ -1,28 +1,32 @@
 /**
  * Title block and sheet border renderer
  *
- * Full-width title block at the bottom of the sheet, similar to
- * professional industrial schematics (NFPA 79, IEC 61082).
+ * Professional title block at the bottom of the sheet.
  *
- * Layout (left to right):
- * ┌──────────────┬──────────────────────────────┬──────────────────┐
- * │   Company    │   Title / Drawing Number      │   Rev / Sheet    │
- * │   Drawn By   │   Date                        │                  │
- * └──────────────┴──────────────────────────────┴──────────────────┘
+ * Layout:
+ * ┌──────────┬──────────────────┬──────────┬──────────┬───────────┬──────────────────┐
+ * │          │ DATE             │ DRAWN BY │ REV      │           │                  │
+ * │ PROPRI-  │ 04/07/2026       │ J. Doe   │ A        │           │   Company/Logo   │
+ * │ ETARY    ├──────────────────┼──────────┼──────────┼───────────┤                  │
+ * │ NOTICE   │ TITLE            │PROJECT # │DRAWING # │ SHEET #   │   TEL: xxx       │
+ * │          │ Drawing Name     │ 000000   │ 000000   │ 1         │                  │
+ * └──────────┴──────────────────┴──────────┴──────────┴───────────┴──────────────────┘
  */
 
 import type { Sheet } from '@fusion-cad/core-model';
 import { SHEET_SIZES_MM, LAYOUT_MM } from '@fusion-cad/core-model';
 import { getTheme } from './theme';
 
-// Sheet dimensions in mm (metric coordinates)
 export const SHEET_SIZES: Record<string, { width: number; height: number }> = SHEET_SIZES_MM;
 
 const BORDER_MARGIN = LAYOUT_MM.borderMargin;          // 5mm
 const TITLE_BLOCK_HEIGHT = LAYOUT_MM.titleBlockHeight;  // 20mm
 
+// Cache for decoded logo image
+const logoImageCache = new Map<string, HTMLImageElement>();
+
 /**
- * Render sheet border and full-width title block
+ * Render sheet border and title block
  */
 export function renderTitleBlock(
   ctx: CanvasRenderingContext2D,
@@ -40,98 +44,201 @@ export function renderTitleBlock(
   ctx.lineWidth = 0.25;
   ctx.strokeRect(BORDER_MARGIN, BORDER_MARGIN, size.width - BORDER_MARGIN * 2, size.height - BORDER_MARGIN * 2);
 
-  // Full-width title block at bottom of sheet
+  // Title block dimensions
   const tbX = BORDER_MARGIN;
   const tbWidth = size.width - BORDER_MARGIN * 2;
   const tbY = size.height - BORDER_MARGIN - TITLE_BLOCK_HEIGHT;
+  const tbH = TITLE_BLOCK_HEIGHT;
+  const midY = tbY + tbH * 0.5;
 
-  // Title block outer border
+  const tb = sheet.titleBlock;
+  const companyName = tb?.company || 'FusionLogik';
+
+  // Column layout: Notice (15%) | Info (55%) | Company (30%)
+  const noticeW = tbWidth * 0.15;
+  const companyW = tbWidth * 0.28;
+  const infoW = tbWidth - noticeW - companyW;
+
+  const noticeX = tbX;
+  const infoX = tbX + noticeW;
+  const companyX = tbX + noticeW + infoW;
+
+  // Info sub-columns: Title (~42%), field1 (~18%), field2 (~18%), field3 (~22%)
+  const titleColW = infoW * 0.42;
+  const field1W = infoW * 0.20;
+  const field2W = infoW * 0.20;
+  const field3W = infoW - titleColW - field1W - field2W;
+
+  const titleColX = infoX;
+  const field1X = infoX + titleColW;
+  const field2X = field1X + field1W;
+  const field3X = field2X + field2W;
+
   ctx.strokeStyle = t.titleBlockDivider;
   ctx.lineWidth = 0.25;
-  ctx.strokeRect(tbX, tbY, tbWidth, TITLE_BLOCK_HEIGHT);
 
-  // Column widths: left (company) ~25%, center (title/info) ~50%, right (rev/sheet) ~25%
-  const col1W = tbWidth * 0.22;
-  const col3W = tbWidth * 0.22;
-  const col2W = tbWidth - col1W - col3W;
-  const col1X = tbX;
-  const col2X = tbX + col1W;
-  const col3X = tbX + col1W + col2W;
+  // Outer border
+  ctx.strokeRect(tbX, tbY, tbWidth, tbH);
 
-  // Vertical dividers
+  // Notice column right divider (full height)
   ctx.beginPath();
-  ctx.moveTo(col2X, tbY);
-  ctx.lineTo(col2X, tbY + TITLE_BLOCK_HEIGHT);
-  ctx.moveTo(col3X, tbY);
-  ctx.lineTo(col3X, tbY + TITLE_BLOCK_HEIGHT);
+  ctx.moveTo(infoX, tbY);
+  ctx.lineTo(infoX, tbY + tbH);
   ctx.stroke();
 
-  // Horizontal divider in center column (split into title row + info row)
-  const midY = tbY + TITLE_BLOCK_HEIGHT * 0.5;
+  // Info column vertical dividers
   ctx.beginPath();
-  ctx.moveTo(col2X, midY);
-  ctx.lineTo(col3X, midY);
-  // Also split left and right columns
-  ctx.moveTo(col1X, midY);
-  ctx.lineTo(col2X, midY);
-  ctx.moveTo(col3X, midY);
-  ctx.lineTo(col3X + col3W, midY);
+  ctx.moveTo(field1X, tbY);
+  ctx.lineTo(field1X, tbY + tbH);
+  ctx.moveTo(field2X, tbY);
+  ctx.lineTo(field2X, tbY + tbH);
+  ctx.moveTo(field3X, midY); // sheet # only in bottom row
+  ctx.lineTo(field3X, tbY + tbH);
   ctx.stroke();
 
-  const titleBlock = sheet.titleBlock;
-  ctx.textBaseline = 'middle';
+  // Company block divider (full height, slightly thicker)
+  ctx.lineWidth = 0.4;
+  ctx.beginPath();
+  ctx.moveTo(companyX, tbY);
+  ctx.lineTo(companyX, tbY + tbH);
+  ctx.stroke();
+  ctx.lineWidth = 0.25;
 
-  // ---- LEFT COLUMN: Company + Drawn By ----
-  ctx.fillStyle = t.titleBlockTitleColor;
-  ctx.font = 'bold 3px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    titleBlock?.company || '',
-    col1X + col1W / 2,
-    tbY + TITLE_BLOCK_HEIGHT * 0.25
-  );
+  // Horizontal mid-line (info area only, not notice or company)
+  ctx.beginPath();
+  ctx.moveTo(infoX, midY);
+  ctx.lineTo(companyX, midY);
+  ctx.stroke();
 
+  // ── PROPRIETARY NOTICE (left column, full height) ──
+  ctx.save();
   ctx.fillStyle = t.titleBlockFieldColor;
-  ctx.font = '2.5px monospace';
+  ctx.font = '1.4px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(`Drawn: ${titleBlock?.drawnBy || '---'}`, col1X + 2, tbY + TITLE_BLOCK_HEIGHT * 0.75);
+  ctx.textBaseline = 'top';
 
-  // ---- CENTER COLUMN: Title (top) + Drawing #, Date (bottom) ----
-  // Title — large, centered
-  ctx.fillStyle = t.titleBlockTitleColor;
-  ctx.font = 'bold 4px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    titleBlock?.title || sheet.name,
-    col2X + col2W / 2,
-    tbY + TITLE_BLOCK_HEIGHT * 0.25
-  );
-
-  // Bottom row: Dwg # left, Date right
-  ctx.fillStyle = t.titleBlockFieldColor;
-  ctx.font = '2.5px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText(`Dwg: ${titleBlock?.drawingNumber || '---'}`, col2X + 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
-  ctx.textAlign = 'right';
-  ctx.fillText(`Date: ${titleBlock?.date || '---'}`, col3X - 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
-
-  // ---- RIGHT COLUMN: Revision (top) + Sheet # (bottom) ----
-  ctx.fillStyle = t.titleBlockFieldColor;
-  ctx.font = 'bold 3px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    `Rev: ${titleBlock?.revision || '---'}`,
-    col3X + col3W / 2,
-    tbY + TITLE_BLOCK_HEIGHT * 0.25
-  );
-
-  // Sheet number
-  ctx.font = '2.5px monospace';
-  ctx.fillStyle = t.titleBlockSheetColor;
-  ctx.textAlign = 'center';
-  if (titleBlock?.sheetOf) {
-    ctx.fillText(`Sheet ${titleBlock.sheetOf}`, col3X + col3W / 2, midY + TITLE_BLOCK_HEIGHT * 0.25);
+  const noticeText = `THIS DOCUMENT IS THE PROPERTY OF ${companyName.toUpperCase()} AND/OR ITS CUSTOMER(S). ` +
+    `REPRODUCTION WITHOUT WRITTEN CONSENT IS PROHIBITED.`;
+  // Word-wrap into the notice column
+  const noticePad = 1.5;
+  const noticeMaxW = noticeW - noticePad * 2;
+  const words = noticeText.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > noticeMaxW && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
   }
+  if (currentLine) lines.push(currentLine);
+
+  const lineH = 2;
+  const noticeStartY = tbY + (tbH - lines.length * lineH) / 2;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], noticeX + noticePad, noticeStartY + i * lineH);
+  }
+  ctx.restore();
+
+  // ── Cell helper ──
+  const labelSize = 1.8;
+  const valueSize = 2.8;
+  const cellPad = 1.5;
+  const labelOffY = 3;
+
+  const drawCell = (x: number, y: number, w: number, label: string, value: string, largeFontSize?: number) => {
+    ctx.fillStyle = t.titleBlockFieldColor;
+    ctx.font = `${labelSize}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, x + cellPad, y + 1);
+
+    ctx.fillStyle = t.titleBlockTitleColor;
+    ctx.font = `bold ${largeFontSize || valueSize}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const maxW = w - cellPad * 2;
+    let text = value;
+    while (ctx.measureText(text).width > maxW && text.length > 1) {
+      text = text.slice(0, -1);
+    }
+    ctx.fillText(text, x + cellPad, y + labelOffY);
+  };
+
+  // ── ROW 1 (top) ──
+  drawCell(titleColX, tbY, titleColW, 'DATE', tb?.date || new Date().toLocaleDateString('en-US'));
+  drawCell(field1X, tbY, field1W, 'DRAWN BY', tb?.drawnBy || '---');
+  drawCell(field2X, tbY, field2W + field3W, 'REV', tb?.revision || '---');
+
+  // ── ROW 2 (bottom) ──
+  drawCell(titleColX, midY, titleColW, 'TITLE', tb?.title || sheet.name, 3.2);
+  drawCell(field1X, midY, field1W, 'PROJECT NO.', tb?.projectNumber || '---');
+  drawCell(field2X, midY, field2W, 'DRAWING NO.', tb?.drawingNumber || '---');
+  drawCell(field3X, midY, companyX - field3X, 'SHEET NO.', tb?.sheetOf || `${sheet.number}`);
+
+  // ── COMPANY BLOCK (right side, full height) ──
+  const compCenterX = companyX + companyW / 2;
+  const compPad = 2;
+
+  if (tb?.logoData) {
+    const cacheKey = 'title-block-logo';
+    if (!logoImageCache.has(cacheKey) || logoImageCache.get(cacheKey)!.src !== tb.logoData) {
+      const img = new Image();
+      img.src = tb.logoData;
+      logoImageCache.set(cacheKey, img);
+    }
+    const img = logoImageCache.get(cacheKey)!;
+    if (img.complete && img.naturalWidth > 0) {
+      const maxLogoW = companyW - compPad * 2;
+      const maxLogoH = tbH * 0.7;
+      const aspect = img.naturalWidth / img.naturalHeight;
+      let logoW = maxLogoW;
+      let logoH = logoW / aspect;
+      if (logoH > maxLogoH) {
+        logoH = maxLogoH;
+        logoW = logoH * aspect;
+      }
+      const logoX = companyX + (companyW - logoW) / 2;
+      const logoY = tbY + compPad;
+      // Invert logo on dark backgrounds so dark logos remain visible
+      const bgHex = t.titleBlockBg.replace('#', '');
+      const bgR = parseInt(bgHex.substring(0, 2), 16) || 0;
+      const bgG = parseInt(bgHex.substring(2, 4), 16) || 0;
+      const bgB = parseInt(bgHex.substring(4, 6), 16) || 0;
+      const isDarkBg = (bgR + bgG + bgB) / 3 < 128;
+      if (isDarkBg) {
+        ctx.save();
+        ctx.filter = 'invert(1)';
+        ctx.drawImage(img, logoX, logoY, logoW, logoH);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, logoX, logoY, logoW, logoH);
+      }
+    }
+  } else {
+    // No logo: show company name + address as text
+    ctx.fillStyle = t.titleBlockTitleColor;
+    ctx.font = 'bold 3.8px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(companyName, compCenterX, tbY + tbH * 0.2);
+
+    ctx.fillStyle = t.titleBlockFieldColor;
+    ctx.font = '2.2px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(tb?.addressLine1 || '', compCenterX, tbY + tbH * 0.4);
+    ctx.fillText(tb?.addressLine2 || '', compCenterX, tbY + tbH * 0.55);
+  }
+
+  // Phone — always at bottom of company block
+  ctx.fillStyle = t.titleBlockFieldColor;
+  ctx.font = '2.2px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tb?.phone ? `TEL: ${tb.phone}` : '', compCenterX, tbY + tbH * 0.85);
 }
 
 /**

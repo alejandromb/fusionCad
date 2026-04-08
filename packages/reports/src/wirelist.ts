@@ -14,6 +14,9 @@ export interface WireListRow {
   toPin: string;
   netName: string;
   netType: string;
+  wireGauge?: string;
+  wireType?: string;
+  wireColor?: string;
 }
 
 export interface WireListReport {
@@ -32,6 +35,9 @@ export interface Connection {
   toPin: string;
   netId: string;
   wireNumber?: string;
+  wireGauge?: string;
+  wireType?: string;
+  wireColor?: string;
 }
 
 /**
@@ -61,6 +67,9 @@ export function generateWireList(
       toPin: conn.toPin,
       netName: net?.name || 'UNNAMED',
       netType: net?.netType || 'signal',
+      wireGauge: conn.wireGauge,
+      wireType: conn.wireType,
+      wireColor: conn.wireColor,
     });
   }
 

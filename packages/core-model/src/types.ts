@@ -86,6 +86,8 @@ export interface Device extends Entity {
    * Connections still reference the symbol pin ID internally; this only affects display.
    */
   pinAliases?: Record<string, string>;
+  /** Per-device size override for resizable symbols (e.g., DIN rails, wire ducts). In mm. */
+  sizeOverride?: { width?: number; height?: number };
 }
 
 /**
@@ -342,7 +344,7 @@ export interface Terminal extends Entity {
 export interface Annotation extends Entity {
   type: 'annotation';
   sheetId: EntityId;
-  annotationType: 'text' | 'note' | 'title-block' | 'border' | 'rectangle' | 'circle' | 'line' | 'arrow';
+  annotationType: 'text' | 'note' | 'title-block' | 'border' | 'rectangle' | 'circle' | 'line' | 'arrow' | 'image';
   position: { x: number; y: number };
   content: string;
   style?: {
@@ -367,6 +369,14 @@ export interface Annotation extends Entity {
     dashed?: boolean;
     /** Lock size — prevents resizing via handles */
     locked?: boolean;
+    /** Base64 data URL for image annotations (e.g., "data:image/png;base64,...") */
+    imageData?: string;
+    /** Original image width in mm (for aspect-ratio preservation) */
+    imageWidth?: number;
+    /** Original image height in mm */
+    imageHeight?: number;
+    /** Image opacity 0-1 (default: 1) */
+    imageOpacity?: number;
   };
   /** Group ID — annotations with same groupId select/move together */
   groupId?: string;
@@ -385,6 +395,16 @@ export interface TitleBlockData {
   drawnBy: string;
   company?: string;
   sheetOf?: string;
+  /** Project number */
+  projectNumber?: string;
+  /** Company address line 1 */
+  addressLine1?: string;
+  /** Company address line 2 */
+  addressLine2?: string;
+  /** Company phone number */
+  phone?: string;
+  /** Company logo as base64 data URL (e.g., "data:image/png;base64,...") */
+  logoData?: string;
 }
 
 /**

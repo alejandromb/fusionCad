@@ -146,11 +146,41 @@ export function Sidebar({
         </button>
       </section>
 
-      {/* Title Block for active sheet */}
+      {/* Sheet settings + Title Block for active sheet */}
       {activeSheet && (
         <section className="sidebar-section">
-          <h3>Title Block</h3>
           <div className="properties-panel">
+            <div className="property-row">
+              <span className="property-label">Sheet Size</span>
+              <select
+                className="property-input"
+                value={activeSheet.size}
+                onChange={e => onUpdateSheet(activeSheet.id, { size: e.target.value as Sheet['size'] })}
+              >
+                {Object.keys(SHEET_SIZES).map(sz => (
+                  <option key={sz} value={sz}>{sz}</option>
+                ))}
+              </select>
+            </div>
+            <div className="property-row">
+              <span className="property-label">Layout</span>
+              <select
+                className="property-input"
+                value={sheetLayout}
+                onChange={e => onSetSheetLayout(activeSheet.id, e.target.value as SheetLadderLayout)}
+              >
+                <option value="single-column">Ladder (1 col)</option>
+                <option value="dual-column">Ladder (2 col)</option>
+                <option value="no-rungs">Plain</option>
+                <option value="panel-layout">Panel Layout</option>
+              </select>
+            </div>
+          </div>
+          <details style={{ marginTop: '0.25rem' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: '0.25rem 0', userSelect: 'none' }}>
+              Title Block
+            </summary>
+            <div className="properties-panel" style={{ marginTop: '0.25rem' }}>
             <div className="property-row">
               <span className="property-label">Title</span>
               <input
@@ -197,6 +227,15 @@ export function Sidebar({
               />
             </div>
             <div className="property-row">
+              <span className="property-label">Project #</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.projectNumber || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, projectNumber: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
               <span className="property-label">Company</span>
               <input
                 className="property-input"
@@ -206,30 +245,70 @@ export function Sidebar({
               />
             </div>
             <div className="property-row">
-              <span className="property-label">Sheet Size</span>
-              <select
+              <span className="property-label">Address 1</span>
+              <input
                 className="property-input"
-                value={activeSheet.size}
-                onChange={e => onUpdateSheet(activeSheet.id, { size: e.target.value as Sheet['size'] })}
-              >
-                {Object.keys(SHEET_SIZES).map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
+                type="text"
+                value={activeSheet.titleBlock?.addressLine1 || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, addressLine1: e.target.value } as any })}
+              />
             </div>
             <div className="property-row">
-              <span className="property-label">Layout</span>
-              <select
+              <span className="property-label">Address 2</span>
+              <input
                 className="property-input"
-                value={sheetLayout}
-                onChange={e => onSetSheetLayout(activeSheet.id, e.target.value as SheetLadderLayout)}
-              >
-                <option value="single-column">Ladder (1 col)</option>
-                <option value="dual-column">Ladder (2 col)</option>
-                <option value="no-rungs">Plain</option>
-                <option value="panel-layout">Panel Layout</option>
-              </select>
+                type="text"
+                value={activeSheet.titleBlock?.addressLine2 || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, addressLine2: e.target.value } as any })}
+              />
             </div>
+            <div className="property-row">
+              <span className="property-label">Phone</span>
+              <input
+                className="property-input"
+                type="text"
+                value={activeSheet.titleBlock?.phone || ''}
+                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, phone: e.target.value } as any })}
+              />
+            </div>
+            <div className="property-row">
+              <span className="property-label">Logo</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button
+                  className="property-input"
+                  style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '2px 6px' }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/png,image/jpeg,image/svg+xml';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, logoData: reader.result as string } as any });
+                      };
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
+                  }}
+                >
+                  {activeSheet.titleBlock?.logoData ? 'Change' : 'Upload'}
+                </button>
+                {activeSheet.titleBlock?.logoData && (
+                  <button
+                    className="property-input"
+                    style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '2px 6px' }}
+                    onClick={() => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, logoData: undefined } as any })}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          </details>
+          <div className="properties-panel" style={{ marginTop: '0.25rem' }}>
             {sheetLayout === 'panel-layout' && (
               <div className="property-row">
                 <span className="property-label">Scale</span>

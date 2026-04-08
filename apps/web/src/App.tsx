@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import './App.css';
 import { registerBuiltinSymbols, registerSymbol, generatePLCDigitalSymbol, generatePLCAnalogSymbol, generateMicro800Symbol, MM_TO_PX } from '@fusion-cad/core-model';
 import { registerBuiltinDrawFunctions } from './renderer/symbols';
@@ -156,6 +156,8 @@ function AppInner({
   const [symbolLibVersion, setSymbolLibVersion] = useState(0);
   const [showPartsCatalog, setShowPartsCatalog] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImage, setPendingImage] = useState<{ dataUrl: string; widthMm: number; heightMm: number } | null>(null);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
@@ -241,6 +243,7 @@ function AppInner({
     removeWaypoint: circuitState.removeWaypoint,
     replaceWaypoints: circuitState.replaceWaypoints,
     reconnectWire: circuitState.reconnectWire,
+    updateWireField: circuitState.updateWireField,
     connectToWire: circuitState.connectToWire,
     addAnnotation: circuitState.addAnnotation,
     addShapeAnnotation: circuitState.addShapeAnnotation,
@@ -265,6 +268,57 @@ function AppInner({
     activeSheetId: circuitState.activeSheetId,
     panelScale: circuitState.getPanelScale(circuitState.activeSheetId),
   });
+
+  // Image import handler — reads file, converts to base64, enters placement mode
+  const handleImageFile = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image too large. Maximum size is 10MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const pxToMm = 0.2646;
+        let widthMm = img.width * pxToMm;
+        let heightMm = img.height * pxToMm;
+        if (widthMm > 200) {
+          const scale = 200 / widthMm;
+          widthMm *= scale;
+          heightMm *= scale;
+        }
+        setPendingImage({ dataUrl, widthMm, heightMm });
+        interaction.setInteractionMode('select');
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }, [interaction]);
+
+  // Place pending image on canvas click
+  useEffect(() => {
+    if (!pendingImage) return;
+    const canvas = interaction.canvasRef.current;
+    if (!canvas) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // left click only
+      e.stopPropagation();
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mmScale = MM_TO_PX * interaction.viewport.scale;
+      const worldX = (e.clientX - rect.left - interaction.viewport.offsetX) / mmScale;
+      const worldY = (e.clientY - rect.top - interaction.viewport.offsetY) / mmScale;
+      const snappedX = snapToGrid(worldX);
+      const snappedY = snapToGrid(worldY);
+      circuitState.addImageAnnotation(snappedX, snappedY, pendingImage.dataUrl, pendingImage.widthMm, pendingImage.heightMm);
+      setPendingImage(null);
+    };
+    // Use capture phase to intercept before the interaction hook's handlers
+    canvas.addEventListener('mousedown', handleMouseDown, { capture: true, once: true });
+    return () => canvas.removeEventListener('mousedown', handleMouseDown, { capture: true });
+  }, [pendingImage, interaction.canvasRef, interaction.viewport, circuitState]);
 
   // Expose state for E2E testing (dev mode only)
   useEffect(() => {
@@ -342,6 +396,10 @@ function AppInner({
     if (project.circuit) {
       const sheetDevices = project.circuit.devices.filter(d => d.sheetId === circuitState.activeSheetId);
       circuitState.setSelectedDevices(sheetDevices.map(d => d.id));
+      // Also select all annotations on the active sheet
+      // Set IDs directly to avoid selectAnnotation's side effect of clearing devices
+      const sheetAnnotations = (project.circuit.annotations || []).filter(a => a.sheetId === circuitState.activeSheetId);
+      circuitState.setSelectedAnnotationIds(sheetAnnotations.map(a => a.id));
     }
   }, [project.circuit, circuitState]);
 
@@ -515,6 +573,7 @@ function AppInner({
         // Insert
         onOpenSymbolPalette={() => setShowSymbolLibrary(true)}
         onAddSheet={circuitState.addSheet}
+        onImportImage={() => imageInputRef.current?.click()}
         // Tools
         onOpenAIGenerate={() => setShowAIPrompt(true)}
         onOpenERC={() => setShowERC(true)}
@@ -759,6 +818,7 @@ function AppInner({
           deleteDevices={circuitState.deleteDevices}
           onSelectDevices={circuitState.setSelectedDevices}
           updateWireNumber={circuitState.updateWireNumber}
+          updateWireField={circuitState.updateWireField}
           onAssignPart={circuitState.assignPart}
           onUpdateDevice={circuitState.updateDevice}
           onToggleDashed={circuitState.toggleDashed}
@@ -883,6 +943,38 @@ function AppInner({
           onClose={() => setShowUpgradeCTA(false)}
           onContinueLocally={handleContinueLocally}
         />
+      )}
+
+      {/* Hidden file input for image import */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImageFile(file);
+          e.target.value = ''; // reset so same file can be re-selected
+        }}
+      />
+
+      {/* Pending image placement banner */}
+      {pendingImage && (
+        <div style={{
+          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--surface-2, #333)', color: 'var(--text-1, #fff)',
+          padding: '8px 16px', borderRadius: 6, zIndex: 9999,
+          display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        }}>
+          Click on the canvas to place the image
+          <button
+            onClick={() => setPendingImage(null)}
+            style={{ background: 'none', border: '1px solid #666', color: 'inherit', padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+        </div>
       )}
     </div>
   );

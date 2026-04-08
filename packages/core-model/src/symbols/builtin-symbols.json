@@ -6792,6 +6792,126 @@
           "textAnchor": "start"
         }
       ]
+    },
+    {
+      "id": "layout-advantech-eki-2705g",
+      "name": "Advantech EKI-2705G (5-Port GbE PoE Switch)",
+      "category": "Panel",
+      "standard": "NEMA",
+      "width": 30,
+      "height": 140,
+      "svgPath": "",
+      "pins": [],
+      "tagPrefix": "SW",
+      "source": "Advantech EKI-2705G-1GPI-AU datasheet",
+      "primitives": [
+        { "type": "rect", "x": 0, "y": 0, "width": 30, "height": 140, "strokeWidth": 0.8 },
+        { "type": "rect", "x": 1, "y": 1, "width": 28, "height": 138, "strokeWidth": 0.3 },
+
+        { "type": "rect", "x": 8, "y": -4, "width": 14, "height": 6, "strokeWidth": 0.5, "fill": "none" },
+        { "type": "line", "x1": 11, "y1": -2, "x2": 19, "y2": -2, "strokeWidth": 0.4 },
+        { "type": "text", "x": 15, "y": -5.5, "content": "DIN", "fontSize": 2, "textAnchor": "middle" },
+
+        { "type": "rect", "x": 3, "y": 4, "width": 24, "height": 22, "strokeWidth": 0.4 },
+        { "type": "text", "x": 15, "y": 6, "content": "EKI-2705G", "fontSize": 2.5, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "circle", "cx": 7, "cy": 12, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 10, "cy": 12, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 13, "cy": 12, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 16, "cy": 12, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "text", "x": 7, "y": 14.5, "content": "1", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 14.5, "content": "2", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "text", "x": 13, "y": 14.5, "content": "3", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "text", "x": 16, "y": 14.5, "content": "4", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "circle", "cx": 7, "cy": 19, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 10, "cy": 19, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 13, "cy": 19, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "circle", "cx": 16, "cy": 19, "r": 0.8, "strokeWidth": 0.3, "fill": "none" },
+        { "type": "text", "x": 20, "y": 18, "content": "PoE", "fontSize": 1.5, "textAnchor": "start" },
+
+        { "type": "rect", "x": 4, "y": 30, "width": 22, "height": 18, "strokeWidth": 0.4, "rx": 1 },
+        { "type": "rect", "x": 6, "y": 32, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 32, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 6, "y": 40, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 40, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "text", "x": 15, "y": 49, "content": "5", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+
+        { "type": "rect", "x": 4, "y": 52, "width": 22, "height": 18, "strokeWidth": 0.4, "rx": 1 },
+        { "type": "rect", "x": 6, "y": 54, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 54, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 6, "y": 62, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 62, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "text", "x": 15, "y": 71, "content": "4", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+
+        { "type": "rect", "x": 4, "y": 74, "width": 22, "height": 18, "strokeWidth": 0.4, "rx": 1 },
+        { "type": "rect", "x": 6, "y": 76, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 76, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 6, "y": 84, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 84, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "text", "x": 15, "y": 93, "content": "3", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+
+        { "type": "rect", "x": 4, "y": 96, "width": 22, "height": 18, "strokeWidth": 0.4, "rx": 1 },
+        { "type": "rect", "x": 6, "y": 98, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 98, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 6, "y": 106, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 106, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "text", "x": 15, "y": 115, "content": "2", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+
+        { "type": "rect", "x": 4, "y": 118, "width": 22, "height": 18, "strokeWidth": 0.4, "rx": 1 },
+        { "type": "rect", "x": 6, "y": 120, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 120, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 6, "y": 128, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "rect", "x": 16, "y": 128, "width": 8, "height": 6, "strokeWidth": 0.3 },
+        { "type": "text", "x": 15, "y": 137, "content": "1", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" }
+      ]
+    },
+    {
+      "id": "ansi-hoa-selector-3pos",
+      "name": "HOA Selector Switch 3-Position (ANSI)",
+      "category": "Control",
+      "standard": "ANSI/NEMA",
+      "width": 17.5,
+      "height": 25,
+      "svgPath": "",
+      "pins": [
+        { "id": "B1", "name": "B1", "x": 5, "y": 15, "direction": "left", "pinType": "passive" },
+        { "id": "B2", "name": "B2", "x": 12.5, "y": 15, "direction": "right", "pinType": "passive" },
+        { "id": "A1", "name": "A1", "x": 5, "y": 22.5, "direction": "left", "pinType": "passive" },
+        { "id": "A2", "name": "A2", "x": 12.5, "y": 22.5, "direction": "right", "pinType": "passive" }
+      ],
+      "tagPrefix": "SS",
+      "primitives": [
+        { "type": "text", "x": 5, "y": 2, "content": "1", "fontSize": 2.5, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 8.75, "y": 2, "content": "2", "fontSize": 2.5, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 12.5, "y": 2, "content": "3", "fontSize": 2.5, "fontWeight": "bold", "textAnchor": "middle" },
+
+        { "type": "line", "x1": 8.75, "y1": 4.5, "x2": 8.75, "y2": 8, "strokeWidth": 0.5 },
+        { "type": "polyline", "points": [
+          { "x": 8.75, "y": 4.5 },
+          { "x": 11.25, "y": 3.25 },
+          { "x": 10, "y": 5.25 }
+        ], "closed": true, "fill": "stroke", "strokeWidth": 0.4 },
+
+        { "type": "line", "x1": 8.75, "y1": 8, "x2": 8.75, "y2": 12, "strokeWidth": 0.5 },
+
+        { "type": "line", "x1": 3.5, "y1": 12, "x2": 14, "y2": 12, "strokeWidth": 0.5 },
+
+        { "type": "text", "x": 1.5, "y": 13.5, "content": "B", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "circle", "cx": 5, "cy": 12, "r": 1, "strokeWidth": 0.4 },
+        { "type": "circle", "cx": 12.5, "cy": 12, "r": 1, "strokeWidth": 0.4 },
+
+        { "type": "line", "x1": 5, "y1": 13, "x2": 5, "y2": 15, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 12.5, "y1": 13, "x2": 12.5, "y2": 15, "strokeWidth": 0.4 },
+
+        { "type": "circle", "cx": 5, "cy": 15, "r": 1, "strokeWidth": 0.4 },
+        { "type": "circle", "cx": 12.5, "cy": 15, "r": 1, "strokeWidth": 0.4 },
+
+        { "type": "line", "x1": 5, "y1": 16, "x2": 5, "y2": 21.5, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 12.5, "y1": 16, "x2": 12.5, "y2": 21.5, "strokeWidth": 0.4 },
+
+        { "type": "text", "x": 1.5, "y": 21, "content": "A", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "circle", "cx": 5, "cy": 22.5, "r": 1, "strokeWidth": 0.4 },
+        { "type": "circle", "cx": 12.5, "cy": 22.5, "r": 1, "strokeWidth": 0.4 }
+      ]
     }
   ]
 }

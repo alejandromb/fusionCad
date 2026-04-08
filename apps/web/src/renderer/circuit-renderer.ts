@@ -42,6 +42,14 @@ export interface Connection {
   sheetId?: string;
   /** Systematic wire number displayed on drawings */
   wireNumber?: string;
+  /** Wire gauge annotation (e.g., "#16", "#12", "10 AWG") */
+  wireGauge?: string;
+  /** Wire insulation type (e.g., "TFFN", "THHN", "MTW") */
+  wireType?: string;
+  /** Wire color (e.g., "WHITE", "BLUE", "RED") */
+  wireColor?: string;
+  /** Custom position for wire spec label (absolute world coords). When set, overrides auto-placement. */
+  wireSpecPosition?: { x: number; y: number };
   /**
    * Wire routing waypoints. Three-state semantic:
    * - `undefined`: Auto-routed wire (visibility graph + A* pathfinding every frame)
@@ -396,6 +404,75 @@ export function getWaypointAtPoint(
 }
 
 /**
+ * Get wire spec label at world coordinates.
+ * Returns { connectionIndex } if a wire spec label is hit.
+ * Used for dragging wire spec labels to reposition them.
+ */
+export function getWireSpecLabelAtPoint(
+  worldX: number,
+  worldY: number,
+  connections: SheetConnection[],
+  devices: Device[],
+  parts: Part[],
+  positions: Map<string, Point>,
+  transforms?: Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>,
+): { connectionIndex: number } | null {
+  for (let i = 0; i < connections.length; i++) {
+    const conn = connections[i];
+    const specParts: string[] = [];
+    if (conn.wireGauge) specParts.push(conn.wireGauge);
+    if (conn.wireType) specParts.push(conn.wireType);
+    if (conn.wireColor) specParts.push(conn.wireColor);
+    if (specParts.length === 0) continue;
+
+    const wireSpec = specParts.join(' ');
+
+    // Compute label position (mirrors renderer logic)
+    let specX: number;
+    let specY: number;
+    if (conn.wireSpecPosition) {
+      specX = conn.wireSpecPosition.x;
+      specY = conn.wireSpecPosition.y;
+    } else {
+      // Need pin positions to compute midpoint
+      const fromPos = getPinWorldPosition(conn, 'from', devices, parts, positions, transforms);
+      const toPos = getPinWorldPosition(conn, 'to', devices, parts, positions, transforms);
+      if (!fromPos || !toPos) continue;
+      specX = (fromPos.x + toPos.x) / 2;
+      specY = (fromPos.y + toPos.y) / 2;
+      // Approximate longest-segment midpoint using waypoints if present
+      if (conn.waypoints && conn.waypoints.length > 0) {
+        const pts = [fromPos, ...conn.waypoints, toPos];
+        let maxLen = 0;
+        for (let j = 0; j < pts.length - 1; j++) {
+          const segLen = Math.hypot(pts[j + 1].x - pts[j].x, pts[j + 1].y - pts[j].y);
+          if (segLen > maxLen) {
+            maxLen = segLen;
+            specX = (pts[j].x + pts[j + 1].x) / 2;
+            specY = (pts[j].y + pts[j + 1].y) / 2;
+          }
+        }
+      }
+      specY += 1.5; // default below-wire offset
+    }
+
+    // Approximate label bounds (text width ~2.5mm per char, height ~3.5mm)
+    const approxWidth = wireSpec.length * 2.5;
+    const labelHeight = 3.5;
+    const padding = 1;
+    const left = specX - approxWidth / 2 - padding;
+    const top = specY;
+    const right = specX + approxWidth / 2 + padding;
+    const bottom = specY + labelHeight + 0.5;
+
+    if (worldX >= left && worldX <= right && worldY >= top && worldY <= bottom) {
+      return { connectionIndex: i };
+    }
+  }
+  return null;
+}
+
+/**
  * Get wire endpoint handle at world coordinates
  * Returns { connectionIndex, endpoint } if an endpoint is hit
  */
@@ -557,6 +634,9 @@ function layoutDevices(
 /**
  * Create obstacles from device positions
  */
+// Cache for decoded image annotations (avoids re-creating HTMLImageElement every frame)
+const imageCache = new Map<string, HTMLImageElement>();
+
 /**
  * Render the circuit on canvas
  */
@@ -696,7 +776,7 @@ export function renderCircuit(
     const transform = getTransform(device.id);
     const partLabel = part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
-    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels, device.sizeOverride);
 
     // Source/Destination arrow special rendering:
     // Show voltage label and cross-reference text around the arrow symbol
@@ -1054,6 +1134,69 @@ export function renderCircuit(
       ctx.restore();
     }
 
+    // Wire spec label (gauge / type / color) — rendered below the wire
+    const specParts: string[] = [];
+    if (metadata.conn.wireGauge) specParts.push(metadata.conn.wireGauge);
+    if (metadata.conn.wireType) specParts.push(metadata.conn.wireType);
+    if (metadata.conn.wireColor) specParts.push(metadata.conn.wireColor);
+    if (specParts.length > 0) {
+      const wireSpec = specParts.join(' ');
+
+      // Use custom position if set, otherwise auto-calculate from longest segment
+      let specX: number;
+      let specY: number;
+      if (metadata.conn.wireSpecPosition) {
+        specX = metadata.conn.wireSpecPosition.x;
+        specY = metadata.conn.wireSpecPosition.y;
+      } else {
+        specX = (metadata.fromX + metadata.toX) / 2;
+        specY = (metadata.fromY + metadata.toY) / 2;
+        if (pathPoints.length >= 2) {
+          let maxLen = 0;
+          let bestMidX = specX;
+          let bestMidY = specY;
+          for (let j = 0; j < pathPoints.length - 1; j++) {
+            const segLen = Math.hypot(
+              pathPoints[j + 1].x - pathPoints[j].x,
+              pathPoints[j + 1].y - pathPoints[j].y
+            );
+            if (segLen > maxLen) {
+              maxLen = segLen;
+              bestMidX = (pathPoints[j].x + pathPoints[j + 1].x) / 2;
+              bestMidY = (pathPoints[j].y + pathPoints[j + 1].y) / 2;
+            }
+          }
+          specX = bestMidX;
+          specY = bestMidY;
+        }
+        // Default offset below the wire
+        specY += 1.5;
+      }
+
+      ctx.save();
+      ctx.font = t.wireLabelFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const specMetrics = ctx.measureText(wireSpec);
+      const specPadding = 1;
+      const specTextHeight = 3.5;
+
+      // Background
+      ctx.fillStyle = t.wireLabelBg;
+      ctx.fillRect(
+        specX - specMetrics.width / 2 - specPadding,
+        specY,
+        specMetrics.width + specPadding * 2,
+        specTextHeight + 0.5
+      );
+
+      // Text
+      ctx.fillStyle = wireColors[0];
+      ctx.fillText(wireSpec, specX, specY);
+      ctx.restore();
+    }
+
     // Debug mode: Draw additional endpoint info
     if (debugMode) {
       const net = nets.find(n => n.id === metadata.conn.netId);
@@ -1125,17 +1268,19 @@ export function renderCircuit(
         if (position) {
           const part = device.partId ? partMap.get(device.partId) : null;
           const geometry = getSymbolGeometry(part?.symbolCategory || part?.category || 'unknown');
+          const geoW = device.sizeOverride?.width ?? geometry.width;
+          const geoH = device.sizeOverride?.height ?? geometry.height;
           const transform = getTransform(device.id);
           const rotation = transform?.rotation || 0;
 
           // Swap width/height for rotated devices (90° or 270°)
           const isRotated90 = rotation % 180 !== 0;
-          const w = isRotated90 ? geometry.height : geometry.width;
-          const h = isRotated90 ? geometry.width : geometry.height;
+          const w = isRotated90 ? geoH : geoW;
+          const h = isRotated90 ? geoW : geoH;
 
           // Center the selection box on the device center
-          const cx = position.x + geometry.width / 2;
-          const cy = position.y + geometry.height / 2;
+          const cx = position.x + geoW / 2;
+          const cy = position.y + geoH / 2;
 
           ctx.strokeRect(
             cx - w / 2 - 5,
@@ -1384,6 +1529,53 @@ export function renderCircuit(
           textHeight + 1.5
         );
         ctx.setLineDash([]);
+      }
+    }
+
+    // Image annotations
+    if (annotation.annotationType === 'image' && annotation.style?.imageData) {
+      const s = annotation.style;
+      const w = s.width || 50;
+      const h = s.height || 50;
+      const opacity = s.imageOpacity ?? 1;
+
+      // Get or create cached HTMLImageElement
+      const cacheKey = annotation.id;
+      if (!imageCache.has(cacheKey)) {
+        const img = new Image();
+        img.src = s.imageData;
+        imageCache.set(cacheKey, img);
+      }
+      const img = imageCache.get(cacheKey)!;
+
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(img, annotation.position.x, annotation.position.y, w, h);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      // Selection highlight + resize handles
+      if (options?.selectedAnnotationIds?.includes(annotation.id)) {
+        ctx.strokeStyle = t.annotationSelectionColor;
+        ctx.lineWidth = t.selectionWidth;
+        ctx.setLineDash(t.selectionDash);
+        ctx.strokeRect(annotation.position.x - 0.75, annotation.position.y - 0.75, w + 1.5, h + 1.5);
+        ctx.setLineDash([]);
+
+        // Corner resize handles
+        if (!s.locked) {
+          const handleSize = 1.5;
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = t.annotationSelectionColor;
+          ctx.lineWidth = 0.3;
+          const rx = annotation.position.x, ry = annotation.position.y;
+          for (const [hx, hy] of [[rx, ry], [rx + w, ry], [rx + w, ry + h], [rx, ry + h]]) {
+            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+            ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          }
+        }
       }
     }
 

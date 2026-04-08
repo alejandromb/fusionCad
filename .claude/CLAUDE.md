@@ -76,58 +76,63 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 36 (2026-04-06/07) — AI-assisted symbol import, ANSI e-stop NC symbol, compressor sequencer review
+**Last session:** 37 (2026-04-07) — Wire annotations, image import, title block redesign, DIN rail resize, HOA selector, priority reorg
 **Tests:** 135 E2E + 85 unit, 86 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
-### P0 — MVP Features
+### Completed (Phase 2)
 
-1. ~~**Continuous placement mode**~~ ✅ Done (Session 33)
-2. ~~**Find/Replace**~~ ✅ Done (Session 34) — Cmd+F
-3. ~~**SVG/DXF symbol importer**~~ ✅ Done (Session 34+35) — Tools > Import, preview, pin detection. Default: Layout. Overwrite warning for built-in symbols.
-4. **Page thumbnails** — Sheet navigation with thumbnail previews.
-5. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
-6. **Template caching** — Cache common patterns to skip AI entirely.
-7. **CDN for static assets** — CloudFront for the web app.
-8. **Analytics** — Usage patterns, feature tracking, generation success rate.
-9. ~~**Grid toggle on/off**~~ ✅ Done (Session 33)
-10. ~~**Grid size setting**~~ ✅ Done (Session 33) — Rung gap slider
-11. ~~**Pin label visibility toggle**~~ ✅ Done (Session 33)
-12. ~~**Settings panel**~~ ✅ Done (Session 33) — DISPLAY section
-13. ~~**Sheet reorder**~~ ✅ Done (Session 34) — Drag-and-drop in sidebar
-14. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
-15. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing (screws, terminal blocks), line weights need improvement. Research proper DXF text rendering + HATCH/SOLID fill support.
-16. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
-17. ~~**Shape annotations**~~ ✅ Done (Session 35) — Rectangle, circle, line, arrow. S key (cycles tools), click-drag, resize handles, multi-select (Shift+click, marquee), grouping (Cmd+G/Cmd+Shift+G), lock size, copy/paste with ghost preview. Right panel: stroke, color, dashed, fill. 7 E2E tests.
-18. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library. Separate layout symbol category from schematic symbols.
+- ~~Continuous placement mode~~ ✅ (Session 33)
+- ~~Find/Replace~~ ✅ (Session 34) — Cmd+F
+- ~~SVG/DXF symbol importer~~ ✅ (Session 34+35) — Tools > Import, preview, pin detection
+- ~~Grid toggle, size setting, pin labels, settings panel~~ ✅ (Session 33)
+- ~~Sheet reorder~~ ✅ (Session 34) — Drag-and-drop in sidebar
+- ~~Shape annotations~~ ✅ (Session 35) — Rectangle, circle, line, arrow, grouping, copy/paste
+- ~~Wire annotations~~ ✅ (Session 37) — Gauge/type/color labels on wires, draggable positioning
 
-### P1 — Core Product Quality
+### P0 — Launch Blockers
 
-13. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking (warn if DO missing), AI always places full set, BOM groups as one item.
-14. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries).
-15. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics. Includes PLC pin/rung alignment: COM pins need double-spacing, output pins should land exactly on rung lines. Options: symbol-aware rung placement (generate pin spacing from rung gap), auto-layout stretch, or per-pin Y-offset in symbol format.
-16. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
-17. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
-18. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36): POST `/api/symbols/ai-import-assist` takes raw SVG/DXF primitives + filename, Claude identifies the symbol and returns clean geometry with proper pins. Works for schematic and layout. Frontend wired in SymbolImportDialog (purple "AI Assist" button). **TODO:** Tune layout prompt (currently over-simplifies DXF geometry), add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
-19. **Error monitoring** — Sentry or similar for production error tracking.
+1. **Page thumbnails** — Sheet navigation with thumbnail previews. Core UX for multi-sheet projects.
+2. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
+3. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
+4. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
+5. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries). AI quality gate.
+6. **Auth enforced on AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features. Can't launch open.
+7. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking. Can't launch without this.
 
-### P2 — Infrastructure & Security
+### P1 — Core Quality (ship soon after launch)
 
-19. **Auth enforced on all AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features.
-20. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking.
-21. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions. **Rollback feature**: auto-rollback if E2E tests fail post-deploy.
-22. **CORS locked down** — Currently allows all origins in dev.
-23. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
-24. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
-25. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
-26. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated PLC symbols now auto-seed on startup ✅ (Session 35). localStorage should be an offline queue that syncs to DB when connectivity returns, not a permanent store. Prevents: blank device boxes after DB restart, stale duplicates, lost imports.
+1. **Node-based electrical graph** — Implement the planned `Node` entity from core-model. Replace junction-as-device with proper graph nodes. Enables: net-level wire defaults, proper electrical analysis, cleaner junction handling, wire annotation propagation per net. **⚠️ Architectural change — use feature branch `feature/node-graph`, merge after testing.**
+2. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics. PLC pin/rung alignment.
+3. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking, BOM grouping.
+4. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing, line weights. Research proper DXF text rendering + HATCH/SOLID fill support.
+5. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
+6. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
+7. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library.
+8. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36). **TODO:** Tune layout prompt, add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
+9. **Error monitoring** — Sentry or similar for production error tracking.
+
+### P2 — Infrastructure & Optimization
+
+1. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions. Auto-rollback if E2E tests fail.
+2. **Template caching** — Cache common AI patterns to skip generation entirely.
+3. **CDN for static assets** — CloudFront for the web app.
+4. **CORS locked down** — Currently allows all origins in dev.
+5. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
+6. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
+7. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
+8. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated PLC symbols now auto-seed on startup ✅ (Session 35). localStorage should be an offline queue that syncs to DB.
 
 ### P3 — Business & Revenue
 
-25. **Stripe/payment integration** — Connect billing to plan tiers.
-26. **Usage dashboard** — Show users their AI generation count, remaining quota.
-27. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
-28. **AI cost tracking** — Log token usage per request.
+1. **Stripe/payment integration** — Connect billing to plan tiers.
+2. **Usage dashboard** — Show users their AI generation count, remaining quota.
+3. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
+4. **AI cost tracking** — Log token usage per request.
+
+### P4 — Analytics & Growth
+
+1. **Analytics** — Usage patterns, feature tracking, generation success rate.
 
 ### Future Phases (Post-Launch)
 

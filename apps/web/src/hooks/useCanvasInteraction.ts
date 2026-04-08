@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Part, Annotation } from '@fusion-cad/core-model';
 import { MM_TO_PX, GRID_MM } from '@fusion-cad/core-model';
 import type { CircuitData } from '../renderer/circuit-renderer';
-import { getWireAtPoint, getWireHitWithDistance, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
+import { getWireAtPoint, getWireHitWithDistance, getWaypointAtPoint, getWireEndpointAtPoint, getWireSegmentAtPoint, getWireSpecLabelAtPoint, toOrthogonalPath, getPinWorldPosition, resolveDevice, filterConnectionsBySheet } from '../renderer/circuit-renderer';
 import type { Connection, SheetConnection } from '../renderer/circuit-renderer';
 import type { Point, Viewport, DeviceTransform } from '../renderer/types';
 import {
@@ -92,6 +92,7 @@ interface UseCanvasInteractionDeps {
   removeWaypoint: (connectionIndex: number, waypointIndex: number) => void;
   replaceWaypoints: (connectionIndex: number, waypoints: Point[] | undefined) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
+  updateWireField: (connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => void;
   connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: import('@fusion-cad/core-model').Annotation['style']) => void;
@@ -252,6 +253,11 @@ function hitTestAnnotation(ann: import('@fusion-cad/core-model').Annotation, wx:
       // Click anywhere inside the circle
       return dist <= r;
     }
+    case 'image': {
+      const iw = s.width || 50, ih = s.height || 50;
+      return wx >= ann.position.x && wx <= ann.position.x + iw &&
+             wy >= ann.position.y && wy <= ann.position.y + ih;
+    }
     case 'line':
     case 'arrow': {
       const ex = s.endX ?? ann.position.x + 10;
@@ -298,6 +304,16 @@ function getShapeHandles(ann: import('@fusion-cad/core-model').Annotation): Arra
         { id: 'w', x: cx - r, y: cy, cursor: 'w-resize' },
       ];
     }
+    case 'image': {
+      const x = ann.position.x, y = ann.position.y;
+      const w = s.width || 50, h = s.height || 50;
+      return [
+        { id: 'nw', x, y, cursor: 'nw-resize' },
+        { id: 'ne', x: x + w, y, cursor: 'ne-resize' },
+        { id: 'se', x: x + w, y: y + h, cursor: 'se-resize' },
+        { id: 'sw', x, y: y + h, cursor: 'sw-resize' },
+      ];
+    }
     case 'line':
     case 'arrow': {
       return [
@@ -329,6 +345,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     removeWaypoint,
     replaceWaypoints,
     reconnectWire,
+    updateWireField,
     connectToWire,
     addAnnotation,
     addShapeAnnotation,
@@ -431,6 +448,13 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     isLast: boolean;            // last segment (need jog insertion)
     jogInserted: boolean;       // whether we've already inserted the jog waypoint
     pinPos: Point;              // pin position on the fixed side (for jog computation)
+  } | null>(null);
+
+  // Wire spec label dragging state
+  const [draggingSpecLabel, setDraggingSpecLabel] = useState<{
+    connectionIndex: number;
+    offsetX: number; // offset from label position to mouse position
+    offsetY: number;
   } | null>(null);
 
   // Pan state (middle-click or Space+drag)
@@ -613,6 +637,22 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             return;
           }
 
+          // Check for wire spec label drag on selected wire
+          const specLabelHit = getWireSpecLabelAtPoint(
+            world.x, world.y, sheetConnections,
+            circuit.devices, circuit.parts, allPositions, circuit.transforms as Record<string, { rotation: number; mirrorH?: boolean; dashed?: boolean }>,
+          );
+          if (specLabelHit && specLabelHit.connectionIndex === selectedWireIndex) {
+            setDraggingSpecLabel({
+              connectionIndex: selectedWireIndex,
+              offsetX: 0,
+              offsetY: 0,
+            });
+            dragHistoryPushedRef.current = false;
+            canvas.style.cursor = 'move';
+            return;
+          }
+
           const waypointHit = getWaypointAtPoint(world.x, world.y, sheetConnections);
           if (waypointHit && waypointHit.connectionIndex === selectedWireIndex) {
             setDraggingWaypoint(waypointHit);
@@ -678,7 +718,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         // Check resize handles on selected shape annotation first
         if (selectedAnnotationIds.length === 1) {
           const selAnn = (circuit.annotations || []).find(a => a.id === selectedAnnotationIds[0]);
-          if (selAnn && ['rectangle', 'circle', 'line', 'arrow'].includes(selAnn.annotationType) && !selAnn.style?.locked) {
+          if (selAnn && ['rectangle', 'circle', 'line', 'arrow', 'image'].includes(selAnn.annotationType) && !selAnn.style?.locked) {
             const handles = getShapeHandles(selAnn);
             const hitRadius = 3; // mm
             for (const h of handles) {
@@ -693,11 +733,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
 
         // Check annotation hit BEFORE device hit — shapes render on top of devices
+        // Skip already-selected annotations to allow marquee drag from on top of them.
+        // Also skip image annotations unless they're already selected (they're reference images,
+        // not primary interaction targets — clicking through them to marquee-select devices is expected).
         const annots = (circuit.annotations || []).filter(a =>
           !activeSheetId || a.sheetId === activeSheetId
         );
         for (const ann of annots) {
           if (!hitTestAnnotation(ann, world.x, world.y)) continue;
+          // Image annotations: only intercept if already selected (to allow drag/move)
+          // Otherwise let the click fall through to device hit test or marquee
+          if (ann.annotationType === 'image' && !selectedAnnotationIds.includes(ann.id)) continue;
           const origin = getAnnotationOrigin(ann);
           selectAnnotation(ann.id, e.shiftKey);
           draggingAnnotationRef.current = {
@@ -875,6 +921,22 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         hasDraggedRef.current = true;
       }
 
+      // Drag wire spec label
+      if (draggingSpecLabel) {
+        if (!dragHistoryPushedRef.current) {
+          pushToHistoryRef.current();
+          dragHistoryPushedRef.current = true;
+        }
+        const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+        updateWireField(
+          toGlobalIndex(draggingSpecLabel.connectionIndex),
+          'wireSpecPosition',
+          snapped,
+        );
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
       // Drag waypoint
       if (draggingWaypoint) {
         if (!dragHistoryPushedRef.current) {
@@ -966,7 +1028,31 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
           const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
           let updates: { position?: { x: number; y: number }; style?: typeof s } | null = null;
 
-          if (type === 'rectangle') {
+          if (type === 'image') {
+            // Aspect-ratio-locked resize for images
+            const origW = s.width || 50, origH = s.height || 50;
+            const aspect = origW / origH;
+            const h = handleId;
+            // Determine new width from the dragged corner
+            let newW: number;
+            if (h === 'se' || h === 'ne') {
+              newW = Math.abs(snapped.x - ann.position.x);
+            } else {
+              newW = Math.abs((ann.position.x + origW) - snapped.x);
+            }
+            newW = Math.max(5, newW); // minimum 5mm
+            const newH = newW / aspect;
+            // Compute new position (anchor the opposite corner)
+            let newX = ann.position.x, newY = ann.position.y;
+            if (h === 'nw') { newX = ann.position.x + origW - newW; newY = ann.position.y + origH - newH; }
+            else if (h === 'ne') { newY = ann.position.y + origH - newH; }
+            else if (h === 'sw') { newX = ann.position.x + origW - newW; }
+            // 'se' keeps position as-is
+            updates = {
+              position: { x: snapToGrid(newX), y: snapToGrid(newY) },
+              style: { ...s, width: newW, height: newH },
+            };
+          } else if (type === 'rectangle') {
             let x1 = ann.position.x, y1 = ann.position.y;
             let x2 = x1 + (s.width || 10), y2 = y1 + (s.height || 10);
             const h = handleId;
@@ -1095,13 +1181,19 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
               }
             }
           }
+
+          // Also move selected annotations along with devices
+          if (selectedAnnotationIds.length > 0 && (dx !== 0 || dy !== 0)) {
+            const ps = panelScale > 1 ? panelScale : 1;
+            moveAnnotations(selectedAnnotationIds, dx / ps, dy / ps);
+          }
         }
         lastMousePosRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
 
       // Marquee selection
-      if (interactionMode === 'select' && marqueeStartRef.current && !draggingDevice && !draggingWaypoint && !draggingEndpoint && !draggingSegment) {
+      if (interactionMode === 'select' && marqueeStartRef.current && !draggingDevice && !draggingWaypoint && !draggingEndpoint && !draggingSegment && !draggingSpecLabel) {
         if (hasDraggedRef.current) {
           const startWorld = marqueeStartRef.current;
           const mode = world.x >= startWorld.x ? 'window' : 'crossing';
@@ -1131,6 +1223,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       const world = getWorldCoords(e);
       const allPositions = getAllPositions();
+
+      // End wire spec label dragging
+      if (draggingSpecLabel) {
+        setDraggingSpecLabel(null);
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
 
       // End waypoint dragging
       if (draggingWaypoint) {
