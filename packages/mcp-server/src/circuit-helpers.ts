@@ -371,12 +371,14 @@ export function assignPart(
   const device = circuit.devices[deviceIdx];
   const now = Date.now();
 
-  // Preserve the original part's category (symbolId) for rendering.
+  // ALWAYS preserve the original part's category (symbolId) for rendering.
   // The web app uses part.category to look up which symbol to draw.
+  // Layout symbols (imported DXF/SVG) are only in the DB, not in-memory registry,
+  // so we must never overwrite the category — it's the symbol key.
   let symbolCategory = category;
   if (device.partId) {
     const oldPart = circuit.parts.find(p => p.id === device.partId);
-    if (oldPart && getSymbolById(oldPart.category)) {
+    if (oldPart) {
       symbolCategory = oldPart.category;
     }
   }
