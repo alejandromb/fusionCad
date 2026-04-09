@@ -183,55 +183,43 @@ export function renderTitleBlock(
   const compCenterX = companyX + companyW / 2;
   const compPad = 2;
 
-  if (tb?.logoData) {
-    const cacheKey = 'title-block-logo';
-    if (!logoImageCache.has(cacheKey) || logoImageCache.get(cacheKey)!.src !== tb.logoData) {
-      const img = new Image();
-      img.src = tb.logoData;
-      logoImageCache.set(cacheKey, img);
-    }
-    const img = logoImageCache.get(cacheKey)!;
-    if (img.complete && img.naturalWidth > 0) {
-      const maxLogoW = companyW - compPad * 2;
-      const maxLogoH = tbH * 0.7;
-      const aspect = img.naturalWidth / img.naturalHeight;
-      let logoW = maxLogoW;
-      let logoH = logoW / aspect;
-      if (logoH > maxLogoH) {
-        logoH = maxLogoH;
-        logoW = logoH * aspect;
-      }
-      const logoX = companyX + (companyW - logoW) / 2;
-      const logoY = tbY + compPad;
-      // Invert logo on dark backgrounds so dark logos remain visible
-      const bgHex = t.titleBlockBg.replace('#', '');
-      const bgR = parseInt(bgHex.substring(0, 2), 16) || 0;
-      const bgG = parseInt(bgHex.substring(2, 4), 16) || 0;
-      const bgB = parseInt(bgHex.substring(4, 6), 16) || 0;
-      const isDarkBg = (bgR + bgG + bgB) / 3 < 128;
-      if (isDarkBg) {
-        ctx.save();
-        ctx.filter = 'invert(1)';
-        ctx.drawImage(img, logoX, logoY, logoW, logoH);
-        ctx.restore();
-      } else {
-        ctx.drawImage(img, logoX, logoY, logoW, logoH);
-      }
-    }
-  } else {
-    // No logo: show company name + address as text
-    ctx.fillStyle = t.titleBlockTitleColor;
-    ctx.font = 'bold 3.8px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(companyName, compCenterX, tbY + tbH * 0.2);
+  // Company name — rendered as styled text (crisp at any zoom/theme)
+  const phoneReserve = tb?.phone ? 4 : 0;
+  const nameY = tbY + (tbH - phoneReserve) * 0.38;
 
-    ctx.fillStyle = t.titleBlockFieldColor;
-    ctx.font = '2.2px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(tb?.addressLine1 || '', compCenterX, tbY + tbH * 0.4);
-    ctx.fillText(tb?.addressLine2 || '', compCenterX, tbY + tbH * 0.55);
+  ctx.fillStyle = t.titleBlockTitleColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Stylized company name: cursive "f" + regular "usionLogik"
+  if (companyName.toLowerCase() === 'fusionlogik') {
+    // Cursive "f" in italic serif
+    const fSize = 7;
+    const restSize = 5;
+    ctx.font = `italic ${fSize}px Georgia, serif`;
+    const fWidth = ctx.measureText('f').width;
+    ctx.font = `bold ${restSize}px monospace`;
+    const restWidth = ctx.measureText('usionLogik').width;
+    const totalWidth = fWidth + restWidth;
+    const startX = compCenterX - totalWidth / 2;
+
+    ctx.font = `italic ${fSize}px Georgia, serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('f', startX, nameY);
+
+    ctx.font = `bold ${restSize}px monospace`;
+    ctx.fillText('usionLogik', startX + fWidth, nameY);
+  } else {
+    ctx.font = 'bold 5px monospace';
+    ctx.fillText(companyName, compCenterX, nameY);
   }
+
+  // Address lines below company name
+  ctx.fillStyle = t.titleBlockFieldColor;
+  ctx.font = '2.2px monospace';
+  ctx.textAlign = 'center';
+  if (tb?.addressLine1) ctx.fillText(tb.addressLine1, compCenterX, nameY + 5);
+  if (tb?.addressLine2) ctx.fillText(tb.addressLine2, compCenterX, nameY + 8);
 
   // Phone — always at bottom of company block
   ctx.fillStyle = t.titleBlockFieldColor;
