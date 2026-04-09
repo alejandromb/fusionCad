@@ -103,45 +103,56 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     }
   }
 
-  // Group standalone devices by partId (original behavior)
-  const devicesByPart = new Map<string, Device[]>();
+  // Group standalone devices by partNumber + manufacturer (aggregate same parts)
+  const devicesByPartKey = new Map<string, { part: Part; devices: Device[] }>();
   for (const device of standaloneDevices) {
-    if (!devicesByPart.has(device.partId!)) {
-      devicesByPart.set(device.partId!, []);
+    const part = partMap.get(device.partId!);
+    if (!part) continue;
+    const key = `${part.manufacturer}::${part.partNumber}`;
+    if (!devicesByPartKey.has(key)) {
+      devicesByPartKey.set(key, { part, devices: [] });
     }
-    devicesByPart.get(device.partId!)!.push(device);
+    devicesByPartKey.get(key)!.devices.push(device);
   }
 
-  // Build BOM rows from standalone devices
+  // Build BOM rows from standalone devices (grouped by part number)
   const rows: BomRow[] = [];
-  for (const [partId, devicesForPart] of devicesByPart.entries()) {
-    const part = partMap.get(partId);
-    if (!part) continue;
-
+  for (const [, { part, devices: devicesForPart }] of devicesByPartKey.entries()) {
+    // Deduplicate tags (same tag on multiple sheets = 1 physical device)
+    const uniqueTags = [...new Set(devicesForPart.map(d => d.tag))].sort();
     rows.push({
       partNumber: part.partNumber,
       manufacturer: part.manufacturer,
       description: part.description,
       category: part.category,
-      quantity: devicesForPart.length,
-      deviceTags: devicesForPart.map((d) => d.tag).sort(),
+      quantity: uniqueTags.length,
+      deviceTags: uniqueTags,
     });
   }
 
   // Build BOM rows from linked device groups (each group = 1 physical item)
+  // Aggregate groups that share the same part number
+  const linkedByPartKey = new Map<string, { part: Part; tags: Set<string> }>();
   for (const [, groupDevices] of linkedGroups.entries()) {
-    // Use the first device's part for the BOM row (they represent the same physical device)
     const primaryDevice = groupDevices[0];
     const part = partMap.get(primaryDevice.partId!);
     if (!part) continue;
+    const key = `${part.manufacturer}::${part.partNumber}`;
+    if (!linkedByPartKey.has(key)) {
+      linkedByPartKey.set(key, { part, tags: new Set() });
+    }
+    // Use the shared tag (all devices in a group share the same tag typically)
+    linkedByPartKey.get(key)!.tags.add(primaryDevice.tag);
+  }
 
+  for (const [, { part, tags }] of linkedByPartKey.entries()) {
     rows.push({
       partNumber: part.partNumber,
       manufacturer: part.manufacturer,
       description: part.description,
       category: part.category,
-      quantity: 1, // Linked representations = 1 physical device
-      deviceTags: [primaryDevice.tag], // All share the same tag
+      quantity: tags.size,
+      deviceTags: [...tags].sort(),
     });
   }
 
