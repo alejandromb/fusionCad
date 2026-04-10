@@ -133,13 +133,18 @@ export function getPinWorldPosition(
   let px = pinPos.x;
   let py = pinPos.y;
 
+  // Apply mirror first (flip X around symbol center)
+  if (transform?.mirrorH) {
+    px = geometry.width - px;
+  }
+
   const rotation = transform?.rotation || 0;
   if (rotation !== 0) {
     const cx = geometry.width / 2;
     const cy = geometry.height / 2;
     const rad = (rotation * Math.PI) / 180;
-    const dx = pinPos.x - cx;
-    const dy = pinPos.y - cy;
+    const dx = px - cx;
+    const dy = py - cy;
     px = cx + dx * Math.cos(rad) - dy * Math.sin(rad);
     py = cy + dx * Math.sin(rad) + dy * Math.cos(rad);
   }
@@ -174,6 +179,7 @@ export interface RenderOptions {
   gridSize?: number;
   /** Show pin labels on devices (default true) */
   showPinLabels?: boolean;
+  showPartNumbers?: boolean;
   /** Show device function/description text above symbols (default true) */
   showDescriptions?: boolean;
   /** Selected annotation ID for highlight */
@@ -774,7 +780,7 @@ export function renderCircuit(
     const part = device.partId ? partMap.get(device.partId) : null;
     const symbolKey = part?.symbolCategory || part?.category || 'unknown';
     const transform = getTransform(device.id);
-    const partLabel = part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
+    const partLabel = (options?.showPartNumbers !== false) && part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
     drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels, device.sizeOverride);
 

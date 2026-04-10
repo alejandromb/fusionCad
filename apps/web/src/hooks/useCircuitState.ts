@@ -26,7 +26,9 @@ export interface UseCircuitStateReturn {
   showPinLabels: boolean;
   setShowPinLabels: (show: boolean) => void;
   showDescriptions: boolean;
+  showPartNumbers: boolean;
   setShowDescriptions: (show: boolean) => void;
+  setShowPartNumbers: (show: boolean) => void;
 
   // Sheet management
   activeSheetId: string;
@@ -148,6 +150,8 @@ export function useCircuitState(
   const setShowPinLabels = useCallback((v: boolean) => { setShowPinLabelsRaw(v); localStorage.setItem('fusionCad_showPinLabels', String(v)); }, []);
   const [showDescriptions, setShowDescriptionsRaw] = useState(() => localStorage.getItem('fusionCad_showDescriptions') !== 'false');
   const setShowDescriptions = useCallback((v: boolean) => { setShowDescriptionsRaw(v); localStorage.setItem('fusionCad_showDescriptions', String(v)); }, []);
+  const [showPartNumbers, setShowPartNumbersRaw] = useState(() => localStorage.getItem('fusionCad_showPartNumbers') !== 'false');
+  const setShowPartNumbers = useCallback((v: boolean) => { setShowPartNumbersRaw(v); localStorage.setItem('fusionCad_showPartNumbers', String(v)); }, []);
   const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
   const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
@@ -1028,11 +1032,19 @@ export function useCircuitState(
     setCircuit(prev => {
       if (!prev) return prev;
       const idSet = new Set(ids);
-      const annotations = (prev.annotations || []).map(a =>
-        idSet.has(a.id)
-          ? { ...a, position: { x: a.position.x + dx, y: a.position.y + dy }, modifiedAt: Date.now() }
-          : a
-      );
+      const annotations = (prev.annotations || []).map(a => {
+        if (!idSet.has(a.id)) return a;
+        const moved = {
+          ...a,
+          position: { x: a.position.x + dx, y: a.position.y + dy },
+          modifiedAt: Date.now(),
+        };
+        // Line/arrow annotations: also move the end point
+        if ((a.annotationType === 'line' || a.annotationType === 'arrow') && a.style?.endX != null && a.style?.endY != null) {
+          moved.style = { ...a.style, endX: a.style.endX + dx, endY: a.style.endY + dy };
+        }
+        return moved;
+      });
       return { ...prev, annotations };
     });
   }, [setCircuit]);
@@ -1477,7 +1489,9 @@ export function useCircuitState(
     showPinLabels,
     setShowPinLabels,
     showDescriptions,
+    showPartNumbers,
     setShowDescriptions,
+    setShowPartNumbers,
     activeSheetId: validActiveSheetId,
     setActiveSheetId,
     sheets,

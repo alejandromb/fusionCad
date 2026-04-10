@@ -6912,6 +6912,100 @@
         { "type": "circle", "cx": 5, "cy": 22.5, "r": 1, "strokeWidth": 0.4 },
         { "type": "circle", "cx": 12.5, "cy": 22.5, "r": 1, "strokeWidth": 0.4 }
       ]
+    },
+    {
+      "id": "advantech-ppc-6151c-schematic",
+      "name": "Panel PC PPC-6151C (Schematic)",
+      "category": "Control",
+      "standard": "NEMA",
+      "width": 20,
+      "height": 25,
+      "svgPath": "",
+      "pins": [
+        { "id": "L", "name": "L", "x": 0, "y": 8, "direction": "left", "pinType": "power" },
+        { "id": "N", "name": "N", "x": 0, "y": 17, "direction": "left", "pinType": "power" },
+        { "id": "ETH", "name": "ETH", "x": 20, "y": 12.5, "direction": "right", "pinType": "signal" }
+      ],
+      "tagPrefix": "HMI",
+      "primitives": [
+        { "type": "rect", "x": 3, "y": 0, "width": 14, "height": 25, "strokeWidth": 0.5 },
+        { "type": "rect", "x": 5, "y": 3, "width": 10, "height": 12, "strokeWidth": 0.3 },
+        { "type": "text", "x": 10, "y": 8, "content": "15\"", "fontSize": 2, "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 18, "content": "PPC-6151C", "fontSize": 1.8, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 21, "content": "100-240VAC", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "line", "x1": 0, "y1": 8, "x2": 3, "y2": 8, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 0, "y1": 17, "x2": 3, "y2": 17, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 12.5, "x2": 20, "y2": 12.5, "strokeWidth": 0.4 }
+      ]
+    },
+    {
+      "id": "advantech-eki-2725-schematic",
+      "name": "Ethernet Switch EKI-2725 (Schematic)",
+      "category": "Control",
+      "standard": "NEMA",
+      "width": 20,
+      "height": 25,
+      "svgPath": "",
+      "pins": [
+        { "id": "V+", "name": "V+", "x": 0, "y": 6, "direction": "left", "pinType": "power" },
+        { "id": "V-", "name": "V-", "x": 0, "y": 19, "direction": "left", "pinType": "power" },
+        { "id": "P1", "name": "P1", "x": 20, "y": 5, "direction": "right", "pinType": "signal" },
+        { "id": "P2", "name": "P2", "x": 20, "y": 10, "direction": "right", "pinType": "signal" },
+        { "id": "P3", "name": "P3", "x": 20, "y": 15, "direction": "right", "pinType": "signal" },
+        { "id": "P4", "name": "P4", "x": 20, "y": 20, "direction": "right", "pinType": "signal" },
+        { "id": "P5", "name": "P5", "x": 20, "y": 25, "direction": "right", "pinType": "signal" }
+      ],
+      "tagPrefix": "SW",
+      "primitives": [
+        { "type": "rect", "x": 3, "y": 0, "width": 14, "height": 25, "strokeWidth": 0.5 },
+        { "type": "text", "x": 10, "y": 5, "content": "ETH", "fontSize": 2.5, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 9, "content": "SWITCH", "fontSize": 2, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 13, "content": "EKI-2725", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "text", "x": 10, "y": 16, "content": "5-Port GbE", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "line", "x1": 3, "y1": 19, "x2": 17, "y2": 19, "strokeWidth": 0.3 },
+        { "type": "text", "x": 10, "y": 21.5, "content": "24VDC", "fontSize": 1.5, "textAnchor": "middle" },
+        { "type": "line", "x1": 0, "y1": 6, "x2": 3, "y2": 6, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 0, "y1": 19, "x2": 3, "y2": 19, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 5, "x2": 20, "y2": 5, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 10, "x2": 20, "y2": 10, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 15, "x2": 20, "y2": 15, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 20, "x2": 20, "y2": 20, "strokeWidth": 0.4 },
+        { "type": "line", "x1": 17, "y1": 25, "x2": 20, "y2": 25, "strokeWidth": 0.4 }
+      ]
+    },
+    {
+      "id": "layout-advantech-ppc-6151c",
+      "name": "Advantech PPC-6151C Panel PC (Layout)",
+      "category": "Panel",
+      "standard": "NEMA",
+      "width": 391,
+      "height": 312,
+      "svgPath": "",
+      "pins": [],
+      "tagPrefix": "HMI",
+      "source": "Advantech PPC-6151C datasheet, 391.4x312.5mm",
+      "primitives": [
+        { "type": "rect", "x": 0, "y": 0, "width": 391, "height": 312, "strokeWidth": 1.5 },
+        { "type": "rect", "x": 3, "y": 3, "width": 385, "height": 306, "strokeWidth": 0.8 },
+
+        { "type": "rect", "x": 6, "y": 6, "width": 379, "height": 300, "strokeWidth": 0.5, "rx": 3 },
+
+        { "type": "rect", "x": 55, "y": 45, "width": 280, "height": 210, "strokeWidth": 0.4 },
+
+        { "type": "line", "x1": 55, "y1": 45, "x2": 335, "y2": 255, "strokeWidth": 0.15 },
+        { "type": "line", "x1": 335, "y1": 45, "x2": 55, "y2": 255, "strokeWidth": 0.15 },
+
+        { "type": "text", "x": 195, "y": 140, "content": "15\" TFT LED", "fontSize": 14, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 195, "y": 160, "content": "1024 x 768", "fontSize": 10, "textAnchor": "middle" },
+
+        { "type": "text", "x": 195, "y": 20, "content": "PPC-6151C-RTAE", "fontSize": 8, "fontWeight": "bold", "textAnchor": "middle" },
+        { "type": "text", "x": 195, "y": 30, "content": "Advantech", "fontSize": 6, "textAnchor": "middle" },
+
+        { "type": "rect", "x": 300, "y": 270, "width": 20, "height": 8, "strokeWidth": 0.3 },
+        { "type": "text", "x": 310, "y": 275, "content": "LED", "fontSize": 4, "textAnchor": "middle" },
+
+        { "type": "text", "x": 195, "y": 290, "content": "100-240VAC  250W  IP66 Front", "fontSize": 5, "textAnchor": "middle" }
+      ]
     }
   ]
 }

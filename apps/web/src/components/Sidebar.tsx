@@ -28,6 +28,8 @@ interface SidebarProps {
   setShowPinLabels: (show: boolean) => void;
   showDescriptions: boolean;
   setShowDescriptions: (show: boolean) => void;
+  showPartNumbers: boolean;
+  setShowPartNumbers: (show: boolean) => void;
   sheetScale: number;
   onSetSheetScale: (scale: number) => void;
   themeId: ThemeId;
@@ -58,6 +60,8 @@ export function Sidebar({
   setShowPinLabels,
   showDescriptions,
   setShowDescriptions,
+  showPartNumbers,
+  setShowPartNumbers,
   sheetScale,
   onSetSheetScale,
   themeId,
@@ -236,15 +240,6 @@ export function Sidebar({
               />
             </div>
             <div className="property-row">
-              <span className="property-label">Company</span>
-              <input
-                className="property-input"
-                type="text"
-                value={activeSheet.titleBlock?.company || ''}
-                onChange={e => onUpdateSheet(activeSheet.id, { titleBlock: { ...activeSheet.titleBlock, company: e.target.value } as any })}
-              />
-            </div>
-            <div className="property-row">
               <span className="property-label">Address 1</span>
               <input
                 className="property-input"
@@ -363,6 +358,10 @@ export function Sidebar({
         <label className="debug-toggle">
           <input type="checkbox" checked={showDescriptions} onChange={e => setShowDescriptions(e.target.checked)} />
           <span>Descriptions</span>
+        </label>
+        <label className="debug-toggle">
+          <input type="checkbox" checked={showPartNumbers} onChange={e => setShowPartNumbers(e.target.checked)} />
+          <span>Part numbers</span>
         </label>
       </section>
 

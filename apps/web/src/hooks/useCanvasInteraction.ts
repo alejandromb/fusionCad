@@ -1772,7 +1772,14 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         for (const annId of selectedAnnotationIds) {
           const ann = (circuit.annotations || []).find(a => a.id === annId);
           if (ann) {
-            updateAnnotation(ann.id, { position: { x: ann.position.x + dx, y: ann.position.y + dy } });
+            const updates: Parameters<typeof updateAnnotation>[1] = {
+              position: { x: ann.position.x + dx, y: ann.position.y + dy },
+            };
+            // Line/arrow: also move end point
+            if ((ann.annotationType === 'line' || ann.annotationType === 'arrow') && ann.style?.endX != null && ann.style?.endY != null) {
+              updates.style = { ...ann.style, endX: ann.style.endX + dx, endY: ann.style.endY + dy };
+            }
+            updateAnnotation(ann.id, updates);
           }
         }
       }

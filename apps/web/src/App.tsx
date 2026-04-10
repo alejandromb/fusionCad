@@ -493,6 +493,7 @@ function AppInner({
             title: project.projectName,
             allSheets: true,
             showDescriptions: circuitState.showDescriptions,
+            showPartNumbers: circuitState.showPartNumbers,
             showPinLabels: circuitState.showPinLabels,
           });
         }}
@@ -532,6 +533,7 @@ function AppInner({
             title: project.projectName,
             allSheets: true,
             showDescriptions: circuitState.showDescriptions,
+            showPartNumbers: circuitState.showPartNumbers,
             showPinLabels: circuitState.showPinLabels,
           });
         }}
@@ -604,6 +606,8 @@ function AppInner({
           showPinLabels={circuitState.showPinLabels}
           setShowPinLabels={circuitState.setShowPinLabels}
           showDescriptions={circuitState.showDescriptions}
+            showPartNumbers={circuitState.showPartNumbers}
+            setShowPartNumbers={circuitState.setShowPartNumbers}
           setShowDescriptions={circuitState.setShowDescriptions}
           sheetScale={circuitState.getPanelScale(circuitState.activeSheetId)}
           onSetSheetScale={(scale: number) => circuitState.setPanelScale(circuitState.activeSheetId, scale)}
@@ -653,6 +657,8 @@ function AppInner({
             showGrid={circuitState.showGrid}
             showPinLabels={circuitState.showPinLabels}
             showDescriptions={circuitState.showDescriptions}
+            showPartNumbers={circuitState.showPartNumbers}
+            setShowPartNumbers={circuitState.setShowPartNumbers}
           />
 
           {/* Inline text input for annotations */}
