@@ -48,6 +48,18 @@ export interface Part extends Entity {
     role: string;        // human label (e.g., 'DI Module', 'DO Module')
     isPrimary?: boolean; // first symbol placed (default: first entry)
   }>;
+  /**
+   * Pin mappings: maps symbol category → pin alias map (symbol pin ID → real pin number).
+   * When this part is assigned to a device, the matching pin map is auto-applied
+   * to the device's pinAliases based on the device's symbol category.
+   * Example for a 700-HK relay (1PDT slim):
+   *   {
+   *     "ansi-coil": { "1": "A1", "2": "A2" },
+   *     "ansi-normally-open-contact": { "1": "11", "2": "14" },
+   *     "ansi-normally-closed-contact": { "1": "11", "2": "12" }
+   *   }
+   */
+  pinMappings?: Record<string, Record<string, string>>;
   attributes: Record<string, unknown>; // flexible attributes
 }
 

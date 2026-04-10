@@ -25,12 +25,25 @@ const TITLE_BLOCK_HEIGHT = LAYOUT_MM.titleBlockHeight;  // 20mm
 // Cache for decoded logo image
 const logoImageCache = new Map<string, HTMLImageElement>();
 
+export interface ProjectTitleBlock {
+  company?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  phone?: string;
+  drawnBy?: string;
+  date?: string;
+  revision?: string;
+  projectNumber?: string;
+  logoData?: string;
+}
+
 /**
  * Render sheet border and title block
  */
 export function renderTitleBlock(
   ctx: CanvasRenderingContext2D,
-  sheet: Sheet
+  sheet: Sheet,
+  projectTitleBlock?: ProjectTitleBlock
 ): void {
   const size = SHEET_SIZES[sheet.size] || SHEET_SIZES['Letter'];
   const t = getTheme();
@@ -51,7 +64,21 @@ export function renderTitleBlock(
   const tbH = TITLE_BLOCK_HEIGHT;
   const midY = tbY + tbH * 0.5;
 
-  const tb = sheet.titleBlock;
+  // Merge: project-level fields override sheet-level for shared values.
+  // Sheet-level retains: title, drawingNumber, sheetOf
+  const sheetTb = sheet.titleBlock;
+  const tb = {
+    ...sheetTb,
+    company: projectTitleBlock?.company ?? sheetTb?.company,
+    addressLine1: projectTitleBlock?.addressLine1 ?? sheetTb?.addressLine1,
+    addressLine2: projectTitleBlock?.addressLine2 ?? sheetTb?.addressLine2,
+    phone: projectTitleBlock?.phone ?? sheetTb?.phone,
+    drawnBy: projectTitleBlock?.drawnBy ?? sheetTb?.drawnBy,
+    date: projectTitleBlock?.date ?? sheetTb?.date,
+    revision: projectTitleBlock?.revision ?? sheetTb?.revision,
+    projectNumber: projectTitleBlock?.projectNumber ?? sheetTb?.projectNumber,
+    logoData: projectTitleBlock?.logoData ?? sheetTb?.logoData,
+  };
   const companyName = tb?.company || 'FusionLogik';
 
   // Column layout: Notice (15%) | Info (55%) | Company (30%)

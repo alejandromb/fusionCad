@@ -55,6 +55,7 @@ interface CanvasProps {
   showGrid?: boolean;
   showPinLabels?: boolean;
   showDescriptions?: boolean;
+  showPartNumbers?: boolean;
 }
 
 export function Canvas({
@@ -93,6 +94,7 @@ export function Canvas({
   showGrid = true,
   showPinLabels = true,
   showDescriptions = true,
+  showPartNumbers = true,
 }: CanvasProps) {
   const rafIdRef = useRef(0);
   const canvasSizeRef = useRef({ w: 0, h: 0 });
@@ -122,6 +124,7 @@ export function Canvas({
     showGrid,
     showPinLabels,
     showDescriptions,
+    showPartNumbers,
     selectedAnnotationIds,
     ghostPaste,
     drawingShapePreview,

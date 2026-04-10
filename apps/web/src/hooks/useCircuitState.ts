@@ -1439,10 +1439,20 @@ export function useCircuitState(
         updatedParts.push(existingPart);
       }
 
+      // Auto-apply pin aliases from part definition if available.
+      // The symbol category determines which pin mapping to use (coil vs NO contact vs NC contact).
+      const symbolCat = oldPart?.category || partData.category;
+      const autoAliases = partData.pinMappings?.[symbolCat];
+
       // Update the device to point to the new part
-      const updatedDevices = prev.devices.map(d =>
-        d.id === deviceId ? { ...d, partId: existingPart!.id, modifiedAt: Date.now() } : d
-      );
+      const updatedDevices = prev.devices.map(d => {
+        if (d.id !== deviceId) return d;
+        const updated: Device = { ...d, partId: existingPart!.id, modifiedAt: Date.now() };
+        if (autoAliases) {
+          updated.pinAliases = { ...autoAliases };
+        }
+        return updated;
+      });
 
       // Remove orphaned old part if no other device references it
       if (oldPartId) {

@@ -26,6 +26,7 @@ interface MenuBarProps {
   onOpenExport: () => void;
   onPrint: () => void;
   onOpenReports: () => void;
+  onOpenBomEditor: () => void;
   onSaveNow: () => void;
 
   // Edit operations
@@ -401,6 +402,11 @@ export function MenuBar(props: MenuBarProps) {
             <div className="toolbar-group">
               <ToolBtn icon={icons.parts} label="Parts Catalog" onClick={props.onOpenPartsCatalog} />
               <ToolLabel text="Parts" />
+            </div>
+            <Divider />
+            <div className="toolbar-group">
+              <ToolBtn icon={icons.report} label="BOM Editor" onClick={props.onOpenBomEditor} />
+              <ToolLabel text="BOM Editor" />
             </div>
           </>
         );

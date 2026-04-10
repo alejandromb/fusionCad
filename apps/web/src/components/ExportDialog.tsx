@@ -14,6 +14,9 @@ interface ExportDialogProps {
   deviceTransforms: Map<string, DeviceTransform>;
   activeSheetId?: string;
   projectName?: string;
+  showDescriptions?: boolean;
+  showPinLabels?: boolean;
+  showPartNumbers?: boolean;
   onClose: () => void;
 }
 
@@ -23,6 +26,9 @@ export function ExportDialog({
   deviceTransforms,
   activeSheetId,
   projectName = 'drawing',
+  showDescriptions,
+  showPinLabels,
+  showPartNumbers,
   onClose,
 }: ExportDialogProps) {
   const [format, setFormat] = useState<'svg' | 'pdf'>('svg');
@@ -48,6 +54,9 @@ export function ExportDialog({
           title: projectName,
           activeSheetId,
           allSheets: true,
+          showDescriptions,
+          showPinLabels,
+          showPartNumbers,
         });
       }
     } catch (err) {

@@ -400,6 +400,10 @@ function renderPrimitives(
   x: number,
   y: number,
   deviceDashed?: boolean,
+  /** Effective rotation applied to the canvas (degrees) — text will counter-rotate */
+  rotation?: number,
+  /** Effective mirror applied to the canvas — text will counter-mirror */
+  mirrorH?: boolean,
 ): void {
   const t = getTheme();
   for (const p of primitives) {
@@ -481,7 +485,20 @@ function renderPrimitives(
         const anchor = p.textAnchor === 'middle' ? 'center' : (p.textAnchor as CanvasTextAlign) || 'center';
         ctx.textAlign = anchor;
         ctx.textBaseline = 'middle';
-        ctx.fillText(p.content, x + p.x, y + p.y);
+        const tx = x + p.x;
+        const ty = y + p.y;
+        // Counter-rotate/mirror so text stays upright regardless of symbol transform
+        const needsCounterTransform = (rotation && rotation % 360 !== 0) || mirrorH;
+        if (needsCounterTransform) {
+          ctx.save();
+          ctx.translate(tx, ty);
+          if (mirrorH) ctx.scale(-1, 1);
+          if (rotation) ctx.rotate((-rotation * Math.PI) / 180);
+          ctx.fillText(p.content, 0, 0);
+          ctx.restore();
+        } else {
+          ctx.fillText(p.content, tx, ty);
+        }
         break;
       }
       case 'path': {
@@ -782,7 +799,7 @@ export function drawSymbol(
       ctx.stroke();
     } else {
       // Use typed primitive rendering (preferred)
-      renderPrimitives(ctx, def.primitives, x, y, deviceDashed);
+      renderPrimitives(ctx, def.primitives, x, y, deviceDashed, rotation, mirrorH);
     }
   } else if (def.paths && def.paths.length > 0) {
     // Use SVG path-based rendering (legacy)

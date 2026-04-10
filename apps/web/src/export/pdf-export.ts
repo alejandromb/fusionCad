@@ -30,6 +30,7 @@ interface PDFExportOptions {
   /** Display settings */
   showDescriptions?: boolean;
   showPinLabels?: boolean;
+  showPartNumbers?: boolean;
 }
 
 /**
@@ -40,7 +41,7 @@ export async function exportToPDF(
   positions: Map<string, Point>,
   options: PDFExportOptions & { allSheets?: boolean } = {}
 ): Promise<void> {
-  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels } = options;
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels, showPartNumbers } = options;
 
   // Determine which sheets to export
   const sheetIds = allSheets
@@ -51,7 +52,7 @@ export async function exportToPDF(
   const pages: { imageData: string; width: number; height: number }[] = [];
 
   for (const sid of sheetIds) {
-    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, 2.0);
+    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, 2.0, { showDescriptions, showPinLabels, showPartNumbers });
     if (canvas) {
       pages.push({
         imageData: canvas.toDataURL('image/jpeg', 0.92),
@@ -129,7 +130,7 @@ function renderSheetForPrint(
   sheetId: string,
   deviceTransforms?: Map<string, DeviceTransform>,
   scaleFactor = 1.5,
-  displayOptions?: { showDescriptions?: boolean; showPinLabels?: boolean },
+  displayOptions?: { showDescriptions?: boolean; showPinLabels?: boolean; showPartNumbers?: boolean },
 ): HTMLCanvasElement | null {
   const sheetSize = SHEET_SIZES[
     circuit.sheets?.find(s => s.id === sheetId)?.size || 'Tabloid'
@@ -160,6 +161,7 @@ function renderSheetForPrint(
       showGrid: false,
       showDescriptions: displayOptions?.showDescriptions,
       showPinLabels: displayOptions?.showPinLabels,
+      showPartNumbers: displayOptions?.showPartNumbers,
     });
   } finally {
     setTheme(originalTheme);
@@ -181,7 +183,7 @@ export async function printSheet(
   positions: Map<string, Point>,
   options: PDFExportOptions & { allSheets?: boolean } = {}
 ): Promise<void> {
-  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels } = options;
+  const { deviceTransforms, title = 'fusionCad Drawing', activeSheetId, allSheets, showDescriptions, showPinLabels, showPartNumbers } = options;
 
   const sheetIds = allSheets
     ? (circuit.sheets || []).map(s => s.id)
@@ -189,7 +191,7 @@ export async function printSheet(
 
   const images: string[] = [];
   for (const sid of sheetIds) {
-    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, undefined, { showDescriptions, showPinLabels });
+    const canvas = renderSheetForPrint(circuit, positions, sid, deviceTransforms, undefined, { showDescriptions, showPinLabels, showPartNumbers });
     if (canvas) images.push(canvas.toDataURL('image/png'));
   }
 

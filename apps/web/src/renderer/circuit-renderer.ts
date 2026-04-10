@@ -75,6 +75,39 @@ export interface CircuitData {
   blocks?: AnyDiagramBlock[];
   /** Project-level symbols — embedded in the project, not in the global library */
   symbols?: import('@fusion-cad/core-model').SymbolDefinition[];
+  /**
+   * Project-level title block: single source of truth for fields that are
+   * the same across every sheet (company, address, phone, drawnBy, date, revision,
+   * project number, logo). Per-sheet fields (title, drawingNumber, sheetOf) stay
+   * on Sheet.titleBlock.
+   */
+  projectTitleBlock?: {
+    company?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    phone?: string;
+    drawnBy?: string;
+    date?: string;
+    revision?: string;
+    projectNumber?: string;
+    logoData?: string;
+  };
+  /** BOM customization: override auto-generated quantities + add manual rows */
+  bomOverrides?: {
+    /** Override quantity for auto-generated rows. Key: "manufacturer::partNumber" */
+    quantityOverrides?: Record<string, number>;
+    /** Hide auto-generated rows from BOM. Key: "manufacturer::partNumber" */
+    hiddenRows?: string[];
+    /** Manual rows added by user (spares, accessories not in schematic) */
+    manualRows?: Array<{
+      id: string;
+      partNumber: string;
+      manufacturer: string;
+      description: string;
+      quantity: number;
+      notes?: string;
+    }>;
+  };
 }
 
 /** A connection with its original index in the global circuit.connections array */

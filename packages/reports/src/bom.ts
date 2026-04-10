@@ -18,6 +18,14 @@ export interface BomRow {
   category: string;
   quantity: number;
   deviceTags: string[];
+  /** Source of the row: 'auto' = generated from devices, 'manual' = user-added */
+  source?: 'auto' | 'manual';
+  /** True if quantity was overridden by user */
+  quantityOverridden?: boolean;
+  /** Optional notes from user */
+  notes?: string;
+  /** Stable ID (manual rows have user-set id, auto rows use mfg::pn) */
+  rowId?: string;
 }
 
 export interface BomWarning {
@@ -33,6 +41,19 @@ export interface BomReport {
   generatedAt: number;
 }
 
+export interface BomOverrides {
+  quantityOverrides?: Record<string, number>;
+  hiddenRows?: string[];
+  manualRows?: Array<{
+    id: string;
+    partNumber: string;
+    manufacturer: string;
+    description: string;
+    quantity: number;
+    notes?: string;
+  }>;
+}
+
 /**
  * Generate BOM from parts, devices, and terminals
  *
@@ -40,7 +61,12 @@ export interface BomReport {
  * @param devices - All devices (symbols on schematic)
  * @param terminals - Optional: Terminal entities for proper terminal block counting
  */
-export function generateBom(parts: Part[], devices: Device[], terminals: Terminal[] = []): BomReport {
+export function generateBom(
+  parts: Part[],
+  devices: Device[],
+  terminals: Terminal[] = [],
+  overrides?: BomOverrides,
+): BomReport {
   // Create a map of partId -> part
   const partMap = new Map<string, Part>();
   for (const part of parts) {
@@ -48,6 +74,17 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
   }
 
   const warnings: BomWarning[] = [];
+
+  // Pre-compute which deviceGroupIds have at least one real (non-placeholder) part.
+  // Linked devices where any group member has a real part should NOT generate warnings.
+  const groupsWithRealParts = new Set<string>();
+  for (const device of devices) {
+    if (!device.deviceGroupId || !device.partId) continue;
+    const part = partMap.get(device.partId);
+    if (part && !isPlaceholderPart(part)) {
+      groupsWithRealParts.add(device.deviceGroupId);
+    }
+  }
 
   // Collect warnings for devices without real parts assigned
   // Track seen tags to avoid duplicate warnings for linked devices
@@ -58,6 +95,8 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     // Skip junction and no-connect devices
     if (/^J[LR]\d+$/.test(device.tag)) continue;
     if (/^NC\d+$/.test(device.tag)) continue;
+    // Skip if this device is part of a linked group where a sibling has a real part
+    if (device.deviceGroupId && groupsWithRealParts.has(device.deviceGroupId)) continue;
     if (device.partId) {
       const part = partMap.get(device.partId);
       if (part && part.category.toLowerCase() === 'junction') continue;
@@ -186,17 +225,50 @@ export function generateBom(parts: Part[], devices: Device[], terminals: Termina
     });
   }
 
+  // Mark all generated rows as 'auto', set rowId, and apply overrides
+  const hidden = new Set(overrides?.hiddenRows || []);
+  const qtyOverrides = overrides?.quantityOverrides || {};
+
+  let processedRows: BomRow[] = [];
+  for (const row of rows) {
+    const rowId = `${row.manufacturer}::${row.partNumber}`;
+    if (hidden.has(rowId)) continue;
+    const overriddenQty = qtyOverrides[rowId];
+    processedRows.push({
+      ...row,
+      source: 'auto',
+      rowId,
+      quantity: overriddenQty != null ? overriddenQty : row.quantity,
+      quantityOverridden: overriddenQty != null,
+    });
+  }
+
+  // Append manual rows
+  for (const m of overrides?.manualRows || []) {
+    processedRows.push({
+      partNumber: m.partNumber,
+      manufacturer: m.manufacturer,
+      description: m.description,
+      category: 'manual',
+      quantity: m.quantity,
+      deviceTags: [],
+      source: 'manual',
+      rowId: m.id,
+      notes: m.notes,
+    });
+  }
+
   // Sort by manufacturer, then part number
-  rows.sort((a, b) => {
+  processedRows.sort((a, b) => {
     const mfgCompare = a.manufacturer.localeCompare(b.manufacturer);
     if (mfgCompare !== 0) return mfgCompare;
     return a.partNumber.localeCompare(b.partNumber);
   });
 
   return {
-    rows,
+    rows: processedRows,
     warnings,
-    totalItems: rows.reduce((sum, row) => sum + row.quantity, 0),
+    totalItems: processedRows.reduce((sum, row) => sum + row.quantity, 0),
     generatedAt: Date.now(),
   };
 }
@@ -220,14 +292,17 @@ export function bomToCSV(bom: BomReport): string {
   const lines: string[] = [];
 
   // Header
-  lines.push('Part Number,Manufacturer,Description,Category,Quantity,Device Tags');
+  lines.push('Item,Part Number,Manufacturer,Description,Quantity,Device Tags,Notes,Source');
 
   // Rows
+  let item = 1;
   for (const row of bom.rows) {
     const deviceTagsStr = row.deviceTags.join('; ');
+    const notes = (row.notes || '').replace(/"/g, '""');
     lines.push(
-      `"${row.partNumber}","${row.manufacturer}","${row.description}","${row.category}",${row.quantity},"${deviceTagsStr}"`
+      `${item},"${row.partNumber}","${row.manufacturer}","${row.description}",${row.quantity},"${deviceTagsStr}","${notes}","${row.source || 'auto'}"`
     );
+    item++;
   }
 
   // Footer

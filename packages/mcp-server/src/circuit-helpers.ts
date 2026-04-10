@@ -5,7 +5,7 @@
  * that operate on CircuitData without React dependencies.
  */
 
-import { generateId, getSymbolById, resolveSymbol, GRID_MM, LADDER_LAYOUT_PRESETS, DEFAULT_LADDER_MM, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock, type SheetLadderLayout } from '@fusion-cad/core-model';
+import { generateId, getSymbolById, resolveSymbol, GRID_MM, LADDER_LAYOUT_PRESETS, DEFAULT_LADDER_MM, ALL_MANUFACTURER_PARTS, type Device, type Part, type Annotation, type Sheet, type Rung, type LadderConfig, type DiagramType, type LadderBlock, type AnyDiagramBlock, type SheetLadderLayout } from '@fusion-cad/core-model';
 import { layoutLadder, DEFAULT_LADDER_CONFIG } from '@fusion-cad/core-engine';
 import type { CircuitData, Connection } from './api-client.js';
 
@@ -394,6 +394,11 @@ export function assignPart(
     }
   }
 
+  // Look up the part in the catalog to get pinMappings (and other extras)
+  const catalogPart = ALL_MANUFACTURER_PARTS.find(
+    p => p.manufacturer === manufacturer && p.partNumber === partNumber,
+  );
+
   const newPartId = generateId();
   const newPart: Part = {
     id: newPartId,
@@ -402,13 +407,21 @@ export function assignPart(
     partNumber,
     description,
     category: symbolCategory,
+    pinMappings: catalogPart?.pinMappings,
     attributes: {},
     createdAt: now,
     modifiedAt: now,
   };
 
+  // Auto-apply pin aliases based on the device's symbol category
+  const autoAliases = catalogPart?.pinMappings?.[symbolCategory];
+
   const updatedDevices = [...circuit.devices];
-  updatedDevices[deviceIdx] = { ...device, partId: newPartId, modifiedAt: now };
+  const updatedDevice: Device = { ...device, partId: newPartId, modifiedAt: now };
+  if (autoAliases) {
+    updatedDevice.pinAliases = { ...autoAliases };
+  }
+  updatedDevices[deviceIdx] = updatedDevice;
 
   return {
     ...circuit,

@@ -20,6 +20,7 @@ import { captureRenderAudit } from './renderer/render-audit';
 import { SheetTabs } from './components/SheetTabs';
 import { ZoomControls } from './components/ZoomControls';
 import { ReportsDialog } from './components/ReportsDialog';
+import { BomEditor } from './components/BomEditor';
 import { ExportDialog } from './components/ExportDialog';
 import { SymbolLibrary } from './components/SymbolLibrary';
 import { SymbolEditor } from './components/SymbolEditor';
@@ -148,6 +149,7 @@ function AppInner({
 }) {
   const theme = useTheme();
   const [showReports, setShowReports] = useState(false);
+  const [showBomEditor, setShowBomEditor] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSymbolLibrary, setShowSymbolLibrary] = useState(false);
   const [showERC, setShowERC] = useState(false);
@@ -484,6 +486,7 @@ function AppInner({
         importProject={project.importProject}
         circuit={project.circuit}
         onOpenReports={() => setShowReports(true)}
+        onOpenBomEditor={() => setShowBomEditor(true)}
         onOpenExport={() => setShowExport(true)}
         onPrint={async () => {
           if (!project.circuit) return;
@@ -538,6 +541,7 @@ function AppInner({
           });
         }}
         onOpenReports={() => setShowReports(true)}
+        onOpenBomEditor={() => setShowBomEditor(true)}
         onSaveNow={project.saveNow}
         // Edit
         undo={circuitState.undo}
@@ -846,6 +850,99 @@ function AppInner({
         />
       )}
 
+      {showBomEditor && (
+        <BomEditor
+          circuit={project.circuit}
+          onClose={() => setShowBomEditor(false)}
+          onUpdateCircuit={(updates) => {
+            project.setCircuit(prev => prev ? { ...prev, ...updates } : prev);
+          }}
+          onPlaceBomOnSheet={(rows) => {
+            // Drop a BOM table on the active sheet as text annotations
+            const activeSheet = circuitState.sheets.find(s => s.id === circuitState.activeSheetId);
+            if (!activeSheet) return;
+            const startX = 15, startY = 15, rowH = 6;
+            const colWidths = [12, 30, 45, 30, 90, 12]; // #, Tags, Part, Mfg, Desc, Qty
+            const totalW = colWidths.reduce((a,b) => a+b, 0);
+            const newAnnotations: import('@fusion-cad/core-model').Annotation[] = [];
+            const groupId = 'bom-' + Date.now().toString(36);
+            const now = Date.now();
+            const mkAnn = (x: number, y: number, content: string, fs = 2.5, fw = 'normal'): import('@fusion-cad/core-model').Annotation => ({
+              id: 'ann-' + Math.random().toString(36).slice(2),
+              type: 'annotation',
+              sheetId: activeSheet.id,
+              annotationType: 'text',
+              position: { x, y },
+              content,
+              style: { fontSize: fs, fontWeight: fw, textAlign: 'left' },
+              groupId,
+              createdAt: now,
+              modifiedAt: now,
+            });
+            const mkRect = (x: number, y: number, w: number, h: number, sw = 0.3): import('@fusion-cad/core-model').Annotation => ({
+              id: 'ann-' + Math.random().toString(36).slice(2),
+              type: 'annotation',
+              sheetId: activeSheet.id,
+              annotationType: 'rectangle',
+              position: { x, y },
+              content: '',
+              style: { width: w, height: h, strokeWidth: sw, strokeColor: '#888888' },
+              groupId,
+              createdAt: now,
+              modifiedAt: now,
+            });
+            const mkLine = (x1: number, y1: number, x2: number, y2: number): import('@fusion-cad/core-model').Annotation => ({
+              id: 'ann-' + Math.random().toString(36).slice(2),
+              type: 'annotation',
+              sheetId: activeSheet.id,
+              annotationType: 'line',
+              position: { x: x1, y: y1 },
+              content: '',
+              style: { endX: x2, endY: y2, strokeWidth: 0.3, strokeColor: '#888888' },
+              groupId,
+              createdAt: now,
+              modifiedAt: now,
+            });
+            newAnnotations.push(mkAnn(startX, startY - 8, 'BILL OF MATERIALS', 5, 'bold'));
+            const headers = ['#', 'TAG(S)', 'PART NUMBER', 'MANUFACTURER', 'DESCRIPTION', 'QTY'];
+            let colX = startX;
+            for (let i = 0; i < headers.length; i++) {
+              newAnnotations.push(mkAnn(colX + 1, startY + 1, headers[i], 2.5, 'bold'));
+              colX += colWidths[i];
+            }
+            newAnnotations.push(mkRect(startX, startY, totalW, rowH * (rows.length + 1), 0.5));
+            newAnnotations.push(mkLine(startX, startY + rowH, startX + totalW, startY + rowH));
+            colX = startX;
+            for (let i = 0; i < colWidths.length - 1; i++) {
+              colX += colWidths[i];
+              newAnnotations.push(mkLine(colX, startY, colX, startY + rowH * (rows.length + 1)));
+            }
+            for (let r = 0; r < rows.length; r++) {
+              const row = rows[r];
+              const y = startY + rowH * (r + 1);
+              if (r > 0) newAnnotations.push(mkLine(startX, y, startX + totalW, y));
+              let tagStr = row.deviceTags.join(', ');
+              if (row.deviceTags.length > 3) tagStr = `${row.deviceTags[0]}-${row.deviceTags[row.deviceTags.length-1]}`;
+              const cells = [String(r + 1), tagStr, row.partNumber, row.manufacturer, row.description.substring(0, 50), String(row.quantity)];
+              colX = startX;
+              for (let i = 0; i < cells.length; i++) {
+                newAnnotations.push(mkAnn(colX + 1, y + 1.5, cells[i], 2.5));
+                colX += colWidths[i];
+              }
+            }
+            project.setCircuit(prev => {
+              if (!prev) return prev;
+              // Remove existing BOM annotations on this sheet (any with groupId starting with 'bom-')
+              const filtered = (prev.annotations || []).filter(a =>
+                !(a.sheetId === activeSheet.id && a.groupId?.startsWith('bom-'))
+              );
+              return { ...prev, annotations: [...filtered, ...newAnnotations] };
+            });
+            setShowBomEditor(false);
+          }}
+        />
+      )}
+
       {showExport && (
         <ExportDialog
           circuit={project.circuit}
@@ -853,6 +950,9 @@ function AppInner({
           deviceTransforms={circuitState.deviceTransforms}
           activeSheetId={circuitState.activeSheetId}
           projectName={project.projectName}
+          showDescriptions={circuitState.showDescriptions}
+          showPinLabels={circuitState.showPinLabels}
+          showPartNumbers={circuitState.showPartNumbers}
           onClose={() => setShowExport(false)}
         />
       )}
