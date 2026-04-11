@@ -22,12 +22,50 @@ export interface Entity {
 /**
  * Part - Catalog item (manufacturer, part number, attributes)
  */
+/**
+ * Part — represents a physical hardware part in the BOM.
+ *
+ * ⚠️  RENDERING KEY vs METADATA — READ BEFORE EDITING ⚠️
+ *
+ * The `category` field is a **rendering key**, NOT metadata.
+ * It maps directly to the symbol ID used by the renderer to look up
+ * geometry and primitives. Changing it will swap the symbol drawn on
+ * the canvas, which can silently corrupt schematic and layout sheets.
+ *
+ * RENDERING KEYS (NEVER overwrite these on an existing Part — they identify
+ * which symbol to draw on the canvas):
+ *   - category          → primary symbol lookup key (e.g., 'iec-coil', 'layout-700-hn121')
+ *   - symbolCategory    → optional override for schematic symbol
+ *   - layoutSymbolId    → layout footprint symbol ID
+ *   - requiredSymbols   → list of symbol IDs for multi-symbol parts
+ *
+ * METADATA (safe to update — these only affect BOM/reports/UI display):
+ *   - manufacturer, partNumber, description
+ *   - voltage, current, powerRating, temperatureRange
+ *   - certifications, datasheetUrl, supplierUrls
+ *   - pinMappings, attributes
+ *
+ * When implementing assignPart() or any part-update flow:
+ *   1. NEVER overwrite category/symbolCategory/layoutSymbolId on an existing part.
+ *   2. ALWAYS read the existing part's category and preserve it.
+ *   3. Only update metadata fields.
+ *
+ * History: this caused a Session 38 incident where batch part assignment
+ * overwrote `category` on terminal blocks (iec-terminal-single → terminal),
+ * breaking symbol rendering across the entire project. The assignPart helper
+ * was hardened to always preserve category. See circuit-helpers.ts.
+ */
 export interface Part extends Entity {
   type: 'part';
+  // ─── METADATA (safe to update) ───
   manufacturer: string;
   partNumber: string;
   description: string;
-  category: string; // e.g., 'contactor', 'button', 'relay', 'plc'
+  // ─── RENDERING KEY (NEVER overwrite on existing parts) ───
+  /** Primary symbol lookup key. Maps to a registered symbol ID.
+   *  ⚠️ Overwriting this on an existing part will swap the rendered symbol. */
+  category: string;
+  // ─── METADATA (safe to update) ───
   // Electrical specifications (all optional for backward compatibility)
   voltage?: string;              // e.g., '24VDC', '120VAC'
   current?: string;              // e.g., '10A'
@@ -36,8 +74,11 @@ export interface Part extends Entity {
   certifications?: string[];     // e.g., ['UL', 'CE', 'CSA']
   datasheetUrl?: string;
   supplierUrls?: Record<string, string>;  // e.g., { 'Mouser': 'https://...' }
-  symbolCategory?: string;       // schematic symbol category (e.g., 'contactor', 'circuit-breaker')
-  layoutSymbolId?: string;       // panel layout symbol ID (physical footprint for panel view)
+  // ─── RENDERING KEYS (NEVER overwrite on existing parts) ───
+  /** Optional schematic symbol override. ⚠️ Rendering key — see warning above. */
+  symbolCategory?: string;
+  /** Layout footprint symbol ID. ⚠️ Rendering key — see warning above. */
+  layoutSymbolId?: string;
   /**
    * Multi-symbol parts: declares all symbols needed to fully represent this part.
    * Each entry becomes a linked device sharing the same deviceGroupId.

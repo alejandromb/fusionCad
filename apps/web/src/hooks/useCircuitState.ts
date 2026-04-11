@@ -108,6 +108,8 @@ export interface UseCircuitStateReturn {
   setSelectedWireIndex: React.Dispatch<React.SetStateAction<number | null>>;
   selectedAnnotationIds: string[];
   setSelectedAnnotationIds: (ids: string[]) => void;
+  /** Clear all selections (devices, wires, annotations) atomically. */
+  clearAllSelections: () => void;
   selectAnnotation: (id: string | null, addToSelection?: boolean) => void;
 }
 
@@ -154,7 +156,7 @@ export function useCircuitState(
   const setShowPartNumbers = useCallback((v: boolean) => { setShowPartNumbersRaw(v); localStorage.setItem('fusionCad_showPartNumbers', String(v)); }, []);
   const [selectedDevices, setSelectedDevicesRaw] = useState<string[]>([]);
   const [selectedWireIndex, setSelectedWireIndex] = useState<number | null>(null);
-  const [activeSheetId, setActiveSheetId] = useState<string>(DEFAULT_SHEET_ID);
+  const [activeSheetId, setActiveSheetIdRaw] = useState<string>(DEFAULT_SHEET_ID);
   // Derive deviceTransforms from persisted circuit.transforms (single source of truth)
   const deviceTransforms = useMemo(() => {
     const map = new Map<string, DeviceTransform>();
@@ -191,6 +193,28 @@ export function useCircuitState(
   // Single-click selection paths explicitly clear annotations when needed.
   const setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>> = setSelectedDevicesRaw;
 
+  /**
+   * Clear ALL selections (devices, wires, annotations) atomically.
+   * Use this whenever you need a clean slate — sheet switches, undo/redo, etc.
+   * Prevents the "stale annotation selection across sheets" class of bugs.
+   */
+  const clearAllSelections = useCallback(() => {
+    setSelectedDevicesRaw([]);
+    setSelectedWireIndex(null);
+    setSelectedAnnotationIdsRaw([]);
+  }, []);
+
+  /**
+   * Switch active sheet and atomically clear all selections.
+   * Selections never carry across sheets.
+   */
+  const setActiveSheetId = useCallback((id: string) => {
+    setActiveSheetIdRaw(id);
+    setSelectedDevicesRaw([]);
+    setSelectedWireIndex(null);
+    setSelectedAnnotationIdsRaw([]);
+  }, []);
+
   const selectAnnotation = useCallback((id: string | null, addToSelection = false) => {
     if (!id) {
       setSelectedAnnotationIdsRaw([]);
@@ -223,8 +247,9 @@ export function useCircuitState(
   // Ensure activeSheetId is valid
   const validActiveSheetId = sheets.find(s => s.id === activeSheetId) ? activeSheetId : sheets[0]?.id || DEFAULT_SHEET_ID;
   if (validActiveSheetId !== activeSheetId) {
-    // Sync if the current active sheet was deleted
-    setActiveSheetId(validActiveSheetId);
+    // Sync if the current active sheet was deleted (render-time fixup,
+    // use raw setter — clearing selections happens via the user-facing wrapper)
+    setActiveSheetIdRaw(validActiveSheetId);
   }
 
   const addSheet = useCallback(() => {
@@ -259,9 +284,8 @@ export function useCircuitState(
       };
     });
     setActiveSheetId(newSheet.id);
-    setSelectedDevices([]);
-    setSelectedWireIndex(null);
-  }, [circuit, setCircuit]);
+    clearAllSelections();
+  }, [circuit, setCircuit, clearAllSelections]);
 
   const renameSheet = useCallback((sheetId: string, newName: string) => {
     setCircuit(prev => {
@@ -311,9 +335,8 @@ export function useCircuitState(
         setActiveSheetId(remaining[0].id);
       }
     }
-    setSelectedDevices([]);
-    setSelectedWireIndex(null);
-  }, [circuit, activeSheetId, setCircuit]);
+    clearAllSelections();
+  }, [circuit, activeSheetId, setCircuit, clearAllSelections]);
 
   const reorderSheets = useCallback((fromIndex: number, toIndex: number) => {
     setCircuit(prev => {
@@ -608,13 +631,12 @@ export function useCircuitState(
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex - 1);
-    setSelectedDevices([]);
-    setSelectedAnnotationIdsRaw([]);
+    clearAllSelections();
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
     }, 0);
-  }, [history, historyIndex, createSnapshot, setCircuit, setDevicePositions]);
+  }, [history, historyIndex, createSnapshot, setCircuit, setDevicePositions, clearAllSelections]);
 
   // Redo
   const redo = useCallback(() => {
@@ -639,13 +661,12 @@ export function useCircuitState(
     });
     setDevicePositions(new Map(snapshot.positions));
     setHistoryIndex(historyIndex + 1);
-    setSelectedDevices([]);
-    setSelectedAnnotationIdsRaw([]);
+    clearAllSelections();
 
     setTimeout(() => {
       isUndoRedoRef.current = false;
     }, 0);
-  }, [history, historyIndex, setCircuit, setDevicePositions]);
+  }, [history, historyIndex, setCircuit, setDevicePositions, clearAllSelections]);
 
   undoRef.current = undo;
   redoRef.current = redo;
@@ -1558,6 +1579,7 @@ export function useCircuitState(
     setSelectedWireIndex,
     selectedAnnotationIds,
     setSelectedAnnotationIds: setSelectedAnnotationIdsRaw,
+    clearAllSelections,
     selectAnnotation,
   };
 }
