@@ -9,13 +9,15 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "echo \"No tests yet\""
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@fusion-cad/core-model": "*",
-    "@fusion-cad/core-engine": "*"
+    "@fusion-cad/core-engine": "*",
+    "@fusion-cad/core-model": "*"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1"
   }
 }

@@ -484,6 +484,35 @@ describe('assignPart', () => {
   it('throws on nonexistent device', () => {
     expect(() => assignPart(emptyCircuit(), 'X1', 'Mfg', 'PN', 'Desc', 'cat')).toThrow(/not found/);
   });
+
+  // Regression: parts catalog with pinMappings should auto-apply pinAliases
+  // based on the device's symbol category. See session 39 commit.
+  it('auto-applies pinAliases from catalog based on symbol category', () => {
+    let cd = emptyCircuit();
+    // Place an ANSI coil for K1 and an NC contact for CR24
+    cd = placeDevice(cd, 'ansi-coil', 100, 200, DEFAULT_SHEET, 'K1').circuit;
+    cd = placeDevice(cd, 'ansi-normally-closed-contact', 200, 200, DEFAULT_SHEET, 'CR24').circuit;
+
+    // Assign 700-HK36Z24-3-4 (1PDT slim relay) to the coil
+    // Catalog has pinMappings: ansi-coil -> A1/A2, ansi-normally-closed-contact -> 11/12
+    cd = assignPart(cd, 'K1', 'Allen-Bradley', '700-HK36Z24-3-4', 'Relay Slim 1PDT', 'relay');
+
+    const k1 = cd.devices.find(d => d.tag === 'K1')!;
+    expect(k1.pinAliases).toEqual({ '1': 'A1', '2': 'A2' });
+
+    // Now assign the same part to the NC contact device
+    cd = assignPart(cd, 'CR24', 'Allen-Bradley', '700-HK36Z24-3-4', 'Relay Slim 1PDT', 'relay');
+    const cr24 = cd.devices.find(d => d.tag === 'CR24')!;
+    expect(cr24.pinAliases).toEqual({ '1': '11', '2': '12' });
+  });
+
+  it('does NOT apply pinAliases when part is not in catalog', () => {
+    let cd = emptyCircuit();
+    cd = placeDevice(cd, 'ansi-coil', 100, 200, DEFAULT_SHEET, 'K1').circuit;
+    cd = assignPart(cd, 'K1', 'NoSuchMfg', 'NoSuchPN', 'Custom part', 'relay');
+    const k1 = cd.devices.find(d => d.tag === 'K1')!;
+    expect(k1.pinAliases).toBeUndefined();
+  });
 });
 
 describe('addAnnotation', () => {
