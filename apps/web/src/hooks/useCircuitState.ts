@@ -213,11 +213,13 @@ export function useCircuitState(
         if (inSelection) return prev.filter(i => !groupMembers.includes(i)); // toggle off
         return [...new Set([...prev, ...groupMembers])];
       });
+      // When adding to selection, do NOT clear devices/wires — preserve mixed selection
     } else {
       setSelectedAnnotationIdsRaw(groupMembers);
+      // When replacing selection (single click), clear devices/wires
+      setSelectedDevicesRaw([]);
+      setSelectedWireIndex(null);
     }
-    setSelectedDevicesRaw([]);
-    setSelectedWireIndex(null);
   }, [circuit]);
 
   // Get sheets from circuit data (backward-compatible)
