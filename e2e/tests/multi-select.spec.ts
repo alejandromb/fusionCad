@@ -118,6 +118,66 @@ test.describe('Multi-select', () => {
     expect(state.selectedDevices).toHaveLength(0);
   });
 
+  // Regression test for bug: marquee selecting both devices and annotations
+  // would clear the device selection because selectAnnotation() unconditionally
+  // called setSelectedDevicesRaw([]) regardless of the addToSelection flag.
+  // See: https://github.com/alejandromb/fusionCad commit 26ef7d7
+  test('Marquee selects both devices and annotations together (no clobbering)', async ({ page, canvasHelpers }) => {
+    // Place a device
+    await canvasHelpers.placeSymbol(page, 'button', 100, 200);
+    await canvasHelpers.waitForDeviceCount(page, 1);
+
+    // Draw a rectangle annotation near the device
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('s'); // shape mode (rectangle by default)
+    await page.waitForTimeout(100);
+
+    // Draw a small rectangle annotation in mm coords using the same pattern as shape-annotations.spec.ts
+    const worldMmToScreen = async (page: any, mmX: number, mmY: number) => {
+      return await page.evaluate(({ x, y }: { x: number; y: number }) => {
+        const state = (window as any).__fusionCadState;
+        const vp = state.viewport;
+        const MM_TO_PX = 4;
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: rect.left + x * MM_TO_PX * vp.scale + vp.offsetX,
+          y: rect.top + y * MM_TO_PX * vp.scale + vp.offsetY,
+        };
+      }, { x: mmX, y: mmY });
+    };
+
+    const annTL = await worldMmToScreen(page, 30, 30);
+    const annBR = await worldMmToScreen(page, 60, 50);
+    await page.mouse.move(annTL.x, annTL.y);
+    await page.mouse.down();
+    await page.mouse.move(annBR.x, annBR.y, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    // Verify annotation was created
+    let state = await canvasHelpers.getState(page);
+    expect((state.circuit.annotations || []).length).toBeGreaterThan(0);
+
+    // Switch back to select mode
+    await canvasHelpers.selectMode(page);
+    await page.waitForTimeout(100);
+
+    // Marquee a large area covering both the device AND the annotation
+    await canvasHelpers.dragMarquee(page, 10, 10, 800, 500);
+    await page.waitForTimeout(300);
+
+    state = await canvasHelpers.getState(page);
+
+    // CRITICAL: both should be selected. The bug was that the wrapped
+    // setSelectedDevices() cleared annotations as a side effect, so when
+    // marquee end called setSelectedDevices(hits) followed by selectAnnotation(...)
+    // for each annotation hit, the annotations got clobbered.
+    expect(state.selectedDevices.length).toBeGreaterThan(0);
+    expect(state.selectedAnnotationIds.length).toBeGreaterThan(0);
+  });
+
   test('Delete removes all selected devices', async ({ page, canvasHelpers }) => {
     await canvasHelpers.placeSymbol(page, 'button', 100, 200);
     await canvasHelpers.waitForDeviceCount(page, 1);

@@ -776,6 +776,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
         if (hitDeviceId && !preferWire) {
           setSelectedWireIndex(null);
+          if (!e.shiftKey) selectAnnotation(null); // clear annotation selection on single click
 
           if (e.shiftKey) {
             setSelectedDevices(prev => {
@@ -808,6 +809,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
         if (hitWire !== null) {
           setSelectedDevices([]);
+          selectAnnotation(null);
           if (hitWire !== selectedWireIndex) {
             setSelectedWireIndex(hitWire);
           } else {

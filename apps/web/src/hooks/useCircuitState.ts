@@ -187,14 +187,9 @@ export function useCircuitState(
 
   const [selectedAnnotationIds, setSelectedAnnotationIdsRaw] = useState<string[]>([]);
 
-  // Wrapped setters that clear the other selection type
-  const setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>> = useCallback((action) => {
-    setSelectedDevicesRaw(prev => {
-      const next = typeof action === 'function' ? action(prev) : action;
-      if (next.length > 0) setSelectedAnnotationIdsRaw([]);
-      return next;
-    });
-  }, []);
+  // Direct setter — does NOT auto-clear annotations. Mixed selection is allowed.
+  // Single-click selection paths explicitly clear annotations when needed.
+  const setSelectedDevices: React.Dispatch<React.SetStateAction<string[]>> = setSelectedDevicesRaw;
 
   const selectAnnotation = useCallback((id: string | null, addToSelection = false) => {
     if (!id) {
