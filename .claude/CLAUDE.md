@@ -76,8 +76,8 @@ Before doing ANYTHING else:
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
 **Branch:** `main`
-**Last session:** 37 (2026-04-07) — Wire annotations, image import, title block redesign, DIN rail resize, HOA selector, priority reorg
-**Tests:** 135 E2E + 85 unit, 86 symbols + 10 PLC generators
+**Last session:** 38-40 (2026-04-07 to 2026-04-12) — BOM editor, auto pin aliases, title block, selection fix, tests, first real project shipped (MOWI compressor sequencer)
+**Tests:** 136 E2E + 105 unit, 89 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
 ### Completed (Phase 2)
@@ -89,6 +89,18 @@ Before doing ANYTHING else:
 - ~~Sheet reorder~~ ✅ (Session 34) — Drag-and-drop in sidebar
 - ~~Shape annotations~~ ✅ (Session 35) — Rectangle, circle, line, arrow, grouping, copy/paste
 - ~~Wire annotations~~ ✅ (Session 37) — Gauge/type/color labels on wires, draggable positioning
+- ~~BOM editor~~ ✅ (Session 39) — Tools > BOM Editor. Auto rows from devices, manual rows for spares, quantity overrides, CSV export, place on sheet
+- ~~Auto pin aliases~~ ✅ (Session 39) — Part.pinMappings field, assignPart auto-applies based on symbol category
+- ~~Title block redesign~~ ✅ (Session 38) — Proprietary notice, styled logo, shared fields across sheets, collapsible accordion
+- ~~Image import~~ ✅ (Session 37) — Insert > Image, click-to-place, selectable/movable/resizable, aspect-ratio locked
+- ~~Part number toggle~~ ✅ (Session 39) — Display toggle for part labels on schematic
+- ~~DIN rail resizable~~ ✅ (Session 37) — Length input in properties panel
+- ~~Marquee multi-select fix~~ ✅ (Session 40) — Fixed selectAnnotation/setSelectedDevices coupling that silently cleared selections
+- ~~Mirror pin positions~~ ✅ (Session 39) — applyPinTransform + getPinWorldPosition now handle mirrorH
+- ~~Line/arrow move endpoints~~ ✅ (Session 38) — moveAnnotations and arrow-key nudge properly move line endpoints
+- ~~Automated DB backups~~ ✅ (Session 40) — Hourly launchd job, tiered retention (24h + 7 daily + weekly)
+- ~~Selection coupling cleanup~~ ✅ (Session 40) — clearAllSelections(), setActiveSheetId auto-clears, Part type rendering-key docs
+- ~~Thinner stroke widths~~ ✅ (Session 39) — 0.3mm symbols, 0.35mm wires across all themes
 
 ### P0 — Launch Blockers
 
@@ -118,7 +130,7 @@ Before doing ANYTHING else:
 2. **Template caching** — Cache common AI patterns to skip generation entirely.
 3. **CDN for static assets** — CloudFront for the web app.
 4. **CORS locked down** — Currently allows all origins in dev.
-5. **Database backups automated** — Currently manual `npm run db:backup`. Need scheduled backups.
+5. ~~**Database backups automated**~~ ✅ (Session 40) — Hourly launchd job, tiered retention. `./scripts/install-backup-cron.sh`
 6. **Project backup/restore verified** — Export/import .fcad.json tested end-to-end.
 7. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
 8. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated PLC symbols now auto-seed on startup ✅ (Session 35). localStorage should be an offline queue that syncs to DB.
@@ -219,6 +231,13 @@ npm run test:e2e:ui        # Playwright UI mode
 - `e2e/helpers/canvas-helpers.ts` - worldToScreen, placeSymbol, createWire
 - `e2e/helpers/api-helpers.ts` - deleteAllProjects, createEmptyProject
 - `apps/web/src/App.tsx` - state bridge (`window.__fusionCadState`, dev-only)
+- `apps/web/src/components/BomEditor.tsx` - BOM editor dialog (Tools menu)
+- `apps/web/src/utils/pin-math.ts` - Pure math for pin transforms (testable)
+- `apps/web/src/renderer/title-block.ts` - Title block renderer (proprietary notice, logo, fields)
+- `packages/reports/src/bom.ts` - BOM generator with overrides support
+- `packages/core-model/src/parts/allen-bradley.ts` - Parts catalog with pinMappings
+- `scripts/backup-db.sh` - DB backup with tiered retention
+- `scripts/install-backup-cron.sh` - Hourly launchd backup job installer
 
 **Gotchas:**
 - `page.mouse.click()` doesn't support `modifiers` — use `keyboard.down()/up()`
