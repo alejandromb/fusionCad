@@ -108,6 +108,8 @@ Before doing ANYTHING else:
 2. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
 3. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
 4. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
+
+**Motor-starter hook reliability** — The Motor Starter Calculator depends on a bulletproof end-to-end generation. Current flow uses AI parsing which is probabilistic. **Fix with a deterministic endpoint**: `POST /api/projects/:id/generate-motor-starter` takes structured `{hp, voltage, phase, starterType, controlVoltage, eStop, hoaSwitch, pilotLight, plcRemote}` and calls `generateMotorStarterPanel` directly (bypasses AI parser). Calculator URL changes from `?prompt=<natural>` to `?motorStarter=<base64-json-spec>`. Benefits: deterministic, free (no AI rate limit), same auth posture (requireAuth). Also needed: verify generated panel includes a **layout sheet** with the panel footprints (DIN rail + contactor/breaker/overload footprints placed) — currently only schematic. Add `generate_motor_starter_panel` MCP tool is separate from single-sheet generator — make sure the deterministic endpoint produces BOTH schematic + layout sheets so the calculator-funneled user sees a complete deliverable.
 5. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries). AI quality gate.
 6. **Auth enforced on AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features. Can't launch open.
 7. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking. Can't launch without this.
@@ -129,6 +131,7 @@ Before doing ANYTHING else:
 ### P2 — Infrastructure & Optimization
 
 1. **AWS deployment** — Amplify (frontend), API Gateway + Lambda (backend), CDK with Lambda layers, RDS Postgres. CI/CD with GitHub Actions. Auto-rollback if E2E tests fail.
+2. **S3 image + file storage** — Currently images are base64 data URLs in `Annotation.style.imageData` and `Sheet.titleBlock.logoData` — inline in circuit JSON. At scale this bloats DB rows and every save/load. Plan: bucket `fusioncad-user-uploads` keyed `{userId}/{projectId}/{uuid}.{ext}`, CloudFront CDN in front. Backend endpoint `/api/files/upload-url` returns a presigned PUT URL, client uploads directly to S3 (bypasses API bandwidth). DB stores `{ s3Key, mimeType, widthMm, heightMm }` instead of base64. Logos: public CloudFront URLs. Panel photos: signed URLs (private). Write a one-time migration script to move existing base64 images to S3 before AWS production launch.
 2. **Template caching** — Cache common AI patterns to skip generation entirely.
 3. **CDN for static assets** — CloudFront for the web app.
 4. **CORS locked down** — Currently allows all origins in dev.
