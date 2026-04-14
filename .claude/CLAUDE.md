@@ -146,7 +146,8 @@ Before doing ANYTHING else:
 
 ### P4 — Analytics & Growth
 
-1. **Analytics** — Usage patterns, feature tracking, generation success rate.
+1. **Motor Starter Calculator (public lead-gen tool)** — A polished standalone page at `/tools/motor-starter-calculator` (no auth). User inputs: HP/kW, voltage, phase, duty/category, start type (DOL/soft/VFD). Reuses `motor-database.json` + `schneider-motor-catalog.ts` to output recommended contactor + overload + breaker with datasheet links. Primary CTA: "Open in fusionCad" → signs up the user + auto-creates a project with `generate_motor_starter` pre-populated. Secondary: CSV/PDF export of the BOM. Goal: top-of-funnel SEO hook for electrical engineers + frictionless conversion to signup. Nice UI = no DIY engineering dashboard — polished marketing-grade.
+2. **Analytics** — Usage patterns, feature tracking, generation success rate.
 
 ### Future Phases (Post-Launch)
 

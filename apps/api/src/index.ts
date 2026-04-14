@@ -10,7 +10,7 @@ import { builtinSymbolsJson, convertSymbol, generateLC50_24_Input, generateLC50_
 import { aiGenerate } from './ai-generate.js';
 import { aiSymbolGenerate, aiSymbolImportAssist } from './ai-symbol-generate.js';
 import { aiChat } from './ai-chat.js';
-import { requireAuth, optionalAuth } from './middleware/auth.js';
+import { requireAuth } from './middleware/auth.js';
 import { checkAiRateLimit } from './middleware/ai-rate-limit.js';
 
 const app = express();
@@ -305,7 +305,7 @@ app.get('/api/symbols/:id', async (req, res) => {
 });
 
 // Create or update symbol
-app.put('/api/symbols/:id', async (req, res) => {
+app.put('/api/symbols/:id', requireAuth, async (req, res) => {
   try {
     const symbolRepo = AppDataSource.getRepository(Symbol);
     const raw = { ...req.body, id: req.params.id };
@@ -383,7 +383,7 @@ app.put('/api/symbols/:id', async (req, res) => {
 });
 
 // Delete symbol
-app.delete('/api/symbols/:id', async (req, res) => {
+app.delete('/api/symbols/:id', requireAuth, async (req, res) => {
   try {
     const symbolRepo = AppDataSource.getRepository(Symbol);
     const result = await symbolRepo.delete(req.params.id);
@@ -398,7 +398,7 @@ app.delete('/api/symbols/:id', async (req, res) => {
 });
 
 // Force re-seed symbols from builtin JSON (?force=true to update existing)
-app.post('/api/symbols/seed', async (req, res) => {
+app.post('/api/symbols/seed', requireAuth, async (req, res) => {
   try {
     const force = req.query.force === 'true';
     const result = await seedBuiltinSymbols(force);
@@ -504,7 +504,7 @@ async function seedBuiltinSymbols(force = false): Promise<{ seeded: number; upda
 // ============ AI GENERATION ROUTES ============
 
 // AI-powered circuit generation from natural language
-app.post('/api/projects/:id/ai-generate', optionalAuth, checkAiRateLimit, async (req, res) => {
+app.post('/api/projects/:id/ai-generate', requireAuth, checkAiRateLimit, async (req, res) => {
   try {
     const projectRepo = AppDataSource.getRepository(Project);
     const project = await projectRepo.findOneBy({ id: req.params.id });
@@ -550,7 +550,7 @@ app.post('/api/projects/:id/ai-generate', optionalAuth, checkAiRateLimit, async 
 // ============ AI SYMBOL GENERATION ============
 
 // AI-powered symbol generation from natural language description
-app.post('/api/symbols/ai-generate', optionalAuth, async (req, res) => {
+app.post('/api/symbols/ai-generate', requireAuth, checkAiRateLimit, async (req, res) => {
   try {
     const { description } = req.body;
     if (!description || typeof description !== 'string') {
@@ -571,7 +571,7 @@ app.post('/api/symbols/ai-generate', optionalAuth, async (req, res) => {
 });
 
 // AI-assisted symbol import — clean up raw SVG/DXF geometry with AI
-app.post('/api/symbols/ai-import-assist', optionalAuth, async (req, res) => {
+app.post('/api/symbols/ai-import-assist', requireAuth, checkAiRateLimit, async (req, res) => {
   try {
     const { primitives, fileName, svgSource, usage } = req.body;
     if (!primitives || !Array.isArray(primitives)) {
@@ -597,7 +597,7 @@ app.post('/api/symbols/ai-import-assist', optionalAuth, async (req, res) => {
 // ============ AI CHAT ============
 
 // AI assistant chat — context-aware conversation about the drawing
-app.post('/api/ai-chat', optionalAuth, async (req, res) => {
+app.post('/api/ai-chat', requireAuth, checkAiRateLimit, async (req, res) => {
   try {
     const { message, projectId, circuitContext, history } = req.body;
     if (!message || typeof message !== 'string') {
