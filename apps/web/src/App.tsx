@@ -161,6 +161,7 @@ function AppInner({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; widthMm: number; heightMm: number } | null>(null);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [handoffPrompt, setHandoffPrompt] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
@@ -176,6 +177,21 @@ function AppInner({
     const handler = () => setSnapEnabledState(isSnapEnabled());
     window.addEventListener('snap-toggled', handler);
     return () => window.removeEventListener('snap-toggled', handler);
+  }, []);
+
+  // Read handoff prompt from URL (e.g., from Motor Starter Calculator).
+  // On mount, if ?prompt=... is present, stash it for the AI dialog and clean the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const incoming = params.get('prompt');
+    if (incoming) {
+      setHandoffPrompt(incoming);
+      setShowAIPrompt(true);
+      params.delete('prompt');
+      const newSearch = params.toString();
+      const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
   }, []);
 
   const clearPendingPartData = useCallback(() => {
@@ -1035,10 +1051,11 @@ function AppInner({
       {showAIPrompt && project.projectId && (
         <AIPromptDialog
           projectId={project.projectId}
-          onClose={() => setShowAIPrompt(false)}
+          onClose={() => { setShowAIPrompt(false); setHandoffPrompt(null); }}
           onGenerated={() => project.reloadProject()}
           getAccessToken={auth.isAuthenticated ? auth.getAccessToken : undefined}
           initialQuota={(auth.user as any)?.aiQuota ?? null}
+          initialPrompt={handoffPrompt || undefined}
         />
       )}
 

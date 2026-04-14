@@ -30,6 +30,7 @@ interface AIPromptDialogProps {
   onGenerated: () => void;
   getAccessToken?: () => Promise<string | null>;
   initialQuota?: AiQuota | null;
+  initialPrompt?: string;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -38,8 +39,8 @@ const EXAMPLE_PROMPTS = [
   'Power distribution for a CompactLogix PLC with 24VDC supply, surge protection, and cabinet light',
 ];
 
-export function AIPromptDialog({ projectId, onClose, onGenerated, getAccessToken, initialQuota }: AIPromptDialogProps) {
-  const [prompt, setPrompt] = useState('');
+export function AIPromptDialog({ projectId, onClose, onGenerated, getAccessToken, initialQuota, initialPrompt }: AIPromptDialogProps) {
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);

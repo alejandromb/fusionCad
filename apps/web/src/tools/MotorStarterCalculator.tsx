@@ -70,8 +70,26 @@ function ComponentCard({ label, component }: { label: string; component: Compone
   );
 }
 
+function buildHandoffPrompt(result: MotorStarterResult): string {
+  const s = result.spec;
+  const phaseLabel = s.phase === 'single' ? 'single-phase' : 'three-phase';
+  const starterLabel = s.starterType === 'iec-open' ? 'IEC open-style'
+    : s.starterType === 'iec-enclosed' ? 'IEC enclosed (Type 1)'
+    : s.starterType === 'nema-open' ? 'NEMA open-style'
+    : 'NEMA enclosed (Type 1)';
+  return [
+    `Motor starter for a ${s.hp} HP ${s.voltage} ${phaseLabel} motor.`,
+    `Use ${starterLabel} components from Schneider Electric.`,
+    `Contactor ${result.components.contactor.partNumber},`,
+    `overload relay ${result.components.overloadRelay.partNumber},`,
+    `circuit breaker ${result.components.circuitBreaker.partNumber}.`,
+    'Include power wiring, control circuit with HOA selector, stop button, start button, and running indicator pilot light.',
+  ].join(' ');
+}
+
 function ResultPanel({ result }: { result: MotorStarterResult }) {
   const c = result.components;
+  const handoffUrl = `/?prompt=${encodeURIComponent(buildHandoffPrompt(result))}`;
   return (
     <div className="msc-result-panel">
       <div className="msc-result-summary">
@@ -105,10 +123,10 @@ function ResultPanel({ result }: { result: MotorStarterResult }) {
       </div>
 
       <div className="msc-cta-wrap">
-        <a href="/" className="msc-cta-primary">
+        <a href={handoffUrl} className="msc-cta-primary">
           Draw this circuit in fusionCad →
         </a>
-        <p className="msc-cta-hint">Free for solo engineers · No install · Export to PDF</p>
+        <p className="msc-cta-hint">Sends your spec to the AI generator · Free for solo engineers · Export to PDF</p>
       </div>
     </div>
   );
