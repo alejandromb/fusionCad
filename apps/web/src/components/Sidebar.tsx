@@ -7,6 +7,9 @@ import type { Sheet, SheetLadderLayout } from '@fusion-cad/core-model';
 import { ThemePicker } from './ThemePicker';
 import { SHEET_SIZES } from '../renderer/title-block';
 import type { ThemeId, CustomThemeInput } from '../renderer/theme';
+import type { CircuitData } from '../renderer/circuit-renderer';
+import type { DeviceTransform, Point } from '../renderer/types';
+import { SheetThumbnail } from './SheetThumbnail';
 
 interface SidebarProps {
   sheets: Sheet[];
@@ -38,6 +41,9 @@ interface SidebarProps {
   setCustomColors: (colors: CustomThemeInput) => void;
   debugMode: boolean;
   setDebugMode: (mode: boolean) => void;
+  circuit: CircuitData | null;
+  devicePositions: Map<string, Point>;
+  deviceTransforms?: Map<string, DeviceTransform>;
 }
 
 export function Sidebar({
@@ -70,6 +76,9 @@ export function Sidebar({
   setCustomColors,
   debugMode,
   setDebugMode,
+  circuit,
+  devicePositions,
+  deviceTransforms,
 }: SidebarProps) {
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -129,8 +138,8 @@ export function Sidebar({
                   onClick={e => e.stopPropagation()}
                 />
               ) : (
-                <span
-                  className="page-tree-name"
+                <div
+                  className="page-tree-row"
                   onContextMenu={e => {
                     e.preventDefault();
                     if (sheets.length > 1 && confirm(`Delete "${sheet.name}"? This cannot be undone.`)) {
@@ -139,8 +148,16 @@ export function Sidebar({
                   }}
                   title="Right-click to delete"
                 >
-                  {sheet.name}
-                </span>
+                  {circuit && (
+                    <SheetThumbnail
+                      circuit={circuit}
+                      sheetId={sheet.id}
+                      devicePositions={devicePositions}
+                      deviceTransforms={deviceTransforms}
+                    />
+                  )}
+                  <span className="page-tree-name">{sheet.name}</span>
+                </div>
               )}
             </div>
           ))}

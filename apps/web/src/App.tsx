@@ -621,6 +621,9 @@ function AppInner({
           setCustomColors={theme.setCustomColors}
           debugMode={circuitState.debugMode}
           setDebugMode={circuitState.setDebugMode}
+          circuit={project.circuit}
+          devicePositions={project.devicePositions}
+          deviceTransforms={circuitState.deviceTransforms}
         />
 
         <div className="canvas-area">

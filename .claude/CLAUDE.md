@@ -111,18 +111,20 @@ Before doing ANYTHING else:
 5. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries). AI quality gate.
 6. **Auth enforced on AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features. Can't launch open.
 7. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking. Can't launch without this.
+8. **AWS-readiness auth hardening** — MANDATORY before AWS deploy. Cognito + Amplify are wired (`requireAuth` on all project endpoints, Google/GitHub OAuth, email/password). Gaps to close: (a) `requireAuth` on `/api/ai-generate`, `/api/symbols/ai-generate`, `/api/symbols/ai-import-assist`, `/api/ai-chat` — see `apps/api/src/index.ts:507-600`; (b) rate limit + usage tracking on `/api/ai-chat`; (c) audit `optionalAuth` uses across all routes; (d) enforce plan tiers (free: 3 projects, no AI / paid: unlimited + AI); (e) lock CORS to known origins; (f) verify Cognito token validation in Lambda environment. Do NOT deploy to AWS until all 6 are complete.
 
 ### P1 — Core Quality (ship soon after launch)
 
 1. **Node-based electrical graph** — Implement the planned `Node` entity from core-model. Replace junction-as-device with proper graph nodes. Enables: net-level wire defaults, proper electrical analysis, cleaner junction handling, wire annotation propagation per net. **⚠️ Architectural change — use feature branch `feature/node-graph`, merge after testing.**
-2. **Rung-based device alignment** — Smart horizontal distribution + vertical snap to rung Y for professional-looking schematics. PLC pin/rung alignment.
-3. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking, BOM grouping.
-4. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing, line weights. Research proper DXF text rendering + HATCH/SOLID fill support.
-5. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
-6. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
-7. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library.
-8. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36). **TODO:** Tune layout prompt, add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
-9. **Error monitoring** — Sentry or similar for production error tracking.
+2. **Smart alignment guides (Figma-style)** — Lightweight alternative to a formal column entity. On drag, detect other devices within ±2mm of the pointer's X (or Y), show a guideline, and snap to the shared coordinate. Three+ devices sharing an X becomes a stronger "established lane." No data model change, no new entity, no migration. Rationale from compressor case study: columns already emerge from bulk generators (K1–K11 at x=110, X7–X28 at x=250/335) — the problem is only that manual drags break alignment by sub-mm amounts. Smart guides preserve emergent alignment with zero blast radius. Works on all sheet types (no match = no snap). Reversible via toggle. If this proves insufficient, revisit a formal `Column` entity later.
+3. **Wiring UX + smart wires** — Current routing produces spaghetti on bus-wire patterns (see `memory/project_wiring_architecture.md`). Needs: better interactive drawing (rubber-band preview, snap-to-pin, auto-junction on cross), smarter routing (bus entity OR KiCad-style segments), net-level properties (gauge/color/number propagate along the net), and wire numbering auto-generated from rung + column index. ⚠️ **Human-in-the-loop required** — wiring UX is the core daily interaction, must be co-designed with the user, not AI-generated.
+4. **Multi-symbol part linking** — Parts like PLCs need multiple symbols (DI+DO+CPU) linked by `deviceGroupId`. Completeness checking, BOM grouping.
+5. **DXF rendering quality** — Text garbled (font/size/alignment), fills missing, line weights. Research proper DXF text rendering + HATCH/SOLID fill support.
+6. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
+7. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
+8. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library.
+9. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36). **TODO:** Tune layout prompt, add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
+10. **Error monitoring** — Sentry or similar for production error tracking.
 
 ### P2 — Infrastructure & Optimization
 

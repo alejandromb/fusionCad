@@ -394,6 +394,28 @@
   white-space: nowrap;
 }
 
+.page-tree-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-thumbnail {
+  display: block;
+  background: var(--fc-bg-app);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  pointer-events: none;
+  align-self: center;
+}
+
+.page-tree-item.active .sheet-thumbnail {
+  border-color: var(--fc-accent);
+}
+
 .page-tree-input {
   flex: 1;
   padding: 2px 4px;

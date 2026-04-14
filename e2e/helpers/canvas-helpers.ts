@@ -35,7 +35,7 @@ export async function worldToScreen(page: Page, wx: number, wy: number): Promise
   const state = await getState(page);
   const vp: Viewport = state.viewport;
 
-  const canvas = await page.locator('canvas').boundingBox();
+  const canvas = await page.locator('canvas.canvas').boundingBox();
   if (!canvas) throw new Error('Canvas not found');
 
   return {

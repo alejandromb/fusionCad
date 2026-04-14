@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "WebFetch",
+      "WebSearch",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(git *)",
+      "Bash(docker *)",
+      "Bash(curl *)",
+      "Bash(ls *)",
+      "Bash(lsof *)",
+      "Bash(python3 *)",
+      "mcp__claude-in-chrome__*"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

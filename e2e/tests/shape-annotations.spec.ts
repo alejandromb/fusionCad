@@ -9,7 +9,7 @@ const MM_TO_PX = 4;
 async function worldMmToScreen(page: any, wx: number, wy: number): Promise<{ x: number; y: number }> {
   const state = await page.evaluate(() => (window as any).__fusionCadState);
   const vp = state.viewport;
-  const canvas = await page.locator('canvas').boundingBox();
+  const canvas = await page.locator('canvas.canvas').boundingBox();
   if (!canvas) throw new Error('Canvas not found');
   return {
     x: canvas.x + wx * vp.scale * MM_TO_PX + vp.offsetX,

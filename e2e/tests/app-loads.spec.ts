@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/fusion-cad.fixture';
 
 test.describe('App loads', () => {
   test('canvas is visible', async ({ page }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('canvas.canvas');
     await expect(canvas).toBeVisible();
   });
 

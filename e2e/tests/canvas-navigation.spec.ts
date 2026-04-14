@@ -5,7 +5,7 @@ test.describe('Canvas navigation', () => {
     const state = await canvasHelpers.getState(page);
     const initialScale = state.viewport.scale;
 
-    const canvas = await page.locator('canvas').boundingBox();
+    const canvas = await page.locator('canvas.canvas').boundingBox();
     expect(canvas).not.toBeNull();
 
     // Zoom in with scroll up
@@ -41,7 +41,7 @@ test.describe('Canvas navigation', () => {
     const initialOffsetX = state.viewport.offsetX;
     const initialOffsetY = state.viewport.offsetY;
 
-    const canvas = await page.locator('canvas').boundingBox();
+    const canvas = await page.locator('canvas.canvas').boundingBox();
     expect(canvas).not.toBeNull();
 
     // Drag to pan
@@ -65,7 +65,7 @@ test.describe('Canvas navigation', () => {
 
     const initialOffsetX = state.viewport.offsetX;
 
-    const canvas = await page.locator('canvas').boundingBox();
+    const canvas = await page.locator('canvas.canvas').boundingBox();
     expect(canvas).not.toBeNull();
 
     const startX = canvas!.x + canvas!.width / 2;
@@ -104,7 +104,7 @@ test.describe('Canvas navigation', () => {
     await canvasHelpers.waitForDeviceCount(page, 1);
 
     // Zoom way out first
-    const canvas = await page.locator('canvas').boundingBox();
+    const canvas = await page.locator('canvas.canvas').boundingBox();
     await page.mouse.move(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2);
     await page.mouse.wheel(0, 500);
     await page.waitForTimeout(200);

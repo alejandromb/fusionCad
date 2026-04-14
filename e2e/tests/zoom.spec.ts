@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/fusion-cad.fixture';
 
 test.describe('Zoom and pan', () => {
   test('mouse wheel zoom changes viewport scale', async ({ page, canvasHelpers }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('canvas.canvas');
     await expect(canvas).toBeVisible();
 
     // Get initial viewport
@@ -24,7 +24,7 @@ test.describe('Zoom and pan', () => {
   });
 
   test('zoom out decreases viewport scale', async ({ page, canvasHelpers }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('canvas.canvas');
     await expect(canvas).toBeVisible();
 
     const before = await page.evaluate(() => (window as any).__fusionCadState?.viewport);
@@ -72,7 +72,7 @@ test.describe('Zoom and pan', () => {
   });
 
   test('zoom respects min/max bounds', async ({ page }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('canvas.canvas');
     const box = await canvas.boundingBox();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
