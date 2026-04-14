@@ -49,6 +49,8 @@ interface CanvasProps {
   /** Open Symbol Editor for a given symbolKey (dev-only context menu) */
   onEditSymbol?: (symbolKey: string) => void;
   alignSelectedDevices?: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
+  linkDevicesAsSamePart?: (deviceIds: string[]) => void;
+  unlinkDevices?: (deviceIds: string[]) => void;
   /** Ghost paste preview data - built by parent from clipboard + mouse position */
   ghostPaste?: Array<{ category: string; x: number; y: number; tag: string; rotation?: number; mirrorH?: boolean }> | null;
   drawingShapePreview?: import('../renderer/circuit-renderer').RenderOptions['drawingShapePreview'];
@@ -89,6 +91,8 @@ export function Canvas({
   renderHandleRef,
   onEditSymbol,
   alignSelectedDevices,
+  linkDevicesAsSamePart,
+  unlinkDevices,
   ghostPaste,
   drawingShapePreview,
   showGrid = true,
@@ -269,6 +273,40 @@ export function Canvas({
                     <button className="context-menu-item" onClick={() => { alignSelectedDevices('bottom'); setContextMenu(null); }}>Align Bottom</button>
                   </>
                 )}
+                {(() => {
+                  if (!circuit) return null;
+                  const activeIds = selectedDevices.length > 0 ? selectedDevices : [contextMenu.deviceTag!];
+                  const activeDevs = activeIds.map(id => circuit.devices.find(d => d.id === id)).filter(Boolean) as typeof circuit.devices;
+                  const hasAnyLink = activeDevs.some(d => d?.deviceGroupId);
+                  const canLink = activeIds.length >= 2 && linkDevicesAsSamePart;
+                  const canUnlink = hasAnyLink && unlinkDevices;
+                  if (!canLink && !canUnlink) return null;
+                  return (
+                    <>
+                      <div className="context-menu-separator" />
+                      {canLink && (
+                        <button
+                          className="context-menu-item"
+                          onClick={() => { linkDevicesAsSamePart!(activeIds); setContextMenu(null); }}
+                        >
+                          Link as same part ({activeIds.length})
+                        </button>
+                      )}
+                      {canUnlink && (
+                        <button
+                          className="context-menu-item"
+                          onClick={() => {
+                            const linkedIds = activeDevs.filter(d => d?.deviceGroupId).map(d => d!.id);
+                            unlinkDevices!(linkedIds);
+                            setContextMenu(null);
+                          }}
+                        >
+                          Unlink
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
                 <div className="context-menu-separator" />
                 <button className="context-menu-item danger" onClick={() => {
                   if (deleteDevices) deleteDevices(selectedDevices.length > 0 ? selectedDevices : [contextMenu.deviceTag!]);

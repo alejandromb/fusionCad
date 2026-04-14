@@ -659,6 +659,8 @@ function AppInner({
             renderHandleRef={interaction.renderHandleRef}
             onEditSymbol={(symbolKey) => setEditSymbolId(symbolKey)}
             alignSelectedDevices={circuitState.alignSelectedDevices}
+            linkDevicesAsSamePart={circuitState.linkDevicesAsSamePart}
+            unlinkDevices={circuitState.unlinkDevices}
             ghostPaste={ghostPaste}
             drawingShapePreview={interaction.drawingShapePreview}
             showGrid={circuitState.showGrid}

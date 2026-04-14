@@ -97,6 +97,8 @@ export interface UseCircuitStateReturn {
 
   // Device update (by device ID)
   updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => void;
+  linkDevicesAsSamePart: (deviceIds: string[]) => void;
+  unlinkDevices: (deviceIds: string[]) => void;
 
   // Part assignment (by device ID)
   assignPart: (deviceId: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
@@ -1509,6 +1511,44 @@ export function useCircuitState(
     // No need to update positions or selection on tag rename — they're ID-keyed
   }, [circuit, pushToHistory, setCircuit]);
 
+  const linkDevicesAsSamePart = useCallback((deviceIds: string[]) => {
+    if (!circuit || deviceIds.length < 2) return;
+    pushToHistory();
+    // Reuse an existing group if one of the selected devices is already grouped,
+    // so linking extends the group rather than creating a parallel one.
+    const existingGroupId = circuit.devices.find(d => deviceIds.includes(d.id) && d.deviceGroupId)?.deviceGroupId;
+    const groupId = existingGroupId || `grp_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+    const idSet = new Set(deviceIds);
+    setCircuit(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        devices: prev.devices.map(d =>
+          idSet.has(d.id)
+            ? { ...d, deviceGroupId: groupId, modifiedAt: Date.now() }
+            : d,
+        ),
+      };
+    });
+  }, [circuit, pushToHistory, setCircuit]);
+
+  const unlinkDevices = useCallback((deviceIds: string[]) => {
+    if (!circuit || deviceIds.length === 0) return;
+    pushToHistory();
+    const idSet = new Set(deviceIds);
+    setCircuit(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        devices: prev.devices.map(d => {
+          if (!idSet.has(d.id) || !d.deviceGroupId) return d;
+          const { deviceGroupId: _unused, ...rest } = d;
+          return { ...rest, modifiedAt: Date.now() } as typeof d;
+        }),
+      };
+    });
+  }, [circuit, pushToHistory, setCircuit]);
+
   return {
     debugMode,
     setDebugMode,
@@ -1572,6 +1612,8 @@ export function useCircuitState(
     moveAnnotations,
     deleteAnnotation,
     updateDevice,
+    linkDevicesAsSamePart,
+    unlinkDevices,
     assignPart,
     selectedDevices,
     setSelectedDevices,
