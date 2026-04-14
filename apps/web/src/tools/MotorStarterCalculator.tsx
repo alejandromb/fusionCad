@@ -70,26 +70,31 @@ function ComponentCard({ label, component }: { label: string; component: Compone
   );
 }
 
-function buildHandoffPrompt(result: MotorStarterResult): string {
+/**
+ * Encode the calculator spec for the deterministic handoff endpoint.
+ * Uses base64url-encoded JSON so it round-trips cleanly through URL params.
+ */
+function buildHandoffSpec(result: MotorStarterResult): string {
   const s = result.spec;
-  const phaseLabel = s.phase === 'single' ? 'single-phase' : 'three-phase';
-  const starterLabel = s.starterType === 'iec-open' ? 'IEC open-style'
-    : s.starterType === 'iec-enclosed' ? 'IEC enclosed (Type 1)'
-    : s.starterType === 'nema-open' ? 'NEMA open-style'
-    : 'NEMA enclosed (Type 1)';
-  return [
-    `Motor starter for a ${s.hp} HP ${s.voltage} ${phaseLabel} motor.`,
-    `Use ${starterLabel} components from Schneider Electric.`,
-    `Contactor ${result.components.contactor.partNumber},`,
-    `overload relay ${result.components.overloadRelay.partNumber},`,
-    `circuit breaker ${result.components.circuitBreaker.partNumber}.`,
-    'Include power wiring, control circuit with HOA selector, stop button, start button, and running indicator pilot light.',
-  ].join(' ');
+  const spec = {
+    hp: s.hp,
+    voltage: s.voltage,
+    phase: s.phase || 'three',
+    country: s.country || 'USA',
+    starterType: s.starterType || 'iec-open',
+    controlVoltage: '120VAC',
+    hoaSwitch: true,
+    pilotLight: true,
+    plcRemote: false,
+    eStop: true,
+  };
+  // btoa is safe here — spec is ASCII-only strings and booleans.
+  return btoa(JSON.stringify(spec));
 }
 
 function ResultPanel({ result }: { result: MotorStarterResult }) {
   const c = result.components;
-  const handoffUrl = `/?prompt=${encodeURIComponent(buildHandoffPrompt(result))}`;
+  const handoffUrl = `/?motorStarter=${encodeURIComponent(buildHandoffSpec(result))}`;
   return (
     <div className="msc-result-panel">
       <div className="msc-result-summary">
@@ -126,7 +131,7 @@ function ResultPanel({ result }: { result: MotorStarterResult }) {
         <a href={handoffUrl} className="msc-cta-primary">
           Draw this circuit in fusionCad →
         </a>
-        <p className="msc-cta-hint">Sends your spec to the AI generator · Free for solo engineers · Export to PDF</p>
+        <p className="msc-cta-hint">Deterministic — same spec, same circuit · Free · Export to PDF</p>
       </div>
     </div>
   );

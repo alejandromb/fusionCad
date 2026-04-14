@@ -358,7 +358,7 @@ function createLadderRails(circuit: CircuitData, sheetId: string, blockId?: stri
 //  Motor Starter Panel Generator
 // ================================================================
 
-interface PanelOptions {
+export interface PanelOptions {
   hp: string;
   voltage: string;
   phase?: 'single' | 'three';
@@ -372,7 +372,7 @@ interface PanelOptions {
   panelLayout?: boolean;
 }
 
-function generateMotorStarterPanel(
+export function generateMotorStarterPanel(
   circuit: CircuitData,
   options: PanelOptions,
   motorData?: MotorStarterResult,

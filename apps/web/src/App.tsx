@@ -162,6 +162,8 @@ function AppInner({
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; widthMm: number; heightMm: number } | null>(null);
   const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [handoffPrompt, setHandoffPrompt] = useState<string | null>(null);
+  const [handoffMotorStarter, setHandoffMotorStarter] = useState<Record<string, unknown> | null>(null);
+  const [handoffProcessing, setHandoffProcessing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeCTA, setShowUpgradeCTA] = useState(false);
   const [pendingPartData, setPendingPartData] = useState<ManufacturerPart | null>(null);
@@ -179,20 +181,41 @@ function AppInner({
     return () => window.removeEventListener('snap-toggled', handler);
   }, []);
 
-  // Read handoff prompt from URL (e.g., from Motor Starter Calculator).
-  // On mount, if ?prompt=... is present, stash it for the AI dialog and clean the URL.
+  // Read handoff payload from URL (e.g., from Motor Starter Calculator).
+  // On mount, dispatch by param type: ?motorStarter=... for deterministic generation,
+  // ?prompt=... for AI dialog pre-fill (generic fallback).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const incoming = params.get('prompt');
-    if (incoming) {
-      setHandoffPrompt(incoming);
+    const motorStarterParam = params.get('motorStarter');
+    const promptParam = params.get('prompt');
+    let consumed = false;
+
+    if (motorStarterParam) {
+      try {
+        const json = atob(motorStarterParam);
+        const spec = JSON.parse(json);
+        if (spec && typeof spec === 'object') {
+          setHandoffMotorStarter(spec);
+          consumed = true;
+        }
+      } catch {
+        // Malformed spec — drop silently; user lands in the editor normally.
+      }
+    } else if (promptParam) {
+      setHandoffPrompt(promptParam);
       setShowAIPrompt(true);
+      consumed = true;
+    }
+
+    if (consumed) {
+      params.delete('motorStarter');
       params.delete('prompt');
       const newSearch = params.toString();
       const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
       window.history.replaceState({}, '', cleanUrl);
     }
   }, []);
+
 
   const clearPendingPartData = useCallback(() => {
     setPendingPartData(null);
@@ -226,6 +249,53 @@ function AppInner({
   }, [storageProvider]);
 
   const project = useProjectPersistence(storageProvider, handleProjectLimitReached);
+
+  // Process motor-starter handoff once project + auth are ready.
+  // Deterministic: calls /api/projects/:id/generate-motor-starter with the structured spec
+  // stashed from the ?motorStarter=... URL param. No AI, no rate limit.
+  useEffect(() => {
+    if (!handoffMotorStarter || handoffProcessing) return;
+    if (!project.projectId) return;
+    if (auth.isLoading) return;
+
+    // If user not signed in (and auth is required in prod), show auth modal first.
+    // The spec stays stashed; this effect re-fires after sign-in.
+    if (!auth.isAuthenticated && !(import.meta.env.VITE_BYPASS_AUTH === 'true')) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const runHandoff = async () => {
+      setHandoffProcessing(true);
+      try {
+        const token = auth.isAuthenticated && auth.getAccessToken ? await auth.getAccessToken() : null;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const response = await fetch(
+          `${apiBase}/api/projects/${project.projectId}/generate-motor-starter`,
+          { method: 'POST', headers, body: JSON.stringify(handoffMotorStarter) },
+        );
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Motor starter handoff failed:', err);
+          return;
+        }
+
+        await project.reloadProject();
+      } catch (err) {
+        console.error('Motor starter handoff error:', err);
+      } finally {
+        setHandoffMotorStarter(null);
+        setHandoffProcessing(false);
+      }
+    };
+
+    void runHandoff();
+  }, [handoffMotorStarter, handoffProcessing, project.projectId, auth.isAuthenticated, auth.isLoading, auth.getAccessToken, project.reloadProject, auth]);
+
   const circuitState = useCircuitState(
     project.circuit,
     project.setCircuit,

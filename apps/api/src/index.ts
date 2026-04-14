@@ -6,8 +6,8 @@ import { AppDataSource } from './data-source.js';
 import { Project } from './entities/Project.js';
 import { User } from './entities/User.js';
 import { Symbol } from './entities/Symbol.js';
-import { builtinSymbolsJson, convertSymbol, generateLC50_24_Input, generateLC50_24_Output } from '@fusion-cad/core-model';
-import { aiGenerate } from './ai-generate.js';
+import { builtinSymbolsJson, convertSymbol, generateLC50_24_Input, generateLC50_24_Output, lookupMotorStarter } from '@fusion-cad/core-model';
+import { aiGenerate, generateMotorStarterPanel, type PanelOptions } from './ai-generate.js';
 import { aiSymbolGenerate, aiSymbolImportAssist } from './ai-symbol-generate.js';
 import { aiChat } from './ai-chat.js';
 import { requireAuth } from './middleware/auth.js';
@@ -544,6 +544,78 @@ app.post('/api/projects/:id/ai-generate', requireAuth, checkAiRateLimit, async (
   } catch (error: any) {
     console.error('Error in AI generation:', error);
     res.status(500).json({ error: `AI generation failed: ${error.message}` });
+  }
+});
+
+// ============ DETERMINISTIC MOTOR STARTER ============
+
+/**
+ * Deterministic motor starter generation — no AI parsing, no rate limit.
+ * Takes a structured spec (from the Motor Starter Calculator hook) and generates
+ * the full panel schematic + layout sheet with Schneider parts assigned.
+ *
+ * Used by the calculator → editor handoff so the user sees a complete, predictable
+ * deliverable regardless of how the AI would have parsed a natural-language prompt.
+ */
+app.post('/api/projects/:id/generate-motor-starter', requireAuth, async (req, res) => {
+  try {
+    const projectRepo = AppDataSource.getRepository(Project);
+    const project = await projectRepo.findOneBy({ id: req.params.id });
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    if (project.userId && project.userId !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const body = req.body as Partial<PanelOptions> | undefined;
+    if (!body || typeof body.hp !== 'string' || typeof body.voltage !== 'string') {
+      return res.status(400).json({ error: 'A body with { hp, voltage } (strings) is required' });
+    }
+
+    const options: PanelOptions = {
+      hp: body.hp,
+      voltage: body.voltage,
+      phase: body.phase || 'three',
+      controlVoltage: body.controlVoltage || '120VAC',
+      country: body.country || 'USA',
+      starterType: body.starterType || 'iec-open',
+      hoaSwitch: body.hoaSwitch ?? true,
+      pilotLight: body.pilotLight ?? true,
+      plcRemote: body.plcRemote ?? false,
+      eStop: body.eStop ?? true,
+      // Always generate the layout sheet for the calculator handoff —
+      // calculator users expect a complete deliverable.
+      panelLayout: true,
+    };
+
+    const motorData = lookupMotorStarter({
+      hp: options.hp,
+      voltage: options.voltage,
+      country: options.country,
+      phase: options.phase,
+      starterType: options.starterType as any,
+    });
+
+    const existingCircuit = (project.circuitData || {
+      devices: [], nets: [], parts: [], connections: [], positions: {},
+    }) as any;
+
+    const result = generateMotorStarterPanel(existingCircuit, options, motorData || undefined);
+
+    project.circuitData = result.circuit as any;
+    await projectRepo.save(project);
+
+    res.json({
+      success: true,
+      summary: result.summary,
+      spec: options,
+      partsAssigned: !!motorData,
+    });
+  } catch (error: any) {
+    console.error('Error in deterministic motor starter generation:', error);
+    res.status(500).json({ error: `Motor starter generation failed: ${error.message}` });
   }
 });
 
