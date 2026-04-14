@@ -181,6 +181,7 @@ export function MotorStarterCalculator() {
         <div className="msc-brand">
           <span className="msc-brand-mark">⚡</span>
           <span className="msc-brand-name">fusionCad</span>
+          <span className="msc-brand-by">by fusionLogik</span>
         </div>
         <nav className="msc-nav">
           <a href="/">Open the editor →</a>
@@ -265,6 +266,7 @@ export function MotorStarterCalculator() {
 
       <footer className="msc-footer">
         <p>Data: Schneider Electric motor data catalog. This calculator is a guide — always verify with manufacturer specs and local code.</p>
+        <p className="msc-footer-legal">© {new Date().getFullYear()} fusionLogik. fusionCad and the Motor Starter Calculator are products of fusionLogik.</p>
       </footer>
     </div>
   );

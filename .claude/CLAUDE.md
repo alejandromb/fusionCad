@@ -146,7 +146,8 @@ Before doing ANYTHING else:
 
 ### P4 — Analytics & Growth
 
-1. **Motor Starter Calculator (public lead-gen tool)** — A polished standalone page at `/tools/motor-starter-calculator` (no auth). User inputs: HP/kW, voltage, phase, duty/category, start type (DOL/soft/VFD). Reuses `motor-database.json` + `schneider-motor-catalog.ts` to output recommended contactor + overload + breaker with datasheet links. Primary CTA: "Open in fusionCad" → signs up the user + auto-creates a project with `generate_motor_starter` pre-populated. Secondary: CSV/PDF export of the BOM. Goal: top-of-funnel SEO hook for electrical engineers + frictionless conversion to signup. Nice UI = no DIY engineering dashboard — polished marketing-grade.
+1. **Split marketing/tools into separate workspace** — `apps/marketing/` for landing pages + public tools (Motor Starter Calculator, future Wire Sizer, Voltage Drop, Conduit Fill, Enclosure Sizer). Own bundle, own Amplify config entry, own routing. Benefits: smaller public-site bundle (no editor SDK), independent deploy cadence, different auth posture (none), SEO-first (consider Next.js/Astro for SSR later). Current location (inside `apps/web/src/tools/`) is fine for MVP but refactor when the second tool lands. Owner: fusionLogik.
+2. **Motor Starter Calculator (public lead-gen tool)** — A polished standalone page at `/tools/motor-starter-calculator` (no auth). User inputs: HP/kW, voltage, phase, duty/category, start type (DOL/soft/VFD). Reuses `motor-database.json` + `schneider-motor-catalog.ts` to output recommended contactor + overload + breaker with datasheet links. Primary CTA: "Open in fusionCad" → signs up the user + auto-creates a project with `generate_motor_starter` pre-populated. Secondary: CSV/PDF export of the BOM. Goal: top-of-funnel SEO hook for electrical engineers + frictionless conversion to signup. Nice UI = no DIY engineering dashboard — polished marketing-grade.
 2. **Analytics** — Usage patterns, feature tracking, generation success rate.
 
 ### Future Phases (Post-Launch)
@@ -272,6 +273,27 @@ npm run test:e2e
 - Fix failing tests BEFORE committing
 - Update test expectations if UI/behavior intentionally changed
 - Never commit with failing tests
+
+## 🔐 SECURITY POSTURE
+
+**Dependency audit:** Run `npm audit --omit=dev` weekly and before any production deploy. Production deps should always be at **0 vulnerabilities**. Dev-only tooling vulns (vite/vitest/esbuild chain) are acceptable but track in STATUS.md.
+
+**Known-clean supply chain (as of 2026-04-14):**
+- No `axios` (uses native `fetch` instead — avoids the axios supply-chain concern class)
+- No historically-compromised packages (`event-stream`, `ua-parser-js`, `node-ipc`, `colors.js`, `flatmap-stream`, etc.)
+- `nanoid@3.3.11` — clean version
+
+**Before adding a new dependency:**
+1. Check it's still actively maintained (recent commits, not a single-maintainer orphan)
+2. `npm view <pkg>` to see maintainers + download count
+3. Prefer native `fetch`, `crypto`, `URL`, `URLSearchParams` over wrappers
+4. Run `npm audit` after install — if new high-severity findings appear, re-evaluate
+
+**Auth posture** (shipped Session 41):
+- All AI endpoints require `requireAuth` + `checkAiRateLimit`
+- Symbol mutation endpoints (PUT/DELETE /api/symbols/:id, POST /api/symbols/seed) require auth
+- `/health` and GET /api/symbols/* are intentionally public
+- CORS: configurable via `CORS_ORIGINS` env (locked down in production)
 
 ---
 
