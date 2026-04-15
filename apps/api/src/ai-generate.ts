@@ -14,6 +14,7 @@ import {
   alignDeviceToPin,
   getPinWorldY,
   lookupMotorStarter,
+  getMotorStarterOperatorParts,
   type Device,
   type Part,
   type Sheet,
@@ -606,6 +607,21 @@ export function generateMotorStarterPanel(
       `${motorData.spec.hp} HP ${motorData.spec.voltage} ${motorData.spec.phase === 'three' ? '3-Phase' : '1-Phase'} Motor`,
       'motor');
   }
+
+  // Assign canonical Schneider operator parts for the control-panel devices so
+  // the generated BOM is complete (not a pile of placeholders).
+  // These are always assigned when the corresponding device exists, regardless
+  // of whether motorData is present.
+  const ops = getMotorStarterOperatorParts(controlVoltage as '24VDC' | '120VAC');
+  const assignIfPresent = (cd0: CircuitData, tag: string, part: typeof ops.startButton): CircuitData =>
+    cd0.devices.some(d => d.tag === tag)
+      ? assignPart(cd0, tag, part.manufacturer, part.partNumber, part.description, part.category)
+      : cd0;
+  cd = assignIfPresent(cd, 'S1', ops.startButton);
+  cd = assignIfPresent(cd, 'S2', ops.stopButton);
+  cd = assignIfPresent(cd, 'ES1', ops.estop);
+  cd = assignIfPresent(cd, 'SS1', ops.hoaSelector);
+  cd = assignIfPresent(cd, 'PL1', ops.pilotLight);
 
   // Panel layout
   if (options.panelLayout) {

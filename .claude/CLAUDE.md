@@ -125,6 +125,7 @@ Before doing ANYTHING else:
 6. **Rich AI circuit context** — Show AI which pins are connected vs unconnected. Move context building server-side.
 7. **Print/PDF paper size verification** — Test all paper sizes (A4, A3, Letter, Tabloid, ANSI-D) with mm coordinates.
 8. **Layout built-in symbols** — Promote imported layout footprints (PLC, relays, power supplies) to built-in library.
+8b. **Hoffman (or equivalent) enclosure catalog** — Motor starter generator places `panel-enclosure-*` and `panel-subpanel-*` layout symbols with descriptions like `Enclosure 24x20x8" (Hoffman)`. These are the last 2 BOM placeholders after the operator-parts fix (Session 42). Add `packages/core-model/src/parts/hoffman.ts` with A-series enclosures keyed by size so `generateMotorStarterPanel` can assign PNL1/SP1. Closes the "complete BOM from calculator" gap.
 9. **AI-assisted symbol creation** — ✅ AI-assisted import built (Session 36). **TODO:** Tune layout prompt, add MCP `create_custom_symbol` tool, load symbol-creation-rules.md into AI chat context.
 10. **Error monitoring** — Sentry or similar for production error tracking.
 
@@ -206,7 +207,10 @@ The MCP server (`packages/mcp-server/`) exposes circuit operations as tools for 
 - `packages/mcp-server/src/api-client.ts` - HTTP client for fusionCad API
 - `packages/core-model/src/motor-data/lookup.ts` - Motor starter component lookup
 - `packages/core-model/src/motor-data/motor-database.json` - 216 Schneider Electric motor configs
-- `packages/core-model/src/parts/schneider-motor-catalog.ts` - 289 parts with datasheet URLs
+- `packages/core-model/src/parts/schneider-motor-catalog.ts` - 289 motor-power parts (contactors, breakers, overloads) with datasheet URLs
+- `packages/core-model/src/parts/schneider-pushbuttons.ts` - Harmony XB4/XB5 operator parts: pushbuttons (`pushbutton`), E-stops (`e-stop`), pilot lights (`pilot-light`), selector switches (`selector-switch`). Also exports `getMotorStarterOperatorParts(controlVoltage)` returning canonical parts for start button, stop button, E-stop, HOA selector, pilot light. **Use this before inventing part numbers.**
+- `packages/core-model/src/parts/schneider-electric.ts` - Other Schneider general parts
+- `packages/core-model/src/parts/index.ts` - `ALL_MANUFACTURER_PARTS` + `getPartsByCategory(category)` + `getPartsByManufacturer(mfr)` helpers
 - `.mcp.json` - Claude Code auto-discovery config
 
 ---

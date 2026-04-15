@@ -1,5 +1,7 @@
 import type { Part } from '../types.js';
 
+type PartRecord = Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>;
+
 /**
  * Schneider Electric Harmony XB4/XB5 Pushbuttons, Pilot Lights, Selector Switches, E-Stops
  *
@@ -195,3 +197,36 @@ export const schneiderPushbuttonParts: Omit<Part, 'id' | 'createdAt' | 'modified
     attributes: { series: 'Harmony XB5', positions: 3, returnType: 'stay-put', contactType: '2NO', application: 'HOA', mounting: '22mm' },
   },
 ];
+
+/**
+ * Canonical Schneider operator parts for an auto-generated motor starter.
+ * Used by the Motor Starter Calculator handoff to fill in control-panel
+ * operator devices (start/stop buttons, E-stop, HOA selector, pilot light)
+ * so the generated BOM is complete rather than a pile of placeholders.
+ */
+export interface MotorStarterOperatorParts {
+  startButton: PartRecord;
+  stopButton: PartRecord;
+  estop: PartRecord;
+  hoaSelector: PartRecord;
+  pilotLight: PartRecord;
+}
+
+function findPart(partNumber: string): PartRecord {
+  const part = schneiderPushbuttonParts.find(p => p.partNumber === partNumber);
+  if (!part) throw new Error(`Schneider pushbutton part not found: ${partNumber}`);
+  return part;
+}
+
+export function getMotorStarterOperatorParts(controlVoltage: '24VDC' | '120VAC' = '120VAC'): MotorStarterOperatorParts {
+  // Pilot light: 24V variant for 24VDC control; 230V variant for 120VAC control
+  // (closest Schneider catalog match; swap for true 120V variant when catalog expands).
+  const pilotPartNumber = controlVoltage === '24VDC' ? 'XB4BVB3' : 'XB4BVM3';
+  return {
+    startButton: findPart('XB4BA31'),     // Green, 1NO, flush — standard Start
+    stopButton:  findPart('XB4BA42'),     // Red, 1NC, flush — standard Stop
+    estop:       findPart('XB4BS8442'),   // Red mushroom, 1NC, turn-to-release
+    hoaSelector: findPart('XB4BD33'),     // 3-position HOA, 2NO
+    pilotLight:  findPart(pilotPartNumber),
+  };
+}
