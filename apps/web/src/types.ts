@@ -49,8 +49,12 @@ export function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
-// Re-export from the pure math module (extracted for testability)
-export { applyPinTransform } from './utils/pin-math';
+// Import from the pure math module (extracted for testability) AND re-export.
+// `export { X } from './path'` alone does NOT create a local binding, so
+// local code in this file that needs to call applyPinTransform would throw
+// at runtime. This import + export combination keeps both callers happy.
+import { applyPinTransform } from './utils/pin-math';
+export { applyPinTransform };
 
 /**
  * Get pin at world coordinates (8px hit radius)
