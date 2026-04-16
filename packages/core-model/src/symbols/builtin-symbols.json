@@ -413,14 +413,14 @@
       "category": "Power",
       "standard": "ANSI/IEEE",
       "width": 25,
-      "height": 15,
+      "height": 20,
       "svgPath": "",
       "pins": [
         {
           "id": "1",
           "name": "1",
           "x": 0,
-          "y": 10,
+          "y": 15,
           "direction": "left",
           "pinType": "power"
         },
@@ -428,7 +428,7 @@
           "id": "2",
           "name": "2",
           "x": 25,
-          "y": 10,
+          "y": 15,
           "direction": "right",
           "pinType": "power"
         }
@@ -438,14 +438,14 @@
         {
           "type": "line",
           "x1": 0,
-          "y1": 10,
+          "y1": 15,
           "x2": 4.5,
-          "y2": 10
+          "y2": 15
         },
         {
           "type": "arc",
           "cx": 10,
-          "cy": 10,
+          "cy": 15,
           "r": 5.5,
           "startAngle": 3.14159,
           "endAngle": 0
@@ -453,28 +453,28 @@
         {
           "type": "line",
           "x1": 10,
-          "y1": 4.5,
+          "y1": 9.5,
           "x2": 10,
-          "y2": 0.5
+          "y2": 5.5
         },
         {
           "type": "circle",
-          "cx": 18,
-          "cy": 10,
+          "cx": 17.25,
+          "cy": 15,
           "r": 1.75
         },
         {
           "type": "circle",
-          "cx": 22,
-          "cy": 10,
+          "cx": 20.75,
+          "cy": 15,
           "r": 1.75
         },
         {
           "type": "line",
-          "x1": 23.75,
-          "y1": 10,
+          "x1": 22.5,
+          "y1": 15,
           "x2": 25,
-          "y2": 10
+          "y2": 15
         }
       ]
     },

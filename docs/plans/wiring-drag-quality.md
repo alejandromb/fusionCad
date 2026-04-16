@@ -112,6 +112,14 @@ During drag: show simple L-shape (cheap, current behavior).
 On drag release: run sequential router, bake clean waypoints.
 Visual: brief "snap" to clean layout on mouseup. Feels like KiCad.
 
+## Problem 2: Junction proliferation during drag (Session 42 finding)
+
+When dragging a device, the system creates unwanted junction devices at every point where a moving wire's path crosses an existing wire. These junctions become new anchor points that further distort the wiring, creating a cascading mess. Evidence: dragging CB3 produced 4-5 spurious junctions, angled (non-orthogonal) wire segments, and displaced wires.
+
+This is likely a bug in the drag handler or the wire-update logic that runs on each mousemove during drag. The wire-crossing detection meant for interactive T-junction creation (click on existing wire to branch) may be firing during drag motion, creating junctions the user never asked for.
+
+**Fix:** during device drag, the wire-update logic should NEVER create new junctions. Junction creation should only happen on explicit user click in wire mode. The drag handler should only update endpoint positions and waypoints — never mutate the circuit topology (add/remove devices or connections).
+
 ## Non-goals
 
 - **This plan does NOT cover the bus/cable abstraction.** That's a higher-level feature where 3 wires are recognized as a "3-phase bus" and move as a unit. This plan is about making the existing per-wire router produce non-overlapping results.
