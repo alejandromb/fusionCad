@@ -684,6 +684,7 @@ function AppInner({
           onAddSheet={circuitState.addSheet}
           onRenameSheet={circuitState.renameSheet}
           onDeleteSheet={circuitState.deleteSheet}
+          onDuplicateSheet={circuitState.duplicateSheet}
           onReorderSheets={circuitState.reorderSheets}
           activeSheet={circuitState.sheets.find(s => s.id === circuitState.activeSheetId) || null}
           onUpdateSheet={circuitState.updateSheet}

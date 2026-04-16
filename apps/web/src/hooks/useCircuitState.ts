@@ -35,6 +35,7 @@ export interface UseCircuitStateReturn {
   setActiveSheetId: (id: string) => void;
   sheets: Sheet[];
   addSheet: () => void;
+  duplicateSheet: (sheetId: string) => void;
   renameSheet: (sheetId: string, newName: string) => void;
   deleteSheet: (sheetId: string) => void;
   reorderSheets: (fromIndex: number, toIndex: number) => void;
@@ -288,6 +289,99 @@ export function useCircuitState(
     setActiveSheetId(newSheet.id);
     clearAllSelections();
   }, [circuit, setCircuit, clearAllSelections]);
+
+  const duplicateSheet = useCallback((sourceSheetId: string) => {
+    if (!circuit) return;
+    pushToHistoryRef.current();
+    const now = Date.now();
+    const sourceSheet = getOrCreateSheets(circuit).find(s => s.id === sourceSheetId);
+    if (!sourceSheet) return;
+
+    const newSheetId = generateId();
+    const idMap = new Map<string, string>();
+
+    const clonedSheet: Sheet = {
+      ...sourceSheet,
+      id: newSheetId,
+      name: `${sourceSheet.name} (Copy)`,
+      number: Math.max(0, ...getOrCreateSheets(circuit).map(s => s.number)) + 1,
+      createdAt: now,
+      modifiedAt: now,
+    };
+
+    const sourceDevices = circuit.devices.filter(d => d.sheetId === sourceSheetId);
+    const clonedDevices = sourceDevices.map(d => {
+      const newId = generateId();
+      idMap.set(d.id, newId);
+      return { ...d, id: newId, sheetId: newSheetId, createdAt: now, modifiedAt: now };
+    });
+
+    const sourceDeviceIds = new Set(sourceDevices.map(d => d.id));
+    const clonedConnections = circuit.connections
+      .filter(c => {
+        const fromId = c.fromDeviceId || circuit.devices.find(d => d.tag === c.fromDevice)?.id;
+        const toId = c.toDeviceId || circuit.devices.find(d => d.tag === c.toDevice)?.id;
+        return fromId && toId && sourceDeviceIds.has(fromId) && sourceDeviceIds.has(toId);
+      })
+      .map(c => ({
+        ...c,
+        netId: generateId(),
+        sheetId: newSheetId,
+        fromDeviceId: idMap.get(c.fromDeviceId!) || c.fromDeviceId,
+        toDeviceId: idMap.get(c.toDeviceId!) || c.toDeviceId,
+      }));
+
+    const clonedAnnotations = (circuit.annotations || [])
+      .filter(a => a.sheetId === sourceSheetId)
+      .map(a => ({ ...a, id: generateId(), sheetId: newSheetId, createdAt: now, modifiedAt: now }));
+
+    const clonedRungs = (circuit.rungs || [])
+      .filter(r => r.sheetId === sourceSheetId)
+      .map(r => ({
+        ...r,
+        id: generateId(),
+        sheetId: newSheetId,
+        deviceIds: r.deviceIds.map(did => idMap.get(did) || did),
+        blockId: undefined,
+        createdAt: now,
+        modifiedAt: now,
+      }));
+
+    const newPositions = new Map<string, { x: number; y: number }>();
+    const newTransforms = { ...circuit.transforms };
+    for (const [oldId, newId] of idMap) {
+      const pos = devicePositions.get(oldId) || (circuit as any).positions?.[oldId];
+      if (pos) newPositions.set(newId, { ...pos });
+      const transform = circuit.transforms?.[oldId];
+      if (transform) newTransforms[newId] = { ...transform };
+    }
+
+    setCircuit(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        sheets: [...getOrCreateSheets(prev), clonedSheet],
+        devices: [...prev.devices, ...clonedDevices],
+        connections: [...prev.connections, ...clonedConnections],
+        nets: [...prev.nets, ...clonedConnections.map(c => ({
+          id: c.netId, type: 'net' as const, name: `NET_${prev.nets.length + 1}`,
+          netType: 'signal', createdAt: now, modifiedAt: now,
+        }))],
+        annotations: [...(prev.annotations || []), ...clonedAnnotations],
+        rungs: [...(prev.rungs || []), ...clonedRungs],
+        transforms: newTransforms,
+      };
+    });
+
+    setDevicePositions(prev => {
+      const next = new Map(prev);
+      for (const [id, pos] of newPositions) next.set(id, pos);
+      return next;
+    });
+
+    setActiveSheetId(newSheetId);
+    clearAllSelections();
+  }, [circuit, setCircuit, devicePositions, setDevicePositions, clearAllSelections]);
 
   const renameSheet = useCallback((sheetId: string, newName: string) => {
     setCircuit(prev => {
@@ -1564,6 +1658,7 @@ export function useCircuitState(
     setActiveSheetId,
     sheets,
     addSheet,
+    duplicateSheet,
     renameSheet,
     deleteSheet,
     reorderSheets,

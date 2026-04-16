@@ -448,6 +448,42 @@
   color: var(--fc-danger);
 }
 
+.sheet-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--fc-bg-elevated);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  padding: 4px 0;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sheet-context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: var(--fc-text-secondary);
+  font-size: var(--fc-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-context-menu-item:hover {
+  background: var(--fc-bg-hover);
+  color: var(--fc-text-primary);
+}
+
+.sheet-context-menu-item.danger {
+  color: var(--fc-danger);
+}
+
+.sheet-context-menu-item.danger:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
 .page-add-btn {
   width: 100%;
   padding: 6px;

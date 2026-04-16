@@ -2,7 +2,7 @@
  * Sidebar component - page explorer with sheet tree, title block, and theme/debug footer
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Sheet, SheetLadderLayout } from '@fusion-cad/core-model';
 import { ThemePicker } from './ThemePicker';
 import { SHEET_SIZES } from '../renderer/title-block';
@@ -18,6 +18,7 @@ interface SidebarProps {
   onAddSheet: () => void;
   onRenameSheet: (sheetId: string, newName: string) => void;
   onDeleteSheet: (sheetId: string) => void;
+  onDuplicateSheet?: (sheetId: string) => void;
   onReorderSheets: (fromIndex: number, toIndex: number) => void;
   activeSheet: Sheet | null;
   onUpdateSheet: (sheetId: string, updates: Partial<Pick<Sheet, 'titleBlock' | 'size'>>) => void;
@@ -53,6 +54,7 @@ export function Sidebar({
   onAddSheet,
   onRenameSheet,
   onDeleteSheet,
+  onDuplicateSheet,
   onReorderSheets,
   activeSheet,
   onUpdateSheet,
@@ -83,6 +85,19 @@ export function Sidebar({
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [dragSheetIdx, setDragSheetIdx] = useState<number | null>(null);
+  const [sheetMenu, setSheetMenu] = useState<{ sheetId: string; x: number; y: number } | null>(null);
+  const sheetMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sheetMenu) return;
+    const close = (e: MouseEvent) => {
+      if (sheetMenuRef.current && !sheetMenuRef.current.contains(e.target as Node)) {
+        setSheetMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [sheetMenu]);
 
   const handleStartRename = (sheetId: string) => {
     const sheet = sheets.find(s => s.id === sheetId);
@@ -142,11 +157,9 @@ export function Sidebar({
                   className="page-tree-row"
                   onContextMenu={e => {
                     e.preventDefault();
-                    if (sheets.length > 1 && confirm(`Delete "${sheet.name}"? This cannot be undone.`)) {
-                      onDeleteSheet(sheet.id);
-                    }
+                    e.stopPropagation();
+                    setSheetMenu({ sheetId: sheet.id, x: e.clientX, y: e.clientY });
                   }}
-                  title="Right-click to delete"
                 >
                   {circuit && (
                     <SheetThumbnail
@@ -165,6 +178,37 @@ export function Sidebar({
         <button className="page-add-btn" onClick={onAddSheet}>
           + Add Page
         </button>
+
+        {sheetMenu && (
+          <div
+            ref={sheetMenuRef}
+            className="sheet-context-menu"
+            style={{ left: sheetMenu.x, top: sheetMenu.y }}
+          >
+            <button
+              className="sheet-context-menu-item"
+              onClick={() => { handleStartRename(sheetMenu.sheetId); setSheetMenu(null); }}
+            >
+              Rename
+            </button>
+            {onDuplicateSheet && (
+              <button
+                className="sheet-context-menu-item"
+                onClick={() => { onDuplicateSheet(sheetMenu.sheetId); setSheetMenu(null); }}
+              >
+                Duplicate
+              </button>
+            )}
+            {sheets.length > 1 && (
+              <button
+                className="sheet-context-menu-item danger"
+                onClick={() => { onDeleteSheet(sheetMenu.sheetId); setSheetMenu(null); }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Sheet settings + Title Block for active sheet */}
