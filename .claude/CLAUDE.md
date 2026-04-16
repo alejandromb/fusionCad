@@ -309,6 +309,8 @@ npm run test:e2e
 
 - **STATUS.md** - Session log archive (sessions 1-22)
 - **ARCHITECTURE_v0.6.md** - System architecture, multi-tenancy, design principles
+- **docs/plans/** - Design plans for non-trivial / finicky work. **Write a plan before touching widely-used systems** (symbols, renderer, interaction hook, BOM) so we don't break what's already correct. See `docs/plans/README.md` for when to write one and the format. Current plans:
+  - `docs/plans/symbol-audit.md` — read-only static analyzer for `builtin-symbols.json`
 
 ---
 
