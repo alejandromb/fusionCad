@@ -248,26 +248,32 @@ export function PropertiesPanel({
           )}
         </div>
 
-        {/* DIN Rail length override */}
-        {isSingleSelect && onUpdateDevice && (part?.symbolCategory === 'panel-din-rail' || part?.category === 'panel-din-rail') && (
-          <div className="property-row">
-            <span className="property-label">Length (mm)</span>
-            <input
-              className="property-input"
-              type="number"
-              min={50}
-              max={2000}
-              step={10}
-              value={device.sizeOverride?.width ?? 450}
-              onChange={e => {
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val) && val >= 50) {
-                  onUpdateDevice(device.id, { sizeOverride: { width: val } });
-                }
-              }}
-            />
-          </div>
-        )}
+        {/* Resizable panel elements: DIN Rail + Wire Duct length override */}
+        {isSingleSelect && onUpdateDevice && (() => {
+          const sym = part?.symbolCategory || part?.category || '';
+          const isResizable = sym === 'panel-din-rail' || sym === 'panel-wire-duct';
+          if (!isResizable) return null;
+          const defaultWidth = sym === 'panel-wire-duct' ? 300 : 450;
+          return (
+            <div className="property-row">
+              <span className="property-label">Length (mm)</span>
+              <input
+                className="property-input"
+                type="number"
+                min={50}
+                max={2000}
+                step={10}
+                value={device.sizeOverride?.width ?? defaultWidth}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 50) {
+                    onUpdateDevice(device.id, { sizeOverride: { width: val } });
+                  }
+                }}
+              />
+            </div>
+          );
+        })()}
 
         {/* Dashed toggle */}
         {isSingleSelect && onToggleDashed && (

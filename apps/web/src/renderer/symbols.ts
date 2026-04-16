@@ -780,23 +780,37 @@ export function drawSymbol(
   // Priority: 1. primitives, 2. paths array, 3. custom draw function, 4. generic fallback
   const deviceDashed = transform?.dashed || false;
   if (def.primitives && def.primitives.length > 0) {
-    // DIN rail with size override: draw directly at correct width
+    // Panel elements with size override: draw directly at correct width
     // (generic primitive scaling is unreliable across format conversions)
-    if (sizeOverride?.width && (def.category === 'Panel' || def.id === 'panel-din-rail')) {
+    if (sizeOverride?.width && def.category === 'Panel') {
       const w = width;
-      const h = origHeight; // height stays fixed
+      const h = origHeight;
       const t = getTheme();
       ctx.strokeStyle = t.symbolStroke;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x, y, w, h);
-      // Inner rail lines (DIN rail profile: flanges at ~24% and ~81% of height)
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x, y + h * 0.238);       // 5/21 ≈ 0.238
-      ctx.lineTo(x + w, y + h * 0.238);
-      ctx.moveTo(x, y + h * 0.81);        // 17/21 ≈ 0.81
-      ctx.lineTo(x + w, y + h * 0.81);
-      ctx.stroke();
+
+      if (def.id === 'panel-wire-duct') {
+        // Wire duct: outer rect + X diagonals
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, w, h);
+        ctx.lineWidth = 0.3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.moveTo(x + w, y);
+        ctx.lineTo(x, y + h);
+        ctx.stroke();
+      } else {
+        // DIN rail: outer rect + flange lines at ~24% and ~81% of height
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y + h * 0.238);
+        ctx.lineTo(x + w, y + h * 0.238);
+        ctx.moveTo(x, y + h * 0.81);
+        ctx.lineTo(x + w, y + h * 0.81);
+        ctx.stroke();
+      }
     } else {
       // Use typed primitive rendering (preferred)
       renderPrimitives(ctx, def.primitives, x, y, deviceDashed, rotation, mirrorH);
