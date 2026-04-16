@@ -83,6 +83,35 @@ The order in which wires are routed affects the final layout:
 
 Recommended: **sort by source pin Y-position** (after rotation) so the visual order matches the physical order.
 
+## Deep investigation required
+
+Before implementing ANY fix, we need a thorough code investigation session. The four problems above are symptoms — the root causes may be interconnected. Rushing to fix one could break another.
+
+### Investigation scope
+
+1. **Full trace of wire lifecycle**: creation → rendering → drag → waypoint mutation → re-render. Map every function involved, file paths, line numbers, data flow. No assumptions.
+
+2. **Visibility graph + A* router**: read the ACTUAL code, not comments about it. How are obstacles defined? Are other wires included? What's the cost function? Where is nudging applied? Why does sequential creation avoid overlap but simultaneous re-route doesn't?
+
+3. **Waypoint state machine**: document every transition between the 3 states (`undefined` / `[]` / `[...]`). Which user actions cause which transitions? Are there unintended transitions (e.g., drag converting manual waypoints to empty)?
+
+4. **Junction creation paths**: find EVERY code path that creates a junction device. Which are user-initiated (wire mode click on existing wire)? Which are automatic (drag, auto-route)? The proliferation bug means at least one automatic path exists that shouldn't.
+
+5. **Segment drag mechanics**: trace `getWireSegmentAtPoint` → `draggingSegment` → waypoint materialization → drag update → `simplifyWaypoints`. Why does segment detection fail sometimes? Is the materialized path always correct?
+
+6. **Snap behavior audit**: where is `snapToGrid` applied? Where is it NOT applied but should be? The ghost preview gap suggests there are other places where snap is inconsistent.
+
+### Investigation deliverable
+
+A markdown document (`docs/investigations/wiring-system.md`) with:
+- Function-by-function map of the wiring pipeline
+- Data flow diagram (state → action → new state)
+- Annotated code snippets for each problem's root cause
+- Proposed fix for each, with dependency ordering
+- Risk assessment (which fixes are safe to do independently vs which must be done together)
+
+**Do NOT start coding fixes until the investigation document is reviewed.** The wiring system is the most user-facing, most fragile, most interconnected part of fusionCad. Understanding first, then acting.
+
 ## Where to implement
 
 ### Option A: Renderer-level (re-route every frame)
