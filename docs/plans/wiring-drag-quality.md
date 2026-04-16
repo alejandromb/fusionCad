@@ -166,6 +166,17 @@ This works sometimes but not always. Likely causes:
 
 **Expected behavior:** clicking a straight section between two bends should always select exactly that section. Dragging should move it orthogonally (horizontal segments move vertically, vertical segments move horizontally) while the connecting segments adjust length. This is standard KiCad/EPLAN behavior.
 
+## Problem 5: Completed wire ignores waypoints placed during drawing (CRITICAL)
+
+When drawing a wire: user clicks pin 1 → clicks intermediate points to create bends (waypoints visible in preview) → clicks pin 2 to complete. The FINAL wire does NOT follow the preview path — it discards the waypoints and routes differently.
+
+This is the single most frustrating wiring behavior — the user carefully placed bends that the preview confirmed, then the system throws them away on completion.
+
+**Investigation:** trace `createWireConnection(wireStart, hitPin, wireWaypoints)` in useCircuitState.ts. The waypoints array IS passed (line 1517 in useCanvasInteraction.ts). Check:
+1. Does `createWireConnection` actually store `waypoints` on the connection object?
+2. If stored, does the renderer honor `waypoints: [...]` vs `waypoints: undefined`?
+3. Is there a post-creation step that resets/clears the waypoints?
+
 ## Problem 4: Ghost wire preview ignores snap-to-grid (Session 42 finding)
 
 When drawing a wire in wire mode, the preview line (ghost) from the start pin to the mouse cursor does not snap to the grid even when snap is enabled. The final click placement does snap, but the visual preview shows freeform positions — misleading because the user thinks the wire will land where the preview shows.
