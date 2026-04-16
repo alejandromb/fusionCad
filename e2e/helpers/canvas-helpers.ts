@@ -5,6 +5,10 @@
 
 import type { Page } from '@playwright/test';
 
+// Mirrors packages/core-model/src/units.ts — world coords are mm, renderer
+// multiplies by MM_TO_PX to get base pixels, then by viewport.scale for zoom.
+const MM_TO_PX = 4;
+
 interface Viewport {
   offsetX: number;
   offsetY: number;
@@ -38,9 +42,12 @@ export async function worldToScreen(page: Page, wx: number, wy: number): Promise
   const canvas = await page.locator('canvas.canvas').boundingBox();
   if (!canvas) throw new Error('Canvas not found');
 
+  // World is mm; screen is pixels. Both the MM_TO_PX base and the user-zoom
+  // scale must be applied (matches packages/core-model/src/units.ts + the
+  // canvas render transform).
   return {
-    x: canvas.x + wx * vp.scale + vp.offsetX,
-    y: canvas.y + wy * vp.scale + vp.offsetY,
+    x: canvas.x + wx * vp.scale * MM_TO_PX + vp.offsetX,
+    y: canvas.y + wy * vp.scale * MM_TO_PX + vp.offsetY,
   };
 }
 
