@@ -95,6 +95,45 @@ test.describe('Wire creation', () => {
     expect(conn.waypoints[1]).toEqual({ x: 130, y: 110 });
   });
 
+  test('REGRESSION: switching sheets mid-draw cancels the wire (Session 43)', async ({ page, canvasHelpers }) => {
+    // Bug: wireStart was not cleared when activeSheetId changed. If a user
+    // clicked a pin on sheet A then switched to sheet B, wireStart still
+    // referenced the sheet-A device. Two bad consequences:
+    //   1. Renderer filters devices by active sheet (circuit-renderer.ts:1347),
+    //      so the preview silently disappeared (user can't see what they started).
+    //   2. Completing the wire on sheet B created a cross-sheet phantom connection
+    //      (fromDevice on sheet A, toDevice on sheet B) — data corruption.
+    // Fix: clear wireStart + wireWaypoints in a useEffect on activeSheetId change.
+    // Set up: button on sheet 1, then add sheet 2 with another button.
+    await canvasHelpers.placeSymbol(page, 'button', 100, 60);
+    await canvasHelpers.waitForDeviceCount(page, 1);
+    await page.click('.add-tab');
+    await page.waitForTimeout(300);
+    await canvasHelpers.placeSymbol(page, 'button', 200, 200);
+    await page.waitForTimeout(300);
+
+    // Go back to sheet 1, enter wire mode, start the wire on sheet 1's pin.
+    await page.locator('.sheet-tab:not(.add-tab)').first().click();
+    await page.waitForTimeout(200);
+    await page.keyboard.press('w');
+    await page.waitForTimeout(100);
+    await canvasHelpers.clickCanvas(page, 110, 85);   // S1 pin 2 — sets wireStart
+    await page.waitForTimeout(100);
+
+    // Switch to sheet 2 via tab click (no mode change, no symbol placement).
+    await page.locator('.sheet-tab:not(.add-tab)').nth(1).click();
+    await page.waitForTimeout(300);
+
+    // Click a pin on sheet 2. Without the fix, wireStart still points at S1 →
+    // this creates a phantom S1→S2 cross-sheet connection. With the fix, the
+    // sheet switch cleared wireStart so this click only sets a new start.
+    await canvasHelpers.clickCanvas(page, 210, 200);   // S2 pin 1
+    await page.waitForTimeout(200);
+
+    const state = await canvasHelpers.getState(page);
+    expect(state.circuit.connections, 'wireStart must not leak across sheets').toHaveLength(0);
+  });
+
   test('REGRESSION: no console errors during wire flow (Session 42 fix)', async ({ page, canvasHelpers }) => {
     // Session 38-40 extracted applyPinTransform into utils/pin-math.ts using
     // `export { X } from './path'` which doesn't create a local binding —

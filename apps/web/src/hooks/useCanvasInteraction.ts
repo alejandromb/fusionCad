@@ -93,7 +93,7 @@ interface UseCanvasInteractionDeps {
   replaceWaypoints: (connectionIndex: number, waypoints: Point[] | undefined) => void;
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   updateWireField: (connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => void;
-  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit) => void;
+  connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit | null) => string | null;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: import('@fusion-cad/core-model').Annotation['style']) => void;
   copyDevice: () => void;
@@ -414,6 +414,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const [wireStart, setWireStart] = useState<PinHit | null>(null);
   const [wireWaypoints, setWireWaypoints] = useState<Point[]>([]);
   const [mouseWorldPos, setMouseWorldPos] = useState<Point | null>(null);
+
+  // Cancel any in-progress wire draw when the user switches sheets.
+  // wireStart holds a device ID on the originating sheet; if the user
+  // switches away mid-draw, completing the wire on the new sheet would
+  // create a phantom cross-sheet connection, and the renderer's device
+  // filter (circuit-renderer.ts:1347) silently hides the preview while
+  // the user is still on the wrong sheet.
+  useEffect(() => {
+    setWireStart(null);
+    setWireWaypoints([]);
+  }, [activeSheetId]);
   const [pastePreview, setPastePreview] = useState(false);
   const [pendingTextPosition, setPendingTextPosition] = useState<Point | null>(null);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
@@ -1275,7 +1286,8 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       // End endpoint dragging
       if (draggingEndpoint) {
-        const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+        const pinSearchDevices = activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices;
+        const hitPin = getPinAtPoint(world.x, world.y, pinSearchDevices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
         if (hitPin) {
           const isOriginalPin = hitPin.device === draggingEndpoint.originalPin.device &&
                                hitPin.pin === draggingEndpoint.originalPin.pin;
@@ -1488,18 +1500,31 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
             break;
           }
           case 'wire': {
-            const hitPin = getPinAtPoint(world.x, world.y, circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
+            // Filter to active sheet so cross-sheet pin coord collisions don't
+            // set wireStart to a device on another sheet (the renderer filters
+            // devices by active sheet at circuit-renderer.ts:1347, so a
+            // mismatched wireStart would silently hide the preview).
+            const pinSearchDevices = activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices;
+            const hitPin = getPinAtPoint(world.x, world.y, pinSearchDevices, circuit.parts, allPositions, circuit.transforms, viewport.scale);
             const hitWireIdx = getWireAtPoint(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, 8 / (viewport.scale * MM_TO_PX), circuit.transforms);
 
             if (!wireStart) {
               // === CLICK 1: Starting a new wire ===
-              // Prefer WIRE over PIN so users can branch from existing wires.
-              // In ladder diagrams, pins are on wires — without this priority,
-              // clicking a wire always snaps to a nearby pin instead.
-              if (hitWireIdx !== null) {
+              // Prefer PIN over WIRE. When a pin has a wire attached, a click
+              // at the pin hits both (both have ~2mm radii). Preferring wire
+              // in that case silently creates a junction on the wire instead
+              // of starting a new wire from the pin — the user sees nothing
+              // happen (no preview, no wireStart), and the pattern repeats on
+              // every subsequent click, spawning junctions. The user's mental
+              // model is "click a pin → start a wire"; branching from a wire
+              // should require clicking away from any pin.
+              if (hitPin) {
+                setWireStart(hitPin);
+              } else if (hitWireIdx !== null) {
                 // KiCad approach: split wire at click point, creating a junction.
-                // The junction becomes the wireStart for the new branch.
                 // connectToWire(null) splits without creating a branch wire.
+                // We then set wireStart to the junction's pin so the user can
+                // preview and complete the new branch from that point.
                 const hitConn = sheetConnections[hitWireIdx];
                 const { fromPinPos, toPinPos } = computeWirePinPositions(
                   hitConn, circuit.devices, circuit.parts, allPositions, circuit.transforms
@@ -1510,13 +1535,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                   junctionX = projected.x;
                   junctionY = projected.y;
                 }
-                // Split wire at click point — creates junction, returns its device ID
-                connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, null as any);
-                // Junction was created at the click point — start wire from it
-                // The connectToWire function creates the junction device internally
-              } else if (hitPin) {
-                // No wire hit — use pin
-                setWireStart(hitPin);
+                const junctionDeviceId = connectToWire(toGlobalIndex(hitWireIdx), junctionX, junctionY, null);
+                if (junctionDeviceId) {
+                  setWireStart({ device: junctionDeviceId, pin: '1' });
+                }
               }
             } else {
               // === CLICK 2+: Completing or adding waypoint ===
