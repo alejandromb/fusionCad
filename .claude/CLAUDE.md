@@ -141,12 +141,13 @@ Before doing ANYTHING else:
 7. **Symbol/part persistence review** — Imported symbols use API when online, localStorage fallback offline. Review for production: user symbol storage, DB migration, multi-tenant isolation.
 8. **Symbol source-of-truth unification** — Three symbol sources (generated in-memory, DB, localStorage) can conflict. Generated PLC symbols now auto-seed on startup ✅ (Session 35). localStorage should be an offline queue that syncs to DB.
 
-### P3 — Business & Revenue
+### P3 — Business & Revenue + UX Polish
 
 1. **Stripe/payment integration** — Connect billing to plan tiers.
 2. **Usage dashboard** — Show users their AI generation count, remaining quota.
 3. **AI model tiering** — Cheaper models for simple edits, Sonnet for generation.
 4. **AI cost tracking** — Log token usage per request.
+5. **Rotate ghost preview during copy/paste** — Pressing R while the paste preview is active does nothing today because the R handler only fires when `selectedDevices.length > 0` (see `apps/web/src/hooks/useCanvasInteraction.ts:1824`). Need: a `pasteRotation` state (0/90/180/270), incremented by R while `pastePreview` is true; `ghostPaste` builder in App.tsx applies it on top of each device's existing rotation; `pasteDevice` stamps new devices with the composed transform. Nice UX polish, ~30-60 min.
 
 ### P4 — Analytics & Growth
 
