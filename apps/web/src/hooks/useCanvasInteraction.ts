@@ -2053,7 +2053,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [viewport, interactionMode, placementCategory, circuit, wireStart, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, rotateSelectedDevices, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId, pastePreview]);
+  }, [viewport, interactionMode, placementCategory, circuit, wireStart, wireWaypoints, selectedDevices, selectedWireIndex, draggingDevice, draggingWaypoint, draggingEndpoint, draggingSegment, marquee, contextMenu, getAllPositions, placeSymbol, pendingPartData, clearPendingPartData, createWireConnection, connectToWire, deleteDevices, copyDevice, pasteDevice, duplicateDevice, clipboard, addWaypoint, moveWaypoint, removeWaypoint, replaceWaypoints, reconnectWire, pushToHistoryRef, undoRef, redoRef, setSelectedDevices, setSelectedWireIndex, setDevicePositions, rotateDevice, rotateSelectedDevices, mirrorDevice, deviceTransforms, zoomToFit, selectAnnotation, activeSheetId, pastePreview]);
 
   return {
     canvasRef,
