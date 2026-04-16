@@ -30,7 +30,7 @@
         {
           "id": "L2",
           "name": "L2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -38,7 +38,7 @@
         {
           "id": "T2",
           "name": "T2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
@@ -187,7 +187,7 @@
         {
           "id": "L2",
           "name": "L2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -195,7 +195,7 @@
         {
           "id": "T2",
           "name": "T2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
@@ -1373,7 +1373,7 @@
         {
           "id": "L2",
           "name": "L2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -1381,7 +1381,7 @@
         {
           "id": "T2",
           "name": "T2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
