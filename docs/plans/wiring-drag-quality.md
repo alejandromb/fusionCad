@@ -120,6 +120,23 @@ This is likely a bug in the drag handler or the wire-update logic that runs on e
 
 **Fix:** during device drag, the wire-update logic should NEVER create new junctions. Junction creation should only happen on explicit user click in wire mode. The drag handler should only update endpoint positions and waypoints — never mutate the circuit topology (add/remove devices or connections).
 
+## Problem 3: Wire segment drag inconsistency (Session 42 finding)
+
+When the user selects a wire segment and drags it (to move a horizontal or vertical section), the expected behavior is: the selected segment extends from one bend/junction to the next bend/junction. Dragging moves just that segment while the adjacent segments stretch to follow.
+
+This works sometimes but not always. Likely causes:
+- Segment detection inconsistently picks up the segment boundaries (sometimes grabs too much, sometimes too little)
+- Waypoint materialization on first drag may not correctly identify all bend points in the rendered path
+- Collinear waypoint simplification after drag (line 1248-1251 in useCanvasInteraction.ts) may merge segments that should stay distinct
+
+**Investigation needed:**
+1. Trace `getWireSegmentAtPoint` — how does it determine segment boundaries?
+2. When a segment drag starts, waypoints are materialized from the rendered path (`toOrthogonalPath`). Are all bend points being captured?
+3. After drag, `simplifyWaypoints` runs. Is it collapsing segments that the user just separated?
+4. Does the behavior differ between auto-routed wires (`undefined` waypoints) vs user-drawn (`[]`) vs manual (`[...]`)?
+
+**Expected behavior:** clicking a straight section between two bends should always select exactly that section. Dragging should move it orthogonally (horizontal segments move vertically, vertical segments move horizontally) while the connecting segments adjust length. This is standard KiCad/EPLAN behavior.
+
 ## Non-goals
 
 - **This plan does NOT cover the bus/cable abstraction.** That's a higher-level feature where 3 wires are recognized as a "3-phase bus" and move as a unit. This plan is about making the existing per-wire router produce non-overlapping results.
