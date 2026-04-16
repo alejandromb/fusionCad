@@ -1176,7 +1176,10 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
                 // ONE endpoint moving: wire rubber-bands to follow.
                 // Reset waypoints to empty [] so the orthogonal path
                 // recomputes from the new pin positions on each render.
-                // Only reset if waypoints have actual coordinates (avoid no-op state updates).
+                // NOTE: [] uses dumb L-shape; undefined would use auto-router.
+                // Neither helps with parallel-wire overlap because the router
+                // routes each wire independently. Real fix: sequential routing
+                // with wire-as-obstacle (see docs/plans/ wiring UX).
                 if (conn.waypoints && conn.waypoints.length > 0) {
                   replaceWaypoints(ci, []);
                 }

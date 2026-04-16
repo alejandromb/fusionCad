@@ -311,6 +311,7 @@ npm run test:e2e
 - **ARCHITECTURE_v0.6.md** - System architecture, multi-tenancy, design principles
 - **docs/plans/** - Design plans for non-trivial / finicky work. **Write a plan before touching widely-used systems** (symbols, renderer, interaction hook, BOM) so we don't break what's already correct. See `docs/plans/README.md` for when to write one and the format. Current plans:
   - `docs/plans/symbol-audit.md` — read-only static analyzer for `builtin-symbols.json`
+  - `docs/plans/wiring-drag-quality.md` — root cause analysis + design for parallel-wire overlap after drag (sequential routing with wire-as-obstacle)
 
 ---
 

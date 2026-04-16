@@ -34,3 +34,4 @@ Plans are living documents: update them as we learn. Archive to `done/` when ful
 ## Current plans
 
 - [Symbol audit script](./symbol-audit.md) — static analyzer for `builtin-symbols.json`
+- [Wiring drag quality](./wiring-drag-quality.md) — sequential routing with wire-as-obstacle so parallel wires don't overlap after drag
