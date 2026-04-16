@@ -243,15 +243,21 @@ function hitTestAnnotation(ann: import('@fusion-cad/core-model').Annotation, wx:
     }
     case 'rectangle': {
       const w = s.width || 10, h = s.height || 10;
-      // Click anywhere inside the rectangle to select it
-      return wx >= ann.position.x && wx <= ann.position.x + w &&
-             wy >= ann.position.y && wy <= ann.position.y + h;
+      const rx = ann.position.x, ry = ann.position.y;
+      const strokeHit = 2.5; // mm tolerance for border click
+      const insideOuter = wx >= rx - strokeHit && wx <= rx + w + strokeHit &&
+                          wy >= ry - strokeHit && wy <= ry + h + strokeHit;
+      const insideInner = wx > rx + strokeHit && wx < rx + w - strokeHit &&
+                          wy > ry + strokeHit && wy < ry + h - strokeHit;
+      // Only hit the border — clicking inside passes through to devices
+      return insideOuter && !insideInner;
     }
     case 'circle': {
       const r = s.radius || 5;
       const dist = Math.hypot(wx - ann.position.x, wy - ann.position.y);
-      // Click anywhere inside the circle
-      return dist <= r;
+      const strokeHit = 2.5;
+      // Only hit the border ring — clicking inside passes through
+      return dist >= r - strokeHit && dist <= r + strokeHit;
     }
     case 'image': {
       const iw = s.width || 50, ih = s.height || 50;

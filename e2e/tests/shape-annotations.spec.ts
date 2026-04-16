@@ -162,8 +162,8 @@ test.describe('Shape Annotations', () => {
     await page.keyboard.press('v');
     await page.waitForTimeout(100);
 
-    // Click inside the rectangle to select it
-    const center = await worldMmToScreen(page, 45, 35);
+    // Click on the rectangle border to select it (border-only hit testing)
+    const center = await worldMmToScreen(page, 30, 35);
     await page.mouse.click(center.x, center.y);
     await page.waitForTimeout(200);
 
