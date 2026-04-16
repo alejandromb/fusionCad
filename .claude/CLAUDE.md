@@ -75,8 +75,8 @@ Before doing ANYTHING else:
 ## 🔴 PRIORITIES — Single Source of Truth
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
-**Branch:** `main`
-**Last session:** 38-40 (2026-04-07 to 2026-04-12) — BOM editor, auto pin aliases, title block, selection fix, tests, first real project shipped (MOWI compressor sequencer)
+**Branch:** `main` (`feature/wiring-fixes` has stale-closure fix for waypoints — needs retesting)
+**Last session:** 41-42 (2026-04-13 to 2026-04-16) — Sheet thumbnails, auth hardening, motor starter calculator + deterministic endpoint, device linking UI, security audit, symbol pin alignment (3P + motor), breaker symbol fixes, wire duct resizable, shape border-only hit testing, wire spec label vertical offset, sheet duplication + right-click menu, invoice template for fusionLogik, wiring investigation (5 problems documented in `docs/plans/wiring-drag-quality.md`)
 **Tests:** 136 E2E + 105 unit, 89 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
@@ -104,15 +104,17 @@ Before doing ANYTHING else:
 
 ### P0 — Launch Blockers
 
-1. **Page thumbnails** — Sheet navigation with thumbnail previews. Core UX for multi-sheet projects.
-2. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap.
-3. **Device linking UI** — Select multiple devices → "Link as same part" for multi-symbol parts (PLC DI+DO+layout = one BOM item).
+1. ~~**Page thumbnails**~~ ✅ (Session 41) — Sheet sidebar with canvas previews
+2. **Movable text labels** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap. WIP on `feature/movable-tags` branch (hit-test needs tuning).
+3. ~~**Device linking UI**~~ ✅ (Session 41) — Right-click → "Link as same part" with deviceGroupId
 4. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
+4b. **🔴 Wiring quality (ELEVATED from P1)** — The #1 retention risk. 5 problems documented in `docs/plans/wiring-drag-quality.md`: (1) parallel wire overlap on drag, (2) junction proliferation, (3) segment drag inconsistency, (4) ghost preview ignores snap, (5) CRITICAL: completed wire ignores placed waypoints (stale closure — fix on `feature/wiring-fixes` branch, needs retesting). **Deep investigation required before any fixes — see plan.** This is a retention gate, not just polish.
+4c. **AI assistant tool access** — The AI chat panel can see circuit context but can't DO anything (can't export BOM, run ERC, place devices, etc.). Needs Claude tool-use wired to the 30+ MCP tools via `/api/ai-chat`. When user asks "export BOM to Excel", AI should call `generate_bom` + trigger CSV download. Also needs: active sheet context, selection context, download action capability.
 
 **Motor-starter hook reliability** — The Motor Starter Calculator depends on a bulletproof end-to-end generation. Current flow uses AI parsing which is probabilistic. **Fix with a deterministic endpoint**: `POST /api/projects/:id/generate-motor-starter` takes structured `{hp, voltage, phase, starterType, controlVoltage, eStop, hoaSwitch, pilotLight, plcRemote}` and calls `generateMotorStarterPanel` directly (bypasses AI parser). Calculator URL changes from `?prompt=<natural>` to `?motorStarter=<base64-json-spec>`. Benefits: deterministic, free (no AI rate limit), same auth posture (requireAuth). Also needed: verify generated panel includes a **layout sheet** with the panel footprints (DIN rail + contactor/breaker/overload footprints placed) — currently only schematic. Add `generate_motor_starter_panel` MCP tool is separate from single-sheet generator — make sure the deterministic endpoint produces BOTH schematic + layout sheets so the calculator-funneled user sees a complete deliverable.
 5. **Post-generation ERC + auto-fix** — Run ERC after AI finishes, feed violations back (max 3 retries). AI quality gate.
-6. **Auth enforced on AI endpoints** — AI chat uses `optionalAuth`, needs `requireAuth` for paid features. Can't launch open.
-7. **AI chat rate limiting** — `/api/ai-chat` has NO rate limiting or usage tracking. Can't launch without this.
+6. ~~**Auth enforced on AI endpoints**~~ ✅ (Session 41) — All AI + symbol mutation endpoints now requireAuth + checkAiRateLimit
+7. ~~**AI chat rate limiting**~~ ✅ (Session 41) — All 4 AI endpoints rate-limited
 8. **AWS-readiness auth hardening** — MANDATORY before AWS deploy. Cognito + Amplify are wired (`requireAuth` on all project endpoints, Google/GitHub OAuth, email/password). Gaps to close: (a) `requireAuth` on `/api/ai-generate`, `/api/symbols/ai-generate`, `/api/symbols/ai-import-assist`, `/api/ai-chat` — see `apps/api/src/index.ts:507-600`; (b) rate limit + usage tracking on `/api/ai-chat`; (c) audit `optionalAuth` uses across all routes; (d) enforce plan tiers (free: 3 projects, no AI / paid: unlimited + AI); (e) lock CORS to known origins; (f) verify Cognito token validation in Lambda environment. Do NOT deploy to AWS until all 6 are complete.
 
 ### P1 — Core Quality (ship soon after launch)
