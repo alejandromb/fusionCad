@@ -137,6 +137,12 @@ This works sometimes but not always. Likely causes:
 
 **Expected behavior:** clicking a straight section between two bends should always select exactly that section. Dragging should move it orthogonally (horizontal segments move vertically, vertical segments move horizontally) while the connecting segments adjust length. This is standard KiCad/EPLAN behavior.
 
+## Problem 4: Ghost wire preview ignores snap-to-grid (Session 42 finding)
+
+When drawing a wire in wire mode, the preview line (ghost) from the start pin to the mouse cursor does not snap to the grid even when snap is enabled. The final click placement does snap, but the visual preview shows freeform positions — misleading because the user thinks the wire will land where the preview shows.
+
+**Fix:** in the wire preview rendering (circuit-renderer.ts, where `wirePreviewMouse` is drawn), apply `snapToGrid()` to the mouse position before drawing the preview line. Should be a 1-2 line fix.
+
 ## Non-goals
 
 - **This plan does NOT cover the bus/cable abstraction.** That's a higher-level feature where 3 wires are recognized as a "3-phase bus" and move as a unit. This plan is about making the existing per-wire router produce non-overlapping results.
