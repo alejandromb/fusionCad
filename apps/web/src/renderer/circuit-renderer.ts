@@ -1190,26 +1190,33 @@ export function renderCircuit(
       } else {
         specX = (metadata.fromX + metadata.toX) / 2;
         specY = (metadata.fromY + metadata.toY) / 2;
+        let isVerticalSegment = false;
         if (pathPoints.length >= 2) {
           let maxLen = 0;
           let bestMidX = specX;
           let bestMidY = specY;
+          let bestDx = 0, bestDy = 0;
           for (let j = 0; j < pathPoints.length - 1; j++) {
-            const segLen = Math.hypot(
-              pathPoints[j + 1].x - pathPoints[j].x,
-              pathPoints[j + 1].y - pathPoints[j].y
-            );
+            const sdx = pathPoints[j + 1].x - pathPoints[j].x;
+            const sdy = pathPoints[j + 1].y - pathPoints[j].y;
+            const segLen = Math.hypot(sdx, sdy);
             if (segLen > maxLen) {
               maxLen = segLen;
               bestMidX = (pathPoints[j].x + pathPoints[j + 1].x) / 2;
               bestMidY = (pathPoints[j].y + pathPoints[j + 1].y) / 2;
+              bestDx = sdx;
+              bestDy = sdy;
             }
           }
           specX = bestMidX;
           specY = bestMidY;
+          isVerticalSegment = Math.abs(bestDy) > Math.abs(bestDx);
         }
-        // Default offset below the wire
-        specY += 1.5;
+        if (isVerticalSegment) {
+          specX += 3;
+        } else {
+          specY += 1.5;
+        }
       }
 
       ctx.save();
