@@ -8,6 +8,7 @@ import type { Device, Net, Part, Sheet, Annotation, Terminal, Rung, AnyDiagramBl
 import { MM_TO_PX, GRID_MM, registerSymbol } from '@fusion-cad/core-model';
 import { drawSymbol, getSymbolGeometry } from './symbols';
 import type { Point, Viewport, DeviceTransform } from './types';
+import { snapToGrid } from '../types';
 import { DEFAULT_LADDER_CONFIG, generateCrossReferences, formatCrossRefText, autoAssignWireNumbers, computeRungDisplayNumber } from '@fusion-cad/core-engine';
 import type { MarqueeRect } from '../hooks/useCanvasInteraction';
 import { renderLadderOverlay } from './ladder-renderer';
@@ -1383,13 +1384,20 @@ export function renderCircuit(
           ctx.arc(pinX, pinY, 1.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Draw preview line from start pin through waypoints to mouse cursor
+          // Draw preview line from start pin through waypoints to mouse cursor.
+          // Snap the cursor to grid so the preview shows EXACTLY where the click
+          // will land (waypoints are snapped at placement time — the preview
+          // must agree or users misjudge where their next click will drop).
           if (options.wirePreviewMouse) {
             const wpPoints = options.wireWaypoints || [];
+            const snappedCursor = {
+              x: snapToGrid(options.wirePreviewMouse.x),
+              y: snapToGrid(options.wirePreviewMouse.y),
+            };
             const previewPath = toOrthogonalPath([
               { x: pinX, y: pinY },
               ...wpPoints,
-              { x: options.wirePreviewMouse.x, y: options.wirePreviewMouse.y },
+              snappedCursor,
             ]);
             ctx.strokeStyle = t.wirePreviewColor;
             ctx.lineWidth = 1.5;
@@ -1402,11 +1410,11 @@ export function renderCircuit(
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw small circle at mouse position
+            // Draw small circle at the snapped cursor position (same as above).
             ctx.strokeStyle = t.wirePreviewColor;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(options.wirePreviewMouse.x, options.wirePreviewMouse.y, 5, 0, Math.PI * 2);
+            ctx.arc(snappedCursor.x, snappedCursor.y, 5, 0, Math.PI * 2);
             ctx.stroke();
           }
         }

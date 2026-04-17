@@ -274,7 +274,7 @@ Tracked in `docs/plans/wiring-drag-quality.md`:
 
 - ~~**Parallel wire overlap on device drag**~~ — Shipped Session 44 (§7.6). **Performance validation on heavy projects still open.** Build a scripted 250-device fixture, drag a hub device, measure mouseup→render latency, tune `PERF_GUARD_MAX_WIRES` + router `padding` / `spacing` based on real numbers.
 - **Segment-drag inconsistency** — `simplifyWaypoints` tolerance too tight, collapsing distinct bends.
-- **Ghost preview doesn't snap to grid** — cursor indicator isn't snapped while user-placed waypoints are.
+- ~~**Ghost preview doesn't snap to grid**~~ — Shipped Session 44: `wirePreviewMouse` now gets `snapToGrid` before drawing the dashed line + cursor circle (`circuit-renderer.ts:1392`). Preview now agrees with where the click will actually land.
 - **Junction proliferation on device drag** — status uncertain after Session 43 fixes; needs re-check now that the click-precedence fix is in place (many junctions the user saw were likely from the §7.4 bug, not from drag).
 
 ---
