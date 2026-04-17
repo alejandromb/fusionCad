@@ -105,6 +105,49 @@ test.describe('Movable tag labels', () => {
     expect(after.y).toBe(before.pos.y);
   });
 
+  test('destination arrow tag drags cleanly (small symbol, dense rendering)', async ({ page, canvasHelpers }) => {
+    // Destination arrows are 5×7.5mm — much smaller than most symbols, and
+    // they have their own voltage-label + cross-ref rendering in circuit-
+    // renderer.ts that sits just above/below the triangle body. The device
+    // tag (DA1) still uses the default drawTag anchor (x + width/2, y + 5).
+    // Verify the movable-tag feature works on this tight-rendered category.
+    //
+    // Destination Arrow's standard is "ANSI" (not "ANSI/NEMA"), so the
+    // default symbol-palette filter excludes it. Click "All" first.
+    await page.locator('.standard-filter .standard-chip', { hasText: /^All$/ }).click();
+    await page.waitForTimeout(100);
+    await canvasHelpers.placeSymbol(page, 'destination-arrow', 100, 60);
+    // Wait for the DA1 device to exist rather than relying on an exact count —
+    // the placeholder project may have pre-seeded devices.
+    await page.waitForFunction(
+      () => (window as any).__fusionCadState?.circuit?.devices?.some((d: any) => d.tag === 'DA1'),
+      { timeout: 5000 },
+    );
+
+    const dev0 = await getDeviceByTag(page, 'DA1');
+    expect(dev0).toBeTruthy();
+    expect(dev0?.labelOffsets).toBeUndefined();
+
+    // Destination arrow at world (100, 60) with width 5 → tag anchor at
+    // (102.5, 65). The tag sits visually over/near the top of the triangle.
+    await canvasHelpers.selectMode(page);
+    await canvasHelpers.clickCanvas(page, 102.5, 63);  // click device body
+    await page.waitForTimeout(100);
+
+    const tagFrom = await screenCoordsOf(page, 102.5, 65);
+    const tagTo = await screenCoordsOf(page, 115, 65);  // move right 12.5mm
+    await page.mouse.move(tagFrom.x, tagFrom.y);
+    await page.mouse.down();
+    await page.mouse.move(tagTo.x, tagTo.y, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+
+    const dev = await getDeviceByTag(page, 'DA1');
+    expect(dev?.labelOffsets?.tag, 'destination arrow tag should be draggable').toBeDefined();
+    expect(dev!.labelOffsets!.tag!.x).toBeCloseTo(12.5, 0);
+    expect(dev!.labelOffsets!.tag!.y).toBeCloseTo(0, 0);
+  });
+
   test('Escape during tag drag cancels the drag and restores the previous offset', async ({ page, canvasHelpers }) => {
     await canvasHelpers.placeSymbol(page, 'button', 100, 60);
     await canvasHelpers.waitForDeviceCount(page, 1);

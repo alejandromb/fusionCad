@@ -213,6 +213,8 @@ function categoryToLabel(category: string): string {
   const map: Record<string, string> = {
     contactor: 'Contactor 3P',
     button: 'Manual Switch',  // Has tagPrefix 'S' for S1, S2...
+    'destination-arrow': 'Destination Arrow',
+    'source-arrow': 'Source Arrow',
     overload: 'Thermal Overload',
     motor: 'Motor 3-Phase',
     terminal: 'Terminal Single',
