@@ -4160,6 +4160,39 @@
       "primitives": []
     },
     {
+      "id": "pin-single",
+      "name": "Pin",
+      "category": "Connectors",
+      "standard": "common",
+      "width": 2.5,
+      "height": 2.5,
+      "svgPath": "",
+      "pins": [
+        {
+          "id": "1",
+          "name": "1",
+          "x": 1.25,
+          "y": 1.25,
+          "direction": "top",
+          "pinType": "passive",
+          "position": {
+            "x": 1.25,
+            "y": 1.25
+          }
+        }
+      ],
+      "tagPrefix": "P",
+      "primitives": [
+        {
+          "type": "circle",
+          "cx": 1.25,
+          "cy": 1.25,
+          "r": 0.6,
+          "fill": "stroke"
+        }
+      ]
+    },
+    {
       "id": "no-connect-flag",
       "name": "No Connect",
       "category": "No-Connect",

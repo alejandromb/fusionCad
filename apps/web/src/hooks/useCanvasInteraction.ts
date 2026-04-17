@@ -1783,6 +1783,17 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         }
       }
 
+      // N = pin drop mode (single-pin symbol for quick hand-drawing)
+      if (e.key === 'n' || e.key === 'N') {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setInteractionMode('place');
+          setPlacementCategory('pin-single' as SymbolCategory);
+          setWireStart(null); setWireWaypoints([]);
+          setSelectedDevices([]);
+        }
+      }
+
       // T = text mode
       if (e.key === 't' || e.key === 'T') {
         if (!e.ctrlKey && !e.metaKey) {

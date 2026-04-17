@@ -49,6 +49,8 @@ interface MenuBarProps {
   setInteractionMode: (mode: InteractionMode) => void;
   shapeToolType?: import('../types').ShapeToolType;
   setShapeToolType?: (type: import('../types').ShapeToolType) => void;
+  placementCategory?: string | null;
+  setPlacementCategory?: (category: string | null) => void;
   rotateSelectedDevices: (dir: 'cw' | 'ccw') => void;
   mirrorDevice: (id: string) => void;
   alignSelectedDevices: (dir: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
@@ -106,6 +108,7 @@ const icons = {
   shapeCircle: <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   shapeLine: <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2"/></svg>,
   shapeArrow: <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2"/><path d="M14 4h6v6" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
+  pinDrop: <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="10" r="4" fill="currentColor"/><line x1="12" y1="14" x2="12" y2="21" stroke="currentColor" strokeWidth="2"/></svg>,
   rotateCCW: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M1 4v6h6M4 15a8 8 0 108-8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   rotateCW: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M23 4v6h-6M20 15a8 8 0 10-8-8" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
   mirror: <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3v18M5 8l4 4-4 4M19 8l-4 4 4 4" stroke="currentColor" strokeWidth="2" fill="none"/></svg>,
@@ -277,6 +280,7 @@ export function MenuBar(props: MenuBarProps) {
               <ToolBtn icon={icons.shapeCircle} label="Circle" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('circle'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'circle'} />
               <ToolBtn icon={icons.shapeLine} label="Line" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('line'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'line'} />
               <ToolBtn icon={icons.shapeArrow} label="Arrow" onClick={() => { props.setInteractionMode('shape'); props.setShapeToolType?.('arrow'); }} active={props.interactionMode === 'shape' && props.shapeToolType === 'arrow'} />
+              <ToolBtn icon={icons.pinDrop} label="Pin (N)" onClick={() => { props.setInteractionMode('place'); props.setPlacementCategory?.('pin-single'); }} active={props.interactionMode === 'place' && props.placementCategory === 'pin-single'} />
             </div>
             <Divider />
             <div className="toolbar-group">

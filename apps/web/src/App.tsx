@@ -649,6 +649,8 @@ function AppInner({
         setInteractionMode={interaction.setInteractionMode}
         shapeToolType={interaction.shapeToolType}
         setShapeToolType={interaction.setShapeToolType}
+        placementCategory={interaction.placementCategory}
+        setPlacementCategory={interaction.setPlacementCategory as (c: string | null) => void}
         rotateSelectedDevices={circuitState.rotateSelectedDevices}
         mirrorDevice={circuitState.mirrorDevice}
         alignSelectedDevices={circuitState.alignSelectedDevices}
