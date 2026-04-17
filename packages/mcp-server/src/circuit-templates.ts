@@ -21,7 +21,7 @@
 
 import type { CircuitData } from './api-client.js';
 import type { MotorStarterResult } from '@fusion-cad/core-model';
-import { alignDeviceToPin, getPinWorldY } from '@fusion-cad/core-model';
+import { alignDeviceToPin, getPinWorldY, getHoffmanEnclosurePair } from '@fusion-cad/core-model';
 import {
   placeDevice,
   placeLinkedDevice,
@@ -898,26 +898,36 @@ function addPanelLayoutSheet(
   cd = sheet.circuit;
   const layoutSheetId = sheet.sheetId;
 
-  // Choose enclosure size based on HP
+  // Choose enclosure size based on HP — and resolve the Hoffman part pair
+  // so PNL1 / SP1 get real BOM rows instead of "TBD" placeholders.
   const hp = parseFloat(options.hp) || 5;
-  let enclosureSymbol = 'panel-enclosure-20x16';
-  let subpanelSymbol = 'panel-subpanel-20x16';
-  if (hp > 10) {
-    enclosureSymbol = 'panel-enclosure-24x20';
-    subpanelSymbol = 'panel-subpanel-24x20';
-  }
-  if (hp > 30) {
-    enclosureSymbol = 'panel-enclosure-30x24';
-    subpanelSymbol = 'panel-subpanel-30x24';
-  }
+  const size: '20x16' | '24x20' | '30x24' =
+    hp > 30 ? '30x24' : hp > 10 ? '24x20' : '20x16';
+  const hoffman = getHoffmanEnclosurePair(size);
 
-  // Place enclosure
-  const encl = placeDevice(cd, enclosureSymbol, 60, 60, layoutSheetId, 'PNL1');
+  // Place enclosure + assign the Hoffman catalog part so the BOM is complete.
+  const encl = placeDevice(cd, hoffman.enclosure.symbolCategory, 60, 60, layoutSheetId, 'PNL1');
   cd = encl.circuit;
+  cd = assignPart(
+    cd,
+    'PNL1',
+    hoffman.enclosure.manufacturer,
+    hoffman.enclosure.partNumber,
+    hoffman.enclosure.description,
+    hoffman.enclosure.symbolCategory,
+  );
 
-  // Place subpanel inside enclosure
-  const sub = placeDevice(cd, subpanelSymbol, 70, 70, layoutSheetId, 'SP1');
+  // Place subpanel inside enclosure + assign matching Hoffman subpanel part.
+  const sub = placeDevice(cd, hoffman.subpanel.symbolCategory, 70, 70, layoutSheetId, 'SP1');
   cd = sub.circuit;
+  cd = assignPart(
+    cd,
+    'SP1',
+    hoffman.subpanel.manufacturer,
+    hoffman.subpanel.partNumber,
+    hoffman.subpanel.description,
+    hoffman.subpanel.symbolCategory,
+  );
 
   // Place component footprints on DIN rails using annotations
   const annotations = [

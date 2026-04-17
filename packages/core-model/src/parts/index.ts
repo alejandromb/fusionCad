@@ -4,6 +4,7 @@ import { allenBradleyParts } from './allen-bradley.js';
 import { schneiderElectricParts } from './schneider-electric.js';
 import { schneiderMotorCatalogParts } from './schneider-motor-catalog.js';
 import { schneiderPushbuttonParts } from './schneider-pushbuttons.js';
+import { hoffmanParts } from './hoffman.js';
 
 export { phoenixContactParts } from './phoenix-contact.js';
 export { allenBradleyParts } from './allen-bradley.js';
@@ -11,6 +12,8 @@ export { schneiderElectricParts } from './schneider-electric.js';
 export { schneiderMotorCatalogParts } from './schneider-motor-catalog.js';
 export { schneiderPushbuttonParts, getMotorStarterOperatorParts } from './schneider-pushbuttons.js';
 export type { MotorStarterOperatorParts } from './schneider-pushbuttons.js';
+export { hoffmanParts, getHoffmanEnclosurePair } from './hoffman.js';
+export type { HoffmanEnclosureMatch } from './hoffman.js';
 export { getContactPinAliases, STANDARD_CONTACT_PINS } from './relay-pin-config.js';
 
 /** All manufacturer parts combined */
@@ -20,6 +23,7 @@ export const ALL_MANUFACTURER_PARTS: Omit<Part, 'id' | 'createdAt' | 'modifiedAt
   ...schneiderElectricParts,
   ...schneiderMotorCatalogParts,
   ...schneiderPushbuttonParts,
+  ...hoffmanParts,
 ];
 
 /** Get parts filtered by manufacturer */

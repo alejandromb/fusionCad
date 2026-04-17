@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { CircuitData } from './api-client.js';
-import { generateMotorStarter, addControlRung } from './circuit-templates.js';
+import { generateMotorStarter, generateMotorStarterPanel, addControlRung } from './circuit-templates.js';
 import { addSheet, setSheetType, placeDevice } from './circuit-helpers.js';
 
 function emptyCircuit(): CircuitData {
@@ -259,5 +259,65 @@ describe('addControlRung', () => {
     for (const device of sheetDevices) {
       expect(cd.transforms![device.id]).toEqual({ rotation: -90 });
     }
+  });
+});
+
+// ─── generateMotorStarterPanel (Hoffman BOM rows) ────────────────
+
+describe('generateMotorStarterPanel with panelLayout', () => {
+  function findDevice(cd: CircuitData, tag: string) {
+    return cd.devices.find(d => d.tag === tag);
+  }
+  function findPart(cd: CircuitData, partId: string | undefined) {
+    return partId ? cd.parts.find(p => p.id === partId) : undefined;
+  }
+
+  it('assigns the A201608LP enclosure + A20P16 subpanel for small motors (hp ≤ 10)', () => {
+    const { circuit } = generateMotorStarterPanel(emptyCircuit(), {
+      hp: '5', voltage: '480VAC', panelLayout: true,
+    });
+    const pnl = findDevice(circuit, 'PNL1');
+    const sp = findDevice(circuit, 'SP1');
+    expect(pnl, 'PNL1 should be placed').toBeDefined();
+    expect(sp, 'SP1 should be placed').toBeDefined();
+
+    const pnlPart = findPart(circuit, pnl!.partId);
+    const spPart = findPart(circuit, sp!.partId);
+    expect(pnlPart?.manufacturer).toBe('Hoffman');
+    expect(pnlPart?.partNumber).toBe('A201608LP');
+    expect(spPart?.manufacturer).toBe('Hoffman');
+    expect(spPart?.partNumber).toBe('A20P16');
+  });
+
+  it('scales to A242008LP / A24P20 for medium motors (10 < hp ≤ 30)', () => {
+    const { circuit } = generateMotorStarterPanel(emptyCircuit(), {
+      hp: '20', voltage: '480VAC', panelLayout: true,
+    });
+    const pnlPart = findPart(circuit, findDevice(circuit, 'PNL1')!.partId);
+    const spPart = findPart(circuit, findDevice(circuit, 'SP1')!.partId);
+    expect(pnlPart?.partNumber).toBe('A242008LP');
+    expect(spPart?.partNumber).toBe('A24P20');
+  });
+
+  it('scales to A302408LP / A30P24 for large motors (hp > 30)', () => {
+    const { circuit } = generateMotorStarterPanel(emptyCircuit(), {
+      hp: '50', voltage: '480VAC', panelLayout: true,
+    });
+    const pnlPart = findPart(circuit, findDevice(circuit, 'PNL1')!.partId);
+    const spPart = findPart(circuit, findDevice(circuit, 'SP1')!.partId);
+    expect(pnlPart?.partNumber).toBe('A302408LP');
+    expect(spPart?.partNumber).toBe('A30P24');
+  });
+
+  it('preserves the layout symbol category on the assigned part (rendering key)', () => {
+    // assignPart() explicitly keeps oldPart.category so the renderer still
+    // knows which symbol to draw. Regression guard.
+    const { circuit } = generateMotorStarterPanel(emptyCircuit(), {
+      hp: '5', voltage: '480VAC', panelLayout: true,
+    });
+    const pnlPart = findPart(circuit, findDevice(circuit, 'PNL1')!.partId);
+    const spPart = findPart(circuit, findDevice(circuit, 'SP1')!.partId);
+    expect(pnlPart?.category).toBe('panel-enclosure-20x16');
+    expect(spPart?.category).toBe('panel-subpanel-20x16');
   });
 });
