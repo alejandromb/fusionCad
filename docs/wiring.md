@@ -243,6 +243,16 @@ renderCircuit(...) → preview block only runs if wireStart.device is on active 
 
 The renderer allows drawing wires with `waypoints === undefined` differently from `waypoints === []` in theory, but in practice both render as the dumb L-shape. If a future fix distinguishes them (e.g., integrating the A* router for `undefined` only), the 3-state semantic matters. See §5.
 
+### 7.6 Sequential routing on device drag release (Session 44, fixed)
+
+**Symptom:** Dragging a device with multiple attached wires collapsed them onto overlapping L-shapes (Problem 1 from the wiring-drag-quality plan).
+
+**Root cause:** mousemove during drag resets waypoints to `[]` (line 1252). On release, each wire independently computed its own L-shape — no coordination between parallel wires.
+
+**Fix:** After device drag mouseup, `sequentialRouteAfterDrag()` calls `routeWires()` from `@fusion-cad/core-engine` for every connection touching a moved device. The router runs A* per wire then nudges overlapping parallel segments apart. See `apps/web/src/utils/sequential-route.ts`.
+
+**Perf guard:** skips routing when the moved device has >30 attached wires. This is a synthetic threshold — real-world validation on heavy projects (250+ devices, compressor-sequencer-class) is still outstanding. When we have a customer demo in the pipeline, build a perf fixture (scripted placement of a compressor-class project, drag a central device, measure mouseup→render latency) and tune the guard + the router padding/spacing params based on real numbers. Do NOT assume synthetic 3-device tests tell us anything about live feel.
+
 ---
 
 ## 8. When modifying wiring code
@@ -262,7 +272,7 @@ This area has a pattern: small, seemingly innocuous changes cause silent regress
 
 Tracked in `docs/plans/wiring-drag-quality.md`:
 
-- **Parallel wire overlap on device drag** — 3 wires between the same two devices collapse onto the same path after dragging. Needs sequential routing with wire-as-obstacle.
+- ~~**Parallel wire overlap on device drag**~~ — Shipped Session 44 (§7.6). **Performance validation on heavy projects still open.** Build a scripted 250-device fixture, drag a hub device, measure mouseup→render latency, tune `PERF_GUARD_MAX_WIRES` + router `padding` / `spacing` based on real numbers.
 - **Segment-drag inconsistency** — `simplifyWaypoints` tolerance too tight, collapsing distinct bends.
 - **Ghost preview doesn't snap to grid** — cursor indicator isn't snapped while user-placed waypoints are.
 - **Junction proliferation on device drag** — status uncertain after Session 43 fixes; needs re-check now that the click-precedence fix is in place (many junctions the user saw were likely from the §7.4 bug, not from drag).
