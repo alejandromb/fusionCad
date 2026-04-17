@@ -141,6 +141,15 @@ export interface Device extends Entity {
   pinAliases?: Record<string, string>;
   /** Per-device size override for resizable symbols (e.g., DIN rails, wire ducts). In mm. */
   sizeOverride?: { width?: number; height?: number };
+  /**
+   * Per-device label position offsets (mm world-space delta from the default
+   * anchor computed by getDefaultTagAnchor). Lets users drag labels off a wire.
+   * Absent or zero-valued entries render at the category default position —
+   * existing projects and schematics must behave exactly as before.
+   */
+  labelOffsets?: {
+    tag?: { x: number; y: number };
+  };
 }
 
 /**

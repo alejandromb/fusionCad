@@ -21,6 +21,7 @@ import {
   type ShapeToolType,
 } from '../types';
 import { getSymbolGeometry } from '../renderer/symbols';
+import { getDeviceTagAtPoint } from '../utils/tag-hit';
 
 export type ManufacturerPart = Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>;
 
@@ -94,6 +95,7 @@ interface UseCanvasInteractionDeps {
   reconnectWire: (connectionIndex: number, endpoint: 'from' | 'to', newPin: PinHit) => void;
   updateWireField: (connectionIndex: number, field: 'wireGauge' | 'wireType' | 'wireColor' | 'wireSpecPosition', value: unknown) => void;
   connectToWire: (connectionIndex: number, worldX: number, worldY: number, startPin: PinHit | null) => string | null;
+  setDeviceTagOffset: (deviceId: string, offset: { x: number; y: number } | undefined) => void;
   addAnnotation: (worldX: number, worldY: number, content: string) => void;
   addShapeAnnotation: (annotationType: 'rectangle' | 'circle' | 'line' | 'arrow', position: { x: number; y: number }, style: import('@fusion-cad/core-model').Annotation['style']) => void;
   copyDevice: () => void;
@@ -353,6 +355,7 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
     reconnectWire,
     updateWireField,
     connectToWire,
+    setDeviceTagOffset,
     addAnnotation,
     addShapeAnnotation,
     copyDevice,
@@ -442,6 +445,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
   const dragOffsetRef = useRef<Point | null>(null);
   const dragHistoryPushedRef = useRef(false);
   const draggingAnnotationRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  /** Active tag-label drag. Only mutates Device.labelOffsets.tag; does NOT move the device body. */
+  const draggingTagRef = useRef<{
+    deviceId: string;
+    /** Baseline tag offset at drag start (undefined + absent field → {x:0, y:0}). */
+    startOffsetX: number;
+    startOffsetY: number;
+    /** Mouse world position at drag start. */
+    startWorldX: number;
+    startWorldY: number;
+  } | null>(null);
   /** Active resize handle for shape annotation */
   const resizingShapeRef = useRef<{ annotationId: string; handleId: string; type: string } | null>(null);
   /** 'drag' = G key (move with wires), 'move' = M key (detach wires) */
@@ -777,7 +790,35 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
         const wireHitRadius = 8 / (viewport.scale * MM_TO_PX);
         const wirePriorityRadius = 4 / (viewport.scale * MM_TO_PX);
 
-        const hitDeviceId = getSymbolAtPoint(world.x, world.y, activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
+        const sheetFilteredDevices = activeSheetId ? circuit.devices.filter(d => d.sheetId === activeSheetId) : circuit.devices;
+        const hitDeviceId = getSymbolAtPoint(world.x, world.y, sheetFilteredDevices, circuit.parts, allPositions, circuit.transforms, viewport.scale, panelScale);
+
+        // Option A tag-drag precedence: start a tag drag when the click hits a
+        // tag AND either (a) no device body is under the click, OR (b) the
+        // device is already selected. This matches Figma-style nested selection
+        // and keeps terminals usable (tag sits inside device body — the
+        // already-selected gate prevents accidental tag drags on first click).
+        const tagHitDevice = getDeviceTagAtPoint(world.x, world.y, sheetFilteredDevices, circuit.parts, allPositions);
+        const shouldStartTagDrag = tagHitDevice && (
+          !hitDeviceId || selectedDevices.includes(tagHitDevice.id)
+        );
+        if (shouldStartTagDrag && tagHitDevice) {
+          const existing = tagHitDevice.labelOffsets?.tag || { x: 0, y: 0 };
+          draggingTagRef.current = {
+            deviceId: tagHitDevice.id,
+            startOffsetX: existing.x,
+            startOffsetY: existing.y,
+            startWorldX: world.x,
+            startWorldY: world.y,
+          };
+          pushToHistoryRef.current();
+          if (!selectedDevices.includes(tagHitDevice.id)) {
+            setSelectedDevices([tagHitDevice.id]);
+          }
+          setSelectedWireIndex(null);
+          canvas.style.cursor = 'move';
+          return;
+        }
         const wireHit = getWireHitWithDistance(world.x, world.y, sheetConnections, circuit.devices, circuit.parts, allPositions, wireHitRadius, circuit.transforms);
         const hitWire = wireHit?.index ?? null;
 
@@ -938,6 +979,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
         hasDraggedRef.current = true;
+      }
+
+      // Drag tag label — update Device.labelOffsets.tag based on world-space delta.
+      if (draggingTagRef.current) {
+        const drag = draggingTagRef.current;
+        const nextX = drag.startOffsetX + (world.x - drag.startWorldX);
+        const nextY = drag.startOffsetY + (world.y - drag.startWorldY);
+        setDeviceTagOffset(drag.deviceId, { x: nextX, y: nextY });
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        return;
       }
 
       // Drag wire spec label
@@ -1245,6 +1296,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       const world = getWorldCoords(e);
       const allPositions = getAllPositions();
+
+      // End tag drag — nothing to commit beyond clearing the ref (offset state
+      // was updated incrementally during mousemove, history was pushed once at
+      // mousedown). Escape also clears this ref via the global rescue handler.
+      if (draggingTagRef.current) {
+        draggingTagRef.current = null;
+        isDraggingRef.current = false;
+        canvas.style.cursor = getCursor();
+        return;
+      }
 
       // End wire spec label dragging
       if (draggingSpecLabel) {
@@ -1771,6 +1832,16 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
       }
 
       if (e.key === 'Escape') {
+        // Stuck-tag-drag rescue: any Escape clears an in-progress tag drag
+        // regardless of other state. Restores the tag to its drag-start offset
+        // via the most-recent history entry (pushed in mousedown).
+        if (draggingTagRef.current) {
+          draggingTagRef.current = null;
+          isDraggingRef.current = false;
+          undoRef.current?.();
+          canvas.style.cursor = getCursor();
+          return;
+        }
         if (pastePreview) {
           setPastePreview(false);
           setMouseWorldPos(null);

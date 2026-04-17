@@ -30,7 +30,7 @@ import { getTheme } from './theme';
  *
  * Always returns a valid SymbolDefinition — never undefined.
  */
-function lookupSymbol(idOrCategory: string): SymbolDefinition {
+export function lookupSymbol(idOrCategory: string): SymbolDefinition {
   return resolveSymbol(idOrCategory);
 }
 
@@ -656,6 +656,42 @@ function drawPins(
   }
 }
 
+/**
+ * Compute the tag anchor position for a device (world coordinates, in mm).
+ * Shared between renderer and hit-testing so they agree on "where the tag sits."
+ *
+ * Returns the text anchor fillText() will use, with the alignment / baseline
+ * that `drawTag` applies. When a caller wants the actual pixel bounds of the
+ * tag (for hit-testing), combine this anchor with the font's measureText
+ * output.
+ *
+ * Any category whose tag position differs from the default must be encoded
+ * here — changing this function shifts labels on every existing device.
+ */
+export function getDefaultTagAnchor(
+  x: number,
+  y: number,
+  def: SymbolDefinition,
+  category: string,
+  sizeOverride?: { width?: number; height?: number },
+): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
+  const width = sizeOverride?.width ?? def.geometry.width;
+  const height = sizeOverride?.height ?? def.geometry.height;
+  const catLower = def.category?.toLowerCase() || category.toLowerCase();
+
+  if (category === 'motor') {
+    return { x: x + width / 2, y: y + height + 3.75, align: 'center', baseline: 'bottom' };
+  }
+  if (catLower === 'terminal') {
+    return { x: x + width / 2, y: y + height / 2, align: 'center', baseline: 'middle' };
+  }
+  if (catLower === 'plc-module' || catLower === 'plc' || category.startsWith('plc-')) {
+    return { x: x + width / 2, y: y - 2, align: 'center', baseline: 'bottom' };
+  }
+  // Default: tag sits just above the symbol.
+  return { x: x + width / 2, y: y + 5, align: 'center', baseline: 'bottom' };
+}
+
 function drawTag(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -664,61 +700,42 @@ function drawTag(
   tag: string,
   category: string,
   partLabel?: string,
-  sizeOverride?: { width?: number; height?: number }
+  sizeOverride?: { width?: number; height?: number },
+  tagOffset?: { x: number; y: number },
 ): void {
   const t = getTheme();
   const width = sizeOverride?.width ?? def.geometry.width;
   const height = sizeOverride?.height ?? def.geometry.height;
 
+  // Tag: anchor + optional per-device offset.
+  const anchor = getDefaultTagAnchor(x, y, def, category, sizeOverride);
+  ctx.fillStyle = t.tagColor;
+  ctx.font = t.tagFont;
+  ctx.textAlign = anchor.align;
+  ctx.textBaseline = anchor.baseline;
+  ctx.fillText(tag, anchor.x + (tagOffset?.x ?? 0), anchor.y + (tagOffset?.y ?? 0));
+
+  // Part label: stays at category-specific default (not movable for now).
+  if (!partLabel) return;
   const catLower = def.category?.toLowerCase() || category.toLowerCase();
   if (category === 'motor') {
-    // Motor shows tag below the symbol
-    ctx.fillStyle = t.tagColor;
-    ctx.font = t.tagFont;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y + height + 3.75);
-    if (partLabel) {
-      ctx.fillStyle = t.partLabelColor;
-      ctx.font = t.partLabelFont;
-      ctx.fillText(partLabel, x + width / 2, y + height + 6.75);
-    }
+    ctx.fillStyle = t.partLabelColor;
+    ctx.font = t.partLabelFont;
+    ctx.fillText(partLabel, x + width / 2, y + height + 6.75);
   } else if (catLower === 'terminal') {
-    // Terminal: tag centered inside the hexagon symbol
-    ctx.fillStyle = t.tagColor;
-    ctx.font = t.tagFont;
+    ctx.fillStyle = t.partLabelColor;
+    ctx.font = t.partLabelFont;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(tag, x + width / 2, y + height / 2);
-    if (partLabel) {
-      ctx.fillStyle = t.partLabelColor;
-      ctx.font = t.partLabelFont;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
-    }
+    ctx.textBaseline = 'top';
+    ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
   } else if (catLower === 'plc-module' || catLower === 'plc' || category.startsWith('plc-')) {
-    // PLC symbols: tag above symbol, skip part label (model is rendered internally)
-    ctx.fillStyle = t.tagColor;
-    ctx.font = t.tagFont;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y - 2);
+    // PLC: no part label (model is rendered inside the symbol).
   } else {
-    // Tag above the symbol (default position)
-    ctx.fillStyle = t.tagColor;
-    ctx.font = t.tagFont;
+    ctx.fillStyle = t.partLabelColor;
+    ctx.font = t.partLabelFont;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(tag, x + width / 2, y + 5);
-    // Part label below the symbol
-    if (partLabel) {
-      ctx.fillStyle = t.partLabelColor;
-      ctx.font = t.partLabelFont;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
-    }
+    ctx.textBaseline = 'top';
+    ctx.fillText(partLabel, x + width / 2, y + height + 0.75);
   }
 }
 
@@ -741,7 +758,8 @@ export function drawSymbol(
   partLabel?: string,
   pinAliases?: Record<string, string>,
   showPinLabels?: boolean,
-  sizeOverride?: { width?: number; height?: number }
+  sizeOverride?: { width?: number; height?: number },
+  tagOffset?: { x: number; y: number },
 ): void {
   const def = lookupSymbol(idOrCategory);
   if (!def.geometry) {
@@ -842,7 +860,7 @@ export function drawSymbol(
   }
 
   // Draw tag label and part number (outside rotation transform so text stays readable)
-  drawTag(ctx, x, y, def, tag, idOrCategory, partLabel, sizeOverride);
+  drawTag(ctx, x, y, def, tag, idOrCategory, partLabel, sizeOverride, tagOffset);
 
   // Draw pins at their transformed positions
   const hidePinLabels = showPinLabels === false;

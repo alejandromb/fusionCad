@@ -97,9 +97,16 @@ export interface UseCircuitStateReturn {
   deleteAnnotation: (annotationId: string) => void;
 
   // Device update (by device ID)
-  updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride'>>) => void;
+  updateDevice: (deviceId: string, updates: Partial<Pick<Device, 'tag' | 'function' | 'location' | 'sizeOverride' | 'labelOffsets'>>) => void;
   linkDevicesAsSamePart: (deviceIds: string[]) => void;
   unlinkDevices: (deviceIds: string[]) => void;
+  /**
+   * Set or clear the per-device tag label offset (world-space mm delta from
+   * the default anchor). Passing undefined or a near-zero offset clears the
+   * field so the device returns to its category default. No history push —
+   * callers should push ONCE at the start of a drag.
+   */
+  setDeviceTagOffset: (deviceId: string, offset: { x: number; y: number } | undefined) => void;
 
   // Part assignment (by device ID)
   assignPart: (deviceId: string, partData: Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>) => void;
@@ -1643,6 +1650,25 @@ export function useCircuitState(
     });
   }, [circuit, pushToHistory, setCircuit]);
 
+  const setDeviceTagOffset = useCallback((deviceId: string, offset: { x: number; y: number } | undefined) => {
+    setCircuit(prev => {
+      if (!prev) return prev;
+      const idx = prev.devices.findIndex(d => d.id === deviceId);
+      if (idx === -1) return prev;
+      const current = prev.devices[idx];
+      const existing = current.labelOffsets || {};
+      const isZero = !offset || (Math.abs(offset.x) < 0.01 && Math.abs(offset.y) < 0.01);
+      const nextLabelOffsets = isZero
+        ? (Object.keys(existing).filter(k => k !== 'tag').length === 0
+            ? undefined
+            : { ...existing, tag: undefined })
+        : { ...existing, tag: offset };
+      const updated = [...prev.devices];
+      updated[idx] = { ...current, labelOffsets: nextLabelOffsets, modifiedAt: Date.now() };
+      return { ...prev, devices: updated };
+    });
+  }, [setCircuit]);
+
   return {
     debugMode,
     setDebugMode,
@@ -1709,6 +1735,7 @@ export function useCircuitState(
     updateDevice,
     linkDevicesAsSamePart,
     unlinkDevices,
+    setDeviceTagOffset,
     assignPart,
     selectedDevices,
     setSelectedDevices,

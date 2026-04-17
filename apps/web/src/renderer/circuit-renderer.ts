@@ -815,7 +815,7 @@ export function renderCircuit(
     const transform = getTransform(device.id);
     const partLabel = (options?.showPartNumbers !== false) && part && part.partNumber && part.partNumber !== 'TBD' ? part.partNumber : undefined;
 
-    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels, device.sizeOverride);
+    drawSymbol(ctx, symbolKey, position.x, position.y, device.tag, transform, partLabel, device.pinAliases, options?.showPinLabels, device.sizeOverride, device.labelOffsets?.tag);
 
     // Source/Destination arrow special rendering:
     // Show voltage label and cross-reference text around the arrow symbol

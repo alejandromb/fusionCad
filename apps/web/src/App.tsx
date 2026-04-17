@@ -333,6 +333,7 @@ function AppInner({
     reconnectWire: circuitState.reconnectWire,
     updateWireField: circuitState.updateWireField,
     connectToWire: circuitState.connectToWire,
+    setDeviceTagOffset: circuitState.setDeviceTagOffset,
     addAnnotation: circuitState.addAnnotation,
     addShapeAnnotation: circuitState.addShapeAnnotation,
     copyDevice: clipboardState.copyDevice,
