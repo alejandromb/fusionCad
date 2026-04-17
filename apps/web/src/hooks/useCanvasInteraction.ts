@@ -22,6 +22,7 @@ import {
 } from '../types';
 import { getSymbolGeometry } from '../renderer/symbols';
 import { getDeviceTagAtPoint } from '../utils/tag-hit';
+import { sequentialRouteAfterDrag } from '../utils/sequential-route';
 
 export type ManufacturerPart = Omit<Part, 'id' | 'createdAt' | 'modifiedAt'>;
 
@@ -1423,6 +1424,29 @@ export function useCanvasInteraction(deps: UseCanvasInteractionDeps): UseCanvasI
 
       // End device dragging
       if (draggingDevice) {
+        // Sequential re-route of wires attached to the moved device(s). During
+        // drag, line 1252 reset those wires' waypoints to []; now the router
+        // produces clean non-overlapping routed paths (parallel-wire staircase
+        // instead of collapse). See docs/plans/wiring-drag-quality.md.
+        if (hasDraggedRef.current) {
+          const movedIds = new Set<string>(
+            selectedDevices.length > 0 && selectedDevices.includes(draggingDevice)
+              ? selectedDevices
+              : [draggingDevice],
+          );
+          const positionsMap = getAllPositions();
+          const transformsRec = circuit.transforms as Record<string, { rotation: number; mirrorH?: boolean }> | undefined;
+          const routed = sequentialRouteAfterDrag({
+            circuit,
+            positions: positionsMap,
+            transforms: transformsRec,
+            activeSheetId,
+            movedDeviceIds: movedIds,
+          });
+          for (const [idx, waypoints] of routed.connectionWaypoints) {
+            replaceWaypoints(idx, waypoints.length > 0 ? waypoints : undefined);
+          }
+        }
         setDraggingDevice(null);
         dragOffsetRef.current = null;
         isDraggingRef.current = false;
