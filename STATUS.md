@@ -1828,3 +1828,43 @@ These are our end-to-end test cases. Each must always validate and export correc
 - `apps/web/src/components/SymbolImportDialog.tsx` — AI Assist button, `API_BASE` fix, SVG source capture
 
 **Tests**: 135 E2E + 85 unit, 86 symbols + 10 PLC generators
+
+---
+
+## Session 43 — 2026-04-16: Wiring Preview Regressions + Single-Pin Tool
+
+**Duration**: ~1 full session
+**Focus**: Verify Problem 5 stale-closure fix, investigate wiring system deeply, find+fix the "preview doesn't show" bugs on multi-sheet / multi-wire projects.
+
+### Completed (5 wiring fixes shipped to main)
+- **Problem 5 verified + regression test** — Mutation-tested the stale-closure fix that landed on `feature/wiring-fixes` last session. Added E2E that fails without the fix and passes with it. Merged to main.
+- **Sheet-switch clears wireStart + wireWaypoints** — New `useEffect([activeSheetId])` in `useCanvasInteraction.ts`. Was leaking across sheets → phantom cross-sheet connections + silent preview drop (renderer filters devices by active sheet).
+- **Cross-sheet pin-coord collision filter** — `getPinAtPoint` was iterating all 270+ devices on compressor project across all sheets. Junction on sheet IO at (35,35) collided with L terminal pin on Power-and-IO. Caller now filters by `activeSheetId` before invoking, matching the `getSymbolAtPoint` pattern.
+- **Pin-over-wire precedence swap** — First-click logic preferred wire over pin. Once a pin had any wire attached, clicking that pin silently spawned a junction on the wire (no wireStart, no preview). Every click spawned another junction. User in reproduction created 8 junctions attempting to draw 3 wires. Fix: pin wins when both match. Wire-branching still works when click is on bare wire.
+- **Branch-from-wire sets wireStart** — `connectToWire` returns the new junction's device ID. Setting wireStart to that junction's pin 1 so users see the preview for the new branch.
+
+### Also
+- **Deep investigation** — `docs/investigations/wiring-system.md` (1101 lines) mapping 6 scopes: wire lifecycle, visibility graph (surprise: A* router exists in `core-engine` but is UNUSED by web renderer), waypoint state machine, junction paths, segment drag, snap audit.
+- **Living reference** — `docs/wiring.md` (282 lines): interaction flows, hit-testing precedence, render pipeline, 3-state waypoint semantic, §7 known-pitfalls log from Sessions 42+43, §8 guardrails for future changes.
+- **Single-pin tool** (on `feature/single-pin-tool`, not yet merged) — New `pin-single` symbol (minimal dot, tagPrefix P), toolbar button next to shape tools, **N** keyboard shortcut. For quick hand-drawing workflows.
+
+### Key Decisions
+- **Pin wins over wire** on first click. Matches KiCad/EPLAN intuition. Branching now requires clicking bare wire (no pin in range).
+- **Sheet-aware hit-testing** is mandatory. Any function that iterates `circuit.devices` in an interactive context must be called with a sheet-filtered array.
+- **Live reference doc** (`docs/wiring.md`) separate from historical investigation (`docs/investigations/wiring-system.md`) and from change plan (`docs/plans/wiring-drag-quality.md`). Guardrail: update `docs/wiring.md` in the same PR as any wiring behavior change.
+- **Mutation testing is now the bar** — "test passes" without verifying it fails without the fix is insufficient. Added to §8 guardrails.
+
+### Key Files Changed
+- `apps/web/src/hooks/useCanvasInteraction.ts` — sheet-switch clear effect, sheet-filter pins on both `getPinAtPoint` callers, swap pin/wire precedence, use `connectToWire` return value
+- `packages/core-model/src/symbols/builtin-symbols.json` — `pin-single` symbol
+- `apps/web/src/components/MenuBar.tsx` — pin toolbar button
+- `e2e/tests/wire-creation.spec.ts` — 2 new regression tests (Session 42 Problem 5, Session 43 sheet-switch)
+- `docs/wiring.md`, `docs/investigations/wiring-system.md` — created
+
+### Remaining (tracked in `docs/wiring.md` §9 and `docs/plans/wiring-drag-quality.md`)
+- Parallel wire overlap on device drag — needs sequential routing with wire-as-obstacle (A* integration, ~50-100 lines)
+- Segment drag tolerance (1mm→10mm, 5 lines)
+- Ghost preview snap-to-grid (2 lines)
+- Re-audit junction proliferation now that click-precedence is fixed
+
+**Tests**: 137 E2E + 105 unit, 90 symbols + 10 PLC generators
