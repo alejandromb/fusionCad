@@ -227,28 +227,34 @@ function findings(sym: Symbol): Finding[] {
   }
 
   // 4. Pin-vs-primitive mismatch.
-  for (const pin of pins) {
-    if (!isFiniteNumber(pin.x) || !isFiniteNumber(pin.y)) continue;
-    let nearest = Infinity;
-    for (const a of anchors) {
-      const d = dist(pin.x, pin.y, a.x, a.y);
-      if (d < nearest) nearest = d;
-    }
-    // Also allow "pin sits ON a line segment (not just at endpoints)" — this
-    // handles lines that cross through a pin position.
-    for (const p of primitives) {
-      if (p.type === 'line') {
-        const d = pointSegDist(pin.x, pin.y, p.x1, p.y1, p.x2, p.y2);
+  // Skip symbols with empty primitives — the renderer draws those specially
+  // (e.g., junction is a bare dot, no primitives in the JSON). This is the
+  // documented safety rail from docs/plans/symbol-audit.md.
+  const hasVisualPrimitives = primitives.some(p => p.type !== 'text');
+  if (hasVisualPrimitives) {
+    for (const pin of pins) {
+      if (!isFiniteNumber(pin.x) || !isFiniteNumber(pin.y)) continue;
+      let nearest = Infinity;
+      for (const a of anchors) {
+        const d = dist(pin.x, pin.y, a.x, a.y);
         if (d < nearest) nearest = d;
       }
-    }
-    if (nearest > PIN_MISMATCH_TOLERANCE) {
-      add(
-        'error',
-        'pin-primitive-mismatch',
-        `pin "${pin.id}" at (${pin.x}, ${pin.y}) has no visual element within ${PIN_MISMATCH_TOLERANCE}mm (nearest ${nearest.toFixed(2)}mm)`,
-        { x: pin.x, y: pin.y },
-      );
+      // Also allow "pin sits ON a line segment (not just at endpoints)" — this
+      // handles lines that cross through a pin position.
+      for (const p of primitives) {
+        if (p.type === 'line') {
+          const d = pointSegDist(pin.x, pin.y, p.x1, p.y1, p.x2, p.y2);
+          if (d < nearest) nearest = d;
+        }
+      }
+      if (nearest > PIN_MISMATCH_TOLERANCE) {
+        add(
+          'error',
+          'pin-primitive-mismatch',
+          `pin "${pin.id}" at (${pin.x}, ${pin.y}) has no visual element within ${PIN_MISMATCH_TOLERANCE}mm (nearest ${nearest.toFixed(2)}mm)`,
+          { x: pin.x, y: pin.y },
+        );
+      }
     }
   }
 
@@ -331,17 +337,29 @@ function findings(sym: Symbol): Finding[] {
     }
   }
 
-  // 9. Pin direction inconsistent with position.
+  // 9. Pin direction on the WRONG HALF of the symbol.
+  // We used to flag any pin not exactly on the expected edge, but that hit
+  // symbols with intentionally interior pins (HOA selector, terminal blocks
+  // with staged contacts, etc.) where `direction` is a router hint, not a
+  // geometric claim. Only flag when the pin is on the OPPOSITE half: e.g.,
+  // direction="top" but pin sits in the bottom half of the symbol — that's
+  // an unambiguous contradiction.
   for (const pin of pins) {
     if (!pin.direction) continue;
-    const expected: Record<string, number> = { top: 0, bottom: sym.height, left: 0, right: sym.width };
-    const axis: 'x' | 'y' = pin.direction === 'top' || pin.direction === 'bottom' ? 'y' : 'x';
-    const offset = Math.abs(pin[axis] - expected[pin.direction]);
-    if (offset > DIRECTION_EDGE_TOLERANCE) {
+    const midX = sym.width / 2;
+    const midY = sym.height / 2;
+    const contradicts =
+      (pin.direction === 'top' && pin.y > midY) ||
+      (pin.direction === 'bottom' && pin.y < midY) ||
+      (pin.direction === 'left' && pin.x > midX) ||
+      (pin.direction === 'right' && pin.x < midX);
+    if (contradicts) {
+      const axis: 'x' | 'y' = pin.direction === 'top' || pin.direction === 'bottom' ? 'y' : 'x';
+      const mid = axis === 'x' ? midX : midY;
       add(
         'warn',
-        'direction-position-mismatch',
-        `pin "${pin.id}" direction="${pin.direction}" but ${axis}=${pin[axis]} (expected ~${expected[pin.direction]})`,
+        'direction-contradiction',
+        `pin "${pin.id}" direction="${pin.direction}" but ${axis}=${pin[axis]} is on the opposite half (midline ${mid})`,
         { x: pin.x, y: pin.y },
       );
     }

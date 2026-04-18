@@ -506,7 +506,7 @@
         {
           "id": "L2",
           "name": "L2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -514,7 +514,7 @@
         {
           "id": "T2",
           "name": "T2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
@@ -660,7 +660,7 @@
         {
           "id": "L2",
           "name": "L2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -668,7 +668,7 @@
         {
           "id": "T2",
           "name": "T2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
@@ -2711,7 +2711,7 @@
         {
           "id": "H2",
           "name": "H2",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -2735,7 +2735,7 @@
         {
           "id": "X2",
           "name": "X2",
-          "x": 10,
+          "x": 12.5,
           "y": 25,
           "direction": "bottom",
           "pinType": "power"
@@ -3192,7 +3192,7 @@
         {
           "id": "2",
           "name": "S",
-          "x": 10,
+          "x": 12.5,
           "y": 0,
           "direction": "top",
           "pinType": "power"
@@ -3216,7 +3216,7 @@
         {
           "id": "5",
           "name": "V",
-          "x": 10,
+          "x": 12.5,
           "y": 30,
           "direction": "bottom",
           "pinType": "power"
@@ -4173,7 +4173,6 @@
           "name": "1",
           "x": 1.25,
           "y": 1.25,
-          "direction": "top",
           "pinType": "passive",
           "position": {
             "x": 1.25,
@@ -6899,10 +6898,10 @@
       "height": 25,
       "svgPath": "",
       "pins": [
-        { "id": "B1", "name": "B1", "x": 5, "y": 15, "direction": "left", "pinType": "passive" },
-        { "id": "B2", "name": "B2", "x": 12.5, "y": 15, "direction": "right", "pinType": "passive" },
-        { "id": "A1", "name": "A1", "x": 5, "y": 22.5, "direction": "left", "pinType": "passive" },
-        { "id": "A2", "name": "A2", "x": 12.5, "y": 22.5, "direction": "right", "pinType": "passive" }
+        { "id": "B1", "name": "B1", "x": 5, "y": 15, "direction": "bottom", "pinType": "passive" },
+        { "id": "B2", "name": "B2", "x": 12.5, "y": 15, "direction": "bottom", "pinType": "passive" },
+        { "id": "A1", "name": "A1", "x": 5, "y": 22.5, "direction": "bottom", "pinType": "passive" },
+        { "id": "A2", "name": "A2", "x": 12.5, "y": 22.5, "direction": "bottom", "pinType": "passive" }
       ],
       "tagPrefix": "SS",
       "primitives": [
@@ -7018,8 +7017,6 @@
 
         { "type": "rect", "x": 55, "y": 45, "width": 280, "height": 210, "strokeWidth": 0.4 },
 
-        { "type": "line", "x1": 55, "y1": 45, "x2": 335, "y2": 255, "strokeWidth": 0.15 },
-        { "type": "line", "x1": 335, "y1": 45, "x2": 55, "y2": 255, "strokeWidth": 0.15 },
 
         { "type": "text", "x": 195, "y": 140, "content": "15\" TFT LED", "fontSize": 14, "fontWeight": "bold", "textAnchor": "middle" },
         { "type": "text", "x": 195, "y": 160, "content": "1024 x 768", "fontSize": 10, "textAnchor": "middle" },
