@@ -1,6 +1,8 @@
 # AI Design Rules — Control Panel Schematics
 
-**Status:** v0 draft — for user curation · **Scope:** schematic generation (panel-physical layout out of scope for MVP) · **Market:** US / UL primary, IEC variants noted where relevant
+> ⚠️ **CURATION PENDING.** This is a Claude-drafted v0 of the ruleset. The user (a practicing control-panel EE) still needs to curate it — accept / reject / refine each rule, add rules from personal experience that didn't make it in, and promote/demote tiers. **Do not feed this doc into the AI generation prompt or ERC yet.** Rule numbers and wording may change significantly once curation happens.
+
+**Status:** v0 draft — curation pending · **Scope:** schematic generation (panel-physical layout out of scope for MVP) · **Market:** US / UL primary, IEC variants noted where relevant
 
 This document captures the design rules that should govern AI-driven schematic generation. Each rule is short and specific. The AI generation pipeline (prompt, tools, post-gen ERC) enforces these so a user prompt like *"12 PLC inputs controlling 6 relays with E-stop"* yields a complete, code-compliant project — not just the literal device list.
 
