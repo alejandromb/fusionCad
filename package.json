@@ -16,6 +16,7 @@
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:backup": "bash scripts/backup-db.sh",
+    "audit:symbols": "tsx scripts/audit-symbols.ts",
     "symbols:refresh": "npm run build --workspace=packages/core-model && sleep 2 && curl -s -X POST 'http://localhost:3001/api/symbols/seed?force=true' | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d)))\"",
     "test": "npm run test --workspaces --if-present",
     "test:unit": "vitest run --config packages/mcp-server/vitest.config.ts",
