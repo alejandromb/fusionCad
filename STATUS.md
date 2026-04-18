@@ -1868,3 +1868,60 @@ These are our end-to-end test cases. Each must always validate and export correc
 - Re-audit junction proliferation now that click-precedence is fixed
 
 **Tests**: 137 E2E + 105 unit, 90 symbols + 10 PLC generators
+
+---
+
+## Session 44-45 — 2026-04-17 to 2026-04-18: Movable Labels, Sequential Routing, MVP Polish
+
+**Duration**: 2 days
+**Focus**: Finish the high-risk wiring + labeling features before the MVP demo, put safety nets in place for future changes, seed the AI-generation work with a curated design-rules doc.
+
+### Completed (merged to main)
+- **Render fingerprint test suite** (Phase 0 safety net) — 4 E2E tests that lock current rendering audit output (device bounds, tag/function label positions, pin world positions). Any future change that shifts those numbers fails the test. Locked quirks including "tag labels anchor to `device.position`, NOT rotated bounds" and "empty waypoints array triggers 'waypoint' pathType in audit even for straight wires".
+- **Movable tag labels (Option A)** — `Device.labelOffsets.tag` additive field. Tight bbox hit-test via `ctx.measureText` + 2mm pad in `apps/web/src/utils/tag-hit.ts`. Click precedence: selected-device-first or click-outside-device — matches Figma-style nested selection. Shared `getDefaultTagAnchor` helper keeps renderer + hit-test in sync. Verified on destination arrows (small 5×7.5mm symbols, smallest common case).
+- **Sequential wire routing on device drag release** — integrated `routeWires()` from `@fusion-cad/core-engine` (A* + nudging). Router existed with 37 passing tests but was never wired to the web renderer. 20-line integration in `handleMouseUp` + 135-line wrapper in `apps/web/src/utils/sequential-route.ts`. Parallel wires now fan into a staircase on drag release instead of collapsing onto the same L-shape. Perf guard at 30 wires; falls back to L-shape on router failure.
+- **Hoffman enclosure catalog** — `packages/core-model/src/parts/hoffman.ts`. A-series Type 1 enclosures + subpanels sized to HP. Motor starter generator now assigns A201608LP/A242008LP/A302408LP + matching subpanels to PNL1/SP1 instead of TBD placeholders. 4 unit tests verify the HP→size mapping.
+- **Ghost preview snap-to-grid** — 2-line fix at `circuit-renderer.ts:1392`. Preview cursor + dashed line now snap, agreeing with where a click will land.
+- **Single-pin tool (N)** — `pin-single` symbol (2.5×2.5 mm, 0.6mm filled dot, tagPrefix P), toolbar button in MenuBar next to shape tools, keyboard shortcut N, continuous placement. For quick hand-drawing.
+- **AI design rules doc v0** (on `feature/ai-design-rules-doc`, pushed, awaiting user curation) — 75 rules across 13 categories, US/UL primary, schematic-only scope, MUST/SHOULD/STYLE tiers. Blocks Smart AI defaults.
+- **Symbol audit static analyzer** (`scripts/audit-symbols.ts`, `npm run audit:symbols`) — read-only diagnostic that catches the 3P-middle-pin class of bugs + text-overlap + direction contradictions + INFO-level conventions. Deterministic output. Exits 1 on any ERROR-level finding.
+
+### Audit round-1 fixes
+- 4 symbols had the same 3P-middle-pin drift (visuals already at x=12.5, pin metadata stuck at x=10): `iec-disconnector-3p`, `iec-fuse-3p`, `iec-transformer-3ph`, `iec-vfd`.
+- `pin-single`: removed `direction:"top"` — generic marker should accept wires from any side.
+- `ansi-hoa-selector-3pos`: 4 pins direction left/right → bottom.
+- `layout-advantech-ppc-6151c`: removed 2 decorative diagonal "screen-X" lines that cut through the product-label text.
+- Audit rule refinements: skip pin-primitive-mismatch for symbols with no visual primitives (junction), and tighten direction-mismatch to only flag OPPOSITE-half contradictions (eliminated layout-symbol false positives).
+- **Audit score: 94 symbols, 0 errors, 0 warns, 25 info** (all info findings are layout-symbol intentional — inches-dimensions, large descriptive fonts).
+
+### Key decisions
+- **Additive data model** for movable labels (`labelOffsets?` optional field) + render-fingerprint tests as a gate — feature is provably non-regressive for existing projects.
+- **Integrate the existing router rather than build sequential-routing from scratch** — 37 tests, mature, saves 2 weeks of work. Integration is the risk, not the algorithm.
+- **Breadth over depth on AI design rules** (user call) — v0 covers 13 categories with ~75 rules. Curation and refinement come before any AI wiring.
+- **Audit before library expansion** (user call) — clean symbols first, then expand parts catalog, so each new part references a known-good symbol.
+- **Mutation testing** standard for new regression tests — test must FAIL without the fix. Caught a weak parallel-wire overlap test early.
+- **Layout sheet for motor starter** deferred from this session — the generator places panel footprints via `placeDevice` in `addPanelLayoutSheet`; visual verification pending.
+
+### Key files added / changed
+- `apps/web/src/utils/sequential-route.ts` — new, router integration wrapper
+- `apps/web/src/utils/tag-hit.ts` — new, Option A tag bbox hit-test
+- `apps/web/src/hooks/useCanvasInteraction.ts` — tag drag state + tag hit-test precedence + sequential re-route on drag release
+- `apps/web/src/hooks/useCircuitState.ts` — `setDeviceTagOffset`
+- `apps/web/src/renderer/symbols.ts` — `getDefaultTagAnchor` extracted + `drawTag` accepts `tagOffset`
+- `packages/core-model/src/types.ts` — `Device.labelOffsets?.tag`
+- `packages/core-model/src/parts/hoffman.ts` — new, enclosure catalog
+- `packages/mcp-server/src/circuit-templates.ts` — `generateMotorStarterPanel` assigns Hoffman parts
+- `packages/core-model/src/symbols/builtin-symbols.json` — 4 pin fixes + 3 cleanups + `pin-single` added earlier in session
+- `apps/web/src/components/MenuBar.tsx` — single-pin toolbar button
+- `scripts/audit-symbols.ts` — new, static analyzer
+- `docs/ai-design-rules.md` — new (on feature branch)
+- `docs/wiring.md` — §7.6 sequential routing fixed, §9 updated with heavy-project perf follow-up + ghost-snap done
+
+### Remaining
+- **User-curates `docs/ai-design-rules.md`** — highest-value next step; gates Smart AI defaults.
+- **User manually redesigns HOA selector geometry** — audit can't fix the fundamental layout.
+- Small wiring items: segment drag tolerance (5-line), junction proliferation re-audit.
+- Motor starter layout-sheet visual verification.
+- Heavy-project perf test for the new router (no data yet on 250-device projects).
+
+**Tests**: 147 E2E + 109 unit, 94 symbols + 10 PLC generators

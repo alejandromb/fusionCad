@@ -75,10 +75,10 @@ Before doing ANYTHING else:
 ## 🔴 PRIORITIES — Single Source of Truth
 
 **Current phase:** Phase 2 — Minimal Editor (99% complete)
-**Branch:** `main` (clean, pushed). `feature/single-pin-tool` has Pin tool — needs live verification + merge.
-**Last session:** 43 (2026-04-16) — Wiring preview regressions: 5 fixes shipped to main (waypoint persistence on completion, sheet-switch clears wireStart, cross-sheet pin hit-test filter, pin-over-wire precedence, branch-from-wire sets wireStart on junction). Deep investigation + `docs/wiring.md` living reference + `docs/investigations/wiring-system.md` snapshot. Single-pin tool (N shortcut) on feature branch.
-**Next session:** P0 #2 — Movable text labels. `feature/movable-tags` branch is STALE (pre-Session 42), needs rebase onto current main before iterating.
-**Tests:** 137 E2E + 105 unit, 90 symbols + 10 PLC generators
+**Branch:** `main` (clean, pushed). `feature/ai-design-rules-doc` has v0 rules doc awaiting user curation.
+**Last session:** 44-45 (2026-04-17 to 2026-04-18) — Movable tag labels (Option A hit-test), sequential wire routing on device drag (integrated A* + nudging router from core-engine), Hoffman enclosure catalog closes motor starter BOM gap, ghost preview snap-to-grid, single-pin tool (N) merged, AI design rules doc v0 drafted, symbol audit static analyzer + round-1 fixes (4 pin bugs, 3 symbol cleanups).
+**Next session:** curate `docs/ai-design-rules.md` (blocks Smart AI defaults), then fix HOA selector geometry manually, then tackle P0 #4 Smart AI defaults integration.
+**Tests:** 147 E2E + 109 unit, 94 symbols + 10 PLC generators
 **Coordinate system:** All internal coordinates are **millimeters (mm)**. M=2.5mm (IEC 60617), grid=5mm, MM_TO_PX=4. See `packages/core-model/src/units.ts`. Symbols converted to mm in Session 30 (v3.0-mm).
 
 ### Completed (Phase 2)
@@ -103,14 +103,20 @@ Before doing ANYTHING else:
 - ~~Selection coupling cleanup~~ ✅ (Session 40) — clearAllSelections(), setActiveSheetId auto-clears, Part type rendering-key docs
 - ~~Thinner stroke widths~~ ✅ (Session 39) — 0.3mm symbols, 0.35mm wires across all themes
 - ~~Wiring preview regressions~~ ✅ (Session 43) — 5 fixes: waypoints persist on completion, wireStart cleared on sheet switch, getPinAtPoint sheet-filtered (cross-sheet coord collision), pin-over-wire precedence on first click (no more silent junction spawning), branch-from-wire sets wireStart on new junction. See `docs/wiring.md` §7 for details.
+- ~~Movable tag labels~~ ✅ (Session 44) — Option A hit-test (tight bbox via ctx.measureText + 2mm pad, Figma-style already-selected precedence). Device.labelOffsets.tag additive field. Works on destination arrows + small symbols.
+- ~~Sequential wire routing on drag~~ ✅ (Session 44) — integrated A* + nudging router from core-engine on device drag release. Parallel wires fan into a staircase instead of collapsing. Perf guard at 30 wires; heavy-project latency still untested (see `docs/wiring.md` §9).
+- ~~Hoffman enclosure catalog~~ ✅ (Session 44) — motor starter generator now assigns A201608LP / A242008LP / A302408LP enclosures + matching subpanels to PNL1/SP1. No more BOM placeholders.
+- ~~Ghost preview snap-to-grid~~ ✅ (Session 44) — `wirePreviewMouse` snapped before drawing preview.
+- ~~Single-pin tool~~ ✅ (Session 44) — `pin-single` symbol + MenuBar button next to shapes + N keyboard shortcut. Minimal dot marker for quick hand-drawing.
+- ~~Symbol audit static analyzer~~ ✅ (Session 45) — `scripts/audit-symbols.ts` / `npm run audit:symbols`. Found 9 errors + 11 warns on 94 symbols; round-1 fixed them all. Now at 0 errors / 0 warns / 25 info. Fixes: 4 symbols with 3P middle-pin x=10→12.5 (disconnector, fuse, transformer, VFD), pin-single direction removed, Advantech diagonals removed, HOA direction updated.
 
 ### P0 — Launch Blockers
 
 1. ~~**Page thumbnails**~~ ✅ (Session 41) — Sheet sidebar with canvas previews
-2. **Movable text labels (NEXT UP — Session 44)** — Drag tag, description, pin labels to reposition per device. Fixes text/wire overlap. WIP on `feature/movable-tags` (commit `ea25e8d`) — branch is **stale** (pre-Session 42), rebase onto current main first, then tune hit-test.
+2. ~~**Movable text labels**~~ ✅ (Session 44) — shipped with Option A tag-drag behavior.
 3. ~~**Device linking UI**~~ ✅ (Session 41) — Right-click → "Link as same part" with deviceGroupId
-4. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals.
-4b. **Wiring quality** — 5 preview/state-corruption bugs shipped Session 43 (see `docs/wiring.md` §7). **Remaining from `docs/plans/wiring-drag-quality.md`:** (1) parallel wire overlap on device drag — requires sequential routing with wire-as-obstacle (A* router exists in `core-engine` but isn't integrated — biggest remaining wiring effort, retention gate), (2) segment drag inconsistency — bump `simplifyWaypoints` tolerance 1mm→10mm (5-line fix), (3) ghost preview doesn't snap-to-grid — snap `wirePreviewMouse` at `circuit-renderer.ts:1392` (2-line fix), (4) re-audit junction proliferation on drag now that pin-precedence is fixed.
+4. **Smart AI defaults** — "16 relays" → full project with power, PLC, sheets, contacts, terminals. **Blocked on `docs/ai-design-rules.md` user curation** (v0 drafted on `feature/ai-design-rules-doc`, 75 rules across 13 categories). Once curated, wire into AI prompt + MCP tool enforcement + post-gen ERC.
+4b. **Wiring quality** — most of the plan shipped in Sessions 43-44. Remaining from `docs/plans/wiring-drag-quality.md`: (1) segment drag inconsistency — bump `simplifyWaypoints` tolerance 1mm→10mm (5-line fix), (2) re-audit junction proliferation on drag now that pin-precedence is fixed. Also noted in `docs/wiring.md` §9: heavy-project performance validation for the sequential router (untested on 250+ devices).
 4c. **AI assistant tool access** — The AI chat panel can see circuit context but can't DO anything (can't export BOM, run ERC, place devices, etc.). Needs Claude tool-use wired to the 30+ MCP tools via `/api/ai-chat`. When user asks "export BOM to Excel", AI should call `generate_bom` + trigger CSV download. Also needs: active sheet context, selection context, download action capability.
 
 **Motor-starter hook reliability** — The Motor Starter Calculator depends on a bulletproof end-to-end generation. Current flow uses AI parsing which is probabilistic. **Fix with a deterministic endpoint**: `POST /api/projects/:id/generate-motor-starter` takes structured `{hp, voltage, phase, starterType, controlVoltage, eStop, hoaSwitch, pilotLight, plcRemote}` and calls `generateMotorStarterPanel` directly (bypasses AI parser). Calculator URL changes from `?prompt=<natural>` to `?motorStarter=<base64-json-spec>`. Benefits: deterministic, free (no AI rate limit), same auth posture (requireAuth). Also needed: verify generated panel includes a **layout sheet** with the panel footprints (DIN rail + contactor/breaker/overload footprints placed) — currently only schematic. Add `generate_motor_starter_panel` MCP tool is separate from single-sheet generator — make sure the deterministic endpoint produces BOTH schematic + layout sheets so the calculator-funneled user sees a complete deliverable.
